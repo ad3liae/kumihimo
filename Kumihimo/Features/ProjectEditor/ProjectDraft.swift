@@ -47,8 +47,18 @@ struct ProjectDraft: Equatable, Sendable {
         guard Self.supportedThreadCounts.contains(threadCount) else { return false }
         let expectedPositions = Array(1...threadCount)
         let positions = threadAssignments.map(\.position).sorted()
-        return positions == expectedPositions
-            && threadAssignments.allSatisfy { ThreadColorCatalog.contains($0.colorID) }
+        guard
+            positions == expectedPositions,
+            threadAssignments.allSatisfy({ ThreadColorCatalog.contains($0.colorID) })
+        else {
+            return false
+        }
+        guard let selectedBraidPresetID else { return true }
+        guard let preset = BraidPresetCatalog.preset(for: selectedBraidPresetID) else {
+            return false
+        }
+        return preset.supports(threadCount: threadCount)
+            && braidTypeName == preset.displayName
     }
 
     mutating func setThreadCount(_ newCount: Int) {

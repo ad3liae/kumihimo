@@ -36,8 +36,8 @@ final class HomeFlowUITests: XCTestCase {
 
         element(in: app, identifier: firstProjectIdentifier).tap()
 
-        XCTAssertTrue(app.navigationBars["丸四つ組・青と白"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.navigationBars["丸四つ組・青と白"].buttons["保存"].exists)
+        XCTAssertTrue(app.navigationBars["丸源氏・青と白"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.navigationBars["丸源氏・青と白"].buttons["保存"].exists)
         XCTAssertTrue(app.staticTexts["色の配置"].exists)
     }
 
@@ -100,6 +100,30 @@ final class HomeFlowUITests: XCTestCase {
             evaluatedWith: colorSheet
         )
         wait(for: [dismissed], timeout: 2)
+    }
+
+    func testSixteenThreadProjectOpensMaruGenji3DPreview() {
+        let app = launch(arguments: ["--ui-testing-colorful-editor"])
+        let show3DIdentifier = "project-editor.preset-maru-genji-16-show-3d"
+        let show3DButton = app.descendants(matching: .any)[show3DIdentifier].firstMatch
+
+        XCTAssertTrue(show3DButton.waitForExistence(timeout: 3))
+        for _ in 0..<5 where !show3DButton.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(show3DButton.isHittable)
+        show3DButton.tap()
+
+        XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["左へ回転"].exists)
+        XCTAssertTrue(app.buttons["正面に戻す"].exists)
+        XCTAssertTrue(app.buttons["右へ回転"].exists)
+        XCTAssertTrue(app.staticTexts["資料の手順をもとにした暫定シミュレーションです。"].exists)
+
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = "maru-genji-3d-preview"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
     }
 
     func testDeleteCanBeCancelledThenConfirmed() {

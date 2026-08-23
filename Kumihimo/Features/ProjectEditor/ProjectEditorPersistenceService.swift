@@ -74,6 +74,15 @@ struct ProjectEditorPersistenceService {
         guard ProjectDraft.supportedThreadCounts.contains(project.threadCount) else {
             throw ProjectEditorPersistenceError.invalidProjectData
         }
+        if let presetID = project.braidPresetID {
+            guard
+                let preset = BraidPresetCatalog.preset(for: presetID),
+                preset.supports(threadCount: project.threadCount),
+                project.braidTypeName == preset.displayName
+            else {
+                throw ProjectEditorPersistenceError.invalidProjectData
+            }
+        }
         do {
             _ = try project.validatedThreadAssignments()
         } catch {

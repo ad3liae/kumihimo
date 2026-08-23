@@ -31,10 +31,11 @@ enum ProjectEditorPreviewData {
 
     static var selectedProject: KumihimoProject {
         KumihimoProject(
-            name: "丸四つ組・青と白",
-            braidTypeName: "丸四つ組",
-            selectedBraidPresetID: "preview-maru-yotsu",
-            threadCount: 4
+            name: "丸源氏・青と白",
+            braidTypeName: BraidPresetCatalog.maruGenji.displayName,
+            selectedBraidPresetID: BraidPresetID.maruGenji16.rawValue,
+            threadCount: 16,
+            threadAssignments: colorfulAssignments
         )
     }
 
@@ -53,7 +54,7 @@ struct ProjectEditorPreview: View {
 
     init(
         project: KumihimoProject? = nil,
-        simulationState: ProjectEditorStore.SimulationResultsState = .unavailable,
+        simulationState: ProjectEditorStore.SimulationResultsState = .available,
         showsNameSheet: Bool = false
     ) {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
