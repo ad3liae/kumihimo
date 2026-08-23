@@ -15,8 +15,6 @@ enum HomeStrings {
     static let retry = "再試行"
     static let loading = "読み込み中"
     static let dismiss = "閉じる"
-    static let newProjectTitle = "新しい組紐"
-    static let editorTitle = "組紐を編集"
 
     static func threadCount(_ count: Int) -> String {
         "糸 \(count)本"
@@ -24,10 +22,6 @@ enum HomeStrings {
 
     static func deleteConfirmationTitle(projectName: String) -> String {
         "“\(projectName)”を削除しますか？"
-    }
-
-    static func projectIdentifier(_ id: UUID) -> String {
-        "作品ID: \(id.uuidString)"
     }
 
     static func projectAccessibilityLabel(

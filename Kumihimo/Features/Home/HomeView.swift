@@ -1,14 +1,16 @@
+import SwiftData
 import SwiftUI
 
 struct HomeView: View {
     let store: HomeProjectStore
+    let modelContext: ModelContext
     @State private var state = HomeViewState()
 
     var body: some View {
         NavigationStack {
             List {
                 NavigationLink {
-                    NewProjectPlaceholderView()
+                    ProjectEditorContainerView(context: modelContext)
                 } label: {
                     NewProjectRow()
                 }
@@ -26,7 +28,10 @@ struct HomeView: View {
                     Section(HomeStrings.savedProjectsHeader) {
                         ForEach(store.projects) { project in
                             NavigationLink {
-                                ProjectEditorPlaceholderView(projectID: project.id)
+                                ProjectEditorContainerView(
+                                    context: modelContext,
+                                    projectID: project.id
+                                )
                             } label: {
                                 ProjectRow(project: project)
                             }
@@ -41,6 +46,9 @@ struct HomeView: View {
                 }
             }
             .navigationTitle(HomeStrings.title)
+            .onAppear {
+                store.load()
+            }
             .alert(state.deleteConfirmationTitle, isPresented: deleteConfirmationBinding) {
                 Button(HomeStrings.cancel, role: .cancel) {
                     state.cancelDeletion()

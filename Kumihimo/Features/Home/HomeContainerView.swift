@@ -11,7 +11,7 @@ struct HomeContainerView: View {
     }
 
     var body: some View {
-        HomeView(store: store)
+        HomeView(store: store, modelContext: container.mainContext)
             .modelContainer(container)
             .task {
                 store.loadIfNeeded()
