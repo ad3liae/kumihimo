@@ -16,13 +16,90 @@ final class HomeFlowUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["新しい組紐"].waitForExistence(timeout: 2))
     }
 
+    func testNewProjectCanBeNamedAndSaved() {
+        let app = launch(arguments: ["--ui-testing-empty-projects"])
+
+        element(in: app, identifier: "home.create-project").tap()
+        app.navigationBars["新しい組紐"].buttons["保存"].tap()
+
+        let nameField = app.textFields["作品名"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 2))
+        nameField.typeText("夏の配色")
+        app.navigationBars["作品を保存"].buttons["保存"].tap()
+
+        XCTAssertTrue(app.navigationBars["夏の配色"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.navigationBars["夏の配色"].buttons["保存"].exists)
+    }
+
     func testSavedProjectOpensEditorScreen() {
         let app = launch(arguments: ["--ui-testing-sample-projects"])
 
         element(in: app, identifier: firstProjectIdentifier).tap()
 
-        XCTAssertTrue(app.navigationBars["組紐を編集"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["作品ID: 00000000-0000-0000-0000-000000000001"].exists)
+        XCTAssertTrue(app.navigationBars["丸四つ組・青と白"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.navigationBars["丸四つ組・青と白"].buttons["保存"].exists)
+        XCTAssertTrue(app.staticTexts["色の配置"].exists)
+    }
+
+    func testThreadCountReductionDismissesConfirmation() {
+        let app = launch(arguments: ["--ui-testing-new-editor"])
+        let pickerIdentifier = "project-editor.thread-count-picker"
+
+        selectThreadCount(8, in: app, pickerIdentifier: pickerIdentifier)
+        selectThreadCount(4, in: app, pickerIdentifier: pickerIdentifier)
+
+        let alert = app.alerts["糸の本数を減らしますか？"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 2))
+        alert.buttons["減らす"].tap()
+
+        let dismissed = expectation(
+            for: NSPredicate(format: "exists == false"),
+            evaluatedWith: alert
+        )
+        wait(for: [dismissed], timeout: 2)
+        XCTAssertFalse(alert.waitForExistence(timeout: 1), "Reduction alert appeared again")
+        XCTAssertEqual(
+            element(in: app, identifier: pickerIdentifier).value as? String,
+            "4本"
+        )
+    }
+
+    func testCancellingThreadCountReductionDismissesConfirmation() {
+        let app = launch(arguments: ["--ui-testing-new-editor"])
+        let pickerIdentifier = "project-editor.thread-count-picker"
+
+        selectThreadCount(8, in: app, pickerIdentifier: pickerIdentifier)
+        selectThreadCount(4, in: app, pickerIdentifier: pickerIdentifier)
+
+        let alert = app.alerts["糸の本数を減らしますか？"]
+        XCTAssertTrue(alert.waitForExistence(timeout: 2))
+        alert.buttons["キャンセル"].tap()
+
+        let dismissed = expectation(
+            for: NSPredicate(format: "exists == false"),
+            evaluatedWith: alert
+        )
+        wait(for: [dismissed], timeout: 2)
+        XCTAssertFalse(alert.waitForExistence(timeout: 1), "Reduction alert appeared again")
+        XCTAssertEqual(
+            element(in: app, identifier: pickerIdentifier).value as? String,
+            "8本"
+        )
+    }
+
+    func testSelectingThreadColorDismissesSheet() {
+        let app = launch(arguments: ["--ui-testing-new-editor"])
+
+        app.buttons["糸1、生成り"].tap()
+        let colorSheet = app.navigationBars["糸1の色"]
+        XCTAssertTrue(colorSheet.waitForExistence(timeout: 2))
+        app.buttons["青、仮コードK-06"].tap()
+
+        let dismissed = expectation(
+            for: NSPredicate(format: "exists == false"),
+            evaluatedWith: colorSheet
+        )
+        wait(for: [dismissed], timeout: 2)
     }
 
     func testDeleteCanBeCancelledThenConfirmed() {
@@ -59,5 +136,14 @@ final class HomeFlowUITests: XCTestCase {
         let element = app.descendants(matching: .any)[identifier].firstMatch
         XCTAssertTrue(element.waitForExistence(timeout: 3), "Missing element: \(identifier)")
         return element
+    }
+
+    private func selectThreadCount(
+        _ count: Int,
+        in app: XCUIApplication,
+        pickerIdentifier: String
+    ) {
+        element(in: app, identifier: pickerIdentifier).tap()
+        app.buttons["\(count)本"].tap()
     }
 }
