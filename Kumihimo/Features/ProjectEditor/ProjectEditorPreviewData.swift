@@ -6,6 +6,8 @@ import SwiftUI
 enum ProjectEditorPreviewData {
     static let newEditorLaunchArgument = "--ui-testing-new-editor"
     static let colorfulEditorLaunchArgument = "--ui-testing-colorful-editor"
+    static let selectedCalculatingEditorLaunchArgument = "--ui-testing-selected-calculating-editor"
+    static let selectedFailedEditorLaunchArgument = "--ui-testing-selected-failed-editor"
 
     static var colorfulAssignments: [ThreadAssignment] {
         (1...16).map { position in
@@ -94,9 +96,10 @@ struct ProjectEditorPreview: View {
     }
 }
 
-#Preview("4本の新規作品・ライト") {
+#Preview("4本・互換プリセットなし・最大文字・ライト") {
     ProjectEditorPreview()
         .preferredColorScheme(.light)
+        .environment(\.dynamicTypeSize, .accessibility5)
 }
 
 #Preview("16本・多色・ダーク") {
@@ -117,11 +120,19 @@ struct ProjectEditorPreview: View {
     ProjectEditorPreview(showsNameSheet: true)
 }
 
-#Preview("シミュレーション計算中") {
-    ProjectEditorPreview(simulationState: .calculating)
+#Preview("選択済み・シミュレーション計算中・最大文字") {
+    ProjectEditorPreview(
+        project: ProjectEditorPreviewData.selectedProject,
+        simulationState: .calculating
+    )
+    .environment(\.dynamicTypeSize, .accessibility5)
 }
 
-#Preview("シミュレーション失敗") {
-    ProjectEditorPreview(simulationState: .failed)
+#Preview("選択済み・シミュレーション失敗・最大文字") {
+    ProjectEditorPreview(
+        project: ProjectEditorPreviewData.selectedProject,
+        simulationState: .failed
+    )
+    .environment(\.dynamicTypeSize, .accessibility5)
 }
 #endif

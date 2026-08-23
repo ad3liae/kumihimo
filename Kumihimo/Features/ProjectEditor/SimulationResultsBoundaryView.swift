@@ -10,51 +10,40 @@ struct SimulationResultsBoundaryView: View {
     let show3DPreview: (BraidPreset) -> Void
 
     var body: some View {
-        Group {
-            switch state {
-            case .available:
-                availableContent
-            case .calculating:
-                ProgressView(ProjectEditorStrings.simulationCalculating)
-                    .frame(maxWidth: .infinity, minHeight: 140)
-            case .failed:
-                ContentUnavailableView {
-                    Label(ProjectEditorStrings.simulationFailedTitle, systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(ProjectEditorStrings.simulationFailedMessage)
-                }
+        VStack(spacing: 12) {
+            Button {
+                selectPreset(nil)
+            } label: {
+                selectionRow(
+                    title: ProjectEditorStrings.undecidedBraid,
+                    isSelected: selectedPresetID == nil
+                )
             }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(
+                ProjectEditorAccessibilityIdentifiers.undecidedPresetButton
+            )
+
+            resultsContent
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
     }
 
     @ViewBuilder
-    private var availableContent: some View {
-        if presets.isEmpty {
-            ContentUnavailableView {
-                Label(
-                    ProjectEditorStrings.noCompatiblePresetTitle,
-                    systemImage: "circle.grid.cross"
-                )
-            } description: {
-                Text(ProjectEditorStrings.noCompatiblePresetMessage)
-            }
-        } else {
-            VStack(spacing: 12) {
-                Button {
-                    selectPreset(nil)
-                } label: {
-                    selectionRow(
-                        title: ProjectEditorStrings.undecidedBraid,
-                        isSelected: selectedPresetID == nil
+    private var resultsContent: some View {
+        switch state {
+        case .available:
+            if presets.isEmpty {
+                ContentUnavailableView {
+                    Label(
+                        ProjectEditorStrings.noCompatiblePresetTitle,
+                        systemImage: "circle.grid.cross"
                     )
+                } description: {
+                    Text(ProjectEditorStrings.noCompatiblePresetMessage)
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier(
-                    ProjectEditorAccessibilityIdentifiers.undecidedPresetButton
-                )
-
+            } else {
                 ForEach(presets) { preset in
                     VStack(alignment: .leading, spacing: 12) {
                         MaruGenjiThumbnailView(assignments: assignments)
@@ -100,6 +89,15 @@ struct SimulationResultsBoundaryView: View {
                     }
                 }
             }
+        case .calculating:
+            ProgressView(ProjectEditorStrings.simulationCalculating)
+                .frame(maxWidth: .infinity, minHeight: 140)
+        case .failed:
+            ContentUnavailableView {
+                Label(ProjectEditorStrings.simulationFailedTitle, systemImage: "exclamationmark.triangle")
+            } description: {
+                Text(ProjectEditorStrings.simulationFailedMessage)
+            }
         }
     }
 
@@ -127,5 +125,10 @@ struct SimulationResultsBoundaryView: View {
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityValue(
+            isSelected
+                ? ProjectEditorStrings.selectionSelected
+                : ProjectEditorStrings.selectionNotSelected
+        )
     }
 }

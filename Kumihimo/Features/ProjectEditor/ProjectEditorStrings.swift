@@ -21,6 +21,8 @@ enum ProjectEditorStrings {
     static let noCompatiblePresetTitle = "この本数の組み方はまだありません"
     static let noCompatiblePresetMessage = "16本を選ぶと、丸源氏の試作シミュレーションを表示できます。配色はこのまま保存できます。"
     static let undecidedBraid = "組み方をまだ決めない"
+    static let selectionSelected = "選択中"
+    static let selectionNotSelected = "未選択"
     static let showIn3D = "3Dで見る"
     static let maruGenjiPreviewTitle = "丸源氏・3D試作"
     static let maruGenjiPrototypeNotice = "資料の手順をもとにした暫定シミュレーションです。"

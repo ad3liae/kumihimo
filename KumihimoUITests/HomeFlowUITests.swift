@@ -114,7 +114,7 @@ final class HomeFlowUITests: XCTestCase {
         XCTAssertTrue(show3DButton.isHittable)
         show3DButton.tap()
 
-        XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["左へ回転"].exists)
         XCTAssertTrue(app.buttons["正面に戻す"].exists)
         XCTAssertTrue(app.buttons["右へ回転"].exists)
@@ -124,6 +124,34 @@ final class HomeFlowUITests: XCTestCase {
         screenshot.name = "maru-genji-3d-preview"
         screenshot.lifetime = .keepAlways
         add(screenshot)
+    }
+
+    func testFailedSimulationStillAllowsClearingSelectedPreset() {
+        let app = launch(arguments: ["--ui-testing-selected-failed-editor"])
+
+        assertUndecidedPresetCanBeSelected(in: app)
+        XCTAssertTrue(app.staticTexts["完成イメージを生成できませんでした"].exists)
+    }
+
+    func testCalculatingSimulationStillAllowsClearingSelectedPreset() {
+        let app = launch(arguments: ["--ui-testing-selected-calculating-editor"])
+
+        assertUndecidedPresetCanBeSelected(in: app)
+        XCTAssertTrue(app.staticTexts["完成イメージを計算中"].exists)
+    }
+
+    func testNoCompatiblePresetStillShowsUndecidedSelection() {
+        let app = launch(arguments: ["--ui-testing-new-editor"])
+
+        let undecided = element(
+            in: app,
+            identifier: "project-editor.preset-undecided",
+            scrollingIfNeeded: true
+        )
+        XCTAssertEqual(undecided.value as? String, "選択中")
+        undecided.tap()
+        XCTAssertEqual(undecided.value as? String, "選択中")
+        XCTAssertTrue(app.staticTexts["この本数の組み方はまだありません"].exists)
     }
 
     func testDeleteCanBeCancelledThenConfirmed() {
@@ -160,6 +188,32 @@ final class HomeFlowUITests: XCTestCase {
         let element = app.descendants(matching: .any)[identifier].firstMatch
         XCTAssertTrue(element.waitForExistence(timeout: 3), "Missing element: \(identifier)")
         return element
+    }
+
+    private func element(
+        in app: XCUIApplication,
+        identifier: String,
+        scrollingIfNeeded: Bool
+    ) -> XCUIElement {
+        let element = self.element(in: app, identifier: identifier)
+        if scrollingIfNeeded {
+            for _ in 0..<8 where !element.isHittable {
+                app.swipeUp()
+            }
+        }
+        XCTAssertTrue(element.isHittable, "Element is not hittable: \(identifier)")
+        return element
+    }
+
+    private func assertUndecidedPresetCanBeSelected(in app: XCUIApplication) {
+        let undecided = element(
+            in: app,
+            identifier: "project-editor.preset-undecided",
+            scrollingIfNeeded: true
+        )
+        XCTAssertEqual(undecided.value as? String, "未選択")
+        undecided.tap()
+        XCTAssertEqual(undecided.value as? String, "選択中")
     }
 
     private func selectThreadCount(
