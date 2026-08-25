@@ -6,7 +6,7 @@ enum ProjectEditorAccessibilityIdentifiers {
         "project-editor.preset-\(id.rawValue)"
     }
 
-    static func show3DButton(_ id: BraidPresetID) -> String {
-        "project-editor.preset-\(id.rawValue)-show-3d"
+    static func thumbnail3DButton(_ id: BraidPresetID) -> String {
+        "project-editor.preset-\(id.rawValue)-thumbnail-3d"
     }
 }

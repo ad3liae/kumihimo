@@ -104,15 +104,17 @@ final class HomeFlowUITests: XCTestCase {
 
     func testSixteenThreadProjectOpensMaruGenji3DPreview() {
         let app = launch(arguments: ["--ui-testing-colorful-editor"])
-        let show3DIdentifier = "project-editor.preset-maru-genji-16-show-3d"
-        let show3DButton = app.descendants(matching: .any)[show3DIdentifier].firstMatch
+        let thumbnailIdentifier = "project-editor.preset-maru-genji-16-thumbnail-3d"
+        let thumbnailButton = app.descendants(matching: .any)[thumbnailIdentifier].firstMatch
 
-        XCTAssertTrue(show3DButton.waitForExistence(timeout: 3))
-        for _ in 0..<5 where !show3DButton.isHittable {
+        XCTAssertTrue(thumbnailButton.waitForExistence(timeout: 3))
+        for _ in 0..<5 where !thumbnailButton.isHittable {
             app.swipeUp()
         }
-        XCTAssertTrue(show3DButton.isHittable)
-        show3DButton.tap()
+        XCTAssertTrue(thumbnailButton.isHittable)
+        XCTAssertEqual(thumbnailButton.label, "丸源氏を3Dで見る")
+        XCTAssertFalse(app.buttons["3Dで見る"].exists)
+        thumbnailButton.tap()
 
         XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["左へ回転"].exists)

@@ -46,8 +46,26 @@ struct SimulationResultsBoundaryView: View {
             } else {
                 ForEach(presets) { preset in
                     VStack(alignment: .leading, spacing: 12) {
-                        MaruGenjiThumbnailView(assignments: assignments)
-                            .frame(height: 112)
+                        Button {
+                            show3DPreview(preset)
+                        } label: {
+                            MaruGenjiThumbnailView(assignments: assignments)
+                                .frame(height: 112)
+                                .overlay(alignment: .bottomTrailing) {
+                                    Image(systemName: "view.3d")
+                                        .font(.body.weight(.semibold))
+                                        .padding(8)
+                                        .background(.regularMaterial, in: Circle())
+                                        .padding(8)
+                                }
+                                .contentShape(.rect)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(ProjectEditorStrings.maruGenjiThumbnail3DLabel)
+                        .accessibilityHint(ProjectEditorStrings.maruGenjiThumbnail3DHint)
+                        .accessibilityIdentifier(
+                            ProjectEditorAccessibilityIdentifiers.thumbnail3DButton(preset.id)
+                        )
 
                         Button {
                             selectPreset(preset.id)
@@ -66,17 +84,6 @@ struct SimulationResultsBoundaryView: View {
                         Text(ProjectEditorStrings.maruGenjiPrototypeNotice)
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-
-                        Button {
-                            show3DPreview(preset)
-                        } label: {
-                            Label(ProjectEditorStrings.showIn3D, systemImage: "view.3d")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .accessibilityIdentifier(
-                            ProjectEditorAccessibilityIdentifiers.show3DButton(preset.id)
-                        )
                     }
                     .padding()
                     .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 16))
