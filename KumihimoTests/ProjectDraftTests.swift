@@ -33,6 +33,27 @@ struct ProjectDraftTests {
         #expect(draft.threadAssignments.last?.colorID == red)
         #expect(draft.hasValidAssignments)
     }
+
+    @Test func selectedPresetMustExistAndSupportThreadCount() {
+        let validDraft = ProjectDraft(
+            selectedBraidPresetID: .maruGenji16,
+            braidTypeName: BraidPresetCatalog.maruGenji.displayName,
+            threadCount: 16
+        )
+        let incompatibleDraft = ProjectDraft(
+            selectedBraidPresetID: .maruGenji16,
+            braidTypeName: BraidPresetCatalog.maruGenji.displayName,
+            threadCount: 8
+        )
+        let unknownDraft = ProjectDraft(
+            selectedBraidPresetID: BraidPresetID(rawValue: "unknown"),
+            threadCount: 16
+        )
+
+        #expect(validDraft.hasValidAssignments)
+        #expect(!incompatibleDraft.hasValidAssignments)
+        #expect(!unknownDraft.hasValidAssignments)
+    }
 }
 
 @MainActor
@@ -90,6 +111,24 @@ struct ProjectEditorPresentationStateTests {
 
         #expect(store.selectedThreadPosition == nil)
         #expect(store.draft.threadAssignments.first?.colorID == blue)
+    }
+
+    @Test func selectingMaruGenjiUpdatesDraftAndReducingCountClearsIt() throws {
+        let store = try makeStore()
+        store.requestThreadCount(16)
+
+        store.selectBraidPreset(.maruGenji16)
+
+        #expect(store.draft.selectedBraidPresetID == .maruGenji16)
+        #expect(store.draft.braidTypeName == BraidPresetCatalog.maruGenji.displayName)
+        #expect(store.availableBraidPresets == [BraidPresetCatalog.maruGenji])
+
+        store.requestThreadCount(8)
+        store.confirmThreadCountReduction()
+
+        #expect(store.draft.selectedBraidPresetID == nil)
+        #expect(store.draft.braidTypeName == KumihimoProject.undecidedBraidName)
+        #expect(store.availableBraidPresets.isEmpty)
     }
 
     @Test func loadFailureKeepsExistingProjectModeAndHidesSaveToolbar() throws {

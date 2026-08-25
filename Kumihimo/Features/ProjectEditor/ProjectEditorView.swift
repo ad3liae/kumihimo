@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProjectEditorView: View {
     @Bindable var store: ProjectEditorStore
+    @State private var previewPreset: BraidPreset?
 
     var body: some View {
         Group {
@@ -46,6 +47,11 @@ struct ProjectEditorView: View {
                     selectColor: store.selectColor,
                     cancel: { store.selectedThreadPosition = nil }
                 )
+            }
+        }
+        .sheet(item: $previewPreset) { preset in
+            if preset.id == .maruGenji16 {
+                MaruGenji3DPreviewView(assignments: store.draft.threadAssignments)
             }
         }
         .alert(
@@ -103,7 +109,15 @@ struct ProjectEditorView: View {
                 }
 
                 section(ProjectEditorStrings.simulationSection) {
-                    SimulationResultsBoundaryView(state: store.simulationResultsState)
+                    SimulationResultsBoundaryView(
+                        state: store.simulationResultsState,
+                        threadCount: store.draft.threadCount,
+                        assignments: store.draft.threadAssignments,
+                        presets: store.availableBraidPresets,
+                        selectedPresetID: store.draft.selectedBraidPresetID,
+                        selectPreset: store.selectBraidPreset,
+                        show3DPreview: { previewPreset = $0 }
+                    )
                 }
             }
             .padding()

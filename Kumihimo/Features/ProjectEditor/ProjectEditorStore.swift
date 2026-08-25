@@ -5,7 +5,7 @@ import Observation
 @Observable
 final class ProjectEditorStore {
     enum SimulationResultsState: Equatable {
-        case unavailable
+        case available
         case calculating
         case failed
     }
@@ -46,7 +46,7 @@ final class ProjectEditorStore {
     init(
         persistence: ProjectEditorPersistenceService,
         projectID: UUID? = nil,
-        simulationResultsState: SimulationResultsState = .unavailable
+        simulationResultsState: SimulationResultsState = .available
     ) {
         let initialDraft = ProjectDraft()
         self.persistence = persistence
@@ -84,6 +84,10 @@ final class ProjectEditorStore {
 
     var canOverwrite: Bool {
         canSave && isExistingProject && hasUnsavedChanges
+    }
+
+    var availableBraidPresets: [BraidPreset] {
+        BraidPresetCatalog.availablePresets(threadCount: draft.threadCount)
     }
 
     var isProposedNameValid: Bool {
@@ -176,12 +180,30 @@ final class ProjectEditorStore {
         draft.setColor(colorID, at: selectedThreadPosition)
     }
 
+    func selectBraidPreset(_ id: BraidPresetID?) {
+        guard let id else {
+            draft.selectedBraidPresetID = nil
+            draft.braidTypeName = KumihimoProject.undecidedBraidName
+            return
+        }
+        guard
+            let preset = BraidPresetCatalog.preset(for: id),
+            preset.supports(threadCount: draft.threadCount)
+        else {
+            return
+        }
+        draft.selectedBraidPresetID = preset.id
+        draft.braidTypeName = preset.displayName
+    }
+
     private func applyThreadCount(_ count: Int) {
         selectedThreadCount = count
         draft.setThreadCount(count)
-        if draft.selectedBraidPresetID != nil {
-            draft.selectedBraidPresetID = nil
-            draft.braidTypeName = KumihimoProject.undecidedBraidName
+        if
+            let selectedBraidPresetID = draft.selectedBraidPresetID,
+            BraidPresetCatalog.preset(for: selectedBraidPresetID)?.supports(threadCount: count) != true
+        {
+            selectBraidPreset(nil)
         }
     }
 

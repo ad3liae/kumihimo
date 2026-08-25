@@ -13,6 +13,20 @@ struct KumihimoApp: App {
                 ProjectEditorPreview()
             } else if CommandLine.arguments.contains(ProjectEditorPreviewData.colorfulEditorLaunchArgument) {
                 ProjectEditorPreview(project: ProjectEditorPreviewData.longNameProject)
+            } else if CommandLine.arguments.contains(
+                ProjectEditorPreviewData.selectedCalculatingEditorLaunchArgument
+            ) {
+                ProjectEditorPreview(
+                    project: ProjectEditorPreviewData.selectedProject,
+                    simulationState: .calculating
+                )
+            } else if CommandLine.arguments.contains(
+                ProjectEditorPreviewData.selectedFailedEditorLaunchArgument
+            ) {
+                ProjectEditorPreview(
+                    project: ProjectEditorPreviewData.selectedProject,
+                    simulationState: .failed
+                )
             } else {
                 AppRootView()
             }

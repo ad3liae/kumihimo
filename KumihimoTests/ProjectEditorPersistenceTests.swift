@@ -134,6 +134,24 @@ struct ProjectEditorPersistenceTests {
         #expect(reloaded.threadAssignments.last?.colorID.rawValue == "white")
     }
 
+    @Test func selectedMaruGenjiRoundTripsWithPresetIdentity() throws {
+        let container = try makeContainer()
+        let service = ProjectEditorPersistenceService(context: container.mainContext)
+        let draft = ProjectDraft(
+            selectedBraidPresetID: .maruGenji16,
+            braidTypeName: BraidPresetCatalog.maruGenji.displayName,
+            threadCount: 16
+        )
+
+        let project = try service.create(from: draft, name: "丸源氏案")
+        container.mainContext.rollback()
+        let reloaded = try #require(try service.load(id: project.id))
+
+        #expect(reloaded.braidPresetID == .maruGenji16)
+        #expect(reloaded.braidDisplayName == BraidPresetCatalog.maruGenji.displayName)
+        #expect(reloaded.threadCount == 16)
+    }
+
     @Test func loadRejectsMalformedThreadAssignments() throws {
         let container = try makeContainer()
         let service = ProjectEditorPersistenceService(context: container.mainContext)
