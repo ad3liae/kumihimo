@@ -156,46 +156,61 @@ struct MaruGenjiRealityView: UIViewRepresentable {
             do {
                 let anchor = AnchorEntity(world: .zero)
                 let root = Entity()
-                let sortedColorGroups = surface.colorGroups.sorted {
-                    $0.key.rawValue < $1.key.rawValue
-                }
+                let colorIDs = Set(surface.colorGroups.keys)
+                    .union(surface.boundaryColorGroups.keys)
+                    .sorted { $0.rawValue < $1.rawValue }
                 guard
-                    !sortedColorGroups.isEmpty,
-                    sortedColorGroups.allSatisfy({ !$0.value.isEmpty }),
-                    sortedColorGroups.allSatisfy({ ThreadColorCatalog.color(for: $0.key) != nil })
+                    !colorIDs.isEmpty,
+                    colorIDs.allSatisfy({ ThreadColorCatalog.color(for: $0) != nil })
                 else {
                     Self.logger.error("Surface contains an empty or unknown color group")
                     controller.reportFailure()
                     return
                 }
 
-                let colorEntities = try sortedColorGroups.map { group -> ModelEntity in
-                    guard let threadColor = ThreadColorCatalog.color(for: group.key) else {
+                var combinedIndices = [UInt32]()
+                var faceMaterialIndices = [UInt32]()
+                var materials = [PhysicallyBasedMaterial]()
+                for colorID in colorIDs {
+                    guard let threadColor = ThreadColorCatalog.color(for: colorID) else {
                         throw SurfaceRenderError.unknownColor
                     }
-                    var descriptor = MeshDescriptor(name: "surface-\(group.key.rawValue)")
-                    descriptor.positions = MeshBuffer(surface.positions)
-                    descriptor.normals = MeshBuffer(surface.normals)
-                    descriptor.primitives = .triangles(group.value)
-                    descriptor.materials = .allFaces(0)
-
-                    let color = UIColor(
-                        red: threadColor.value.red,
-                        green: threadColor.value.green,
-                        blue: threadColor.value.blue,
-                        alpha: 1
-                    )
-                    let material = SimpleMaterial(
-                        color: color,
-                        roughness: 0.76,
-                        isMetallic: false
-                    )
-                    let mesh = try MeshResource.generate(from: [descriptor])
-                    return ModelEntity(mesh: mesh, materials: [material])
+                    if let indices = surface.colorGroups[colorID], !indices.isEmpty {
+                        combinedIndices.append(contentsOf: indices)
+                        faceMaterialIndices.append(
+                            contentsOf: repeatElement(
+                                UInt32(materials.count),
+                                count: indices.count / 3
+                            )
+                        )
+                        materials.append(material(color: threadColor.uiColor, roughness: 0.84))
+                    }
+                    if let indices = surface.boundaryColorGroups[colorID], !indices.isEmpty {
+                        combinedIndices.append(contentsOf: indices)
+                        faceMaterialIndices.append(
+                            contentsOf: repeatElement(
+                                UInt32(materials.count),
+                                count: indices.count / 3
+                            )
+                        )
+                        materials.append(material(color: threadColor.boundaryUIColor, roughness: 0.92))
+                    }
                 }
-                for entity in colorEntities {
-                    root.addChild(entity)
+                guard
+                    !combinedIndices.isEmpty,
+                    combinedIndices.count / 3 == faceMaterialIndices.count,
+                    !materials.isEmpty
+                else {
+                    throw SurfaceRenderError.emptySurface
                 }
+                let mesh = try MeshResource.generate(from: [
+                    descriptor(
+                        indices: combinedIndices,
+                        faceMaterialIndices: faceMaterialIndices,
+                        surface: surface
+                    ),
+                ])
+                root.addChild(ModelEntity(mesh: mesh, materials: materials))
 
                 anchor.addChild(root)
 
@@ -208,7 +223,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 anchor.addChild(camera)
 
                 let keyLight = DirectionalLight()
-                keyLight.light.intensity = 20_000
+                keyLight.light.intensity = 3_500
                 keyLight.look(
                     at: .zero,
                     from: SIMD3<Float>(0.5, 2.2, 3),
@@ -217,7 +232,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 anchor.addChild(keyLight)
 
                 let fillLight = DirectionalLight()
-                fillLight.light.intensity = 10_000
+                fillLight.light.intensity = 1_200
                 fillLight.look(
                     at: .zero,
                     from: SIMD3<Float>(-1.5, -1, 2),
@@ -226,7 +241,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 anchor.addChild(fillLight)
 
                 let rimLight = DirectionalLight()
-                rimLight.light.intensity = 6_000
+                rimLight.light.intensity = 700
                 rimLight.look(
                     at: .zero,
                     from: SIMD3<Float>(0.2, 1, -3),
@@ -260,8 +275,34 @@ struct MaruGenjiRealityView: UIViewRepresentable {
             controller.reset()
         }
 
+        private func descriptor(
+            indices: [UInt32],
+            faceMaterialIndices: [UInt32],
+            surface: MaruGenjiSurfaceMeshData
+        ) -> MeshDescriptor {
+            var descriptor = MeshDescriptor(name: "maru-genji-surface")
+            descriptor.positions = MeshBuffer(surface.positions)
+            descriptor.normals = MeshBuffer(surface.normals)
+            descriptor.textureCoordinates = MeshBuffer(surface.textureCoordinates)
+            descriptor.primitives = .triangles(indices)
+            descriptor.materials = .perFace(faceMaterialIndices)
+            return descriptor
+        }
+
+        private func material(
+            color: UIColor,
+            roughness: Float
+        ) -> PhysicallyBasedMaterial {
+            var material = PhysicallyBasedMaterial()
+            material.baseColor = .init(tint: color)
+            material.metallic = .init(floatLiteral: 0)
+            material.roughness = .init(floatLiteral: roughness)
+            return material
+        }
+
         private enum SurfaceRenderError: Error {
             case unknownColor
+            case emptySurface
         }
     }
 }

@@ -140,7 +140,7 @@ final class HomeFlowUITests: XCTestCase {
         for (index, fixture) in fixtures.enumerated() {
             let app = launch(arguments: [fixture])
             XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 10))
-            assertSurfaceRendered(in: app)
+            let surface = assertSurfaceRendered(in: app)
             XCTAssertFalse(app.staticTexts["完成イメージを生成できませんでした"].exists)
             addScreenshot(named: "fixture-\(index + 1)-front")
 
@@ -149,6 +149,9 @@ final class HomeFlowUITests: XCTestCase {
             app.buttons["正面に戻す"].tap()
             app.buttons["右へ回転"].tap()
             addScreenshot(named: "fixture-\(index + 1)-right")
+            app.buttons["正面に戻す"].tap()
+            surface.pinch(withScale: 1.6, velocity: 1)
+            addScreenshot(named: "fixture-\(index + 1)-zoom")
             app.terminate()
         }
     }
@@ -272,7 +275,8 @@ final class HomeFlowUITests: XCTestCase {
         add(screenshot)
     }
 
-    private func assertSurfaceRendered(in app: XCUIApplication) {
+    @discardableResult
+    private func assertSurfaceRendered(in app: XCUIApplication) -> XCUIElement {
         let surface = app.descendants(matching: .any)["maru-genji-3d-surface"].firstMatch
         XCTAssertTrue(surface.waitForExistence(timeout: 3))
         let rendered = expectation(
@@ -280,6 +284,7 @@ final class HomeFlowUITests: XCTestCase {
             evaluatedWith: surface
         )
         wait(for: [rendered], timeout: 10)
+        return surface
     }
 
     private func selectThreadCount(

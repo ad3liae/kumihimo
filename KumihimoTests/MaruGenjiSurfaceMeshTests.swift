@@ -12,13 +12,21 @@ struct MaruGenjiSurfaceMeshTests {
         let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
 
         #expect(mesh.positions.count == mesh.normals.count)
+        #expect(mesh.positions.count == mesh.textureCoordinates.count)
+        #expect(mesh.positions.count == mesh.patchLocalCoordinates.count)
+        #expect(mesh.positions.count == mesh.boundaryDistances.count)
+        #expect(mesh.positions.count == mesh.surfaceVertexPatchIndices.count)
         #expect(mesh.positions.allSatisfy(isFinite))
         #expect(mesh.normals.allSatisfy(isFinite))
         #expect(mesh.normals.allSatisfy { abs(simd_length($0) - 1) < 0.001 })
-        #expect(Set(mesh.colorGroups.keys) == Set([blue, pink]))
+        #expect(Set(mesh.colorGroups.keys).union(mesh.boundaryColorGroups.keys) == Set([blue, pink]))
         #expect(mesh.colorGroups.values.allSatisfy { !$0.isEmpty })
+        #expect(mesh.boundaryColorGroups.values.allSatisfy { !$0.isEmpty })
+        #expect(mesh.textureCoordinates.allSatisfy(isFiniteUnitCoordinate))
+        #expect(mesh.patchLocalCoordinates.allSatisfy(isFiniteUnitCoordinate))
+        #expect(mesh.boundaryDistances.allSatisfy { $0.isFinite && (0...0.5).contains($0) })
 
-        let indices = mesh.colorGroups.values.flatMap { $0 }
+        let indices = mesh.allTriangleIndices
         #expect(indices.allSatisfy { Int($0) < mesh.positions.count })
         #expect(indices.count.isMultiple(of: 3))
         for offset in stride(from: 0, to: indices.count, by: 3) {
@@ -56,6 +64,67 @@ struct MaruGenjiSurfaceMeshTests {
         for patchIndex in pattern.patches.indices {
             #expect(mesh.surfaceTrianglePatchIndices.contains(patchIndex))
         }
+        #expect(mesh.surfaceTrianglePatchIndices.count == mesh.surfaceTriangleIsBoundary.count)
+    }
+
+    @Test func everyPatchHasNarrowBoundaryAndInteriorReliefData() throws {
+        let pattern = try #require(
+            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+        )
+        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+
+        #expect(mesh.surfaceTriangleIsBoundary.contains(true))
+        #expect(mesh.surfaceTriangleIsBoundary.contains(false))
+        for patchIndex in pattern.patches.indices {
+            let vertexIndices = mesh.surfaceVertexPatchIndices.indices.filter {
+                mesh.surfaceVertexPatchIndices[$0] == patchIndex
+            }
+            #expect(!vertexIndices.isEmpty)
+            #expect(vertexIndices.contains { mesh.boundaryDistances[$0] < 0.000_001 })
+            #expect(vertexIndices.contains {
+                mesh.boundaryDistances[$0] >= MaruGenjiSurfaceMeshGenerator.boundaryWidth
+            })
+        }
+
+        let baseIndices = Set(mesh.colorGroups.values.flatMap { $0 })
+        let boundaryIndices = Set(mesh.boundaryColorGroups.values.flatMap { $0 })
+        #expect(baseIndices.isDisjoint(with: boundaryIndices))
+    }
+
+    @Test func boundaryReliefStaysWithinTheConfiguredRadiusLimit() throws {
+        let pattern = try #require(
+            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+        )
+        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let surfaceRadii = mesh.positions.indices.compactMap { index -> Float? in
+            guard mesh.surfaceVertexPatchIndices[index] >= 0 else { return nil }
+            let position = mesh.positions[index]
+            return hypot(position.y, position.z)
+        }
+        let radius = MaruGenjiSurfaceMeshGenerator.defaultRadius
+        #expect(surfaceRadii.allSatisfy {
+            $0 >= radius * (1 - MaruGenjiSurfaceMeshGenerator.boundaryDepthRatio - 0.000_1)
+                && $0 <= radius * (1 + MaruGenjiSurfaceMeshGenerator.fiberReliefRatio + 0.000_1)
+        })
+    }
+
+    @Test func fiberCoordinatesAreDeterministicAndFollowOnePatchAxis() throws {
+        let pattern = try #require(
+            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+        )
+        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let firstPatchVertices = mesh.surfaceVertexPatchIndices.indices.filter {
+            mesh.surfaceVertexPatchIndices[$0] == 0
+                && mesh.boundaryDistances[$0] >= MaruGenjiSurfaceMeshGenerator.boundaryWidth
+        }
+        let coordinates = firstPatchVertices.map { mesh.patchLocalCoordinates[$0] }
+
+        #expect(MaruGenjiSurfaceMeshGenerator.fiberCount == 8)
+        #expect(Set(coordinates.map(\.y)).count >= MaruGenjiSurfaceMeshGenerator.fiberCount * 2 - 2)
+        #expect(Set(coordinates.map(\.x)).count > 2)
+        #expect(firstPatchVertices.allSatisfy {
+            mesh.textureCoordinates[$0] == mesh.patchLocalCoordinates[$0]
+        })
     }
 
     @Test func meshGenerationIsDeterministic() throws {
@@ -67,8 +136,13 @@ struct MaruGenjiSurfaceMeshTests {
 
         #expect(first.positions == second.positions)
         #expect(first.normals == second.normals)
+        #expect(first.textureCoordinates == second.textureCoordinates)
+        #expect(first.patchLocalCoordinates == second.patchLocalCoordinates)
+        #expect(first.boundaryDistances == second.boundaryDistances)
         #expect(first.colorGroups == second.colorGroups)
+        #expect(first.boundaryColorGroups == second.boundaryColorGroups)
         #expect(first.surfaceTrianglePatchIndices == second.surfaceTrianglePatchIndices)
+        #expect(first.surfaceTriangleIsBoundary == second.surfaceTriangleIsBoundary)
         #expect(first.triangleCount == second.triangleCount)
     }
 
@@ -83,9 +157,13 @@ struct MaruGenjiSurfaceMeshTests {
         #expect(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern, radius: .nan) == nil)
         #expect(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern, length: 0) == nil)
         #expect(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern, patternRepeatCount: 0) == nil)
+        #expect(MaruGenjiSurfaceMeshGenerator.generate(
+            pattern: pattern,
+            longitudinalSubdivisionsPerPatch: MaruGenjiSurfaceMeshGenerator.fiberCount * 2
+        ) == nil)
     }
 
-    @Test @MainActor func everyColorGroupBuildsARealityKitMesh() throws {
+    @Test @MainActor func allMaterialGroupsBuildOneRealityKitMesh() throws {
         for assignments in [
             fixtureAssignments,
             verifiedFixture1,
@@ -96,14 +174,26 @@ struct MaruGenjiSurfaceMeshTests {
             )
             let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
 
-            for (colorID, indices) in mesh.colorGroups {
-                var descriptor = MeshDescriptor(name: "surface-\(colorID.rawValue)")
-                descriptor.positions = MeshBuffer(mesh.positions)
-                descriptor.normals = MeshBuffer(mesh.normals)
-                descriptor.primitives = .triangles(indices)
-                descriptor.materials = .allFaces(0)
-                _ = try MeshResource.generate(from: [descriptor])
+            let groups = mesh.colorGroups.sorted { $0.key.rawValue < $1.key.rawValue }
+                + mesh.boundaryColorGroups.sorted { $0.key.rawValue < $1.key.rawValue }
+            var indices = [UInt32]()
+            var materialIndices = [UInt32]()
+            for (materialIndex, group) in groups.enumerated() {
+                indices.append(contentsOf: group.value)
+                materialIndices.append(
+                    contentsOf: repeatElement(
+                        UInt32(materialIndex),
+                        count: group.value.count / 3
+                    )
+                )
             }
+            var descriptor = MeshDescriptor(name: "maru-genji-surface")
+            descriptor.positions = MeshBuffer(mesh.positions)
+            descriptor.normals = MeshBuffer(mesh.normals)
+            descriptor.textureCoordinates = MeshBuffer(mesh.textureCoordinates)
+            descriptor.primitives = .triangles(indices)
+            descriptor.materials = .perFace(materialIndices)
+            _ = try MeshResource.generate(from: [descriptor])
         }
     }
 
@@ -133,5 +223,11 @@ struct MaruGenjiSurfaceMeshTests {
 
     private func isFinite(_ vector: SIMD3<Float>) -> Bool {
         vector.x.isFinite && vector.y.isFinite && vector.z.isFinite
+    }
+
+    private func isFiniteUnitCoordinate(_ vector: SIMD2<Float>) -> Bool {
+        vector.x.isFinite && vector.y.isFinite
+            && (0...1).contains(vector.x)
+            && (0...1).contains(vector.y)
     }
 }

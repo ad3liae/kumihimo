@@ -16,6 +16,8 @@
 - Task 001 起動画面: `tasks/001-home-screen.md`
 - Task 002 作品編集画面の基盤: `tasks/002-project-editor-foundation.md`
 - Task 003 組み方プリセットとシミュレーション: `tasks/003-braid-simulation-presets.md`
+- Task 004 実物照合済みの丸源氏3D表面: `tasks/004-maru-genji-surface-3d.md`
+- Task 005 丸源氏3Dの境界・繊維感と色整合: `tasks/005-maru-genji-surface-material.md`
 
 ## 更新方針
 
