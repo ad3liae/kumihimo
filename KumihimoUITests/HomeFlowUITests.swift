@@ -120,12 +120,59 @@ final class HomeFlowUITests: XCTestCase {
         XCTAssertTrue(app.buttons["左へ回転"].exists)
         XCTAssertTrue(app.buttons["正面に戻す"].exists)
         XCTAssertTrue(app.buttons["右へ回転"].exists)
-        XCTAssertTrue(app.staticTexts["資料の手順をもとにした暫定シミュレーションです。"].exists)
+        XCTAssertTrue(app.staticTexts[
+            "実物3例で配色傾向を照合した試作です。糸の上下関係と締め具合は未検証です。"
+        ].exists)
 
         let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = "maru-genji-3d-preview"
         screenshot.lifetime = .keepAlways
         add(screenshot)
+    }
+
+    func testVerifiedSurfaceFixturesRenderAtFrontLeftAndRightAngles() {
+        let fixtures = [
+            "--ui-testing-surface-fixture-1",
+            "--ui-testing-surface-fixture-2",
+            "--ui-testing-surface-fixture-3",
+        ]
+
+        for (index, fixture) in fixtures.enumerated() {
+            let app = launch(arguments: [fixture])
+            XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 10))
+            assertSurfaceRendered(in: app)
+            XCTAssertFalse(app.staticTexts["完成イメージを生成できませんでした"].exists)
+            addScreenshot(named: "fixture-\(index + 1)-front")
+
+            app.buttons["左へ回転"].tap()
+            addScreenshot(named: "fixture-\(index + 1)-left")
+            app.buttons["正面に戻す"].tap()
+            app.buttons["右へ回転"].tap()
+            addScreenshot(named: "fixture-\(index + 1)-right")
+            app.terminate()
+        }
+    }
+
+    func testVerifiedSurfaceNoticeAndControlsRemainVisibleInDarkAccessibilityText() {
+        let app = launch(arguments: [
+            "--ui-testing-surface-fixture-2",
+            "--ui-testing-dark-mode",
+            "-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryAccessibilityXXXL",
+        ])
+
+        XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 20))
+        assertSurfaceRendered(in: app)
+        XCTAssertTrue(app.buttons["左へ回転"].isHittable)
+        XCTAssertTrue(app.buttons["正面に戻す"].isHittable)
+        XCTAssertTrue(app.buttons["右へ回転"].isHittable)
+        addScreenshot(named: "fixture-2-dark-surface")
+        let notice = app.staticTexts[
+            "実物3例で配色傾向を照合した試作です。糸の上下関係と締め具合は未検証です。"
+        ]
+        XCTAssertTrue(notice.exists)
+        app.swipeUp()
+        XCTAssertTrue(notice.isHittable)
+        addScreenshot(named: "fixture-2-dark-accessibility-text")
     }
 
     func testFailedSimulationStillAllowsClearingSelectedPreset() {
@@ -216,6 +263,23 @@ final class HomeFlowUITests: XCTestCase {
         XCTAssertEqual(undecided.value as? String, "未選択")
         undecided.tap()
         XCTAssertEqual(undecided.value as? String, "選択中")
+    }
+
+    private func addScreenshot(named name: String) {
+        let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        screenshot.name = name
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    private func assertSurfaceRendered(in app: XCUIApplication) {
+        let surface = app.descendants(matching: .any)["maru-genji-3d-surface"].firstMatch
+        XCTAssertTrue(surface.waitForExistence(timeout: 3))
+        let rendered = expectation(
+            for: NSPredicate(format: "value == %@", "表示完了"),
+            evaluatedWith: surface
+        )
+        wait(for: [rendered], timeout: 10)
     }
 
     private func selectThreadCount(

@@ -27,6 +27,12 @@ struct MaruGenji3DPreviewView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 18))
                     .accessibilityLabel(ProjectEditorStrings.maruGenji3DAccessibilityLabel)
                     .accessibilityHint(ProjectEditorStrings.maruGenji3DAccessibilityHint)
+                    .accessibilityValue(
+                        controller.didRender
+                            ? ProjectEditorStrings.maruGenji3DRenderComplete
+                            : ProjectEditorStrings.maruGenji3DRenderPending
+                    )
+                    .accessibilityIdentifier("maru-genji-3d-surface")
 
                     HStack(spacing: 12) {
                         controlButton(
