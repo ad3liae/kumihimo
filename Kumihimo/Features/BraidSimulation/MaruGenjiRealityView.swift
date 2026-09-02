@@ -1,10 +1,12 @@
 import RealityKit
 import SwiftUI
 import UIKit
+import os
 
 @MainActor
 final class MaruGenjiViewerController: ObservableObject {
     @Published private(set) var didFailToRender = false
+    @Published private(set) var didRender = false
 
     private weak var modelRoot: Entity?
     private var roll: Float = 0
@@ -14,12 +16,12 @@ final class MaruGenjiViewerController: ObservableObject {
     func connect(modelRoot: Entity) {
         self.modelRoot = modelRoot
         applyTransform()
-        publishRenderFailure(false)
+        publishRenderState(didRender: true, didFail: false)
     }
 
     func reportFailure() {
         modelRoot = nil
-        publishRenderFailure(true)
+        publishRenderState(didRender: false, didFail: true)
     }
 
     func rotate(horizontal: Float, vertical: Float = 0) {
@@ -48,10 +50,11 @@ final class MaruGenjiViewerController: ObservableObject {
         modelRoot.scale = SIMD3<Float>(repeating: scale)
     }
 
-    private func publishRenderFailure(_ failed: Bool) {
-        guard didFailToRender != failed else { return }
+    private func publishRenderState(didRender: Bool, didFail: Bool) {
+        guard self.didRender != didRender || didFailToRender != didFail else { return }
         Task { @MainActor [weak self] in
-            self?.didFailToRender = failed
+            self?.didRender = didRender
+            self?.didFailToRender = didFail
         }
     }
 }
@@ -59,6 +62,8 @@ final class MaruGenjiViewerController: ObservableObject {
 struct MaruGenjiRealityView: UIViewRepresentable {
     let assignments: [ThreadAssignment]
     let controller: MaruGenjiViewerController
+
+    @Environment(\.colorScheme) private var colorScheme
 
     func makeCoordinator() -> Coordinator {
         Coordinator(controller: controller)
@@ -70,7 +75,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
             cameraMode: .nonAR,
             automaticallyConfigureSession: false
         )
-        view.environment.background = .color(.secondarySystemBackground)
+        updateBackground(of: view)
 
         let pan = UIPanGestureRecognizer(
             target: context.coordinator,
@@ -97,6 +102,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: ARView, context: Context) {
+        updateBackground(of: uiView)
         let signature = assignments
             .sorted { $0.position < $1.position }
             .map { "\($0.position):\($0.colorID.rawValue)" }
@@ -105,8 +111,20 @@ struct MaruGenjiRealityView: UIViewRepresentable {
         context.coordinator.buildScene(in: uiView, assignments: assignments)
     }
 
+    private func updateBackground(of view: ARView) {
+        let interfaceStyle: UIUserInterfaceStyle = colorScheme == .dark ? .dark : .light
+        let traits = UITraitCollection(userInterfaceStyle: interfaceStyle)
+        let color = UIColor.secondarySystemBackground.resolvedColor(with: traits)
+        view.environment.background = .color(color)
+    }
+
     @MainActor
     final class Coordinator: NSObject {
+        private static let logger = Logger(
+            subsystem: "com.example.Kumihimo",
+            category: "MaruGenjiRealityView"
+        )
+
         let controller: MaruGenjiViewerController
         var assignmentSignature = ""
 
@@ -121,8 +139,16 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 .joined(separator: "|")
             view.scene.anchors.removeAll()
 
-            let strands = MaruGenjiPathGenerator.generate(assignments: assignments)
-            guard strands.count == MaruGenjiSimulation.requiredThreadCount else {
+            guard let pattern = MaruGenjiSurfacePatternGenerator.generate(assignments: assignments) else {
+                let positions = assignments.map(\.position).map(String.init).joined(separator: ",")
+                Self.logger.error(
+                    "Surface pattern generation failed for \(assignments.count) assignments at \(positions, privacy: .public)"
+                )
+                controller.reportFailure()
+                return
+            }
+            guard let surface = MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern) else {
+                Self.logger.error("Surface mesh data generation failed")
                 controller.reportFailure()
                 return
             }
@@ -130,20 +156,29 @@ struct MaruGenjiRealityView: UIViewRepresentable {
             do {
                 let anchor = AnchorEntity(world: .zero)
                 let root = Entity()
+                let sortedColorGroups = surface.colorGroups.sorted {
+                    $0.key.rawValue < $1.key.rawValue
+                }
+                guard
+                    !sortedColorGroups.isEmpty,
+                    sortedColorGroups.allSatisfy({ !$0.value.isEmpty }),
+                    sortedColorGroups.allSatisfy({ ThreadColorCatalog.color(for: $0.key) != nil })
+                else {
+                    Self.logger.error("Surface contains an empty or unknown color group")
+                    controller.reportFailure()
+                    return
+                }
 
-                for strand in strands {
-                    guard let tube = MaruGenjiTubeMeshGenerator.generate(points: strand.points) else {
-                        continue
+                let colorEntities = try sortedColorGroups.map { group -> ModelEntity in
+                    guard let threadColor = ThreadColorCatalog.color(for: group.key) else {
+                        throw SurfaceRenderError.unknownColor
                     }
-                    var descriptor = MeshDescriptor(name: "thread-\(strand.threadPosition)")
-                    descriptor.positions = MeshBuffer(tube.positions)
-                    descriptor.normals = MeshBuffer(tube.normals)
-                    descriptor.primitives = .triangles(tube.triangleIndices)
+                    var descriptor = MeshDescriptor(name: "surface-\(group.key.rawValue)")
+                    descriptor.positions = MeshBuffer(surface.positions)
+                    descriptor.normals = MeshBuffer(surface.normals)
+                    descriptor.primitives = .triangles(group.value)
                     descriptor.materials = .allFaces(0)
 
-                    let mesh = try MeshResource.generate(from: [descriptor])
-                    let threadColor = ThreadColorCatalog.color(for: strand.colorID)
-                        ?? ThreadColorCatalog.defaultColor
                     let color = UIColor(
                         red: threadColor.value.red,
                         green: threadColor.value.green,
@@ -152,15 +187,14 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                     )
                     let material = SimpleMaterial(
                         color: color,
-                        roughness: 0.72,
+                        roughness: 0.76,
                         isMetallic: false
                     )
-                    root.addChild(ModelEntity(mesh: mesh, materials: [material]))
+                    let mesh = try MeshResource.generate(from: [descriptor])
+                    return ModelEntity(mesh: mesh, materials: [material])
                 }
-
-                guard root.children.count == MaruGenjiSimulation.requiredThreadCount else {
-                    controller.reportFailure()
-                    return
+                for entity in colorEntities {
+                    root.addChild(entity)
                 }
 
                 anchor.addChild(root)
@@ -174,7 +208,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 anchor.addChild(camera)
 
                 let keyLight = DirectionalLight()
-                keyLight.light.intensity = 18_000
+                keyLight.light.intensity = 20_000
                 keyLight.look(
                     at: .zero,
                     from: SIMD3<Float>(0.5, 2.2, 3),
@@ -183,7 +217,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 anchor.addChild(keyLight)
 
                 let fillLight = DirectionalLight()
-                fillLight.light.intensity = 7_000
+                fillLight.light.intensity = 10_000
                 fillLight.look(
                     at: .zero,
                     from: SIMD3<Float>(-1.5, -1, 2),
@@ -191,9 +225,19 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 )
                 anchor.addChild(fillLight)
 
+                let rimLight = DirectionalLight()
+                rimLight.light.intensity = 6_000
+                rimLight.look(
+                    at: .zero,
+                    from: SIMD3<Float>(0.2, 1, -3),
+                    relativeTo: nil
+                )
+                anchor.addChild(rimLight)
+
                 view.scene.addAnchor(anchor)
                 controller.connect(modelRoot: root)
             } catch {
+                Self.logger.error("RealityKit surface generation failed: \(String(describing: error), privacy: .public)")
                 controller.reportFailure()
             }
         }
@@ -214,6 +258,10 @@ struct MaruGenjiRealityView: UIViewRepresentable {
 
         @objc func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
             controller.reset()
+        }
+
+        private enum SurfaceRenderError: Error {
+            case unknownColor
         }
     }
 }
