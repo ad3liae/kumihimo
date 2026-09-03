@@ -11,6 +11,9 @@ enum ProjectEditorPreviewData {
     static let surfaceFixture1LaunchArgument = "--ui-testing-surface-fixture-1"
     static let surfaceFixture2LaunchArgument = "--ui-testing-surface-fixture-2"
     static let surfaceFixture3LaunchArgument = "--ui-testing-surface-fixture-3"
+    static let hiraSurfaceFixtureALaunchArgument = "--ui-testing-hira-surface-fixture-a"
+    static let hiraSurfaceFixtureBLaunchArgument = "--ui-testing-hira-surface-fixture-b"
+    static let hiraSurfaceFixtureCLaunchArgument = "--ui-testing-hira-surface-fixture-c"
     static let darkModeLaunchArgument = "--ui-testing-dark-mode"
 
     static var colorfulAssignments: [ThreadAssignment] {
@@ -46,6 +49,38 @@ enum ProjectEditorPreviewData {
             "blue", "blue", "blue", "blue",
             "pink", "pink", "pink", "pink",
         ])
+    }
+
+    static var hiraGenjiSurfaceFixtureA: [ThreadAssignment] {
+        let inner = Set([15, 16, 1, 2, 10, 9, 8, 7])
+        return (1...16).map { position in
+            let colorID: String
+            if inner.contains(position) {
+                colorID = position.isMultiple(of: 2) ? "blue" : "light-blue"
+            } else {
+                colorID = position.isMultiple(of: 2) ? "white" : "black"
+            }
+            return ThreadAssignment(position: position, colorID: ThreadColorID(rawValue: colorID))
+        }
+    }
+
+    static var hiraGenjiSurfaceFixtureB: [ThreadAssignment] {
+        let center = Set([4, 5, 13, 12])
+        return (1...16).map { position in
+            ThreadAssignment(
+                position: position,
+                colorID: ThreadColorID(rawValue: center.contains(position) ? "blue" : "pink")
+            )
+        }
+    }
+
+    static var hiraGenjiSurfaceFixtureC: [ThreadAssignment] {
+        let far = Set([3, 4, 14, 13])
+        let near = Set([5, 6, 12, 11])
+        return (1...16).map { position in
+            let colorID = far.contains(position) ? "blue" : near.contains(position) ? "pink" : "white"
+            return ThreadAssignment(position: position, colorID: ThreadColorID(rawValue: colorID))
+        }
     }
 
     static var undecidedProject: KumihimoProject {
@@ -187,5 +222,29 @@ struct ProjectEditorPreview: View {
 
 #Preview("丸源氏表面 Fixture 3・位相のずれた山形") {
     MaruGenji3DPreviewView(assignments: ProjectEditorPreviewData.maruGenjiSurfaceFixture3)
+}
+
+#Preview("平源氏 Fixture A・水色系と白黒") {
+    HiraGenji3DPreviewView(
+        assignments: ProjectEditorPreviewData.hiraGenjiSurfaceFixtureA,
+        controller: MaruGenjiViewerController(),
+        isEmbedded: false
+    )
+}
+
+#Preview("平源氏 Fixture B・矢絣状の縁取り") {
+    HiraGenji3DPreviewView(
+        assignments: ProjectEditorPreviewData.hiraGenjiSurfaceFixtureB,
+        controller: MaruGenjiViewerController(),
+        isEmbedded: false
+    )
+}
+
+#Preview("平源氏 Fixture C・表裏反転する梯子状模様") {
+    HiraGenji3DPreviewView(
+        assignments: ProjectEditorPreviewData.hiraGenjiSurfaceFixtureC,
+        controller: MaruGenjiViewerController(),
+        isEmbedded: false
+    )
 }
 #endif

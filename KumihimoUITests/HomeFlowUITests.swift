@@ -135,6 +135,57 @@ final class HomeFlowUITests: XCTestCase {
         add(screenshot)
     }
 
+    func testSixteenThreadProjectSelectsAndOpensHiraGenji3DPreview() {
+        let app = launch(arguments: ["--ui-testing-colorful-editor"])
+        let preset = element(
+            in: app,
+            identifier: "project-editor.preset-hira-genji-16",
+            scrollingIfNeeded: true
+        )
+        XCTAssertEqual(preset.value as? String, "未選択")
+        preset.tap()
+        XCTAssertEqual(preset.value as? String, "選択中")
+
+        let thumbnail = element(
+            in: app,
+            identifier: "project-editor.preset-hira-genji-16-thumbnail-3d",
+            scrollingIfNeeded: true
+        )
+        XCTAssertEqual(thumbnail.label, "平源氏を3Dで見る")
+        thumbnail.tap()
+
+        if app.frame.width >= 900 {
+            XCTAssertTrue(app.buttons["結果へ戻る"].waitForExistence(timeout: 10))
+        } else {
+            XCTAssertTrue(app.navigationBars["平源氏・3D試作"].waitForExistence(timeout: 10))
+        }
+        let surface = app.descendants(matching: .any)["hira-genji-3d-surface"].firstMatch
+        XCTAssertTrue(surface.waitForExistence(timeout: 10))
+        let rendered = expectation(
+            for: NSPredicate(format: "value == %@", "表示完了"),
+            evaluatedWith: surface
+        )
+        wait(for: [rendered], timeout: 15)
+        XCTAssertTrue(app.staticTexts[
+            "反復色を使った複数例で配色傾向を照合した試作です。16位置をすべて異なる色にした対応と、糸の上下関係・締め具合は未検証です。"
+        ].exists)
+        addScreenshot(named: "hira-genji-3d-preview")
+    }
+
+    func testHiraGenjiReferenceFixtureRenders() {
+        let app = launch(arguments: ["--ui-testing-hira-surface-fixture-a"])
+
+        XCTAssertTrue(app.navigationBars["平源氏・3D試作"].waitForExistence(timeout: 10))
+        let surface = app.descendants(matching: .any)["hira-genji-3d-surface"].firstMatch
+        XCTAssertTrue(surface.waitForExistence(timeout: 10))
+        let rendered = expectation(
+            for: NSPredicate(format: "value == %@", "表示完了"),
+            evaluatedWith: surface
+        )
+        wait(for: [rendered], timeout: 15)
+        addScreenshot(named: "hira-genji-fixture-a")
+    }
+
     func testVerifiedSurfaceFixturesRenderAtFrontLeftAndRightAngles() {
         let fixtures = [
             "--ui-testing-surface-fixture-1",

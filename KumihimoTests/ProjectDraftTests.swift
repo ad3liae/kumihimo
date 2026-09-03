@@ -121,7 +121,10 @@ struct ProjectEditorPresentationStateTests {
 
         #expect(store.draft.selectedBraidPresetID == .maruGenji16)
         #expect(store.draft.braidTypeName == BraidPresetCatalog.maruGenji.displayName)
-        #expect(store.availableBraidPresets == [BraidPresetCatalog.maruGenji])
+        #expect(store.availableBraidPresets == [
+            BraidPresetCatalog.maruGenji,
+            BraidPresetCatalog.hiraGenji,
+        ])
 
         store.requestThreadCount(8)
         store.confirmThreadCountReduction()
@@ -129,6 +132,17 @@ struct ProjectEditorPresentationStateTests {
         #expect(store.draft.selectedBraidPresetID == nil)
         #expect(store.draft.braidTypeName == KumihimoProject.undecidedBraidName)
         #expect(store.availableBraidPresets.isEmpty)
+    }
+
+    @Test func selectingHiraGenjiUsesItsStablePresetIdentity() throws {
+        let store = try makeStore()
+        store.requestThreadCount(16)
+
+        store.selectBraidPreset(.hiraGenji16)
+
+        #expect(store.draft.selectedBraidPresetID == .hiraGenji16)
+        #expect(store.draft.braidTypeName == BraidPresetCatalog.hiraGenji.displayName)
+        #expect(BraidPresetCatalog.preset(for: .maruGenji16) == BraidPresetCatalog.maruGenji)
     }
 
     @Test func loadFailureKeepsExistingProjectModeAndHidesSaveToolbar() throws {

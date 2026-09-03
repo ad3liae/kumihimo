@@ -49,7 +49,7 @@ struct SimulationResultsBoundaryView: View {
                         Button {
                             show3DPreview(preset)
                         } label: {
-                            MaruGenjiThumbnailView(assignments: assignments)
+                            thumbnail(for: preset)
                                 .frame(height: 112)
                                 .overlay(alignment: .bottomTrailing) {
                                     Image(systemName: "view.3d")
@@ -61,7 +61,7 @@ struct SimulationResultsBoundaryView: View {
                                 .contentShape(.rect)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(ProjectEditorStrings.maruGenjiThumbnail3DLabel)
+                        .accessibilityLabel(thumbnailAccessibilityLabel(for: preset))
                         .accessibilityHint(ProjectEditorStrings.maruGenjiThumbnail3DHint)
                         .accessibilityIdentifier(
                             ProjectEditorAccessibilityIdentifiers.thumbnail3DButton(preset.id)
@@ -81,7 +81,7 @@ struct SimulationResultsBoundaryView: View {
                             ProjectEditorAccessibilityIdentifiers.presetButton(preset.id)
                         )
 
-                        Text(ProjectEditorStrings.maruGenjiPrototypeNotice)
+                        Text(prototypeNotice(for: preset))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -106,6 +106,28 @@ struct SimulationResultsBoundaryView: View {
                 Text(ProjectEditorStrings.simulationFailedMessage)
             }
         }
+    }
+
+    @ViewBuilder
+    private func thumbnail(for preset: BraidPreset) -> some View {
+        switch preset.id {
+        case .hiraGenji16:
+            HiraGenjiThumbnailView(assignments: assignments)
+        default:
+            MaruGenjiThumbnailView(assignments: assignments)
+        }
+    }
+
+    private func thumbnailAccessibilityLabel(for preset: BraidPreset) -> String {
+        preset.id == .hiraGenji16
+            ? ProjectEditorStrings.hiraGenjiThumbnail3DLabel
+            : ProjectEditorStrings.maruGenjiThumbnail3DLabel
+    }
+
+    private func prototypeNotice(for preset: BraidPreset) -> String {
+        preset.id == .hiraGenji16
+            ? ProjectEditorStrings.hiraGenjiPrototypeNotice
+            : ProjectEditorStrings.maruGenjiPrototypeNotice
     }
 
     private func selectionRow(
