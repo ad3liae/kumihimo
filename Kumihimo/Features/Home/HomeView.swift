@@ -45,6 +45,10 @@ struct HomeView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .frame(maxWidth: 760)
+            .frame(maxWidth: .infinity)
+            .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
             .navigationTitle(HomeStrings.title)
             .onAppear {
                 store.load()

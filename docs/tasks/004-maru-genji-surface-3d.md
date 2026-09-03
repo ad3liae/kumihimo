@@ -1,6 +1,6 @@
 # Task 004: 実物照合済み配色展開図による丸源氏3D表面表示
 
-- 状態: Ready
+- 状態: Done
 - 優先度: 高
 - 前提: `docs/tasks/003-review-fixes.md` の4件が完了していること
 - 仕様: `docs/specifications/project-editor.md`

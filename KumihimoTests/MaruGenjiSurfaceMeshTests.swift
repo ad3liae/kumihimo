@@ -5,12 +5,11 @@ import Testing
 @testable import Kumihimo
 
 struct MaruGenjiSurfaceMeshTests {
-    @Test func meshIsFiniteClosedGroupedAndNondegenerate() throws {
+    @Test func meshIsFiniteOpenGroupedAndNondegenerate() throws {
         let pattern = try #require(
             MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
         let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
-
         #expect(mesh.positions.count == mesh.normals.count)
         #expect(mesh.positions.count == mesh.textureCoordinates.count)
         #expect(mesh.positions.count == mesh.patchLocalCoordinates.count)
@@ -25,6 +24,8 @@ struct MaruGenjiSurfaceMeshTests {
         #expect(mesh.textureCoordinates.allSatisfy(isFiniteUnitCoordinate))
         #expect(mesh.patchLocalCoordinates.allSatisfy(isFiniteUnitCoordinate))
         #expect(mesh.boundaryDistances.allSatisfy { $0.isFinite && (0...0.5).contains($0) })
+        #expect(mesh.surfaceVertexPatchIndices.allSatisfy { pattern.patches.indices.contains($0) })
+        #expect(mesh.surfaceTrianglePatchIndices.count == mesh.triangleCount)
 
         let indices = mesh.allTriangleIndices
         #expect(indices.allSatisfy { Int($0) < mesh.positions.count })
@@ -36,6 +37,40 @@ struct MaruGenjiSurfaceMeshTests {
             #expect(simd_length_squared(simd_cross(second - first, third - first))
                 > 0.000_000_000_001)
         }
+    }
+
+    @Test func meshContainsNoEndCapTriangles() throws {
+        let pattern = try #require(
+            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+        )
+        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let indices = mesh.allTriangleIndices
+
+        for offset in stride(from: 0, to: indices.count, by: 3) {
+            let triangle = (0..<3).map { mesh.positions[Int(indices[offset + $0])] }
+            let hasConstantX = triangle.allSatisfy {
+                abs($0.x - triangle[0].x) < 0.000_001
+            }
+            #expect(!hasConstantX)
+        }
+    }
+
+    @Test func longitudinalTileBoundariesHaveMatchingGeometryAndSurfaceState() throws {
+        let pattern = try #require(
+            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+        )
+        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let halfLength = MaruGenjiSurfaceMeshGenerator.defaultLength / 2
+        let start = mesh.positions.indices.filter { abs(mesh.positions[$0].x + halfLength) < 0.000_001 }
+        let end = mesh.positions.indices.filter { abs(mesh.positions[$0].x - halfLength) < 0.000_001 }
+
+        #expect(!start.isEmpty)
+        #expect(boundariesMatch(start, end, in: mesh))
+        let startGroups = groupBoundaryCounts(start, in: mesh)
+        let endGroups = groupBoundaryCounts(end, in: mesh)
+        #expect(startGroups["base"] == endGroups["base"])
+        #expect(startGroups["boundary"] == endGroups["boundary"])
+        #expect(edgeColorIDs(start, in: mesh) == edgeColorIDs(end, in: mesh))
     }
 
     @Test func circumferentialSeamVerticesMatchExactly() throws {
@@ -229,5 +264,53 @@ struct MaruGenjiSurfaceMeshTests {
         vector.x.isFinite && vector.y.isFinite
             && (0...1).contains(vector.x)
             && (0...1).contains(vector.y)
+    }
+
+    private func boundariesMatch(
+        _ startIndices: [Int],
+        _ endIndices: [Int],
+        in mesh: MaruGenjiSurfaceMeshData
+    ) -> Bool {
+        func hasMatch(for sourceIndex: Int, in candidates: [Int]) -> Bool {
+            let sourcePosition = mesh.positions[sourceIndex]
+            let sourceNormal = mesh.normals[sourceIndex]
+            return candidates.contains { candidateIndex in
+                let candidatePosition = mesh.positions[candidateIndex]
+                return hypot(
+                    sourcePosition.y - candidatePosition.y,
+                    sourcePosition.z - candidatePosition.z
+                ) < 0.000_2
+                    && simd_distance(sourceNormal, mesh.normals[candidateIndex]) < 0.000_2
+            }
+        }
+
+        return startIndices.allSatisfy { hasMatch(for: $0, in: endIndices) }
+            && endIndices.allSatisfy { hasMatch(for: $0, in: startIndices) }
+    }
+
+    private func groupBoundaryCounts(
+        _ boundaryIndices: [Int],
+        in mesh: MaruGenjiSurfaceMeshData
+    ) -> [String: Int] {
+        let boundarySet = Set(boundaryIndices.map(UInt32.init))
+        var result = [String: Int]()
+        for indices in mesh.colorGroups.values {
+            result["base", default: 0] += indices.filter { boundarySet.contains($0) }.count
+        }
+        for indices in mesh.boundaryColorGroups.values {
+            result["boundary", default: 0] += indices.filter { boundarySet.contains($0) }.count
+        }
+        return result
+    }
+
+    private func edgeColorIDs(
+        _ boundaryIndices: [Int],
+        in mesh: MaruGenjiSurfaceMeshData
+    ) -> Set<ThreadColorID> {
+        let boundarySet = Set(boundaryIndices.map(UInt32.init))
+        return Set((mesh.colorGroups.merging(mesh.boundaryColorGroups) { $0 + $1 }).compactMap {
+            colorID, indices in
+            indices.contains(where: boundarySet.contains) ? colorID : nil
+        })
     }
 }
