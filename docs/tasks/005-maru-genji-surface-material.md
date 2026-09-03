@@ -1,6 +1,6 @@
 # Task 005: 丸源氏3D表面の境界・繊維感と2D／3D色整合
 
-- 状態: Ready
+- 状態: Done
 - 優先度: 高
 - 作成日: 2026-09-03
 - 前提: `docs/tasks/004-maru-genji-surface-3d.md` の実装が完了していること

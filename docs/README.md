@@ -18,6 +18,7 @@
 - Task 003 組み方プリセットとシミュレーション: `tasks/003-braid-simulation-presets.md`
 - Task 004 実物照合済みの丸源氏3D表面: `tasks/004-maru-genji-surface-3d.md`
 - Task 005 丸源氏3Dの境界・繊維感と色整合: `tasks/005-maru-genji-surface-material.md`
+- Task 006 端面のない長尺3D表示とiPad適応レイアウト: `tasks/006-infinite-braid-ipad-layout.md`
 
 ## 更新方針
 

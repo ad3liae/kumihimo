@@ -5,13 +5,15 @@ import os
 
 @MainActor
 final class MaruGenjiViewerController: ObservableObject {
+    static let minimumScale: Float = 0.65
+    static let maximumScale: Float = 1.8
+
     @Published private(set) var didFailToRender = false
     @Published private(set) var didRender = false
 
     private weak var modelRoot: Entity?
-    private var roll: Float = 0
-    private var pitch: Float = -0.12
-    private var scale: Float = 1
+    private(set) var roll: Float = 0
+    private(set) var scale: Float = 1
 
     func connect(modelRoot: Entity) {
         self.modelRoot = modelRoot
@@ -24,20 +26,18 @@ final class MaruGenjiViewerController: ObservableObject {
         publishRenderState(didRender: false, didFail: true)
     }
 
-    func rotate(horizontal: Float, vertical: Float = 0) {
+    func rotate(horizontal: Float) {
         roll += horizontal
-        pitch = min(max(pitch + vertical, -0.85), 0.85)
         applyTransform()
     }
 
     func zoom(by factor: Float) {
-        scale = min(max(scale * factor, 0.65), 1.8)
+        scale = min(max(scale * factor, Self.minimumScale), Self.maximumScale)
         applyTransform()
     }
 
     func reset() {
         roll = 0
-        pitch = -0.12
         scale = 1
         applyTransform()
     }
@@ -45,8 +45,7 @@ final class MaruGenjiViewerController: ObservableObject {
     private func applyTransform() {
         guard let modelRoot else { return }
         let rollRotation = simd_quatf(angle: roll, axis: SIMD3<Float>(1, 0, 0))
-        let pitchRotation = simd_quatf(angle: pitch, axis: SIMD3<Float>(0, 1, 0))
-        modelRoot.orientation = pitchRotation * rollRotation
+        modelRoot.orientation = rollRotation
         modelRoot.scale = SIMD3<Float>(repeating: scale)
     }
 
@@ -60,8 +59,12 @@ final class MaruGenjiViewerController: ObservableObject {
 }
 
 struct MaruGenjiRealityView: UIViewRepresentable {
+    static let cameraDistance: Float = 4.4
+    static let verticalFieldOfView: Float = .pi / 3
+
     let assignments: [ThreadAssignment]
     let controller: MaruGenjiViewerController
+    let viewportSize: CGSize
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -103,6 +106,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
 
     func updateUIView(_ uiView: ARView, context: Context) {
         updateBackground(of: uiView)
+        context.coordinator.updateCoverage(for: viewportSize)
         let signature = assignments
             .sorted { $0.position < $1.position }
             .map { "\($0.position):\($0.colorID.rawValue)" }
@@ -127,6 +131,10 @@ struct MaruGenjiRealityView: UIViewRepresentable {
 
         let controller: MaruGenjiViewerController
         var assignmentSignature = ""
+        private var tileRoot: Entity?
+        private var sharedMesh: MeshResource?
+        private var sharedMaterials = [PhysicallyBasedMaterial]()
+        private var tileCount = 0
 
         init(controller: MaruGenjiViewerController) {
             self.controller = controller
@@ -138,6 +146,10 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 .map { "\($0.position):\($0.colorID.rawValue)" }
                 .joined(separator: "|")
             view.scene.anchors.removeAll()
+            tileRoot = nil
+            sharedMesh = nil
+            sharedMaterials = []
+            tileCount = 0
 
             guard let pattern = MaruGenjiSurfacePatternGenerator.generate(assignments: assignments) else {
                 let positions = assignments.map(\.position).map(String.init).joined(separator: ",")
@@ -210,16 +222,22 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                         surface: surface
                     ),
                 ])
-                root.addChild(ModelEntity(mesh: mesh, materials: materials))
+                let instances = Entity()
+                root.addChild(instances)
+                tileRoot = instances
+                sharedMesh = mesh
+                sharedMaterials = materials
 
                 anchor.addChild(root)
 
                 let camera = PerspectiveCamera()
                 camera.look(
                     at: .zero,
-                    from: SIMD3<Float>(0, 0.15, 4.4),
+                    from: SIMD3<Float>(0, 0, MaruGenjiRealityView.cameraDistance),
                     relativeTo: nil
                 )
+                camera.camera.fieldOfViewInDegrees = MaruGenjiRealityView.verticalFieldOfView
+                    * 180 / .pi
                 anchor.addChild(camera)
 
                 let keyLight = DirectionalLight()
@@ -250,6 +268,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 anchor.addChild(rimLight)
 
                 view.scene.addAnchor(anchor)
+                updateCoverage(for: view.bounds.size)
                 controller.connect(modelRoot: root)
             } catch {
                 Self.logger.error("RealityKit surface generation failed: \(String(describing: error), privacy: .public)")
@@ -259,10 +278,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
 
         @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
             let translation = gesture.translation(in: gesture.view)
-            controller.rotate(
-                horizontal: Float(translation.x) * 0.008,
-                vertical: Float(translation.y) * 0.004
-            )
+            controller.rotate(horizontal: Float(translation.x) * 0.008)
             gesture.setTranslation(.zero, in: gesture.view)
         }
 
@@ -273,6 +289,40 @@ struct MaruGenjiRealityView: UIViewRepresentable {
 
         @objc func handleDoubleTap(_ gesture: UITapGestureRecognizer) {
             controller.reset()
+        }
+
+        func updateCoverage(for viewportSize: CGSize) {
+            guard
+                let tileRoot,
+                let sharedMesh,
+                viewportSize.width > 0,
+                viewportSize.height > 0,
+                let coverage = MaruGenjiViewportCoverageCalculator.calculate(
+                    viewportSize: SIMD2<Float>(
+                        Float(viewportSize.width),
+                        Float(viewportSize.height)
+                    ),
+                    cameraDistance: MaruGenjiRealityView.cameraDistance,
+                    verticalFieldOfView: MaruGenjiRealityView.verticalFieldOfView,
+                    minimumScale: MaruGenjiViewerController.minimumScale,
+                    tileLength: MaruGenjiSurfaceMeshGenerator.defaultLength
+                ),
+                coverage.tileCount != tileCount,
+                let offsets = MaruGenjiViewportCoverageCalculator.tileOffsets(
+                    tileCount: coverage.tileCount,
+                    tileLength: MaruGenjiSurfaceMeshGenerator.defaultLength
+                )
+            else {
+                return
+            }
+
+            tileRoot.children.removeAll()
+            for offset in offsets {
+                let entity = ModelEntity(mesh: sharedMesh, materials: sharedMaterials)
+                entity.position.x = offset
+                tileRoot.addChild(entity)
+            }
+            tileCount = coverage.tileCount
         }
 
         private func descriptor(

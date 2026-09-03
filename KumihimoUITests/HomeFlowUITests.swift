@@ -116,7 +116,12 @@ final class HomeFlowUITests: XCTestCase {
         XCTAssertFalse(app.buttons["3Dで見る"].exists)
         thumbnailButton.tap()
 
-        XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 10))
+        if app.frame.width >= 900 {
+            XCTAssertTrue(app.buttons["結果へ戻る"].waitForExistence(timeout: 10))
+            XCTAssertTrue(app.staticTexts["色の配置"].exists)
+        } else {
+            XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 10))
+        }
         XCTAssertTrue(app.buttons["左へ回転"].exists)
         XCTAssertTrue(app.buttons["正面に戻す"].exists)
         XCTAssertTrue(app.buttons["右へ回転"].exists)
@@ -152,8 +157,76 @@ final class HomeFlowUITests: XCTestCase {
             app.buttons["正面に戻す"].tap()
             surface.pinch(withScale: 1.6, velocity: 1)
             addScreenshot(named: "fixture-\(index + 1)-zoom")
+            surface.pinch(withScale: 0.1, velocity: -1)
+            addScreenshot(named: "fixture-\(index + 1)-minimum-scale")
             app.terminate()
         }
+    }
+
+    func testWideIPadEditorUsesInline3DAndKeepsColorControlsVisible() throws {
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        let app = launch(arguments: ["--ui-testing-colorful-editor"])
+        guard app.frame.width >= 900 else {
+            throw XCTSkip("This check requires an iPad landscape-sized destination")
+        }
+
+        let preset = element(
+            in: app,
+            identifier: "project-editor.preset-maru-genji-16",
+            scrollingIfNeeded: true
+        )
+        XCTAssertEqual(preset.value as? String, "未選択")
+        preset.tap()
+        XCTAssertEqual(preset.value as? String, "選択中")
+
+        let thumbnail = element(
+            in: app,
+            identifier: "project-editor.preset-maru-genji-16-thumbnail-3d"
+        )
+        XCTAssertTrue(thumbnail.isHittable)
+        thumbnail.tap()
+
+        XCTAssertTrue(app.buttons["結果へ戻る"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["色の配置"].exists)
+        assertSurfaceRendered(in: app)
+        addScreenshot(named: "ipad-landscape-inline-3d")
+
+        XCUIDevice.shared.orientation = .portrait
+        XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 10))
+        assertSurfaceRendered(in: app)
+        app.buttons["閉じる"].tap()
+
+        XCTAssertTrue(app.staticTexts["色の配置"].waitForExistence(timeout: 3))
+        XCTAssertEqual(
+            element(in: app, identifier: "project-editor.thread-count-picker").value as? String,
+            "16本"
+        )
+        let selectedPreset = element(
+            in: app,
+            identifier: "project-editor.preset-maru-genji-16",
+            scrollingIfNeeded: true
+        )
+        XCTAssertEqual(selectedPreset.value as? String, "選択中")
+    }
+
+    func testIPadPortraitUsesSingleColumnAndFullScreen3D() throws {
+        XCUIDevice.shared.orientation = .portrait
+        let app = launch(arguments: ["--ui-testing-colorful-editor"])
+        guard app.frame.width > 700, app.frame.width < 900 else {
+            throw XCTSkip("This check requires an iPad portrait-sized destination")
+        }
+
+        let thumbnail = element(
+            in: app,
+            identifier: "project-editor.preset-maru-genji-16-thumbnail-3d",
+            scrollingIfNeeded: true
+        )
+        thumbnail.tap()
+
+        XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 10))
+        assertSurfaceRendered(in: app)
+        addScreenshot(named: "ipad-portrait-full-screen-3d")
     }
 
     func testVerifiedSurfaceNoticeAndControlsRemainVisibleInDarkAccessibilityText() {

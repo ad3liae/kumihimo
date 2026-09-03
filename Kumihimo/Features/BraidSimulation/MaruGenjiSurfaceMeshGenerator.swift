@@ -80,25 +80,6 @@ enum MaruGenjiSurfaceMeshGenerator {
             }
         }
 
-        appendEndCap(
-            at: -length / 2,
-            outwardNormal: SIMD3<Float>(-1, 0, 0),
-            edgeV: 0,
-            pattern: pattern,
-            radius: radius,
-            segmentCount: 8 * circumferentialSubdivisionsPerPatch,
-            builder: &builder
-        )
-        appendEndCap(
-            at: length / 2,
-            outwardNormal: SIMD3<Float>(1, 0, 0),
-            edgeV: 1,
-            pattern: pattern,
-            radius: radius,
-            segmentCount: 8 * circumferentialSubdivisionsPerPatch,
-            builder: &builder
-        )
-
         let seamStartVertexIndices = uniqueSeamIndices(
             builder.seamStartVertexIndices,
             positions: builder.positions
@@ -230,46 +211,6 @@ enum MaruGenjiSurfaceMeshGenerator {
         }
     }
 
-    private static func appendEndCap(
-        at x: Float,
-        outwardNormal: SIMD3<Float>,
-        edgeV: Float,
-        pattern: MaruGenjiSurfacePattern,
-        radius: Float,
-        segmentCount: Int,
-        builder: inout MeshBuilder
-    ) {
-        for segment in 0..<segmentCount {
-            let startU = Float(segment) / Float(segmentCount)
-            let endU = Float(segment + 1) / Float(segmentCount)
-            let middleU = (startU + endU) / 2
-            guard let colorID = edgeColor(at: middleU, edgeV: edgeV, pattern: pattern) else {
-                continue
-            }
-
-            let triangle = [
-                SIMD3<Float>(x, 0, 0),
-                SIMD3<Float>(x, radius * cos(2 * .pi * startU), radius * sin(2 * .pi * startU)),
-                SIMD3<Float>(x, radius * cos(2 * .pi * endU), radius * sin(2 * .pi * endU)),
-            ]
-            let winding = outwardNormal.x < 0 ? [0, 2, 1] : [0, 1, 2]
-            let firstIndex = UInt32(builder.positions.count)
-            for position in triangle {
-                builder.positions.append(position)
-                builder.normals.append(outwardNormal)
-                builder.textureCoordinates.append(
-                    SIMD2<Float>(position.y / (2 * radius) + 0.5, position.z / (2 * radius) + 0.5)
-                )
-                builder.patchLocalCoordinates.append(SIMD2<Float>(repeating: 0.5))
-                builder.boundaryDistances.append(0)
-                builder.surfaceVertexPatchIndices.append(-1)
-            }
-            builder.colorGroups[colorID, default: []].append(contentsOf: winding.map {
-                firstIndex + UInt32($0)
-            })
-        }
-    }
-
     private static func appendTriangulated(
         polygon: [PatchVertex],
         patch: MaruGenjiSurfacePatch,
@@ -358,12 +299,10 @@ enum MaruGenjiSurfaceMeshGenerator {
         length: Float
     ) -> SIMD3<Float> {
         let normalizedV = surfaceCoordinate.y / Float(repeatCount)
-        let endDistance = min(normalizedV, 1 - normalizedV)
-        let endFade = smoothstep(0, 0.025, endDistance)
         let displacedRadius = radius + reliefOffset(
             localCoordinate: localCoordinate,
             radius: radius
-        ) * endFade
+        )
         let angle: Float = approximatelyEqual(surfaceCoordinate.x, 1)
             ? 0
             : 2 * .pi * surfaceCoordinate.x
@@ -448,25 +387,6 @@ enum MaruGenjiSurfaceMeshGenerator {
         }
     }
 
-    private static func edgeColor(
-        at u: Float,
-        edgeV: Float,
-        pattern: MaruGenjiSurfacePattern
-    ) -> ThreadColorID? {
-        let insetV: Float = edgeV == 0 ? 0.0001 : 0.9999
-        for periodOffset in -1...1 {
-            for patch in pattern.patches {
-                let shifted = patch.corners.map {
-                    SIMD2<Float>($0.x, $0.y + Float(periodOffset))
-                }
-                if contains(SIMD2<Float>(u, insetV), in: shifted) {
-                    return patch.colorID
-                }
-            }
-        }
-        return nil
-    }
-
     private static func repeated(
         _ point: SIMD2<Float>,
         repeatIndex: Int
@@ -543,27 +463,6 @@ enum MaruGenjiSurfaceMeshGenerator {
             result.removeLast()
         }
         return result
-    }
-
-    private static func contains(
-        _ point: SIMD2<Float>,
-        in polygon: [SIMD2<Float>]
-    ) -> Bool {
-        guard polygon.count >= 3 else { return false }
-        var isInside = false
-        var previous = polygon[polygon.count - 1]
-        for current in polygon {
-            let crossesRay = (current.y > point.y) != (previous.y > point.y)
-            if crossesRay {
-                let crossingX = (previous.x - current.x) * (point.y - current.y)
-                    / (previous.y - current.y) + current.x
-                if point.x < crossingX {
-                    isInside.toggle()
-                }
-            }
-            previous = current
-        }
-        return isInside
     }
 
     private static func interpolate(
