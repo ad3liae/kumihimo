@@ -10,7 +10,7 @@ struct MaruGenjiSimulationTests {
         #expect(BraidPresetCatalog.availablePresets(threadCount: 12).isEmpty)
         #expect(
             BraidPresetCatalog.availablePresets(threadCount: 16)
-                == [BraidPresetCatalog.maruGenji]
+                == [BraidPresetCatalog.maruGenji, BraidPresetCatalog.hiraGenji]
         )
     }
 

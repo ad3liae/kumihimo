@@ -46,6 +46,30 @@ struct KumihimoApp: App {
                     MaruGenji3DPreviewView(
                         assignments: ProjectEditorPreviewData.maruGenjiSurfaceFixture3
                     )
+                } else if CommandLine.arguments.contains(
+                    ProjectEditorPreviewData.hiraSurfaceFixtureALaunchArgument
+                ) {
+                    HiraGenji3DPreviewView(
+                        assignments: ProjectEditorPreviewData.hiraGenjiSurfaceFixtureA,
+                        controller: MaruGenjiViewerController(),
+                        isEmbedded: false
+                    )
+                } else if CommandLine.arguments.contains(
+                    ProjectEditorPreviewData.hiraSurfaceFixtureBLaunchArgument
+                ) {
+                    HiraGenji3DPreviewView(
+                        assignments: ProjectEditorPreviewData.hiraGenjiSurfaceFixtureB,
+                        controller: MaruGenjiViewerController(),
+                        isEmbedded: false
+                    )
+                } else if CommandLine.arguments.contains(
+                    ProjectEditorPreviewData.hiraSurfaceFixtureCLaunchArgument
+                ) {
+                    HiraGenji3DPreviewView(
+                        assignments: ProjectEditorPreviewData.hiraGenjiSurfaceFixtureC,
+                        controller: MaruGenjiViewerController(),
+                        isEmbedded: false
+                    )
                 } else {
                     AppRootView()
                 }

@@ -56,7 +56,14 @@ struct ProjectEditorView: View {
             }
         }
         .fullScreenCover(item: $compactPreviewPreset) { preset in
-            if preset.id == .maruGenji16 {
+            if preset.id == .hiraGenji16 {
+                HiraGenji3DPreviewView(
+                    assignments: store.draft.threadAssignments,
+                    controller: previewController,
+                    isEmbedded: false,
+                    closeAction: closePreview
+                )
+            } else {
                 MaruGenji3DPreviewView(
                     assignments: store.draft.threadAssignments,
                     controller: previewController,
@@ -147,7 +154,15 @@ struct ProjectEditorView: View {
             Divider()
 
             Group {
-                if previewPreset?.id == .maruGenji16 {
+                if previewPreset?.id == .hiraGenji16 {
+                    HiraGenji3DPreviewView(
+                        assignments: store.draft.threadAssignments,
+                        controller: previewController,
+                        isEmbedded: true,
+                        closeAction: closePreview
+                    )
+                    .padding(.vertical)
+                } else if previewPreset?.id == .maruGenji16 {
                     MaruGenji3DPreviewView(
                         assignments: store.draft.threadAssignments,
                         controller: previewController,

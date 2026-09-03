@@ -152,6 +152,29 @@ struct ProjectEditorPersistenceTests {
         #expect(reloaded.threadCount == 16)
     }
 
+    @Test func selectedHiraGenjiRoundTripsWithoutChangingMaruGenjiIdentity() throws {
+        let container = try makeContainer()
+        let service = ProjectEditorPersistenceService(context: container.mainContext)
+        let hiraDraft = ProjectDraft(
+            selectedBraidPresetID: .hiraGenji16,
+            braidTypeName: BraidPresetCatalog.hiraGenji.displayName,
+            threadCount: 16
+        )
+        let maruDraft = ProjectDraft(
+            selectedBraidPresetID: .maruGenji16,
+            braidTypeName: BraidPresetCatalog.maruGenji.displayName,
+            threadCount: 16
+        )
+
+        let hira = try service.create(from: hiraDraft, name: "平源氏案")
+        let maru = try service.create(from: maruDraft, name: "丸源氏互換案")
+        container.mainContext.rollback()
+
+        #expect(try service.load(id: hira.id)?.braidPresetID == .hiraGenji16)
+        #expect(try service.load(id: maru.id)?.braidPresetID == .maruGenji16)
+        #expect(BraidPresetID.maruGenji16.rawValue == "maru-genji-16")
+    }
+
     @Test func loadRejectsMalformedThreadAssignments() throws {
         let container = try makeContainer()
         let service = ProjectEditorPersistenceService(context: container.mainContext)
