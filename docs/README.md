@@ -23,6 +23,8 @@
 - Task 005E 丸源氏16本の組紐らしさ向上（Task 005 エンハンス。Task 008 以降より優先）: `tasks/005e-maru-genji-braid-fidelity.md`
 - Task 005F 表面パターンのアスペクト比修正（Task 008 以降より優先）: `tasks/005f-maru-genji-surface-aspect.md`
 - Task 005G 撚りの縞を山形の方向ごとに正す（Task 008 以降より優先）: `tasks/005g-maru-genji-twist-direction.md`
+- Task 005H 糸幅を正本とした周方向スケールの確定: `tasks/005h-braid-thread-scale.md`（前提が誤りのため差し戻し）
+- Task 005I 丸源氏の山形の密度を実物へ合わせる（Task 007 エンハンス・Task 008 以降より優先）: `tasks/005i-maru-genji-chevron-density.md`
 
 ## 更新方針
 

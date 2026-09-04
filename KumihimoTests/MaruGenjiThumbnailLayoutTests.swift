@@ -86,7 +86,8 @@ struct MaruGenjiThumbnailLayoutTests {
             #expect(abs(modelled - flat) < 0.1)
             // Half the chevrons run the other way, so compare the acute angle each
             // one makes with the axis.
-            #expect(abs(min(abs(modelled), 180 - abs(modelled)) - 45) < 0.1)
+            let lean = atan(1 / MaruGenjiSurfacePatternGenerator.patternAspectRatio) * 180 / .pi
+            #expect(abs(min(abs(modelled), 180 - abs(modelled)) - lean) < 0.1)
         }
     }
 
