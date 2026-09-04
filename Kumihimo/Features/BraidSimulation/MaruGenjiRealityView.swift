@@ -177,10 +177,10 @@ struct MaruGenjiRealityView: UIViewRepresentable {
             do {
                 let anchor = AnchorEntity(world: .zero)
                 let root = Entity()
-                let colorIDs = surface.colorGroups.keys.sorted { $0.rawValue < $1.rawValue }
+                let drawGroups = surface.sortedMaterialGroups
                 guard
-                    !colorIDs.isEmpty,
-                    colorIDs.allSatisfy({ ThreadColorCatalog.color(for: $0) != nil })
+                    !drawGroups.isEmpty,
+                    drawGroups.allSatisfy({ ThreadColorCatalog.color(for: $0.key.colorID) != nil })
                 else {
                     Self.logger.error("Surface contains an empty or unknown color group")
                     controller.reportFailure()
@@ -191,12 +191,11 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 var combinedIndices = [UInt32]()
                 var faceMaterialIndices = [UInt32]()
                 var materials = [PhysicallyBasedMaterial]()
-                for colorID in colorIDs {
-                    guard let threadColor = ThreadColorCatalog.color(for: colorID) else {
+                // One material per thread colour and twist group: the colour comes
+                // from the catalogue, the stripe angle from the group's own maps.
+                for (key, indices) in drawGroups where !indices.isEmpty {
+                    guard let threadColor = ThreadColorCatalog.color(for: key.colorID) else {
                         throw SurfaceRenderError.unknownColor
-                    }
-                    guard let indices = surface.colorGroups[colorID], !indices.isEmpty else {
-                        continue
                     }
                     combinedIndices.append(contentsOf: indices)
                     faceMaterialIndices.append(
@@ -205,7 +204,12 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                             count: indices.count / 3
                         )
                     )
-                    materials.append(material(color: threadColor.uiColor, detail: detail))
+                    materials.append(
+                        material(
+                            color: threadColor.uiColor,
+                            maps: detail.maps(forTwistGroup: key.twistGroupIndex)
+                        )
+                    )
                 }
                 guard
                     !combinedIndices.isEmpty,
@@ -341,26 +345,26 @@ struct MaruGenjiRealityView: UIViewRepresentable {
             return descriptor
         }
 
-        /// One material per thread colour. The valley shading and the twist come
-        /// from maps shared by every colour, so the catalogue value stays the only
-        /// source of the colour itself.
+        /// The valley shading and the twist come from maps that depend on the
+        /// strand shape alone, so the catalogue value stays the only source of the
+        /// colour itself.
         private func material(
             color: UIColor,
-            detail: MaruGenjiStrandDetailTextures
+            maps: MaruGenjiStrandDetailTextures.Maps?
         ) -> PhysicallyBasedMaterial {
             var material = PhysicallyBasedMaterial()
-            if let occlusion = detail.occlusion {
+            if let occlusion = maps?.occlusion {
                 material.baseColor = .init(tint: color, texture: .strandDetail(occlusion))
             } else {
                 material.baseColor = .init(tint: color)
             }
             material.metallic = .init(floatLiteral: 0)
-            if let roughness = detail.roughness {
+            if let roughness = maps?.roughness {
                 material.roughness = .init(scale: 1, texture: .strandDetail(roughness))
             } else {
                 material.roughness = .init(floatLiteral: MaruGenjiStrandTextureFactory.baseRoughness)
             }
-            if let normal = detail.normal {
+            if let normal = maps?.normal {
                 material.normal = .init(texture: .strandDetail(normal))
             }
             return material

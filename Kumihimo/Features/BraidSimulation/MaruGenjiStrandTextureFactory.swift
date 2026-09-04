@@ -9,6 +9,13 @@ import simd
 /// occlusion map so the darkening between strands is a continuous falloff rather
 /// than a separately coloured band, and the twist lives in the normal and
 /// roughness maps so it stays finer than the mesh could resolve without moire.
+///
+/// One set of maps is generated per twist group rather than one for all strands.
+/// Strand-local coordinates are sheared differently in the two chevron
+/// directions, so a single set of stripes baked into them would meet the braid at
+/// two different angles; a set per group is what keeps every strand at the one
+/// twist angle. The maps depend on the strand shape alone, so the groups come
+/// from a fixed reference surface and are shared by every colouring.
 enum MaruGenjiStrandTextureFactory {
     /// Wider than tall because a strand segment is roughly four times as long as
     /// it is wide, which keeps the generated detail close to square on screen.
@@ -30,55 +37,54 @@ enum MaruGenjiStrandTextureFactory {
     static let baseRoughness: Float = 0.86
     static let twistRoughnessAmplitude: Float = 0.12
 
-    static func occlusionImage() -> CGImage? {
+    static func occlusionImage(twist: Twist) -> CGImage? {
         grayscaleImage { along, across in
-            let offset = MaruGenjiSurfaceMeshGenerator.crossSectionOffset(forSample: across)
-            let crestDistance = 1 - abs(offset)
+            let offset = crossSectionOffset(forRow: across)
             let valley = mix(
                 valleyOcclusion,
                 1,
-                smoothstep(0, valleyOcclusionWidth, crestDistance)
+                smoothstep(0, valleyOcclusionWidth, 1 - abs(offset))
             )
             let crossing = mix(
                 crossingOcclusion,
                 1,
                 smoothstep(0, crossingOcclusionLength, min(along, 1 - along))
             )
-            let twist = 1 - twistTint * (1 - cos(phase(along: along, across: offset))) / 2
-            return linearToSRGB(valley * crossing * twist)
+            let twistShade = 1 - twistTint
+                * (1 - cos(twist.coefficients.phase(along: along, across: offset))) / 2
+            return linearToSRGB(valley * crossing * twistShade)
         }
     }
 
-    static func roughnessImage() -> CGImage? {
+    static func roughnessImage(twist: Twist) -> CGImage? {
         grayscaleImage { along, across in
-            let offset = MaruGenjiSurfaceMeshGenerator.crossSectionOffset(forSample: across)
+            let offset = crossSectionOffset(forRow: across)
             let value = baseRoughness
-                + twistRoughnessAmplitude * cos(phase(along: along, across: offset))
+                + twistRoughnessAmplitude
+                * cos(twist.coefficients.phase(along: along, across: offset))
             return min(max(value, 0), 1)
         }
     }
 
     /// Tangent-space normals for the twist, derived from the same height field the
     /// relief ratio describes. `u` maps to the strand direction, `v` across it.
-    static func normalImage(
-        radius: Float = MaruGenjiSurfaceMeshGenerator.defaultRadius,
-        length: Float = MaruGenjiSurfaceMeshGenerator.defaultLength,
-        repeatCount: Int = MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount
-    ) -> CGImage? {
-        let coefficients = twist
-        let amplitude = radius * MaruGenjiSurfaceMeshGenerator.twistReliefRatio
-        let alongWorld = strandLength(radius: radius, length: length, repeatCount: repeatCount)
-        let acrossWorld = strandWidth(radius: radius, length: length, repeatCount: repeatCount)
-        guard alongWorld > 0, acrossWorld > 0 else { return nil }
+    ///
+    /// The slopes are taken in world directions, along the tangent and the
+    /// bitangent, rather than in strand coordinates: the two are not at right
+    /// angles to each other, and differentiating in the sheared pair would tilt
+    /// the relief away from the stripes it is lighting.
+    static func normalImage(twist: Twist) -> CGImage? {
+        let gradient = twist.normalizedPhaseGradient
+        guard gradient.x.isFinite, gradient.y.isFinite else { return nil }
+        // Height and gradient are both scaled by the radius, so the slope the
+        // normal map stores is the same at any braid size.
+        let amplitude = MaruGenjiSurfaceMeshGenerator.twistReliefRatio
 
         return colorImage { along, across in
-            let offset = MaruGenjiSurfaceMeshGenerator.crossSectionOffset(forSample: across)
-            let value = cos(coefficients.phase(along: along, across: offset))
-            // d(offset)/d(across sample) for the warped cross-section sampling.
-            let warp = .pi * cos(.pi / 2 * (2 * across - 1))
-            let slopeAlong = amplitude * value * coefficients.phasePerAlong / alongWorld
-            let slopeAcross = amplitude * value * coefficients.phasePerAcross * warp / acrossWorld
-            let normal = simd_normalize(SIMD3<Float>(-slopeAlong, -slopeAcross, 1))
+            let offset = crossSectionOffset(forRow: across)
+            let value = cos(twist.coefficients.phase(along: along, across: offset))
+            let slope = amplitude * value * gradient
+            let normal = simd_normalize(SIMD3<Float>(-slope.x, -slope.y, 1))
             return SIMD3<Float>(
                 normal.x / 2 + 0.5,
                 normal.y / 2 + 0.5,
@@ -87,17 +93,35 @@ enum MaruGenjiStrandTextureFactory {
         }
     }
 
+    /// The cross-section offset a bitmap row stands for.
+    ///
+    /// The sampler reads the generated rows in the reverse of the mesh's own `v`,
+    /// so the top row is the far edge of the cross-section rather than the near
+    /// one. Nothing showed it until now: the valley falloff is symmetric about the
+    /// crest and the crossing shadow only depends on the length, so the mirroring
+    /// was invisible in every map that came before the twist had to meet the
+    /// strand at a fixed angle. Confirmed by rendering — see the Task 005G
+    /// screenshots.
+    static func crossSectionOffset(forRow row: Float) -> Float {
+        MaruGenjiSurfaceMeshGenerator.crossSectionOffset(forSample: 1 - row)
+    }
+
     // MARK: - Shared strand metrics
 
-    static let twist = MaruGenjiSurfaceMeshGenerator.twistCoefficients(
+    typealias Twist = MaruGenjiSurfaceMeshGenerator.TwistGroup
+
+    /// The twist groups the maps are generated for, in the order the mesh numbers
+    /// them. The strand shape is the same for every colouring and the grouping is
+    /// independent of the radius, so this one grouping serves every mesh.
+    static let twistGrouping = MaruGenjiSurfaceMeshGenerator.twistGrouping(
         for: referenceSurface,
         radius: MaruGenjiSurfaceMeshGenerator.defaultRadius,
         length: MaruGenjiSurfaceMeshGenerator.defaultLength,
         repeatCount: MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount
     )
 
-    static func phase(along: Float, across: Float) -> Float {
-        twist.phase(along: along, across: across)
+    static var twistGroups: [Twist] {
+        twistGrouping.groups
     }
 
     /// The strand shape is the same for every colouring, so a fixed single-colour
@@ -111,51 +135,6 @@ enum MaruGenjiStrandTextureFactory {
         }
         return BraidStrandSurfaceBuilder.surface(for: pattern)
     }()
-
-    /// Mean world length of one strand segment along its centreline.
-    private static func strandLength(radius: Float, length: Float, repeatCount: Int) -> Float {
-        mean(
-            referenceSurface.segments.map { segment in
-                simd_length(
-                    MaruGenjiSurfaceMeshGenerator.worldOffset(
-                        segment.centerlineDelta,
-                        radius: radius,
-                        length: length,
-                        repeatCount: repeatCount
-                    )
-                )
-            }
-        )
-    }
-
-    /// Mean world width of one strand segment, measured across its centreline.
-    private static func strandWidth(radius: Float, length: Float, repeatCount: Int) -> Float {
-        mean(
-            referenceSurface.segments.map { segment in
-                let along = MaruGenjiSurfaceMeshGenerator.worldOffset(
-                    segment.centerlineDelta,
-                    radius: radius,
-                    length: length,
-                    repeatCount: repeatCount
-                )
-                let across = MaruGenjiSurfaceMeshGenerator.worldOffset(
-                    segment.meanHalfWidth,
-                    radius: radius,
-                    length: length,
-                    repeatCount: repeatCount
-                )
-                let alongLength = simd_length(along)
-                guard alongLength > 0 else { return 2 * simd_length(across) }
-                let alongUnit = along / alongLength
-                return 2 * simd_length(across - alongUnit * simd_dot(across, alongUnit))
-            }
-        )
-    }
-
-    private static func mean(_ values: [Float]) -> Float {
-        guard !values.isEmpty else { return 0 }
-        return values.reduce(0, +) / Float(values.count)
-    }
 
     // MARK: - Bitmap helpers
 
