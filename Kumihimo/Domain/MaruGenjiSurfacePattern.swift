@@ -4,6 +4,8 @@ import simd
 struct MaruGenjiSurfacePatch: Equatable, Sendable {
     let threadPosition: Int
     let colorID: ThreadColorID
+    /// Which side of a crossing this run of thread takes. See `layer(for:)`.
+    let layer: BraidCrossingLayer
     /// Corners in clockwise order: leading/top, leading/bottom, trailing/bottom, trailing/top.
     /// `v` may extend into the next repeat so a chevron can cross the longitudinal seam.
     let corners: [SIMD2<Float>]
@@ -34,10 +36,12 @@ enum MaruGenjiSurfacePatternGenerator {
         )
         let patches = sourceStrands.flatMap { strand -> [MaruGenjiSurfacePatch] in
             guard let colorID = colorsByPosition[strand.threadPosition] else { return [] }
-            return strand.diamonds.map { diamond in
-                MaruGenjiSurfacePatch(
+            return strand.diamonds.compactMap { diamond in
+                guard let layer = layer(for: diamond) else { return nil }
+                return MaruGenjiSurfacePatch(
                     threadPosition: strand.threadPosition,
                     colorID: colorID,
+                    layer: layer,
                     corners: normalizedCorners(for: diamond)
                 )
             }
@@ -113,6 +117,19 @@ enum MaruGenjiSurfacePatternGenerator {
             threadPosition: position,
             diamonds: diamonds.map(SourceDiamond.init)
         )
+    }
+
+    /// The 64 patches fill an exact 8x8 grid of surface cells: eight columns
+    /// around the braid, eight chevron rows along one repeat. Neighbouring cells
+    /// always differ by one in exactly one of the two indices, so a checkerboard
+    /// on `column + row` puts opposite layers on both sides of every crossing and
+    /// makes each thread alternate over and under along its length.
+    private static func layer(for diamond: SourceDiamond) -> BraidCrossingLayer? {
+        guard let faceTop = faceTopByColumnX[diamond.x] else { return nil }
+        let columnIndex = (diamond.x - 50) / 50
+        let centerY = diamond.risesTowardTrailingEdge ? diamond.y + 50 : diamond.y
+        let rowIndex = (centerY - faceTop) / 50
+        return (columnIndex + rowIndex).isMultiple(of: 2) ? .over : .under
     }
 
     private static func normalizedCorners(for diamond: SourceDiamond) -> [SIMD2<Float>] {
