@@ -61,6 +61,11 @@ final class MaruGenjiViewerController: ObservableObject {
 struct MaruGenjiRealityView: UIViewRepresentable {
     static let cameraDistance: Float = 4.4
     static let verticalFieldOfView: Float = .pi / 3
+    /// Neutral three-point lighting, exposed low enough that a strand crest keeps
+    /// the catalogue colour instead of washing out to a pale tint.
+    static let keyLightIntensity: Float = 1_500
+    static let fillLightIntensity: Float = 520
+    static let rimLightIntensity: Float = 380
 
     let assignments: [ThreadAssignment]
     let controller: MaruGenjiViewerController
@@ -168,9 +173,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
             do {
                 let anchor = AnchorEntity(world: .zero)
                 let root = Entity()
-                let colorIDs = Set(surface.colorGroups.keys)
-                    .union(surface.boundaryColorGroups.keys)
-                    .sorted { $0.rawValue < $1.rawValue }
+                let colorIDs = surface.colorGroups.keys.sorted { $0.rawValue < $1.rawValue }
                 guard
                     !colorIDs.isEmpty,
                     colorIDs.allSatisfy({ ThreadColorCatalog.color(for: $0) != nil })
@@ -180,6 +183,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                     return
                 }
 
+                let detail = MaruGenjiStrandDetailTextures.shared
                 var combinedIndices = [UInt32]()
                 var faceMaterialIndices = [UInt32]()
                 var materials = [PhysicallyBasedMaterial]()
@@ -187,26 +191,17 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                     guard let threadColor = ThreadColorCatalog.color(for: colorID) else {
                         throw SurfaceRenderError.unknownColor
                     }
-                    if let indices = surface.colorGroups[colorID], !indices.isEmpty {
-                        combinedIndices.append(contentsOf: indices)
-                        faceMaterialIndices.append(
-                            contentsOf: repeatElement(
-                                UInt32(materials.count),
-                                count: indices.count / 3
-                            )
-                        )
-                        materials.append(material(color: threadColor.uiColor, roughness: 0.84))
+                    guard let indices = surface.colorGroups[colorID], !indices.isEmpty else {
+                        continue
                     }
-                    if let indices = surface.boundaryColorGroups[colorID], !indices.isEmpty {
-                        combinedIndices.append(contentsOf: indices)
-                        faceMaterialIndices.append(
-                            contentsOf: repeatElement(
-                                UInt32(materials.count),
-                                count: indices.count / 3
-                            )
+                    combinedIndices.append(contentsOf: indices)
+                    faceMaterialIndices.append(
+                        contentsOf: repeatElement(
+                            UInt32(materials.count),
+                            count: indices.count / 3
                         )
-                        materials.append(material(color: threadColor.boundaryUIColor, roughness: 0.92))
-                    }
+                    )
+                    materials.append(material(color: threadColor.uiColor, detail: detail))
                 }
                 guard
                     !combinedIndices.isEmpty,
@@ -241,7 +236,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 anchor.addChild(camera)
 
                 let keyLight = DirectionalLight()
-                keyLight.light.intensity = 3_500
+                keyLight.light.intensity = MaruGenjiRealityView.keyLightIntensity
                 keyLight.look(
                     at: .zero,
                     from: SIMD3<Float>(0.5, 2.2, 3),
@@ -250,7 +245,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 anchor.addChild(keyLight)
 
                 let fillLight = DirectionalLight()
-                fillLight.light.intensity = 1_200
+                fillLight.light.intensity = MaruGenjiRealityView.fillLightIntensity
                 fillLight.look(
                     at: .zero,
                     from: SIMD3<Float>(-1.5, -1, 2),
@@ -259,7 +254,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 anchor.addChild(fillLight)
 
                 let rimLight = DirectionalLight()
-                rimLight.light.intensity = 700
+                rimLight.light.intensity = MaruGenjiRealityView.rimLightIntensity
                 rimLight.look(
                     at: .zero,
                     from: SIMD3<Float>(0.2, 1, -3),
@@ -333,20 +328,36 @@ struct MaruGenjiRealityView: UIViewRepresentable {
             var descriptor = MeshDescriptor(name: "maru-genji-surface")
             descriptor.positions = MeshBuffer(surface.positions)
             descriptor.normals = MeshBuffer(surface.normals)
+            descriptor.tangents = MeshBuffer(surface.tangents)
+            descriptor.bitangents = MeshBuffer(surface.bitangents)
             descriptor.textureCoordinates = MeshBuffer(surface.textureCoordinates)
             descriptor.primitives = .triangles(indices)
             descriptor.materials = .perFace(faceMaterialIndices)
             return descriptor
         }
 
+        /// One material per thread colour. The valley shading and the twist come
+        /// from maps shared by every colour, so the catalogue value stays the only
+        /// source of the colour itself.
         private func material(
             color: UIColor,
-            roughness: Float
+            detail: MaruGenjiStrandDetailTextures
         ) -> PhysicallyBasedMaterial {
             var material = PhysicallyBasedMaterial()
-            material.baseColor = .init(tint: color)
+            if let occlusion = detail.occlusion {
+                material.baseColor = .init(tint: color, texture: .strandDetail(occlusion))
+            } else {
+                material.baseColor = .init(tint: color)
+            }
             material.metallic = .init(floatLiteral: 0)
-            material.roughness = .init(floatLiteral: roughness)
+            if let roughness = detail.roughness {
+                material.roughness = .init(scale: 1, texture: .strandDetail(roughness))
+            } else {
+                material.roughness = .init(floatLiteral: MaruGenjiStrandTextureFactory.baseRoughness)
+            }
+            if let normal = detail.normal {
+                material.normal = .init(texture: .strandDetail(normal))
+            }
             return material
         }
 

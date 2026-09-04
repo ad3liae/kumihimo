@@ -27,10 +27,10 @@ enum HiraGenjiSurfaceMeshGenerator {
     static let defaultPatternRepeatCount = 12
     static let widthSubdivisionsPerPatch = 4
     static let longitudinalSubdivisionsPerPatch = 24
-    static let boundaryWidth: Float = MaruGenjiSurfaceMeshGenerator.boundaryWidth
-    static let boundaryDepthRatio: Float = MaruGenjiSurfaceMeshGenerator.boundaryDepthRatio
-    static let fiberReliefRatio: Float = MaruGenjiSurfaceMeshGenerator.fiberReliefRatio
-    static let fiberCount = MaruGenjiSurfaceMeshGenerator.fiberCount
+    static let boundaryWidth: Float = 0.035
+    static let boundaryDepthRatio: Float = 0.012
+    static let fiberReliefRatio: Float = 0.006
+    static let fiberCount = 8
     static let superellipseExponent: Float = 5
 
     static var widthToThicknessRatio: Float {
