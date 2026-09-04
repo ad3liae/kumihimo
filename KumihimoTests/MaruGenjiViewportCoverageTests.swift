@@ -39,7 +39,7 @@ struct MaruGenjiViewportCoverageTests {
     ) throws {
         let coverage = try #require(calculate(viewport: viewport))
 
-        // One tile is now a full four repeats of the square pattern, so the tiling
+        // One tile is four repeats, each nearly a turn of braid long, so the tiling
         // has to sit far below the limit instead of pressing against it.
         #expect(coverage.tileCount <= MaruGenjiViewportCoverageCalculator.maximumTileCount / 3)
         #expect(coverage.coveredLength >= coverage.requiredLength)
@@ -56,10 +56,10 @@ struct MaruGenjiViewportCoverageTests {
         let repeatLength = MaruGenjiSurfaceMeshGenerator.defaultLength
             / Float(MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount)
 
-        // A repeat is as long as the braid is round, so only a couple of them fit
-        // across the screen at rest. Anything near the previous eight would mean the
+        // A repeat is a little under one turn of braid, so a few of them fit across
+        // the screen at rest. Anything near the pre-Task-005F eight would mean the
         // wrap had been squashed again.
-        #expect((1.2...3.5).contains(visibleWidth / repeatLength))
+        #expect((1.5...4.5).contains(visibleWidth / repeatLength))
     }
 
     @Test(arguments: [

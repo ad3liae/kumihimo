@@ -66,10 +66,41 @@ struct MaruGenjiSurfaceMeshTests {
 
     // MARK: - Wrapping aspect
 
-    @Test func thePatternDeclaresASquareRepeat() {
-        #expect(MaruGenjiSurfacePatternGenerator.patternAspectRatio == 1)
+    @Test func thePatternDeclaresTheRepeatMatchedToThePhotographedBraid() {
+        // Set by rendering and comparing against the real braid, not by calculation:
+        // the chevron density is inversely proportional to this ratio, and 0.65 puts
+        // it between the two readings of the photograph, 1.8 counted by eye and 2.15
+        // measured off the normalised strip.
+        #expect(abs(MaruGenjiSurfacePatternGenerator.patternAspectRatio - 0.65) < 0.000_1)
         #expect(MaruGenjiSurfacePattern(patches: []).aspectRatio
             == MaruGenjiSurfacePatternGenerator.patternAspectRatio)
+    }
+
+    /// The one number the density depends on. A repeat is eight chevron rows, so the
+    /// rows land `π × aspect / 8` braid widths apart and a chevron — one row over,
+    /// one row under — is twice that.
+    @Test(arguments: [(Float(0.48), 4), (Float(0.2), 7), (Float(1.35), 3)])
+    func theChevronDensityFollowsTheDeclaredAspectAtAnySize(
+        _ radius: Float,
+        _ repeatCount: Int
+    ) throws {
+        let pattern = try #require(
+            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+        )
+        let mesh = try #require(
+            MaruGenjiSurfaceMeshGenerator.generate(
+                pattern: pattern,
+                radius: radius,
+                patternRepeatCount: repeatCount
+            )
+        )
+        let braidWidth = 2 * mesh.baseRadius
+        let chevronsPerBraidWidth = 4 * braidWidth / mesh.patternRepeatLength
+
+        // The photograph reads between 1.8 and 2.15 chevrons per braid width. The
+        // band is the task's plus or minus 15 per cent around the lower reading,
+        // widened to the upper one, so a change that drifts outside either fails.
+        #expect((1.5...2.2).contains(chevronsPerBraidWidth))
     }
 
     @Test(arguments: [
@@ -112,10 +143,10 @@ struct MaruGenjiSurfaceMeshTests {
             * Float(MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount)
 
         #expect(abs(MaruGenjiSurfaceMeshGenerator.defaultLength - expected) < 0.000_1)
-        #expect(abs(MaruGenjiSurfaceMeshGenerator.defaultLength - 12.064) < 0.005)
+        #expect(abs(MaruGenjiSurfaceMeshGenerator.defaultLength - 7.841) < 0.005)
     }
 
-    @Test func everyRidgeRunsAt45DegreesToTheAxis() throws {
+    @Test func everyRidgeLeansAtTheAngleTheDeclaredAspectImplies() throws {
         let pattern = try #require(
             MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
@@ -126,9 +157,11 @@ struct MaruGenjiSurfaceMeshTests {
         }
 
         #expect(angles.count == MaruGenjiSurfacePatternGenerator.patchCount)
-        // The drawing is a square repeat, so a chevron leans at exactly 45 degrees.
-        // The tolerance only covers the sampling of the crest, not a shear.
-        #expect(angles.allSatisfy { abs($0 - 45) < 1 })
+        // The angle is a consequence of the density, not a target of its own: a
+        // repeat 0.65 turns long puts a chevron at atan(1 / 0.65) off the axis. The
+        // tolerance only covers the sampling of the crest, not a shear.
+        #expect(angles.allSatisfy { abs($0 - ridgeAngleToAxisInDegrees) < 1 })
+        #expect(abs(ridgeAngleToAxisInDegrees - 57.0) < 0.5)
     }
 
     @Test func theRidgeAngleIsIndependentOfTheRadiusAndTheRepeatCount() throws {
@@ -145,8 +178,13 @@ struct MaruGenjiSurfaceMeshTests {
                 )
             )
             let angle = try crestAngleToAxisInDegrees(of: mesh, segmentIndex: 0)
-            #expect(abs(angle - 45) < 1)
+            #expect(abs(angle - ridgeAngleToAxisInDegrees) < 1)
         }
+    }
+
+    /// The lean the declared aspect puts a chevron at, measured from the braid axis.
+    private var ridgeAngleToAxisInDegrees: Float {
+        atan(1 / MaruGenjiSurfacePatternGenerator.patternAspectRatio) * 180 / .pi
     }
 
     // MARK: - Round strands

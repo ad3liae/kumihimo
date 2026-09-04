@@ -32,10 +32,26 @@ enum MaruGenjiSurfacePatternGenerator {
     static let requiredThreadCount = 16
     static let patchCount = 64
     static let maximumUnwrappedV: Float = 9 / 8
-    /// One repeat of the unwrapped drawing is a square: the eight columns around
-    /// the braid span 400 source units, and one repeat along it spans the same 400
-    /// units. See `normalizedCorners(for:)`, which divides both axes by 400.
-    static let patternAspectRatio: Float = 1
+    /// Length of one repeat along the braid divided by one turn around it.
+    ///
+    /// The unwrapped drawing is a square — eight columns of 400 source units around,
+    /// 400 units along one repeat, see `normalizedCorners(for:)` — but the drawing is
+    /// a correspondence table, not a scale drawing, so its own proportions do not
+    /// say how far the finished braid advances in one repeat. Task 005F took the
+    /// square at face value and drew the chevrons about a third coarser than the
+    /// real braid.
+    ///
+    /// This value was found by rendering and comparing, not by calculation: the
+    /// braid is cut to 4.5 times its own width, scaled to the same height as the
+    /// same length of the photographed braid, and the chevrons counted in both. The
+    /// density is inversely proportional to this ratio, and lowering it from 1.0
+    /// takes the count from about 1.3 chevrons per braid width to about 2.0.
+    ///
+    /// The photograph is read two ways: counted by eye it shows about 1.8 chevrons
+    /// per braid width, measured off the same normalised strip about 2.15. This
+    /// ratio sits between them, within 9 per cent of either, so it holds whichever
+    /// reading is right. See `.build/task005i-screenshots/`.
+    static let patternAspectRatio: Float = 0.65
 
     static func generate(assignments: [ThreadAssignment]) -> MaruGenjiSurfacePattern? {
         let expectedPositions = Set(1...requiredThreadCount)
