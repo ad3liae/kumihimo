@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import RealityKit
 import simd
@@ -292,26 +293,32 @@ struct MaruGenjiSurfaceMeshTests {
 
     @Test func twistPhaseIsAffineAndThereforeContinuousInsideAStrand() throws {
         let mesh = try makeMesh()
-        let twist = MaruGenjiSurfaceMeshGenerator.twistCoefficients(
-            for: BraidStrandSurfaceBuilder.surface(
-                for: try #require(
-                    MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
-                )
-            ),
-            radius: MaruGenjiSurfaceMeshGenerator.defaultRadius,
-            length: MaruGenjiSurfaceMeshGenerator.defaultLength,
-            repeatCount: MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount
-        )
 
-        #expect(twist.phasePerAlong.isFinite)
-        #expect(twist.phasePerAcross.isFinite)
-        #expect(abs(twist.phasePerAlong) > 0)
-        #expect(abs(twist.phasePerAcross) > 0)
-        #expect(abs(twist.phasePerAlong)
-            == 2 * .pi * Float(MaruGenjiSurfaceMeshGenerator.fiberCount))
+        #expect(mesh.twist.groups.allSatisfy { $0.coefficients.phasePerAlong.isFinite })
+        #expect(mesh.twist.groups.allSatisfy { $0.coefficients.phasePerAcross.isFinite })
+        #expect(mesh.twist.groups.allSatisfy { abs($0.coefficients.phasePerAcross) > 0 })
+        // The same number of stripes runs down every strand, whichever group it is
+        // in, so only the shear the group corrects for differs.
+        #expect(mesh.twist.groups.allSatisfy {
+            abs($0.coefficients.phasePerAlong)
+                == 2 * .pi * Float(MaruGenjiSurfaceMeshGenerator.fiberCount)
+        })
+
+        for segmentIndex in 0..<MaruGenjiSurfacePatternGenerator.patchCount {
+            let fit = try twistPhaseFit(of: mesh, segmentIndex: segmentIndex)
+            let coefficients = try #require(mesh.twist.coefficients(forSegment: segmentIndex))
+            // An affine phase is a phase with no break in it: every vertex of the
+            // strand sits on one plane through (along, across, phase).
+            #expect(fit.maximumResidual < 0.001)
+            #expect(abs(fit.phasePerAlong - coefficients.phasePerAlong) < 0.001)
+            #expect(abs(fit.phasePerAcross - coefficients.phasePerAcross) < 0.001)
+        }
 
         for index in mesh.positions.indices {
-            let expected = twist.phase(
+            let coefficients = try #require(
+                mesh.twist.coefficients(forSegment: mesh.vertexSegmentIndices[index])
+            )
+            let expected = coefficients.phase(
                 along: mesh.strandCoordinates[index].x,
                 across: mesh.strandCoordinates[index].y
             )
@@ -319,45 +326,117 @@ struct MaruGenjiSurfaceMeshTests {
         }
     }
 
-    @Test func twistKeepsOneHandAndOneAnglePerChevronDirection() throws {
+    /// Replaces `twistKeepsOneHandAndOneAnglePerChevronDirection`, which recorded
+    /// the compromise a single shared stripe texture forced: it asserted that the
+    /// two chevron directions ended up at two different angles, one short of the
+    /// nominal twist and one past it. Task 005G gives each twist group its own
+    /// texture, so the compromise is gone and the completed behaviour — one angle
+    /// and one hand on all 64 strands — is what is asserted here.
+    @Test func twistKeepsOneHandAndOneAngleOnEveryStrand() throws {
+        let mesh = try makeMesh()
+        let surface = BraidStrandSurfaceBuilder.surface(
+            for: try #require(
+                MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            )
+        )
+
+        let angles = try surface.segments.indices.map { segmentIndex in
+            try stripeAngleInDegrees(
+                of: mesh,
+                surface: surface,
+                segmentIndex: segmentIndex
+            )
+        }
+
+        #expect(angles.count == MaruGenjiSurfacePatternGenerator.patchCount)
+        // Every strand twists the same way round, which is what makes the braid
+        // read as one yarn rather than two.
+        #expect(angles.allSatisfy { $0 > 0 })
+        #expect(angles.allSatisfy {
+            abs($0 - MaruGenjiSurfaceMeshGenerator.twistAngleDegrees) <= 3
+        })
+    }
+
+    @Test func twistGroupsStayWithinOneTexturePairAndMatchTheGeneratedTextures() throws {
+        let mesh = try makeMesh()
+
+        // Two chevron directions, so two shears to correct and two textures. More
+        // groups than this would mean more materials than colours times two.
+        #expect(mesh.twist.groups.count == 2)
+        #expect(mesh.twist.groupIndexBySegment.count
+            == MaruGenjiSurfacePatternGenerator.patchCount)
+        #expect(Set(mesh.twist.groupIndexBySegment) == Set(mesh.twist.groups.indices))
+        #expect(mesh.materialGroups.count
+            <= Set(mesh.materialGroups.keys.map(\.colorID)).count * 2)
+        #expect(mesh.materialGroups.keys.allSatisfy {
+            mesh.twist.groups.indices.contains($0.twistGroupIndex)
+        })
+
+        // The maps are baked from a fixed reference surface, so their groups have
+        // to be numbered the same way the mesh numbers its own.
+        let factoryGroups = MaruGenjiStrandTextureFactory.twistGroups
+        #expect(factoryGroups.count == mesh.twist.groups.count)
+        for (factory, group) in zip(factoryGroups, mesh.twist.groups) {
+            #expect(abs(factory.coefficients.phasePerAlong
+                - group.coefficients.phasePerAlong) < 0.001)
+            #expect(abs(factory.coefficients.phasePerAcross
+                - group.coefficients.phasePerAcross) < 0.001)
+        }
+    }
+
+    @Test func strandMapRowsCarryTheCrossSectionTheSamplerWillReadThere() {
+        // The sampler reads a generated bitmap's rows in the reverse of the mesh's
+        // own `v`, so the maps are drawn mirrored to compensate. Every map before
+        // the twist was symmetric across the strand and could not show the
+        // mirroring; the stripes can, so the convention is pinned here.
+        #expect(MaruGenjiStrandTextureFactory.crossSectionOffset(forRow: 0) == 1)
+        #expect(MaruGenjiStrandTextureFactory.crossSectionOffset(forRow: 1) == -1)
+        #expect(abs(MaruGenjiStrandTextureFactory.crossSectionOffset(forRow: 0.5)) < 0.000_1)
+        for sample in stride(from: Float(0), through: 1, by: 0.125) {
+            let offset = MaruGenjiSurfaceMeshGenerator.crossSectionOffset(forSample: sample)
+            let row = 1 - MaruGenjiSurfaceMeshGenerator.crossSectionSample(forOffset: offset)
+            #expect(abs(MaruGenjiStrandTextureFactory.crossSectionOffset(forRow: row) - offset)
+                < 0.000_1)
+        }
+    }
+
+    @Test func twistGroupsAndStrandTexturesAreDeterministic() throws {
         let pattern = try #require(
             MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
         let surface = BraidStrandSurfaceBuilder.surface(for: pattern)
-        let radius = MaruGenjiSurfaceMeshGenerator.defaultRadius
-        let length = MaruGenjiSurfaceMeshGenerator.defaultLength
-        let repeatCount = MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount
-        let twist = MaruGenjiSurfaceMeshGenerator.twistCoefficients(
-            for: surface, radius: radius, length: length, repeatCount: repeatCount
-        )
-
-        let angles = surface.segments.map { segment -> Float in
-            let along = MaruGenjiSurfaceMeshGenerator.worldOffset(
-                segment.centerlineDelta, radius: radius, length: length, repeatCount: repeatCount
+        func grouping(radius: Float) -> MaruGenjiSurfaceMeshGenerator.TwistGrouping {
+            MaruGenjiSurfaceMeshGenerator.twistGrouping(
+                for: surface,
+                radius: radius,
+                length: MaruGenjiSurfaceMeshGenerator.length(radius: radius),
+                repeatCount: MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount
             )
-            let across = MaruGenjiSurfaceMeshGenerator.worldOffset(
-                segment.meanHalfWidth, radius: radius, length: length, repeatCount: repeatCount
-            )
-            // Direction along a stripe: the world direction the phase is constant in.
-            let stripe = along * twist.phasePerAcross - across * twist.phasePerAlong
-            return signedAngle(from: along, to: stripe)
         }
 
-        #expect(angles.count == MaruGenjiSurfacePatternGenerator.patchCount)
-        // Every strand still twists the same way round, which is what makes the
-        // braid read as one yarn rather than two.
-        #expect(angles.allSatisfy { $0 > 0 })
+        #expect(grouping(radius: MaruGenjiSurfaceMeshGenerator.defaultRadius)
+            == grouping(radius: MaruGenjiSurfaceMeshGenerator.defaultRadius))
+        // A larger braid is the same braid: the strands group the same way and the
+        // maps built once at the default radius still belong to them.
+        #expect(grouping(radius: 2 * MaruGenjiSurfaceMeshGenerator.defaultRadius)
+            .groupIndexBySegment
+            == grouping(radius: MaruGenjiSurfaceMeshGenerator.defaultRadius)
+            .groupIndexBySegment)
 
-        // A square repeat sets the two chevron directions at right angles to each
-        // other, and the strand-local frame each of them hands the shared stripe
-        // texture is sheared the opposite way. One texture cannot then hold one
-        // angle for both: the mean coefficient leaves one direction short of the
-        // nominal 30 degrees and the other past it. Only those two values occur.
-        let distinct = Set(angles.map { ($0 * 100).rounded() })
-        #expect(distinct.count == 2)
-        #expect(angles.allSatisfy { (15...60).contains($0) })
-        #expect((angles.min() ?? 0) < MaruGenjiSurfaceMeshGenerator.twistAngleDegrees)
-        #expect((angles.max() ?? 0) > MaruGenjiSurfaceMeshGenerator.twistAngleDegrees)
+        for twist in MaruGenjiStrandTextureFactory.twistGroups {
+            #expect(pixels(MaruGenjiStrandTextureFactory.occlusionImage(twist: twist))
+                == pixels(MaruGenjiStrandTextureFactory.occlusionImage(twist: twist)))
+            #expect(pixels(MaruGenjiStrandTextureFactory.roughnessImage(twist: twist))
+                == pixels(MaruGenjiStrandTextureFactory.roughnessImage(twist: twist)))
+            #expect(pixels(MaruGenjiStrandTextureFactory.normalImage(twist: twist))
+                == pixels(MaruGenjiStrandTextureFactory.normalImage(twist: twist)))
+        }
+        // Two groups sharing one set of maps would be the bug this task fixes.
+        let normals = MaruGenjiStrandTextureFactory.twistGroups.map {
+            pixels(MaruGenjiStrandTextureFactory.normalImage(twist: $0))
+        }
+        #expect(Set(normals.map { $0?.count ?? 0 }).count == 1)
+        #expect(normals[0] != normals[1])
     }
 
     // MARK: - Regression
@@ -478,6 +557,86 @@ struct MaruGenjiSurfaceMeshTests {
     private func radius(of mesh: MaruGenjiSurfaceMeshData, at index: Int) -> Float {
         let position = mesh.positions[index]
         return hypot(position.y, position.z)
+    }
+
+    /// Angle between a strand's stripes and the strand itself, in degrees, read
+    /// off the phases the mesh actually carries. Normalized into (-90, 90]: a
+    /// stripe and its reverse are the same stripe, so only that range tells the
+    /// two hands apart.
+    private func stripeAngleInDegrees(
+        of mesh: MaruGenjiSurfaceMeshData,
+        surface: BraidStrandSurface,
+        segmentIndex: Int
+    ) throws -> Float {
+        let segment = surface.segments[segmentIndex]
+        let fit = try twistPhaseFit(of: mesh, segmentIndex: segmentIndex)
+        let along = MaruGenjiSurfaceMeshGenerator.worldOffset(
+            segment.centerlineDelta,
+            radius: mesh.baseRadius,
+            length: mesh.length,
+            repeatCount: mesh.patternRepeatCount
+        )
+        let across = MaruGenjiSurfaceMeshGenerator.worldOffset(
+            segment.meanHalfWidth,
+            radius: mesh.baseRadius,
+            length: mesh.length,
+            repeatCount: mesh.patternRepeatCount
+        )
+        // The direction the fitted phase does not change in, which is the
+        // direction a stripe runs in on the unwrapped surface.
+        let stripe = along * fit.phasePerAcross - across * fit.phasePerAlong
+        var angle = signedAngle(from: along, to: stripe)
+        while angle > 90 { angle -= 180 }
+        while angle <= -90 { angle += 180 }
+        return angle
+    }
+
+    /// Least-squares fit of `phase ≈ phasePerAlong * along + phasePerAcross *
+    /// across + offset` over every vertex of one strand. A stripe that broke or
+    /// restarted inside the strand would leave a residual behind.
+    private func twistPhaseFit(
+        of mesh: MaruGenjiSurfaceMeshData,
+        segmentIndex: Int
+    ) throws -> (phasePerAlong: Float, phasePerAcross: Float, maximumResidual: Float) {
+        let indices = mesh.positions.indices.filter {
+            mesh.vertexSegmentIndices[$0] == segmentIndex
+        }
+        #expect(indices.count >= 3)
+
+        var moments = simd_double3x3()
+        var projection = SIMD3<Double>()
+        for index in indices {
+            let sample = SIMD3<Double>(
+                Double(mesh.strandCoordinates[index].x),
+                Double(mesh.strandCoordinates[index].y),
+                1
+            )
+            moments += simd_double3x3(
+                sample * sample.x,
+                sample * sample.y,
+                sample * sample.z
+            )
+            projection += sample * Double(mesh.twistPhases[index])
+        }
+        #expect(abs(moments.determinant) > 0.000_001)
+        let solution = moments.inverse * projection
+
+        let residual = indices.map { index -> Float in
+            let expected = solution.x * Double(mesh.strandCoordinates[index].x)
+                + solution.y * Double(mesh.strandCoordinates[index].y)
+                + solution.z
+            return Float(abs(Double(mesh.twistPhases[index]) - expected))
+        }
+        return (
+            phasePerAlong: Float(solution.x),
+            phasePerAcross: Float(solution.y),
+            maximumResidual: residual.max() ?? 0
+        )
+    }
+
+    private func pixels(_ image: CGImage?) -> Data? {
+        guard let image, let data = image.dataProvider?.data else { return nil }
+        return Data(referencing: data)
     }
 
     /// Angle between one strand's crest line and the braid axis, measured on the

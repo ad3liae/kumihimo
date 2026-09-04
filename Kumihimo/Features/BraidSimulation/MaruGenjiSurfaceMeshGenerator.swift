@@ -1,20 +1,31 @@
 import Foundation
 import simd
 
+/// One draw group: the thread colour it is painted in, and the twist group whose
+/// stripe textures it is dressed with.
+struct MaruGenjiSurfaceMaterialKey: Hashable, Sendable {
+    let colorID: ThreadColorID
+    let twistGroupIndex: Int
+}
+
 struct MaruGenjiSurfaceMeshData: Sendable {
     let positions: [SIMD3<Float>]
     let normals: [SIMD3<Float>]
     let tangents: [SIMD3<Float>]
     let bitangents: [SIMD3<Float>]
     /// Strand-local coordinates: `x` runs 0...1 along the strand, `y` runs 0...1
-    /// across it. Shared by every strand, so one twist texture serves all of them.
+    /// across it. Shared by every strand; the stripe angle a strand needs is
+    /// carried by its twist group's textures, not by these coordinates.
     let textureCoordinates: [SIMD2<Float>]
     /// Strand coordinates: `x` runs along the strand and reaches past 0...1 where a
     /// strand laps over a crossing; `y` runs across it, -1...1, 0 on the crest.
     let strandCoordinates: [SIMD2<Float>]
     /// Twist phase in radians. Continuous inside one strand segment.
     let twistPhases: [Float]
-    let colorGroups: [ThreadColorID: [UInt32]]
+    /// The twist groups the strands fall into, and which group each strand uses.
+    let twist: MaruGenjiSurfaceMeshGenerator.TwistGrouping
+    /// Triangle indices per colour and twist group. One material per entry.
+    let materialGroups: [MaruGenjiSurfaceMaterialKey: [UInt32]]
     let vertexSegmentIndices: [Int]
     let vertexIsCrossingWall: [Bool]
     let triangleSegmentIndices: [Int]
@@ -43,11 +54,29 @@ struct MaruGenjiSurfaceMeshData: Sendable {
     }
 
     var triangleCount: Int {
-        colorGroups.values.reduce(0) { $0 + $1.count / 3 }
+        materialGroups.values.reduce(0) { $0 + $1.count / 3 }
     }
 
     var allTriangleIndices: [UInt32] {
-        colorGroups.values.flatMap { $0 }
+        sortedMaterialGroups.flatMap(\.value)
+    }
+
+    /// Triangle indices per colour, with the twist groups of one colour merged.
+    /// The renderer draws the twist groups apart; everything that only cares
+    /// which thread a triangle belongs to reads them together.
+    var colorGroups: [ThreadColorID: [UInt32]] {
+        sortedMaterialGroups.reduce(into: [ThreadColorID: [UInt32]]()) { result, group in
+            result[group.key.colorID, default: []].append(contentsOf: group.value)
+        }
+    }
+
+    /// Draw groups in a fixed order, so every derived grouping is deterministic.
+    var sortedMaterialGroups: [(key: MaruGenjiSurfaceMaterialKey, value: [UInt32])] {
+        materialGroups.sorted {
+            $0.key.colorID.rawValue == $1.key.colorID.rawValue
+                ? $0.key.twistGroupIndex < $1.key.twistGroupIndex
+                : $0.key.colorID.rawValue < $1.key.colorID.rawValue
+        }
     }
 }
 
@@ -144,7 +173,7 @@ enum MaruGenjiSurfaceMeshGenerator {
             radius: radius,
             length: tileLength,
             repeatCount: patternRepeatCount,
-            twist: twistCoefficients(
+            twist: twistGrouping(
                 for: surface,
                 radius: radius,
                 length: tileLength,
@@ -182,7 +211,8 @@ enum MaruGenjiSurfaceMeshGenerator {
             textureCoordinates: builder.textureCoordinates,
             strandCoordinates: builder.strandCoordinates,
             twistPhases: builder.twistPhases,
-            colorGroups: builder.colorGroups,
+            twist: metrics.twist,
+            materialGroups: builder.materialGroups,
             vertexSegmentIndices: builder.vertexSegmentIndices,
             vertexIsCrossingWall: builder.vertexIsCrossingWall,
             triangleSegmentIndices: builder.triangleSegmentIndices,
@@ -265,10 +295,15 @@ enum MaruGenjiSurfaceMeshGenerator {
 
     // MARK: - Twist
 
-    /// How the twist stripes run in strand-local coordinates. The stripes are
-    /// defined once for every strand so a single texture can carry them; the two
-    /// chevron directions are mirror images whose local shear differs slightly, so
-    /// the across coefficient is the mean over all strands.
+    /// How the twist stripes run in one strand's own coordinates: `along` is
+    /// 0...1 down the centreline, `across` is -1...1 over the cross-section, and
+    /// the phase is affine in both, so the stripes never break inside a strand.
+    ///
+    /// One pair cannot serve every strand. The two chevron directions hand the
+    /// stripe field frames that are sheared opposite ways, so a shared pair puts
+    /// one direction short of the nominal angle and the other past it. Strands
+    /// that need the same pair are gathered into a twist group instead, and each
+    /// group carries its own stripe textures.
     struct TwistCoefficients: Equatable, Sendable {
         let phasePerAlong: Float
         let phasePerAcross: Float
@@ -278,45 +313,140 @@ enum MaruGenjiSurfaceMeshGenerator {
         }
     }
 
-    static func twistCoefficients(
+    /// One stripe texture's worth of strands.
+    struct TwistGroup: Equatable, Sendable {
+        let coefficients: TwistCoefficients
+        /// Phase gradient in the strand's tangent frame — `x` along the tangent,
+        /// `y` along the bitangent — multiplied by the braid radius so it does not
+        /// depend on how large the braid is drawn. The normal map needs it because
+        /// the strand frame is sheared: a relief differentiated in strand
+        /// coordinates alone would lean away from the stripes it is meant to be.
+        let normalizedPhaseGradient: SIMD2<Float>
+    }
+
+    /// The twist groups a surface needs, and which group each of its strands uses.
+    struct TwistGrouping: Equatable, Sendable {
+        let groups: [TwistGroup]
+        let groupIndexBySegment: [Int]
+
+        func coefficients(forSegment segmentIndex: Int) -> TwistCoefficients? {
+            group(forSegment: segmentIndex)?.coefficients
+        }
+
+        func group(forSegment segmentIndex: Int) -> TwistGroup? {
+            guard
+                groupIndexBySegment.indices.contains(segmentIndex),
+                groups.indices.contains(groupIndexBySegment[segmentIndex])
+            else {
+                return nil
+            }
+            return groups[groupIndexBySegment[segmentIndex]]
+        }
+    }
+
+    /// Phase turned over one strand length. Fixed, so every strand shows the same
+    /// number of stripes however its frame is sheared.
+    static var twistPhasePerAlong: Float {
+        -2 * .pi * Float(fiberCount)
+    }
+
+    static func twistGrouping(
         for surface: BraidStrandSurface,
         radius: Float,
         length: Float,
         repeatCount: Int
-    ) -> TwistCoefficients {
+    ) -> TwistGrouping {
+        let measured = surface.segments.map { segment in
+            twistGroup(for: segment, radius: radius, length: length, repeatCount: repeatCount)
+                ?? untwistedGroup
+        }
+        // Rounded before grouping so a strand shape lands in the same group at any
+        // radius, which is what lets the textures be built once from the shared
+        // reference surface and reused by every mesh.
+        let keys = measured.map(twistGroupingKey)
+        let orderedKeys = Set(keys).sorted()
+        let groups = orderedKeys.compactMap { key in
+            keys.firstIndex(of: key).map { measured[$0] }
+        }
+        return TwistGrouping(
+            groups: groups,
+            groupIndexBySegment: keys.map { orderedKeys.firstIndex(of: $0) ?? 0 }
+        )
+    }
+
+    /// Solves the across coefficient that puts this strand's stripes at
+    /// `twistAngleDegrees` to its own centreline. Doing it per strand is the whole
+    /// point: the sheared frames then cancel out and every strand reads as the
+    /// same yarn, twisted the same way and by the same amount.
+    static func twistGroup(
+        for segment: BraidStrandSegment,
+        radius: Float,
+        length: Float,
+        repeatCount: Int
+    ) -> TwistGroup? {
         let angle = twistAngleDegrees * .pi / 180
-        let phasePerAlong = -2 * .pi * Float(fiberCount)
-        let acrossCoefficients = surface.segments.compactMap { segment -> Float? in
-            let along = worldOffset(
-                segment.centerlineDelta,
-                radius: radius,
-                length: length,
-                repeatCount: repeatCount
-            )
-            let across = worldOffset(
-                segment.meanHalfWidth,
-                radius: radius,
-                length: length,
-                repeatCount: repeatCount
-            )
-            let alongLength = simd_length(along)
-            guard alongLength > 0 else { return nil }
-            let alongUnit = along / alongLength
-            let perpendicular = across - alongUnit * simd_dot(across, alongUnit)
-            let perpendicularLength = simd_length(perpendicular)
-            guard perpendicularLength > 0 else { return nil }
-            // Stripe normal in the strand's own orthonormal frame.
-            let gradient = -sin(angle) * alongUnit
-                + cos(angle) * (perpendicular / perpendicularLength)
-            let period = alongLength * sin(angle) / Float(fiberCount)
-            guard period > 0 else { return nil }
-            return simd_dot(across, gradient) * 2 * .pi / period
+        let sine = sin(angle)
+        let cosine = cos(angle)
+        guard sine != 0 else { return nil }
+
+        let along = worldOffset(
+            segment.centerlineDelta,
+            radius: radius,
+            length: length,
+            repeatCount: repeatCount
+        )
+        let across = worldOffset(
+            segment.meanHalfWidth,
+            radius: radius,
+            length: length,
+            repeatCount: repeatCount
+        )
+        let alongLength = simd_length(along)
+        guard alongLength > 0 else { return nil }
+        let alongUnit = along / alongLength
+        // Turned a quarter turn the same way the mesh turns a tangent into a
+        // bitangent, so this axis and the normal map's second channel agree.
+        let acrossUnit = SIMD2<Float>(-alongUnit.y, alongUnit.x)
+        let shear = simd_dot(across, alongUnit)
+        let halfWidth = simd_dot(across, acrossUnit)
+        guard halfWidth != 0 else { return nil }
+
+        let phasePerAlong = twistPhasePerAlong
+        let phasePerAcross = phasePerAlong
+            * (shear * sine - halfWidth * cosine)
+            / (alongLength * sine)
+        let gradient = SIMD2<Float>(
+            phasePerAlong / alongLength,
+            (phasePerAcross - phasePerAlong * shear / alongLength) / halfWidth
+        )
+        guard phasePerAcross.isFinite, gradient.x.isFinite, gradient.y.isFinite else {
+            return nil
         }
-        guard !acrossCoefficients.isEmpty else {
-            return TwistCoefficients(phasePerAlong: phasePerAlong, phasePerAcross: 0)
-        }
-        let mean = acrossCoefficients.reduce(0, +) / Float(acrossCoefficients.count)
-        return TwistCoefficients(phasePerAlong: phasePerAlong, phasePerAcross: mean)
+        return TwistGroup(
+            coefficients: TwistCoefficients(
+                phasePerAlong: phasePerAlong,
+                phasePerAcross: phasePerAcross
+            ),
+            normalizedPhaseGradient: gradient * radius
+        )
+    }
+
+    /// Fallback for a strand with no measurable direction, which contributes no
+    /// visible surface anyway. Stripes run straight across it.
+    private static var untwistedGroup: TwistGroup {
+        TwistGroup(
+            coefficients: TwistCoefficients(
+                phasePerAlong: twistPhasePerAlong,
+                phasePerAcross: 0
+            ),
+            normalizedPhaseGradient: .zero
+        )
+    }
+
+    /// The along coefficient is the same for every strand, so the across
+    /// coefficient alone identifies a group.
+    private static func twistGroupingKey(_ group: TwistGroup) -> Int {
+        Int((group.coefficients.phasePerAcross * 1_000).rounded())
     }
 
     /// Surface coordinates scaled to world distances: `x` around the braid,
@@ -339,7 +469,7 @@ enum MaruGenjiSurfaceMeshGenerator {
         let radius: Float
         let length: Float
         let repeatCount: Int
-        let twist: TwistCoefficients
+        let twist: TwistGrouping
     }
 
     /// A point being assembled. `strandCoordinate` is `(along, across)`, which the
@@ -369,7 +499,7 @@ enum MaruGenjiSurfaceMeshGenerator {
         var textureCoordinates = [SIMD2<Float>]()
         var strandCoordinates = [SIMD2<Float>]()
         var twistPhases = [Float]()
-        var colorGroups = [ThreadColorID: [UInt32]]()
+        var materialGroups = [MaruGenjiSurfaceMaterialKey: [UInt32]]()
         var vertexSegmentIndices = [Int]()
         var vertexIsCrossingWall = [Bool]()
         var triangleSegmentIndices = [Int]()
@@ -465,7 +595,14 @@ enum MaruGenjiSurfaceMeshGenerator {
         builder: inout MeshBuilder
     ) {
         let clipped = clip(polygon: polygon, minimumV: 0, maximumV: Float(metrics.repeatCount))
-        guard clipped.count >= 3 else { return }
+        guard
+            clipped.count >= 3,
+            let twist = metrics.twist.coefficients(forSegment: segmentIndex),
+            metrics.twist.groupIndexBySegment.indices.contains(segmentIndex)
+        else {
+            return
+        }
+        let twistGroupIndex = metrics.twist.groupIndexBySegment[segmentIndex]
 
         for index in 1..<(clipped.count - 1) {
             let triangle = [clipped[0], clipped[index], clipped[index + 1]]
@@ -486,7 +623,7 @@ enum MaruGenjiSurfaceMeshGenerator {
                 builder.textureCoordinates.append(vertex.textureCoordinate)
                 builder.strandCoordinates.append(vertex.strandCoordinate)
                 builder.twistPhases.append(
-                    metrics.twist.phase(
+                    twist.phase(
                         along: vertex.strandCoordinate.x,
                         across: vertex.strandCoordinate.y
                     )
@@ -500,8 +637,13 @@ enum MaruGenjiSurfaceMeshGenerator {
                 }
             }
 
-            builder.colorGroups[segment.colorID, default: []]
-                .append(contentsOf: [firstIndex, firstIndex + 1, firstIndex + 2])
+            builder.materialGroups[
+                MaruGenjiSurfaceMaterialKey(
+                    colorID: segment.colorID,
+                    twistGroupIndex: twistGroupIndex
+                ),
+                default: []
+            ].append(contentsOf: [firstIndex, firstIndex + 1, firstIndex + 2])
             builder.triangleSegmentIndices.append(segmentIndex)
             builder.triangleIsCrossingWall.append(isCrossingWall)
         }
@@ -762,8 +904,12 @@ enum MaruGenjiSurfaceMeshGenerator {
             && mesh.vertexIsCrossingWall.count == vertexCount
             && mesh.triangleSegmentIndices.count == mesh.triangleIsCrossingWall.count
             && mesh.triangleSegmentIndices.count == mesh.triangleCount
-            && !mesh.colorGroups.isEmpty
-            && mesh.colorGroups.values.allSatisfy { !$0.isEmpty && $0.count.isMultiple(of: 3) }
+            && !mesh.materialGroups.isEmpty
+            && mesh.materialGroups.values.allSatisfy { !$0.isEmpty && $0.count.isMultiple(of: 3) }
+            && mesh.materialGroups.keys.allSatisfy { mesh.twist.groups.indices.contains($0.twistGroupIndex) }
+            && mesh.vertexSegmentIndices.allSatisfy {
+                mesh.twist.groupIndexBySegment.indices.contains($0)
+            }
             && indices.allSatisfy { Int($0) < vertexCount }
             && mesh.positions.allSatisfy(isFinite)
             && mesh.normals.allSatisfy(isUnit)
