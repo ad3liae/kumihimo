@@ -13,12 +13,29 @@ struct MaruGenjiSurfacePatch: Equatable, Sendable {
 
 struct MaruGenjiSurfacePattern: Equatable, Sendable {
     let patches: [MaruGenjiSurfacePatch]
+    /// Length of one repeat along the braid divided by the length around it, both
+    /// measured in the unwrapped drawing the patches come from. Wrapping the
+    /// pattern onto a braid of any radius has to preserve this ratio, or the
+    /// chevrons lean at an angle the drawing never had.
+    let aspectRatio: Float
+
+    init(
+        patches: [MaruGenjiSurfacePatch],
+        aspectRatio: Float = MaruGenjiSurfacePatternGenerator.patternAspectRatio
+    ) {
+        self.patches = patches
+        self.aspectRatio = aspectRatio
+    }
 }
 
 enum MaruGenjiSurfacePatternGenerator {
     static let requiredThreadCount = 16
     static let patchCount = 64
     static let maximumUnwrappedV: Float = 9 / 8
+    /// One repeat of the unwrapped drawing is a square: the eight columns around
+    /// the braid span 400 source units, and one repeat along it spans the same 400
+    /// units. See `normalizedCorners(for:)`, which divides both axes by 400.
+    static let patternAspectRatio: Float = 1
 
     static func generate(assignments: [ThreadAssignment]) -> MaruGenjiSurfacePattern? {
         let expectedPositions = Set(1...requiredThreadCount)

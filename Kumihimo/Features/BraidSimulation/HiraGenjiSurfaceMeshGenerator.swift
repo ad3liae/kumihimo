@@ -21,7 +21,11 @@ struct HiraGenjiSurfaceMeshData: Sendable {
 enum HiraGenjiSurfaceMeshGenerator {
     static let defaultHalfWidth: Float = 0.72
     static let defaultHalfThickness: Float = 0.12
-    static let defaultLength: Float = MaruGenjiSurfaceMeshGenerator.defaultLength
+    /// Hira-genji is flat, so its perimeter is not a circle and its own repeat
+    /// aspect ratio has not been read from a reference yet. The tile therefore
+    /// keeps the length it was tuned with instead of borrowing the round braid's
+    /// derived length. Deriving it is a separate task.
+    static let defaultLength: Float = 3.4
     /// Twelve repeats keep each of the two stitch phases close to one yarn width.
     /// The previous value of four enlarged a single stitch into a rigid-looking tile.
     static let defaultPatternRepeatCount = 12

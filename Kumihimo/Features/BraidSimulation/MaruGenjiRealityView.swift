@@ -140,6 +140,9 @@ struct MaruGenjiRealityView: UIViewRepresentable {
         private var sharedMesh: MeshResource?
         private var sharedMaterials = [PhysicallyBasedMaterial]()
         private var tileCount = 0
+        /// Taken from the generated mesh, which derives it from the radius and the
+        /// aspect ratio the pattern declares.
+        private var tileLength = MaruGenjiSurfaceMeshGenerator.defaultLength
 
         init(controller: MaruGenjiViewerController) {
             self.controller = controller
@@ -155,6 +158,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
             sharedMesh = nil
             sharedMaterials = []
             tileCount = 0
+            tileLength = MaruGenjiSurfaceMeshGenerator.defaultLength
 
             guard let pattern = MaruGenjiSurfacePatternGenerator.generate(assignments: assignments) else {
                 let positions = assignments.map(\.position).map(String.init).joined(separator: ",")
@@ -222,6 +226,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 tileRoot = instances
                 sharedMesh = mesh
                 sharedMaterials = materials
+                tileLength = surface.length
 
                 anchor.addChild(root)
 
@@ -300,12 +305,12 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                     cameraDistance: MaruGenjiRealityView.cameraDistance,
                     verticalFieldOfView: MaruGenjiRealityView.verticalFieldOfView,
                     minimumScale: MaruGenjiViewerController.minimumScale,
-                    tileLength: MaruGenjiSurfaceMeshGenerator.defaultLength
+                    tileLength: tileLength
                 ),
                 coverage.tileCount != tileCount,
                 let offsets = MaruGenjiViewportCoverageCalculator.tileOffsets(
                     tileCount: coverage.tileCount,
-                    tileLength: MaruGenjiSurfaceMeshGenerator.defaultLength
+                    tileLength: tileLength
                 )
             else {
                 return

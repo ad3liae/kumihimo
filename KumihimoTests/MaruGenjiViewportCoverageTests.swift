@@ -29,6 +29,40 @@ struct MaruGenjiViewportCoverageTests {
     }
 
     @Test(arguments: [
+        SIMD2<Float>(393, 420),
+        SIMD2<Float>(744, 700),
+        SIMD2<Float>(834, 720),
+        SIMD2<Float>(1_194, 700),
+    ])
+    func theDerivedTileLengthLeavesHeadroomUnderTheSafetyLimit(
+        _ viewport: SIMD2<Float>
+    ) throws {
+        let coverage = try #require(calculate(viewport: viewport))
+
+        // One tile is now a full four repeats of the square pattern, so the tiling
+        // has to sit far below the limit instead of pressing against it.
+        #expect(coverage.tileCount <= MaruGenjiViewportCoverageCalculator.maximumTileCount / 3)
+        #expect(coverage.coveredLength >= coverage.requiredLength)
+    }
+
+    @Test(arguments: [
+        SIMD2<Float>(393, 420),
+        SIMD2<Float>(1_194, 700),
+    ])
+    func defaultZoomShowsAFewRepeatsRatherThanAFineThread(_ viewport: SIMD2<Float>) {
+        let visibleHeight = 2 * MaruGenjiRealityView.cameraDistance
+            * tan(MaruGenjiRealityView.verticalFieldOfView / 2)
+        let visibleWidth = visibleHeight * viewport.x / viewport.y
+        let repeatLength = MaruGenjiSurfaceMeshGenerator.defaultLength
+            / Float(MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount)
+
+        // A repeat is as long as the braid is round, so only a couple of them fit
+        // across the screen at rest. Anything near the previous eight would mean the
+        // wrap had been squashed again.
+        #expect((1.2...3.5).contains(visibleWidth / repeatLength))
+    }
+
+    @Test(arguments: [
         SIMD2<Float>(0, 420),
         SIMD2<Float>(-1, 420),
         SIMD2<Float>(.nan, 420),

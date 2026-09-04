@@ -5,17 +5,22 @@ struct MaruGenjiThumbnailView: View {
 
     var body: some View {
         Canvas { context, size in
-            guard let pattern = MaruGenjiSurfacePatternGenerator.generate(assignments: assignments) else {
+            guard
+                let pattern = MaruGenjiSurfacePatternGenerator.generate(assignments: assignments),
+                let layout = MaruGenjiThumbnailLayout(
+                    size: size,
+                    aspectRatio: pattern.aspectRatio
+                )
+            else {
                 return
             }
-            let repeatCount = 3
-            for repeatIndex in -1..<repeatCount {
+            for repeatIndex in layout.repeatIndices {
                 for patch in pattern.patches {
                     var path = Path()
                     for (cornerIndex, corner) in patch.corners.enumerated() {
-                        let point = CGPoint(
-                            x: size.width * CGFloat((Float(repeatIndex) + corner.y) / Float(repeatCount)),
-                            y: size.height * CGFloat(corner.x)
+                        let point = layout.point(
+                            surfaceCoordinate: corner,
+                            repeatIndex: repeatIndex
                         )
                         if cornerIndex == 0 {
                             path.move(to: point)

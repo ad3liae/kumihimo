@@ -63,6 +63,91 @@ struct MaruGenjiSurfaceMeshTests {
         }
     }
 
+    // MARK: - Wrapping aspect
+
+    @Test func thePatternDeclaresASquareRepeat() {
+        #expect(MaruGenjiSurfacePatternGenerator.patternAspectRatio == 1)
+        #expect(MaruGenjiSurfacePattern(patches: []).aspectRatio
+            == MaruGenjiSurfacePatternGenerator.patternAspectRatio)
+    }
+
+    @Test(arguments: [
+        (Float(0.48), 4),
+        (Float(0.48), 1),
+        (Float(0.2), 7),
+        (Float(1.35), 3),
+    ])
+    func oneRepeatMeasuresTheCircumferenceTimesTheDeclaredAspect(
+        _ radius: Float,
+        _ repeatCount: Int
+    ) throws {
+        let pattern = try #require(
+            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+        )
+        let mesh = try #require(
+            MaruGenjiSurfaceMeshGenerator.generate(
+                pattern: pattern,
+                radius: radius,
+                patternRepeatCount: repeatCount
+            )
+        )
+
+        #expect(abs(mesh.patternAspectRatio - pattern.aspectRatio) < 0.000_1)
+        #expect(abs(mesh.circumference - 2 * .pi * radius) < 0.000_1)
+        #expect(abs(mesh.length - 2 * .pi * radius * pattern.aspectRatio * Float(repeatCount))
+            < 0.000_1)
+        #expect(mesh.patternRepeatCount == repeatCount)
+
+        // The generated geometry, not just the reported length, spans that tile.
+        let extremes = mesh.positions.map(\.x)
+        #expect(abs((extremes.min() ?? 0) + mesh.length / 2) < 0.000_1)
+        #expect(abs((extremes.max() ?? 0) - mesh.length / 2) < 0.000_1)
+    }
+
+    @Test func defaultsDeriveTheLengthFromTheRadiusAndTheAspect() {
+        let expected = 2 * Float.pi
+            * MaruGenjiSurfaceMeshGenerator.defaultRadius
+            * MaruGenjiSurfacePatternGenerator.patternAspectRatio
+            * Float(MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount)
+
+        #expect(abs(MaruGenjiSurfaceMeshGenerator.defaultLength - expected) < 0.000_1)
+        #expect(abs(MaruGenjiSurfaceMeshGenerator.defaultLength - 12.064) < 0.005)
+    }
+
+    @Test func everyRidgeRunsAt45DegreesToTheAxis() throws {
+        let pattern = try #require(
+            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+        )
+        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+
+        let angles = try pattern.patches.indices.map { index in
+            try crestAngleToAxisInDegrees(of: mesh, segmentIndex: index)
+        }
+
+        #expect(angles.count == MaruGenjiSurfacePatternGenerator.patchCount)
+        // The drawing is a square repeat, so a chevron leans at exactly 45 degrees.
+        // The tolerance only covers the sampling of the crest, not a shear.
+        #expect(angles.allSatisfy { abs($0 - 45) < 1 })
+    }
+
+    @Test func theRidgeAngleIsIndependentOfTheRadiusAndTheRepeatCount() throws {
+        let pattern = try #require(
+            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+        )
+
+        for (radius, repeatCount) in [(Float(0.2), 7), (Float(1.35), 3)] {
+            let mesh = try #require(
+                MaruGenjiSurfaceMeshGenerator.generate(
+                    pattern: pattern,
+                    radius: radius,
+                    patternRepeatCount: repeatCount
+                )
+            )
+            let angle = try crestAngleToAxisInDegrees(of: mesh, segmentIndex: 0)
+            #expect(abs(angle - 45) < 1)
+        }
+    }
+
     // MARK: - Round strands
 
     @Test func everyStrandIsARidgeWithItsEdgesInTheSharedValley() throws {
@@ -234,7 +319,7 @@ struct MaruGenjiSurfaceMeshTests {
         }
     }
 
-    @Test func twistRunsAtTheSameAngleAndHandAcrossEveryStrand() throws {
+    @Test func twistKeepsOneHandAndOneAnglePerChevronDirection() throws {
         let pattern = try #require(
             MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
@@ -259,13 +344,20 @@ struct MaruGenjiSurfaceMeshTests {
         }
 
         #expect(angles.count == MaruGenjiSurfacePatternGenerator.patchCount)
+        // Every strand still twists the same way round, which is what makes the
+        // braid read as one yarn rather than two.
         #expect(angles.allSatisfy { $0 > 0 })
-        #expect(angles.allSatisfy { (20...40).contains($0) })
-        #expect(abs((angles.max() ?? 0) - (angles.min() ?? 0)) < 12)
-        #expect(abs(
-            angles.reduce(0, +) / Float(angles.count)
-                - MaruGenjiSurfaceMeshGenerator.twistAngleDegrees
-        ) < 3)
+
+        // A square repeat sets the two chevron directions at right angles to each
+        // other, and the strand-local frame each of them hands the shared stripe
+        // texture is sheared the opposite way. One texture cannot then hold one
+        // angle for both: the mean coefficient leaves one direction short of the
+        // nominal 30 degrees and the other past it. Only those two values occur.
+        let distinct = Set(angles.map { ($0 * 100).rounded() })
+        #expect(distinct.count == 2)
+        #expect(angles.allSatisfy { (15...60).contains($0) })
+        #expect((angles.min() ?? 0) < MaruGenjiSurfaceMeshGenerator.twistAngleDegrees)
+        #expect((angles.max() ?? 0) > MaruGenjiSurfaceMeshGenerator.twistAngleDegrees)
     }
 
     // MARK: - Regression
@@ -299,7 +391,13 @@ struct MaruGenjiSurfaceMeshTests {
             pattern: MaruGenjiSurfacePattern(patches: Array(pattern.patches.dropLast()))
         ) == nil)
         #expect(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern, radius: .nan) == nil)
-        #expect(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern, length: 0) == nil)
+        #expect(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern, radius: 0) == nil)
+        #expect(MaruGenjiSurfaceMeshGenerator.generate(
+            pattern: MaruGenjiSurfacePattern(patches: pattern.patches, aspectRatio: 0)
+        ) == nil)
+        #expect(MaruGenjiSurfaceMeshGenerator.generate(
+            pattern: MaruGenjiSurfacePattern(patches: pattern.patches, aspectRatio: .nan)
+        ) == nil)
         #expect(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern, patternRepeatCount: 0) == nil)
         #expect(MaruGenjiSurfaceMeshGenerator.generate(
             pattern: pattern,
@@ -380,6 +478,42 @@ struct MaruGenjiSurfaceMeshTests {
     private func radius(of mesh: MaruGenjiSurfaceMeshData, at index: Int) -> Float {
         let position = mesh.positions[index]
         return hypot(position.y, position.z)
+    }
+
+    /// Angle between one strand's crest line and the braid axis, measured on the
+    /// generated geometry: axial distance against arc length around the braid.
+    private func crestAngleToAxisInDegrees(
+        of mesh: MaruGenjiSurfaceMeshData,
+        segmentIndex: Int
+    ) throws -> Float {
+        let crest = mesh.positions.indices.filter {
+            mesh.vertexSegmentIndices[$0] == segmentIndex
+                && !mesh.vertexIsCrossingWall[$0]
+                && abs(mesh.strandCoordinates[$0].y) < 0.000_1
+                && (0...1).contains(mesh.strandCoordinates[$0].x)
+        }
+        // A strand is emitted once per repeat, so measure the instance nearest the
+        // middle of the tile, which no tile-boundary clipping has shortened.
+        let reference = try #require(crest.min { abs(mesh.positions[$0].x) < abs(mesh.positions[$1].x) })
+        let instance = crest.filter {
+            abs(mesh.positions[$0].x - mesh.positions[reference].x) < mesh.patternRepeatLength / 2
+        }
+        let start = try #require(instance.min { mesh.strandCoordinates[$0].x < mesh.strandCoordinates[$1].x })
+        let end = try #require(instance.max { mesh.strandCoordinates[$0].x < mesh.strandCoordinates[$1].x })
+        #expect(mesh.strandCoordinates[end].x - mesh.strandCoordinates[start].x > 0.9)
+
+        let axial = mesh.positions[end].x - mesh.positions[start].x
+        var turn = atan2(mesh.positions[end].z, mesh.positions[end].y)
+            - atan2(mesh.positions[start].z, mesh.positions[start].y)
+        // A strand covers an eighth of the circumference, so the shorter way round
+        // is always its own direction, even where the tile seam resets the angle.
+        while turn > .pi { turn -= 2 * .pi }
+        while turn < -.pi { turn += 2 * .pi }
+        let around = turn * mesh.baseRadius
+        // A chevron leans either way, so measure the acute angle the ridge makes
+        // with the axis rather than the direction it happens to be travelling in.
+        let angle = abs(atan2(around, axial)) * 180 / .pi
+        return min(angle, 180 - angle)
     }
 
     private func radiiByLongitudinalPosition(

@@ -24,6 +24,23 @@ struct MaruGenjiSurfaceMeshData: Sendable {
     let seamEndVertexIndices: [Int]
     let baseRadius: Float
     let valleyFloorRadius: Float
+    /// Length of the whole tile along the braid axis.
+    let length: Float
+    let patternRepeatCount: Int
+
+    var circumference: Float {
+        2 * .pi * baseRadius
+    }
+
+    var patternRepeatLength: Float {
+        length / Float(patternRepeatCount)
+    }
+
+    /// One repeat along the braid divided by one turn around it. Matches the
+    /// aspect ratio the surface pattern declares, whatever the radius is.
+    var patternAspectRatio: Float {
+        patternRepeatLength / circumference
+    }
 
     var triangleCount: Int {
         colorGroups.values.reduce(0) { $0 + $1.count / 3 }
@@ -40,8 +57,23 @@ struct MaruGenjiSurfaceMeshData: Sendable {
 /// passing underneath.
 enum MaruGenjiSurfaceMeshGenerator {
     static let defaultRadius: Float = 0.48
-    static let defaultLength: Float = 3.4
     static let defaultPatternRepeatCount = 4
+
+    /// The braid is a cylinder the unwrapped pattern is rolled onto, so one repeat
+    /// along the axis has to be the circumference times the aspect ratio the
+    /// pattern declares. Length is therefore derived, never chosen: a radius and a
+    /// length picked independently would shear every chevron.
+    static func length(
+        radius: Float,
+        aspectRatio: Float = MaruGenjiSurfacePatternGenerator.patternAspectRatio,
+        patternRepeatCount: Int = defaultPatternRepeatCount
+    ) -> Float {
+        2 * .pi * radius * aspectRatio * Float(patternRepeatCount)
+    }
+
+    static var defaultLength: Float {
+        length(radius: defaultRadius)
+    }
 
     /// Samples down one strand. Resolves the crossing dip and the wavy silhouette.
     static let defaultAlongStrandSubdivisions = 12
@@ -80,17 +112,23 @@ enum MaruGenjiSurfaceMeshGenerator {
     static func generate(
         pattern: MaruGenjiSurfacePattern,
         radius: Float = defaultRadius,
-        length: Float = defaultLength,
         patternRepeatCount: Int = defaultPatternRepeatCount,
         alongStrandSubdivisions: Int = defaultAlongStrandSubdivisions,
         acrossStrandSubdivisions: Int = defaultAcrossStrandSubdivisions
     ) -> MaruGenjiSurfaceMeshData? {
+        let tileLength = length(
+            radius: radius,
+            aspectRatio: pattern.aspectRatio,
+            patternRepeatCount: patternRepeatCount
+        )
         guard
             pattern.patches.count == MaruGenjiSurfacePatternGenerator.patchCount,
             radius.isFinite,
             radius > 0,
-            length.isFinite,
-            length > 0,
+            pattern.aspectRatio.isFinite,
+            pattern.aspectRatio > 0,
+            tileLength.isFinite,
+            tileLength > 0,
             patternRepeatCount > 0,
             alongStrandSubdivisions >= minimumAlongStrandSubdivisions,
             acrossStrandSubdivisions >= minimumAcrossStrandSubdivisions,
@@ -104,9 +142,14 @@ enum MaruGenjiSurfaceMeshGenerator {
 
         let metrics = SurfaceMetrics(
             radius: radius,
-            length: length,
+            length: tileLength,
             repeatCount: patternRepeatCount,
-            twist: twistCoefficients(for: surface, radius: radius, length: length, repeatCount: patternRepeatCount)
+            twist: twistCoefficients(
+                for: surface,
+                radius: radius,
+                length: tileLength,
+                repeatCount: patternRepeatCount
+            )
         )
         let alongSamples = subdivisionSamples(count: alongStrandSubdivisions)
         let lappedAlongSamples = lapping(alongSamples)
@@ -147,7 +190,9 @@ enum MaruGenjiSurfaceMeshGenerator {
             seamStartVertexIndices: builder.seamStartVertexIndices,
             seamEndVertexIndices: builder.seamEndVertexIndices,
             baseRadius: radius,
-            valleyFloorRadius: radius * (1 - valleyDepthRatio)
+            valleyFloorRadius: radius * (1 - valleyDepthRatio),
+            length: tileLength,
+            patternRepeatCount: patternRepeatCount
         )
         return isConsistent(mesh) ? mesh : nil
     }
