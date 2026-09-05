@@ -47,6 +47,12 @@ struct KumihimoApp: App {
                         assignments: ProjectEditorPreviewData.maruGenjiSurfaceFixture3
                     )
                 } else if CommandLine.arguments.contains(
+                    ProjectEditorPreviewData.maruSurfacePlainLaunchArgument
+                ) {
+                    MaruGenji3DPreviewView(
+                        assignments: ProjectEditorPreviewData.maruGenjiSurfacePlain
+                    )
+                } else if CommandLine.arguments.contains(
                     ProjectEditorPreviewData.hiraSurfaceFixtureALaunchArgument
                 ) {
                     HiraGenji3DPreviewView(

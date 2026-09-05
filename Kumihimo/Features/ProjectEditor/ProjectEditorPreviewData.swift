@@ -16,6 +16,7 @@ enum ProjectEditorPreviewData {
     static let hiraSurfaceFixtureCLaunchArgument = "--ui-testing-hira-surface-fixture-c"
     static let hiraSurfaceArrowFeatherLaunchArgument = "--ui-testing-hira-surface-arrow-feather"
     static let hiraSurfacePlainLaunchArgument = "--ui-testing-hira-surface-plain"
+    static let maruSurfacePlainLaunchArgument = "--ui-testing-maru-surface-plain"
     static let hiraSurfaceLadderLaunchArgument = "--ui-testing-hira-surface-ladder"
     static let darkModeLaunchArgument = "--ui-testing-dark-mode"
 
@@ -52,6 +53,14 @@ enum ProjectEditorPreviewData {
             "blue", "blue", "blue", "blue",
             "pink", "pink", "pink", "pink",
         ])
+    }
+
+    /// Every thread one colour, for the same reason as `hiraGenjiSurfacePlain`:
+    /// the silhouette and the lengthwise shading both move with the colouring of
+    /// the strand that happens to be at the edge, which has nothing to do with
+    /// the shape being measured.
+    static var maruGenjiSurfacePlain: [ThreadAssignment] {
+        (1...16).map { ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: "blue")) }
     }
 
     static var hiraGenjiSurfaceFixtureA: [ThreadAssignment] {
