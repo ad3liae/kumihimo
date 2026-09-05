@@ -104,17 +104,16 @@ struct MaruGenjiSurfaceMeshTests {
 
         // The photograph reads between 1.8 and 2.15 chevrons per braid width. The
         // band is the task's plus or minus 15 per cent around the lower reading,
-        // widened to the upper one. It is then widened again by the 3.4 per cent by
-        // which this measure exceeds the ridge line: the widest point of the drawn
-        // surface is the extra lift a strand takes over a crossing, which is a local
-        // bump the photograph's silhouette does not resolve.
+        // widened to the upper one — Task 005I's own figures, with nothing added.
         //
-        // At the current crest of 0.12 this reads 2.17. Raising the crest to the
-        // 0.353 that the flat braid's yarn width implies would read 2.70 and fail
-        // here — the crest and the pattern's aspect ratio are not separable from a
-        // photograph, and moving one without the other leaves the braid. See
+        // At the current crest of 0.12 this reads 2.14, which is 0.5 per cent under
+        // the upper reading: whether it is inside or outside is not something this
+        // band can settle. What it does settle is that 0.24 reads 2.37 and the 0.353
+        // the flat braid's yarn width implies reads 2.59, both plainly outside. The
+        // crest and the pattern's aspect ratio are not separable from a photograph,
+        // and moving one without the other leaves the braid. See
         // `docs/architecture.md`「畝の高さと模様の縦横比は写真からは分離できない」.
-        #expect((1.5...2.3).contains(chevronsPerBraidWidth))
+        #expect((1.5...2.2).contains(chevronsPerBraidWidth))
     }
 
     @Test(arguments: [
