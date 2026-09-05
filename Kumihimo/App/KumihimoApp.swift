@@ -70,6 +70,30 @@ struct KumihimoApp: App {
                         controller: MaruGenjiViewerController(),
                         isEmbedded: false
                     )
+                } else if CommandLine.arguments.contains(
+                    ProjectEditorPreviewData.hiraSurfaceArrowFeatherLaunchArgument
+                ) {
+                    HiraGenji3DPreviewView(
+                        assignments: ProjectEditorPreviewData.hiraGenjiSurfaceArrowFeather,
+                        controller: MaruGenjiViewerController(),
+                        isEmbedded: false
+                    )
+                } else if CommandLine.arguments.contains(
+                    ProjectEditorPreviewData.hiraSurfaceLadderLaunchArgument
+                ) {
+                    HiraGenji3DPreviewView(
+                        assignments: ProjectEditorPreviewData.hiraGenjiSurfaceLadder,
+                        controller: MaruGenjiViewerController(),
+                        isEmbedded: false
+                    )
+                } else if CommandLine.arguments.contains(
+                    ProjectEditorPreviewData.hiraSurfacePlainLaunchArgument
+                ) {
+                    HiraGenji3DPreviewView(
+                        assignments: ProjectEditorPreviewData.hiraGenjiSurfacePlain,
+                        controller: MaruGenjiViewerController(),
+                        isEmbedded: false
+                    )
                 } else {
                     AppRootView()
                 }

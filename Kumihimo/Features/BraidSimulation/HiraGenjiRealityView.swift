@@ -105,18 +105,15 @@ struct HiraGenjiRealityView: UIViewRepresentable {
                     guard let threadColor = ThreadColorCatalog.color(for: colorID) else {
                         throw RenderError.unknownColor
                     }
+                    // One material for the whole thread. The band round a patch
+                    // used to be painted in a second, darker colour; the valley
+                    // shading now comes from the stitch's own map, which varies
+                    // continuously instead of stepping once.
                     appendMaterialGroup(
-                        surface.colorGroups[colorID],
+                        (surface.colorGroups[colorID] ?? [])
+                            + (surface.boundaryColorGroups[colorID] ?? []),
                         color: threadColor.uiColor,
-                        roughness: 0.84,
-                        combinedIndices: &combinedIndices,
-                        faceMaterialIndices: &faceMaterialIndices,
-                        materials: &materials
-                    )
-                    appendMaterialGroup(
-                        surface.boundaryColorGroups[colorID],
-                        color: threadColor.boundaryUIColor,
-                        roughness: 0.92,
+                        roughness: MaruGenjiStrandTextureFactory.baseRoughness,
                         combinedIndices: &combinedIndices,
                         faceMaterialIndices: &faceMaterialIndices,
                         materials: &materials
@@ -146,14 +143,21 @@ struct HiraGenjiRealityView: UIViewRepresentable {
                 camera.camera.fieldOfViewInDegrees = HiraGenjiRealityView.verticalFieldOfView * 180 / .pi
                 anchor.addChild(camera)
 
+                // The round braid's three lights, unchanged. The flat braid had a
+                // key of 3,500 against a fill of 1,200; a fill that strong lifts
+                // the valleys back out and leaves the surface without shadows.
                 let keyLight = DirectionalLight()
-                keyLight.light.intensity = 3_500
+                keyLight.light.intensity = MaruGenjiRealityView.keyLightIntensity
                 keyLight.look(at: .zero, from: SIMD3<Float>(0.5, 2.2, 3), relativeTo: nil)
                 anchor.addChild(keyLight)
                 let fillLight = DirectionalLight()
-                fillLight.light.intensity = 1_200
+                fillLight.light.intensity = MaruGenjiRealityView.fillLightIntensity
                 fillLight.look(at: .zero, from: SIMD3<Float>(-1.5, -1, 2), relativeTo: nil)
                 anchor.addChild(fillLight)
+                let rimLight = DirectionalLight()
+                rimLight.light.intensity = MaruGenjiRealityView.rimLightIntensity
+                rimLight.look(at: .zero, from: SIMD3<Float>(0.2, 1, -3), relativeTo: nil)
+                anchor.addChild(rimLight)
 
                 view.scene.addAnchor(anchor)
                 updateCoverage(for: view.bounds.size)
@@ -216,9 +220,22 @@ struct HiraGenjiRealityView: UIViewRepresentable {
                 count: indices.count / 3
             ))
             var material = PhysicallyBasedMaterial()
-            material.baseColor = .init(tint: color)
+            let maps = HiraGenjiStitchDetailTexture.maps
+            if let occlusion = maps.occlusion {
+                material.baseColor = .init(tint: color, texture: .strandDetail(occlusion))
+                material.ambientOcclusion = .init(texture: .strandDetail(occlusion))
+            } else {
+                material.baseColor = .init(tint: color)
+            }
             material.metallic = .init(floatLiteral: 0)
-            material.roughness = .init(floatLiteral: roughness)
+            if let roughnessMap = maps.roughness {
+                material.roughness = .init(scale: 1, texture: .strandDetail(roughnessMap))
+            } else {
+                material.roughness = .init(floatLiteral: roughness)
+            }
+            if let normal = maps.normal {
+                material.normal = .init(texture: .strandDetail(normal))
+            }
             materials.append(material)
         }
 

@@ -14,6 +14,9 @@ enum ProjectEditorPreviewData {
     static let hiraSurfaceFixtureALaunchArgument = "--ui-testing-hira-surface-fixture-a"
     static let hiraSurfaceFixtureBLaunchArgument = "--ui-testing-hira-surface-fixture-b"
     static let hiraSurfaceFixtureCLaunchArgument = "--ui-testing-hira-surface-fixture-c"
+    static let hiraSurfaceArrowFeatherLaunchArgument = "--ui-testing-hira-surface-arrow-feather"
+    static let hiraSurfacePlainLaunchArgument = "--ui-testing-hira-surface-plain"
+    static let hiraSurfaceLadderLaunchArgument = "--ui-testing-hira-surface-ladder"
     static let darkModeLaunchArgument = "--ui-testing-dark-mode"
 
     static var colorfulAssignments: [ThreadAssignment] {
@@ -81,6 +84,60 @@ enum ProjectEditorPreviewData {
             let colorID = far.contains(position) ? "blue" : near.contains(position) ? "pink" : "white"
             return ThreadAssignment(position: position, colorID: ThreadColorID(rawValue: colorID))
         }
+    }
+
+    /// Book A p97's arrow-feather sample: the middle two threads of each side one
+    /// colour, the far and near two another, and everything worked lengthwise
+    /// plain. Its caption says the **edging** comes out in arrow-feather, so the
+    /// body has to stay plain — a controlled experiment the drawn braid can be
+    /// held against, not only the pattern data.
+    static var hiraGenjiSurfaceArrowFeather: [ThreadAssignment] {
+        var colours = [Int: String]()
+        for position in HiraGenjiBoardState.initial.north + HiraGenjiBoardState.initial.south {
+            colours[position] = "white"
+        }
+        for side in [HiraGenjiBoardState.initial.east, HiraGenjiBoardState.initial.west] {
+            colours[side[0]] = "brown"
+            colours[side[3]] = "brown"
+            colours[side[1]] = "yellow"
+            colours[side[2]] = "yellow"
+        }
+        return (1...16).map {
+            ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: colours[$0] ?? "white"))
+        }
+    }
+
+    /// Book A p97's second sample, as a controlled experiment on the threads
+    /// worked along the braid.
+    ///
+    /// Its caption: colour the far group and the near group differently and the
+    /// braid comes out with a ladder pattern whose colours reverse between the
+    /// two faces. Far and near are faces 1 and 3 of the stand, which is where
+    /// the lengthwise threads are worked, so the ladder is a statement about
+    /// their path and nothing else.
+    ///
+    /// The threads carried across are given a third colour here, which the book's
+    /// own sample does not do — it uses one of the two. A third colour makes the
+    /// experiment answer only the question asked: any colour reaching the middle
+    /// of a face has to have come from a lengthwise thread.
+    static var hiraGenjiSurfaceLadder: [ThreadAssignment] {
+        var colours = [Int: String]()
+        for position in HiraGenjiBoardState.initial.north { colours[position] = "brown" }
+        for position in HiraGenjiBoardState.initial.south { colours[position] = "yellow" }
+        for position in HiraGenjiBoardState.initial.east + HiraGenjiBoardState.initial.west {
+            colours[position] = "white"
+        }
+        return (1...16).map {
+            ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: colours[$0] ?? "white"))
+        }
+    }
+
+    /// Every thread one colour. Measuring apparatus, not a sample: the braid's
+    /// silhouette is what says how far a yarn stands proud, and a braid whose
+    /// edge changes colour from stitch to stitch moves the measured edge for a
+    /// reason that has nothing to do with its shape.
+    static var hiraGenjiSurfacePlain: [ThreadAssignment] {
+        (1...16).map { ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: "blue")) }
     }
 
     static var undecidedProject: KumihimoProject {
