@@ -20,6 +20,13 @@
 - Task 005 丸源氏3Dの境界・繊維感と色整合: `tasks/005-maru-genji-surface-material.md`
 - Task 006 端面のない長尺3D表示とiPad適応レイアウト: `tasks/006-infinite-braid-ipad-layout.md`
 - Task 007 平源氏16本プリセット: `tasks/007-hira-genji-16.md`
+- Task 008 八つ金剛組8玉の完成シミュレーション（未着手）: `tasks/008-yatsu-kongo-8.md`
+- Task 009 江戸八つ組8玉の完成シミュレーション（未着手）: `tasks/009-edo-yatsu-8.md`
+- Task 010 八つ瀬組8玉の完成シミュレーション（未着手）: `tasks/010-yatsuse-8.md`
+- Task 011 唐八つ組8玉の完成シミュレーション（未着手）: `tasks/011-kara-yatsu-8.md`
+- Task 012 江戸源氏組12玉の完成シミュレーション（未着手）: `tasks/012-edo-genji-12.md`
+- Task 013 方丈組12玉の完成シミュレーション（未着手）: `tasks/013-houjou-12.md`
+- Task 014 方丈組（中細）12玉の完成シミュレーション（未着手）: `tasks/014-houjou-medium-fine-12.md`
 - Task 005E 丸源氏16本の組紐らしさ向上（Task 005 エンハンス。Task 008 以降より優先）: `tasks/005e-maru-genji-braid-fidelity.md`
 - Task 005F 表面パターンのアスペクト比修正（Task 008 以降より優先）: `tasks/005f-maru-genji-surface-aspect.md`
 - Task 005G 撚りの縞を山形の方向ごとに正す（Task 008 以降より優先）: `tasks/005g-maru-genji-twist-direction.md`
