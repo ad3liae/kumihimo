@@ -25,6 +25,10 @@
 - Task 005G 撚りの縞を山形の方向ごとに正す（Task 008 以降より優先）: `tasks/005g-maru-genji-twist-direction.md`
 - Task 005H 糸幅を正本とした周方向スケールの確定: `tasks/005h-braid-thread-scale.md`（前提が誤りのため差し戻し）
 - Task 005I 丸源氏の山形の密度を実物へ合わせる（Task 007 エンハンス・Task 008 以降より優先）: `tasks/005i-maru-genji-chevron-density.md`
+- Task 007E 平源氏16本の組紐らしさ向上（**完了**。畝 0.45・ピッチ 0.3665・傾き0 を資料から決めた）: `tasks/007e-hira-genji-braid-fidelity.md`
+- Task 007F 平源氏の表面模様を織り構造として作り直す（**完了**。Task 007E へ引き継ぎ済み）: `tasks/007f-hira-genji-weave-model.md`
+- Task 005J 丸源氏の遮蔽マップと畝の高さ（未着手。平源氏で決めた測り方を丸源氏へ）: `tasks/005j-maru-genji-ambient-occlusion.md`
+- Task 015 UIテストで RealityKit が落ちる件（未着手。退行ではない）: `tasks/015-ui-test-realitykit-crash.md`
 
 ## 更新方針
 
