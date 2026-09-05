@@ -43,6 +43,24 @@ struct MaruGenjiSurfaceMeshData: Sendable {
         2 * .pi * baseRadius
     }
 
+    /// The widest the braid gets, taken from the drawn surface rather than from a
+    /// constant so it cannot drift out of step with the crest.
+    ///
+    /// `baseRadius` is the mean surface and does not move when the crest does. A
+    /// photograph's silhouette shows this radius, so anything compared against a
+    /// photograph has to be measured against it. See
+    /// `theChevronDensityFollowsTheDeclaredAspectAtAnySize`.
+    var outerRadius: Float {
+        positions.reduce(Float(0)) { widest, position in
+            max(widest, (position.y * position.y + position.z * position.z).squareRoot())
+        }
+    }
+
+    /// What a photograph of the finished braid measures across.
+    var visibleWidth: Float {
+        2 * outerRadius
+    }
+
     var patternRepeatLength: Float {
         length / Float(patternRepeatCount)
     }

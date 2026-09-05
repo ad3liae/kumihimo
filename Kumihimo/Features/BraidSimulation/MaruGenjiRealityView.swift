@@ -355,6 +355,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
             var material = PhysicallyBasedMaterial()
             if let occlusion = maps?.occlusion {
                 material.baseColor = .init(tint: color, texture: .strandDetail(occlusion))
+                material.ambientOcclusion = .init(texture: .strandDetail(occlusion))
             } else {
                 material.baseColor = .init(tint: color)
             }

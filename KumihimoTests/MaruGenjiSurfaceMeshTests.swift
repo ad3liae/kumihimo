@@ -94,13 +94,27 @@ struct MaruGenjiSurfaceMeshTests {
                 patternRepeatCount: repeatCount
             )
         )
-        let braidWidth = 2 * mesh.baseRadius
-        let chevronsPerBraidWidth = 4 * braidWidth / mesh.patternRepeatLength
+        // Measured across the drawn surface, not across the mean one. A photograph
+        // sees the braid's silhouette, and raising the crest fattens the braid
+        // without moving the chevron pitch, so the density a photograph reads drifts
+        // even though the pattern is untouched. `baseRadius` cannot see that: it
+        // stays put whatever the crest does, which left the density unguarded
+        // against exactly the change Task 005J was weighing.
+        let chevronsPerBraidWidth = 4 * mesh.visibleWidth / mesh.patternRepeatLength
 
         // The photograph reads between 1.8 and 2.15 chevrons per braid width. The
         // band is the task's plus or minus 15 per cent around the lower reading,
-        // widened to the upper one, so a change that drifts outside either fails.
-        #expect((1.5...2.2).contains(chevronsPerBraidWidth))
+        // widened to the upper one. It is then widened again by the 3.4 per cent by
+        // which this measure exceeds the ridge line: the widest point of the drawn
+        // surface is the extra lift a strand takes over a crossing, which is a local
+        // bump the photograph's silhouette does not resolve.
+        //
+        // At the current crest of 0.12 this reads 2.17. Raising the crest to the
+        // 0.353 that the flat braid's yarn width implies would read 2.70 and fail
+        // here — the crest and the pattern's aspect ratio are not separable from a
+        // photograph, and moving one without the other leaves the braid. See
+        // `docs/architecture.md`「畝の高さと模様の縦横比は写真からは分離できない」.
+        #expect((1.5...2.3).contains(chevronsPerBraidWidth))
     }
 
     @Test(arguments: [
