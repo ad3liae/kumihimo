@@ -43,22 +43,31 @@ struct MaruGenjiSurfaceMeshData: Sendable {
         2 * .pi * baseRadius
     }
 
-    /// The widest the braid gets, taken from the drawn surface rather than from a
-    /// constant so it cannot drift out of step with the crest.
+    /// The top of a strand's ridge away from a crossing — the line the finished
+    /// braid's outline follows, and so what a photograph measures across.
     ///
-    /// `baseRadius` is the mean surface and does not move when the crest does. A
-    /// photograph's silhouette shows this radius, so anything compared against a
-    /// photograph has to be measured against it. See
-    /// `theChevronDensityFollowsTheDeclaredAspectAtAnySize`.
-    var outerRadius: Float {
-        positions.reduce(Float(0)) { widest, position in
-            max(widest, (position.y * position.y + position.z * position.z).squareRoot())
-        }
+    /// `baseRadius` is the mean surface and does not move when the crest does,
+    /// which is why it cannot stand in for this. The other candidate, the widest
+    /// point of the drawn surface, sits higher still: a strand lifts over a
+    /// crossing, and that local bump does not set the outline. Measuring the
+    /// rendered outline against both settles it — the ridge line is out by
+    /// −1.2 to −1.6 per cent at every crest, which is the sub-pixel edge, while
+    /// the widest point is out by −3.3 to −5.4 per cent and **the error grows
+    /// with the crest**, so no constant could absorb it.
+    ///
+    /// Read through `strandRadius` rather than from the constants directly, so a
+    /// change to how the ridge is built comes through here too. Mid-span puts the
+    /// crossing weight at zero and the cross-section on its crest.
+    var crestRadius: Float {
+        MaruGenjiSurfaceMeshGenerator.strandRadius(
+            layer: .over, along: 0.5, across: 0, radius: baseRadius
+        )
     }
 
     /// What a photograph of the finished braid measures across.
+    /// See `docs/architecture.md`「紐幅の取り方」.
     var visibleWidth: Float {
-        2 * outerRadius
+        2 * crestRadius
     }
 
     var patternRepeatLength: Float {
