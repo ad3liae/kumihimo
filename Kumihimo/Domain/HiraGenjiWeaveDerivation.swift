@@ -222,6 +222,14 @@ enum HiraGenjiWeaveDerivation {
     }
 
     /// Six moves and then the end repositioning.
+    ///
+    /// **The phases this divides by are a consequence of counting seven instants,
+    /// not an invariant of the braid.** Leave the end repositioning out and the
+    /// numbers change — the edges would come out at 1/6 and 2/6 instead of 1/7 and
+    /// 2/7, and the left edge would no longer land exactly half a row behind the
+    /// body. It is counted because it is the only instant at which the outermost
+    /// columns receive a thread; without it they would have no arrival at all.
+    /// **Do not treat the half row as a figure the braid guarantees.**
     static let instantsPerCycle = 7
 
     /// The instants within a cycle at which a thread arrives at this place, read
