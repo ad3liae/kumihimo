@@ -506,32 +506,57 @@ struct HiraGenjiSurfaceMeshTests {
         #expect(!containsDegenerateTriangle)
     }
 
-    @Test func repeatedTileGeometryNormalsBoundaryAndTwistPhaseMatch() throws {
+    /// One tile laid after another leaves no gap.
+    ///
+    /// **This asks whether the two cuts are the same surface, not whether they
+    /// were divided up the same way.** They are not divided the same way any more:
+    /// the lanes are not all in step along the braid (Task 007G), so a lane the
+    /// tile's start cuts through the lower half of a row, its end cuts through the
+    /// upper half of the row above. The two cuts still describe the same shape,
+    /// which is what makes the tiles meet, and asking for the same sample points
+    /// asks for something the braid does not owe.
+    @Test func consecutiveTilesMeetOnTheSameSurface() throws {
         let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
         let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
         let length = HiraGenjiSurfaceMeshGenerator.defaultLength
         let start = mesh.positions.indices.filter { abs(mesh.positions[$0].x + length / 2) < 0.000_001 }
         let end = mesh.positions.indices.filter { abs(mesh.positions[$0].x - length / 2) < 0.000_001 }
 
-        #expect(!start.isEmpty)
-        #expect(matches(
-            boundaryProfile(start, mesh: mesh),
-            boundaryProfile(end, mesh: mesh),
-            tolerance: 0.000_1
-        ))
-        #expect(matches(
-            twistPhaseProfile(start, mesh: mesh),
-            twistPhaseProfile(end, mesh: mesh),
-            tolerance: 0.000_1
-        ))
+        #expect(start.count > 100)
+        #expect(end.count > 100)
+        // Every point of one cut is a point of the other, to within a tolerance
+        // far finer than a yarn. Both ways round, so neither cut may cover only
+        // part of the other.
+        for (near, far) in [(start, end), (end, start)] {
+            let strays = near.filter { index in
+                !far.contains { other in
+                    abs(mesh.positions[index].y - mesh.positions[other].y) < 0.001
+                        && abs(mesh.positions[index].z - mesh.positions[other].z) < 0.001
+                        && abs(mesh.normals[index].y - mesh.normals[other].y) < 0.01
+                        && abs(mesh.normals[index].z - mesh.normals[other].z) < 0.01
+                        && abs(mesh.boundaryDistances[index] - mesh.boundaryDistances[other]) < 0.01
+                }
+            }
+            #expect(strays.isEmpty)
+        }
     }
 
     @Test func consecutivePatternRepeatsKeepColorAndBoundaryMaterialPhase() throws {
         let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
+        // Four repeats, and the two compared are the middle two. The first and
+        // the last are the ones the tile's ends cut through, so they are missing
+        // the piece that was carried to the other end of the tile; comparing a cut
+        // repeat with an uncut one would be comparing the cut, not the pattern.
+        let repeatCount = 4
         let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(
             pattern: pattern,
-            patternRepeatCount: 2
+            patternRepeatCount: repeatCount
         ))
+        let length = HiraGenjiSurfaceMeshGenerator.length(
+            halfWidth: HiraGenjiSurfaceMeshGenerator.defaultHalfWidth,
+            aspectRatio: pattern.aspectRatio,
+            patternRepeatCount: repeatCount
+        )
 
         var firstRepeat = [String: Int]()
         var secondRepeat = [String: Int]()
@@ -550,6 +575,17 @@ struct HiraGenjiSurfaceMeshTests {
                     } / 3
                     let patchIndex = mesh.surfaceVertexPatchIndices[vertexIndices[0]]
                     let region = mesh.surfaceVertexRegions[vertexIndices[0]]
+                    // Which repeat drew this, worked back from where it sits along
+                    // the braid and where it sits inside its own patch. **Where it
+                    // is along the braid does not say on its own any more**: a
+                    // patch may reach past a repeat's ends, so a row of one repeat
+                    // can lie partly in the next one's stretch of the tile.
+                    let along = (centerX + length / 2) / length * Float(repeatCount)
+                    let inPatch = HiraGenjiSurfaceMeshGenerator.interpolate(
+                        corners: pattern.patches[patchIndex].corners,
+                        local: centerUV
+                    ).y
+                    let repeatIndex = Int((along - inPatch).rounded())
                     let signature = [
                         colorID.rawValue,
                         String(describing: region),
@@ -558,9 +594,9 @@ struct HiraGenjiSurfaceMeshTests {
                         String(Int((centerUV.y * 1_000_000).rounded())),
                         String(isBoundary),
                     ].joined(separator: ":")
-                    if centerX < 0 {
+                    if repeatIndex == 1 {
                         firstRepeat[signature, default: 0] += 1
-                    } else {
+                    } else if repeatIndex == 2 {
                         secondRepeat[signature, default: 0] += 1
                     }
                 }
