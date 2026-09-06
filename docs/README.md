@@ -12,6 +12,11 @@
 
 ## 現在の仕様とタスク
 
+**Task 020 が本体である。** 組み方ごとの専用コードを書く方向はここで終わりとし、台と手順列から
+組み上がりを導く一般の道へ移る。007 系と 008〜014 はその下に入る。
+
+- **Task 020 一般の組紐シミュレータ（台・手順列から組み上がりを導く）: 最高優先**: `tasks/020-general-braid-simulator.md`
+
 - 起動画面仕様: `specifications/home-screen.md`
 - 作品編集・詳細画面仕様: `specifications/project-editor.md`
 - Task 001 起動画面: `tasks/001-home-screen.md`
@@ -37,6 +42,12 @@
 - Task 007F 平源氏の表面模様を織り構造として作り直す（**完了**。Task 007E へ引き継ぎ済み）: `tasks/007f-hira-genji-weave-model.md`
 - Task 005J 丸源氏の遮蔽マップと畝の高さ（段階1・2 完了。遮蔽は両スロットへ。畝はシルエット法が丸い紐に使えず未確定）: `tasks/005j-maru-genji-ambient-occlusion.md`
 - Task 015 UIテストで RealityKit が落ちる件（未着手。退行ではない）: `tasks/015-ui-test-realitykit-crash.md`
+- Task 007G 平源氏の縁の位相（**完了**。到着の位相を手番から導いた）: `tasks/007g-hira-genji-edge-phase.md`
+- Task 007H 平源氏のタイルの継ぎ目（**完了**。段をタイル端へ持ち出せるようにした）: `tasks/007h-hira-genji-tile-seam.md`
+- Task 007I 平源氏の縁の糸が面の腹の下をくぐって見えるようにする（**Task 020 へ吸収**。中断のまま指示書を残す）: `tasks/007i-hira-genji-edge-lap.md`
+- Task 007J 平源氏を「曲げたタイル」ではなく「糸」で作り直す（**Task 020 へ吸収**。段階A完了・段階B未完。糸の経路と糸のメッシュは Task 020 段階3 の部品として参照する）: `tasks/007j-hira-genji-as-strands.md`
+- Task 016 組み点の物理で寸法を解けるかの調査（未着手。**段階4「製品へどう載せるか」は Task 020 段階4 が引き取る**。段階1〜3 は調査として残る）: `tasks/016-braid-physics-feasibility.md`
+- Task 018 `everyRegionCarriesTheRidgeIncludingBothEdges` が2分かかる件（未着手。優先度低）: `tasks/018-slow-mesh-test.md`
 
 ## 更新方針
 
