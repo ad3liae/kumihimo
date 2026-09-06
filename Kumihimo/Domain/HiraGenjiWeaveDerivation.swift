@@ -199,6 +199,49 @@ enum HiraGenjiWeaveDerivation {
     }
 
     /// The course of every thread over `cycleCount` cycles, in thread order.
+    /// How far along one row a place across the width takes its new appearance.
+    ///
+    /// **The six moves of a cycle are ordered, and one cycle is one row.** A place
+    /// whose thread arrives at the third of them takes its new appearance three
+    /// sixths of the way along the row. Sampling the board once a cycle — which is
+    /// what `courses` does — throws that away and puts every place in step, which
+    /// is why the drawn braid had its valleys running straight from one edge of
+    /// the braid to the other.
+    ///
+    /// Counted as arrivals, not departures: a place looks different from the
+    /// moment the new thread reaches it. The end repositioning counts as a
+    /// seventh instant because it is where the outermost columns get theirs —
+    /// without it they would have no arrival at all.
+    ///
+    /// Returns nil for a width position nothing ever arrives at.
+    static func arrivalPhase(atWidthPosition width: Int) -> Float? {
+        let arrivals = arrivalInstants(atWidthPosition: width)
+        guard !arrivals.isEmpty else { return nil }
+        let mean = arrivals.reduce(0, +) / Float(arrivals.count)
+        return mean / Float(instantsPerCycle)
+    }
+
+    /// Six moves and then the end repositioning.
+    static let instantsPerCycle = 7
+
+    /// The instants within a cycle at which a thread arrives at this place, read
+    /// off `HiraGenjiSimulation.cycle` rather than written down here.
+    static func arrivalInstants(atWidthPosition width: Int) -> [Float] {
+        guard let cycle = HiraGenjiSimulation.cycle(from: .initial) else { return [] }
+        var instants = [Float]()
+        for (index, event) in cycle.moveEvents.enumerated() {
+            for move in event.moves
+            where widthPosition(ofBoardPosition: move.destinationBoardPosition) == width {
+                instants.append(Float(index + 1))
+            }
+        }
+        for move in cycle.endRepositioning.moves
+        where widthPosition(ofBoardPosition: move.destinationBoardPosition) == width {
+            instants.append(Float(instantsPerCycle))
+        }
+        return instants
+    }
+
     static func courses(cycleCount: Int) -> [HiraGenjiThreadCourse]? {
         guard cycleCount > 0 else { return nil }
         let states = HiraGenjiSimulation.boardStates(cycleCount: cycleCount)

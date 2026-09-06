@@ -132,6 +132,7 @@ enum HiraGenjiSurfacePatternGenerator {
         for region in HiraGenjiSurfaceRegion.allCases {
             let columnCount = columnCount(in: region)
             let offsets = stitchBoundaryOffsets(region: region, columnCount: columnCount)
+            let phases = longitudinalPhases(region: region, columnCount: columnCount)
             for row in 0..<rowCount {
                 for column in 0..<columnCount {
                     guard
@@ -156,7 +157,8 @@ enum HiraGenjiSurfacePatternGenerator {
                             row: row,
                             rowCount: rowCount,
                             columnCount: columnCount,
-                            lean: offsets
+                            lean: offsets,
+                            phase: phases
                         )
                     ))
                 }
@@ -252,7 +254,8 @@ enum HiraGenjiSurfacePatternGenerator {
             row: row,
             rowCount: rowCount,
             columnCount: columnCount,
-            lean: leanOffsets(amplitude: lean, columnCount: columnCount)
+            lean: leanOffsets(amplitude: lean, columnCount: columnCount),
+            phase: [Float](repeating: 0, count: columnCount + 1)
         )
     }
 
@@ -261,14 +264,19 @@ enum HiraGenjiSurfacePatternGenerator {
         row: Int,
         rowCount: Int,
         columnCount: Int,
-        lean offsets: [Float]
+        lean offsets: [Float],
+        phase phases: [Float]
     ) -> [SIMD2<Float>] {
         let u0 = Float(column) / Float(columnCount)
         let u1 = Float(column + 1) / Float(columnCount)
-        let leftLow = boundary(row, rowCount: rowCount, offset: offsets[column])
-        let leftHigh = boundary(row + 1, rowCount: rowCount, offset: offsets[column])
-        let rightLow = boundary(row, rowCount: rowCount, offset: offsets[column + 1])
-        let rightHigh = boundary(row + 1, rowCount: rowCount, offset: offsets[column + 1])
+        let leftLow = boundary(row, rowCount: rowCount,
+                               offset: offsets[column], phase: phases[column])
+        let leftHigh = boundary(row + 1, rowCount: rowCount,
+                                offset: offsets[column], phase: phases[column])
+        let rightLow = boundary(row, rowCount: rowCount,
+                                offset: offsets[column + 1], phase: phases[column + 1])
+        let rightHigh = boundary(row + 1, rowCount: rowCount,
+                                 offset: offsets[column + 1], phase: phases[column + 1])
         return [
             SIMD2<Float>(u0, leftLow),
             SIMD2<Float>(u0, leftHigh),
@@ -280,10 +288,111 @@ enum HiraGenjiSurfacePatternGenerator {
     /// Where one stitch join sits along the repeat. The ends of the repeat are
     /// held straight so independently instanced infinite-length tiles stay exact;
     /// the joins inside it lean.
-    private static func boundary(_ index: Int, rowCount: Int, offset: Float) -> Float {
+    /// Where one stitch join sits along the repeat, given how far the join leans
+    /// across its lane and how far along a row that lane's threads change.
+    ///
+    /// **The repeat's own ends are held straight**, as they were before: the tiles
+    /// are instanced independently, and a join carried past the end of one would
+    /// leave a hole where the next begins. The phase therefore shows on the joins
+    /// inside the repeat and is let go at its ends, which makes the rows next to
+    /// the ends uneven in an edge lane. Drawing it without that would mean letting
+    /// a patch wrap across the seam, which the mesh does not do yet.
+    private static func boundary(
+        _ index: Int,
+        rowCount: Int,
+        offset: Float,
+        phase: Float
+    ) -> Float {
         let straight = Float(index) / Float(rowCount)
         guard index > 0, index < rowCount else { return straight }
-        return straight + offset / Float(rowCount)
+        return straight + (offset + phase) / Float(rowCount)
+    }
+
+    /// How far along a row each join across the width sits, in rows.
+    ///
+    /// **Derived from the move order, not chosen.** See
+    /// `HiraGenjiWeaveDerivation.arrivalPhase(atWidthPosition:)`.
+    ///
+    /// Carried only where the weft turns. The threads running along the braid
+    /// take their new appearance at moves 3 to 6, whose mean is the middle of the
+    /// cycle; a thread reaching the left edge does so at move 1 and the right edge
+    /// at move 2. **The edges are therefore half a row and a third of a row behind
+    /// the body — that is the offset, and it comes out of the numbering rather
+    /// than being put in.**
+    ///
+    /// The body's own joins are left straight. Its four columns are not quite in
+    /// step either (columns 1 and 4 change at moves 3 and 4, columns 2 and 3 at
+    /// moves 5 and 6, which is 0.286 of a row apart), but drawing that would put a
+    /// chevron across the face, and book A p97's ladder sample shows the body
+    /// plain. **Reported, not applied** — the same standing as `faceStitchLean`.
+    ///
+    /// The change from the body's phase to an edge's is taken across the outermost
+    /// face column, which is where the weft shows on the face. The regions still
+    /// meet along their shared boundary, so the surface stays closed.
+    static func longitudinalPhases(
+        region: HiraGenjiSurfaceRegion,
+        columnCount: Int
+    ) -> [Float] {
+        switch region {
+        case .leftEdge:
+            return [Float](repeating: centred(edgePhase(.left)), count: columnCount + 1)
+        case .rightEdge:
+            return [Float](repeating: centred(edgePhase(.right)), count: columnCount + 1)
+        case .front, .back:
+            let outer = region == .front
+                ? (first: edgePhase(.right), last: edgePhase(.left))
+                : (first: edgePhase(.left), last: edgePhase(.right))
+            return (0...columnCount).map { index in
+                if index == 0 { return centred(outer.first) }
+                if index == columnCount { return centred(outer.last) }
+                return 0
+            }
+        }
+    }
+
+    /// Where along a row a thread reaches an edge: move 1 for the left, move 2 for
+    /// the right, read off the move rule.
+    private static func edgePhase(_ edge: HiraGenjiBraidEdge) -> Float {
+        let width = edge == .left ? -1 : broadFaceColumnCount
+        return HiraGenjiWeaveDerivation.arrivalPhase(atWidthPosition: width) ?? bodyPhase
+    }
+
+    /// Where along a row the threads running along the braid take their new
+    /// appearance: the mean of moves 3 to 6.
+    static let bodyPhase: Float = {
+        var total: Float = 0
+        var count: Float = 0
+        for width in 1..<(broadFaceColumnCount - 1) {
+            guard let phase = HiraGenjiWeaveDerivation.arrivalPhase(atWidthPosition: width)
+            else { continue }
+            total += phase
+            count += 1
+        }
+        return count > 0 ? total / count : 0
+    }()
+
+    /// Measured from the body, so the braid as a whole does not move along its
+    /// length and only the edges shift.
+    static func centred(_ phase: Float) -> Float {
+        var value = phase - bodyPhase
+        while value > 0.5 { value -= 1 }
+        while value < -0.5 { value += 1 }
+        return value
+    }
+
+    /// Which place across the braid's width a region's lane is.
+    ///
+    /// The front's lanes run against the weave's columns and the back's run with
+    /// them, the same correspondence `occupant(of:region:column:row:)` uses. Both
+    /// lanes of an edge are the one place across the width: they lie one behind
+    /// the other through the thickness, not side by side.
+    static func widthPosition(region: HiraGenjiSurfaceRegion, column: Int) -> Int {
+        switch region {
+        case .front: return broadFaceColumnCount - 1 - column
+        case .back: return column
+        case .leftEdge: return -1
+        case .rightEdge: return broadFaceColumnCount
+        }
     }
 
     /// Produces the staggered join between the appearances in one lane. Adjacent
