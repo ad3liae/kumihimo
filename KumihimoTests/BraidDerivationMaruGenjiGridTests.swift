@@ -280,6 +280,70 @@ struct BraidDerivationMaruGenjiGridTests {
         }
     }
 
+    // MARK: - What the books can and cannot settle about the column order
+
+    /// **Why no photograph in the books settles which way the eight columns run.**
+    ///
+    /// A colouring shows lengthwise stripes only when it gives one colour to each
+    /// of the four courses a thread takes round the braid. The east-against-west
+    /// difference between the two orders swaps two of those four and leaves the
+    /// other two alone, so a colouring can only tell them apart when those two
+    /// have different colours — and even then the two answers come out mirror
+    /// images of each other, which a photograph reads the same way from either
+    /// end.
+    ///
+    /// Every colouring the books print is checked here. Only one of them can
+    /// distinguish the two orders at all, and it needs the direction along the
+    /// braid; its photograph shows no end.
+    @Test func onlyOneReferenceColouringCanTellTheTwoColumnOrdersApart() throws {
+        let derivation = try derivation
+        let occupants = try occupants(derivation)
+        let ringOrder = [1, 4, 5, 8, 9, 12, 13, 16]
+        let tableOrder = [16, 1, 12, 13, 8, 9, 4, 5]
+
+        func grid(_ order: [Int], _ colours: [Int: ThreadColorID]) -> [[String]] {
+            (1...4).map { row in
+                let boundary = ((1 - row) % 4 + 4) % 4
+                return order.map { position in
+                    occupants[boundary][position].flatMap { colours[$0]?.rawValue } ?? "?"
+                }
+            }
+        }
+        func turned(_ g: [[String]], columns: Int, rows: Int) -> [[String]] {
+            let byColumn = g.map { Array($0[columns...] + $0[..<columns]) }
+            return Array(byColumn[rows...] + byColumn[..<rows])
+        }
+        func fromTheOtherEnd(_ g: [[String]]) -> [[String]] {
+            g.reversed().map { $0.reversed() }
+        }
+
+        let samples: [(String, [ThreadAssignment], String)] = [
+            ("book A p94", BraidReferenceColourings.bookAP94MaruGenji, "cannot"),
+            ("book A p95 arrow feather", BraidReferenceColourings.bookAP95ArrowFeather, "cannot"),
+            ("book A p95 vertical stripe", BraidReferenceColourings.bookAP95VerticalStripe,
+             "needs the end"),
+            ("book B a", BraidReferenceColourings.bookBMaruGenjiA, "cannot"),
+            ("book B b", BraidReferenceColourings.bookBMaruGenjiB, "cannot"),
+        ]
+        for (name, assignments, expected) in samples {
+            let colours = Dictionary(
+                uniqueKeysWithValues: assignments.map { ($0.position, $0.colorID) }
+            )
+            let ring = grid(ringOrder, colours)
+            let table = grid(tableOrder, colours)
+            let sameWay = (0..<8).contains { c in
+                (0..<4).contains { r in turned(ring, columns: c, rows: r) == table }
+            }
+            let otherEnd = (0..<8).contains { c in
+                (0..<4).contains { r in
+                    turned(fromTheOtherEnd(ring), columns: c, rows: r) == table
+                }
+            }
+            let verdict = sameWay ? "cannot" : (otherEnd ? "needs the end" : "distinguishes")
+            #expect(verdict == expected, "\(name): \(verdict)")
+        }
+    }
+
     /// A tube has no thread running along it to measure a face against, so the
     /// derivation says nothing about how a cell shows. **`nil`, not a default.**
     @Test func theDerivationDoesNotYetSayHowACellOfATubeShows() throws {

@@ -49,6 +49,69 @@ enum BraidReferenceColourings {
         )
     }
 
+    // MARK: - The round braid
+
+    /// Book A p94's own colouring: the north face rose, salmon, salmon, rose and
+    /// the south face sage, vermilion, vermilion, sage, with the east and west
+    /// faces all in navy. Its finished braid is photographed at the head of the
+    /// page, with the loose ends showing at one end.
+    static var bookAP94MaruGenji: [ThreadAssignment] {
+        colouring(
+            north: ["pink", "orange", "orange", "pink"],
+            east: Array(repeating: "black", count: 4),
+            south: ["natural", "red", "red", "natural"],
+            west: Array(repeating: "black", count: 4)
+        )
+    }
+
+    /// Book A p95, left: "give the far and the near halves different colours and
+    /// an arrow feather appears". The far half of the stand — positions 13, 14,
+    /// 15, 16, 1, 2, 3, 4 — against the near half.
+    static var bookAP95ArrowFeather: [ThreadAssignment] {
+        colouring(
+            north: Array(repeating: "yellow", count: 4),
+            east: ["yellow", "yellow", "blue", "blue"],
+            south: Array(repeating: "blue", count: 4),
+            west: ["yellow", "yellow", "blue", "blue"]
+        )
+    }
+
+    /// Book A p95, right: "make faces 1 and 3, and faces 2 and 4, each
+    /// symmetrical in two colours, and it comes out in lengthwise stripes".
+    ///
+    /// **The only reference colouring that can tell the two column orders apart**
+    /// — see `BraidDerivationMaruGenjiGridTests`. It needs the direction along the
+    /// braid to be known, and the photograph shows no end.
+    static var bookAP95VerticalStripe: [ThreadAssignment] {
+        colouring(
+            north: ["yellow", "yellow", "blue", "blue"],
+            east: ["light-blue", "light-blue", "green", "green"],
+            south: ["yellow", "yellow", "blue", "blue"],
+            west: ["light-blue", "light-blue", "green", "green"]
+        )
+    }
+
+    /// Book B p73, colouring a: two opposite quarters of the stand in each colour.
+    static var bookBMaruGenjiA: [ThreadAssignment] {
+        colouring(
+            north: ["blue", "blue", "white", "white"],
+            east: ["white", "white", "blue", "blue"],
+            south: ["white", "white", "blue", "blue"],
+            west: ["blue", "blue", "white", "white"]
+        )
+    }
+
+    /// Book B p73, colouring b: the north and south faces in two colours, the east
+    /// and west faces plain.
+    static var bookBMaruGenjiB: [ThreadAssignment] {
+        colouring(
+            north: ["blue", "blue", "red", "red"],
+            east: Array(repeating: "white", count: 4),
+            south: ["blue", "blue", "red", "red"],
+            west: Array(repeating: "white", count: 4)
+        )
+    }
+
     /// The groups are listed the way the books list them — outermost first, which
     /// for the south and west groups runs against the ring.
     private static func colouring(
