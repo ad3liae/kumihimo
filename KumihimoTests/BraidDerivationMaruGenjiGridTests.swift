@@ -17,7 +17,8 @@ struct BraidDerivationMaruGenjiGridTests {
         get throws {
             try #require(BraidDerivation.derive(
                 stand: BraidMethodCatalog.stand16,
-                method: BraidMethodCatalog.maruGenji16
+                method: BraidMethodCatalog.maruGenji16,
+                crossSection: BraidMethodCatalog.maruGenji16CrossSection
             ))
         }
     }
@@ -172,21 +173,27 @@ struct BraidDerivationMaruGenjiGridTests {
         }
     }
 
-    /// **What the derivation does not say.** Over and under on a round braid does
-    /// not follow from the order of the moves the way it does on a flat one: the
-    /// threads that meet there were moved in the same step, so the table is silent
-    /// about which was laid on which. The shipped checkerboard is an invention, and
-    /// its own comment says so.
-    @Test func theMoveOrderDoesNotSettleOverAndUnderOnTheRoundBraid() throws {
+    /// **Correcting what stage 1 first reported.** It said the move order could not
+    /// settle over and under on a round braid, because the threads that meet were
+    /// moved in the same step. That was wrong, and it was never checked: the two
+    /// threads of a step never have to pass each other
+    /// (`MaruGenjiMoveRuleSourcesTests`), so no crossing on this braid is between
+    /// threads laid at the same instant.
+    ///
+    /// What is actually missing is a model of which threads cross on a ring. The
+    /// flat braid gets its crossings from the fold, and a tube has no fold, so the
+    /// derivation returns none here — **not because the answer is undecidable, but
+    /// because it has not been worked out yet.** The shipped checkerboard remains
+    /// an invention until it is.
+    @Test func theRoundBraidHasNoCrossingsYetBecauseTheRingModelIsNotBuilt() throws {
         let derivation = try derivation
+        #expect(derivation.fold == nil)
         #expect(derivation.crossings.isEmpty)
+        #expect(derivation.passingsWithinOneInstant.isEmpty)
 
-        // Both threads of every column-defining pair are moved at the same instant,
-        // so "the one moved later lies over" has no answer for them.
-        let closing = BraidMethodCatalog.maruGenji16.closing
-        #expect(closing.moves.count == 8)
+        // The transcribed table does carry both layers, so there is something to
+        // compare against once the ring model exists.
         let cells = try tableCells
-        let layers = Set(cells.map(\.layer))
-        #expect(layers == Set(BraidCrossingLayer.allCases))
+        #expect(Set(cells.map(\.layer)) == Set(BraidCrossingLayer.allCases))
     }
 }

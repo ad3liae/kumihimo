@@ -12,6 +12,20 @@ struct BraidCrossSection: Equatable, Sendable {
     let order: [Int]
     let source: Source
 
+    /// What about this order is not yet settled, if anything.
+    ///
+    /// **A working answer is still an answer, but it must say it is working.**
+    /// This is a note for the people reading the code and for whatever shows the
+    /// braid; it is not display text, so a view writes its own wording rather
+    /// than printing this.
+    let unsettled: String?
+
+    init(order: [Int], source: Source, unsettled: String? = nil) {
+        self.order = order
+        self.source = source
+        self.unsettled = unsettled
+    }
+
     enum Source: Equatable, Sendable {
         /// The default: the stand's own rim order, taken straight across. A braid
         /// worked without anything else said about it comes out as a tube.
@@ -43,6 +57,30 @@ struct BraidCrossSection: Equatable, Sendable {
     var isDeclared: Bool {
         if case .reference = source { return true }
         return false
+    }
+
+    var isSettled: Bool { unsettled == nil }
+
+    /// Whether two runs round the ring have to pass each other.
+    ///
+    /// They do when their ends alternate round the ring: one thread cannot get
+    /// from its start to its finish without crossing the other. Two runs that
+    /// lie side by side, or one wholly inside the other's span, never meet.
+    func runsMustPassEachOther(
+        _ first: (from: Int, to: Int),
+        _ second: (from: Int, to: Int)
+    ) -> Bool {
+        func isInsideTheArc(_ slot: Int, from start: Int, to end: Int) -> Bool {
+            let span = (end - start + slotCount) % slotCount
+            let offset = (slot - start + slotCount) % slotCount
+            return offset > 0 && offset < span
+        }
+        // The run cuts the ring in two. The other run crosses it exactly when one
+        // of its ends is on each side.
+        let onOneSide = [second.from, second.to].filter {
+            isInsideTheArc($0, from: first.from, to: first.to)
+        }
+        return onOneSide.count == 1
     }
 }
 

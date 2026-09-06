@@ -25,7 +25,8 @@ struct BraidDerivationTests {
         get throws {
             try #require(BraidDerivation.derive(
                 stand: stand,
-                method: BraidMethodCatalog.maruGenji16
+                method: BraidMethodCatalog.maruGenji16,
+                crossSection: BraidMethodCatalog.maruGenji16CrossSection
             ))
         }
     }
@@ -169,6 +170,10 @@ struct BraidDerivationTests {
         #expect(derivation.isFlat == false)
         #expect(derivation.crossSection.source == .standRim)
         #expect(derivation.crossSection.isDeclared == false)
+        // The ring is the working answer, and it says so: which way round the
+        // eight columns go is still open against Task 004's transcribed table.
+        #expect(derivation.crossSection.isSettled == false)
+        #expect(BraidMethodCatalog.hiraGenji16CrossSection.isSettled)
     }
 
     /// **Eight, derived.** The closing step carries each of eight threads one slot

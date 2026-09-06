@@ -8,9 +8,10 @@ struct BraidThreadCourse: Equatable, Sendable {
     /// long, the last equal to the first.
     let slots: [Int]
 
-    /// The instant of each cycle at which this thread was moved. **This is what
-    /// decides over and under**: where two threads cross, the one moved later in
-    /// the cycle was laid on top of the other.
+    /// The instant of each cycle at which this thread was moved, or 0 for a cycle
+    /// that left it alone. **This is what decides over and under**: where two
+    /// threads cross, the one moved later in the cycle was laid on top of the
+    /// other, and a thread nobody touched was already lying there.
     let layingInstants: [Int]
 
     var visitedSlots: Set<Int> { Set(slots) }
@@ -140,6 +141,39 @@ struct BraidDerivation: Equatable, Sendable {
         })
     }
 
+    /// Threads moved at the same instant that have to pass each other.
+    ///
+    /// **Where such a pair exists, the move table cannot say which lies over.**
+    /// Both were laid at once, so "the one moved later" has no answer, and the
+    /// order inside the step would have to come from somewhere else — the books,
+    /// or the braider's own hands.
+    ///
+    /// It is empty for both known methods. The two threads a step moves are
+    /// carried to opposite sides of the braid, or one inside the other's span, and
+    /// either way they never meet; the closing only ever shifts a thread one place
+    /// into a slot just vacated. **So the order inside a step, which the books
+    /// give as a pair of hands rather than as a sequence, cannot change any of the
+    /// over-and-under.**
+    var passingsWithinOneInstant: [(row: Int, instant: Int, threads: (Int, Int))] {
+        var result = [(row: Int, instant: Int, threads: (Int, Int))]()
+        for row in 0..<repeatCycleCount {
+            for (index, one) in courses.enumerated() {
+                for other in courses[(index + 1)...]
+                where one.layingInstants[row] == other.layingInstants[row] {
+                    let mine = (from: one.slots[row], to: one.slots[row + 1])
+                    let theirs = (from: other.slots[row], to: other.slots[row + 1])
+                    guard crossSection.runsMustPassEachOther(mine, theirs) else { continue }
+                    result.append((
+                        row: row,
+                        instant: one.layingInstants[row],
+                        threads: (one.threadPosition, other.threadPosition)
+                    ))
+                }
+            }
+        }
+        return result
+    }
+
     // MARK: - Where in a row a place takes its new appearance
 
     /// The instants within a cycle at which a thread arrives at a slot.
@@ -218,17 +252,21 @@ struct BraidDerivation: Equatable, Sendable {
         if let last = cycles.last?.endState.positionByThread { boundaries.append(last) }
         guard boundaries.count == repeatCount + 1 else { return nil }
 
-        // Which instant of each cycle moved each thread. A thread moved twice in
-        // one cycle would make "the one moved later" ambiguous, so it is refused
-        // rather than resolved by a rule nobody has checked.
+        // Which instant of each cycle moved each thread. A thread left alone for a
+        // whole cycle is laid at instant 0: it was already lying there, so
+        // anything moved during the cycle is laid on top of it. A thread moved
+        // twice in one cycle would make "the one moved later" ambiguous, so that
+        // is refused rather than resolved by a rule nobody has checked.
         var layingByThread = [Int: [Int]](minimumCapacity: stand.positionCount)
         for cycle in cycles {
-            var seen = Set<Int>()
+            var thisCycle = [Int: Int]()
             for carried in cycle.allCarried {
-                guard seen.insert(carried.thread).inserted else { return nil }
-                layingByThread[carried.thread, default: []].append(carried.instant)
+                guard thisCycle[carried.thread] == nil else { return nil }
+                thisCycle[carried.thread] = carried.instant
             }
-            guard seen.count == stand.positionCount else { return nil }
+            for thread in stand.positionIDs {
+                layingByThread[thread, default: []].append(thisCycle[thread] ?? 0)
+            }
         }
 
         var courses = [BraidThreadCourse]()
