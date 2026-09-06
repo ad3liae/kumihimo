@@ -23,41 +23,60 @@ struct BraidThreadCourse: Equatable, Sendable {
     var runsAlongTheBraid: Bool { visitedSlots.count == 2 }
 }
 
-/// One run of a thread past other threads, and which side of them it takes.
+/// One carry of one thread, at one instant of one cycle.
 ///
-/// **A crossing does not have one side.** A thread carried across the braid goes
+/// **This is the whole of the braiding motion.** A thread is lifted from one place
+/// on the ring and set down at another; across the top of the stand it takes the
+/// straight way, so the carry is a chord. A thread carried twice in a cycle has
+/// two chords.
+struct BraidChord: Equatable, Sendable {
+    /// The step along the braid, one per worked cycle.
+    let row: Int
+    /// Which instant of that cycle. **Later means laid on top.**
+    let instant: Int
+    let threadPosition: Int
+    let fromSlot: Int
+    let toSlot: Int
+
+    var run: (from: Int, to: Int) { (fromSlot, toSlot) }
+}
+
+/// One carry, and which side it takes of every thread it has to pass.
+///
+/// **One rule decides all of it, and it is the stand's own motion**: where two
+/// carries cross, the one made later in the cycle was laid on what was already
+/// there. Nothing here asks whether the braid is flat or round.
+///
+/// **A carry does not have one side.** A thread carried across a flat braid goes
 /// under the threads running along it and over another thread carried the other
-/// way at the same row, because the second of those was moved before it and the
-/// first after it. So the sides are kept per meeting, and the summary used for
-/// the face is the side taken against the threads that hold the columns.
+/// way at the same row, because the second was moved before it and the first
+/// after. So the sides are kept per meeting, and the summary the face uses is the
+/// side taken against the threads that hold the columns.
 struct BraidCrossing: Equatable, Sendable {
     struct Meeting: Equatable, Sendable {
-        let width: Int
         let otherThread: Int
+        let otherInstant: Int
         /// Whether the other thread runs along the braid. Carried so the face can
         /// be read off without asking the derivation a second question.
         let otherRunsAlongTheBraid: Bool
-        /// The side *this* thread takes: `over` when it was moved later in the
-        /// cycle, because it was laid on what was already there.
+        /// The side *this* thread takes: `over` when it was carried later.
         let layer: BraidCrossingLayer
     }
 
     let threadPosition: Int
-    /// The step along the braid this crossing is laid at.
     let row: Int
-    let fromWidth: Int
-    let toWidth: Int
-    /// The widths between the two ends, in the order they are passed.
-    let passedWidths: [Int]
+    let instant: Int
+    let fromSlot: Int
+    let toSlot: Int
     let meetings: [Meeting]
 
     var meetingsWithThreadsRunningAlong: [Meeting] {
         meetings.filter(\.otherRunsAlongTheBraid)
     }
 
-    /// The side taken against the threads that hold the columns — the one the
-    /// face shows. `nil` when it meets none of them, or when it takes different
-    /// sides against different ones, which would be worth knowing about.
+    /// The side taken against the threads that hold the columns — the one the face
+    /// shows. `nil` when it meets none of them, or when it takes different sides
+    /// against different ones, which would be worth knowing about.
     var layerAgainstThreadsRunningAlong: BraidCrossingLayer? {
         let layers = Set(meetingsWithThreadsRunningAlong.map(\.layer))
         return layers.count == 1 ? layers.first : nil
@@ -69,7 +88,10 @@ struct BraidPatternCell: Equatable, Sendable {
     let row: Int
     let slot: Int
     let threadPosition: Int
-    let layer: BraidCrossingLayer
+    /// How the thread shows there. `nil` when the derivation cannot yet say —
+    /// which is the case wherever no thread runs along the braid to be measured
+    /// against, as on a tube. **Not a default; an admission.**
+    let layer: BraidCrossingLayer?
 }
 
 /// Everything a stand and a sequence of moves say about the finished braid.
@@ -97,6 +119,8 @@ struct BraidDerivation: Equatable, Sendable {
     let instantsPerCycle: Int
 
     let courses: [BraidThreadCourse]
+    /// Every carry of every thread, in working order.
+    let chords: [BraidChord]
     let crossings: [BraidCrossing]
     let cells: [BraidPatternCell]
 
@@ -293,10 +317,28 @@ struct BraidDerivation: Equatable, Sendable {
             )
         )
 
-        guard let crossings = crossings(courses: courses, fold: fold, rowCount: repeatCount)
-        else {
-            return nil
+        var chords = [BraidChord]()
+        for (row, cycle) in cycles.enumerated() {
+            for carried in cycle.allCarried {
+                guard
+                    let from = section.slotIndex(ofPositionID: carried.move.from),
+                    let to = section.slotIndex(ofPositionID: carried.move.to)
+                else {
+                    return nil
+                }
+                chords.append(BraidChord(
+                    row: row,
+                    instant: carried.instant,
+                    threadPosition: carried.thread,
+                    fromSlot: from,
+                    toSlot: to
+                ))
+            }
         }
+
+        let crossings = crossings(
+            chords: chords, courses: courses, crossSection: section
+        )
         let cells = cells(courses: courses, crossings: crossings, rowCount: repeatCount)
 
         return BraidDerivation(
@@ -306,6 +348,7 @@ struct BraidDerivation: Equatable, Sendable {
             repeatCycleCount: repeatCount,
             instantsPerCycle: method.instantCount,
             courses: courses,
+            chords: chords,
             crossings: crossings,
             cells: cells,
             fold: fold,
@@ -313,65 +356,55 @@ struct BraidDerivation: Equatable, Sendable {
         )
     }
 
-    /// A step of one across the width is a turn at an edge; anything longer
-    /// crosses the braid, passing the threads that hold the widths between.
+    /// Which carries have to pass which, and which side each takes.
     ///
-    /// **Which side it takes comes from the order of the moves.** The crossing
-    /// thread was moved at one instant of the cycle and each thread it meets at
-    /// another; the one moved later was laid on top.
+    /// **One rule, and no branch on the shape of the braid.** Two carries made in
+    /// the same cycle cross when their chords' ends alternate round the ring; the
+    /// one made at the later instant was laid on the other. Carries made in
+    /// different cycles lie at different steps along the braid and are stacked,
+    /// not crossed.
     ///
-    /// `nil` when two threads that meet were moved at the same instant. The table
-    /// then does not say which lies over, and inventing an answer is exactly the
-    /// mistake this file exists to stop.
+    /// This replaces an earlier reading that worked only on a folded braid, and
+    /// measured a crossing by the places it passed across the width. That counted
+    /// two threads as meeting whenever they stood at the same place across the
+    /// width — even when one kept to the front of the braid and the other to the
+    /// back, where they never meet at all.
     private static func crossings(
+        chords: [BraidChord],
         courses: [BraidThreadCourse],
-        fold: BraidFold?,
-        rowCount: Int
-    ) -> [BraidCrossing]? {
-        guard let fold else { return [] }
+        crossSection: BraidCrossSection
+    ) -> [BraidCrossing] {
+        let runsAlong = Dictionary(
+            uniqueKeysWithValues: courses.map { ($0.threadPosition, $0.runsAlongTheBraid) }
+        )
         var result = [BraidCrossing]()
-        for course in courses {
-            for row in 0..<rowCount {
-                guard
-                    let from = fold.width(ofSlot: course.slots[row]),
-                    let to = fold.width(ofSlot: course.slots[row + 1]),
-                    abs(to - from) > 1
-                else {
-                    continue
-                }
-                let step = to > from ? 1 : -1
-                let passed = Array(stride(from: from + step, to: to, by: step))
-                var meetings = [BraidCrossing.Meeting]()
-                for other in courses where other.threadPosition != course.threadPosition {
-                    guard
-                        let width = fold.width(ofSlot: other.slots[row]),
-                        passed.contains(width)
-                    else {
-                        continue
-                    }
-                    let mine = course.layingInstants[row]
-                    let theirs = other.layingInstants[row]
-                    guard mine != theirs else { return nil }
-                    meetings.append(BraidCrossing.Meeting(
-                        width: width,
-                        otherThread: other.threadPosition,
-                        otherRunsAlongTheBraid: other.runsAlongTheBraid,
-                        layer: mine > theirs ? .over : .under
-                    ))
-                }
-                result.append(BraidCrossing(
-                    threadPosition: course.threadPosition,
-                    row: row,
-                    fromWidth: from,
-                    toWidth: to,
-                    passedWidths: passed,
-                    meetings: meetings.sorted {
-                        ($0.width, $0.otherThread) < ($1.width, $1.otherThread)
-                    }
+        for chord in chords {
+            var meetings = [BraidCrossing.Meeting]()
+            for other in chords
+            where other.row == chord.row
+                && other.threadPosition != chord.threadPosition
+                && other.instant != chord.instant
+                && crossSection.runsMustPassEachOther(chord.run, other.run) {
+                meetings.append(BraidCrossing.Meeting(
+                    otherThread: other.threadPosition,
+                    otherInstant: other.instant,
+                    otherRunsAlongTheBraid: runsAlong[other.threadPosition] ?? false,
+                    layer: chord.instant > other.instant ? .over : .under
                 ))
             }
+            guard !meetings.isEmpty else { continue }
+            result.append(BraidCrossing(
+                threadPosition: chord.threadPosition,
+                row: chord.row,
+                instant: chord.instant,
+                fromSlot: chord.fromSlot,
+                toSlot: chord.toSlot,
+                meetings: meetings.sorted { $0.otherThread < $1.otherThread }
+            ))
         }
-        return result.sorted { ($0.row, $0.threadPosition) < ($1.row, $1.threadPosition) }
+        return result.sorted {
+            ($0.row, $0.instant, $0.threadPosition) < ($1.row, $1.instant, $1.threadPosition)
+        }
     }
 
     /// The face's columns, when the closing step pairs the whole ring.
@@ -407,27 +440,31 @@ struct BraidDerivation: Equatable, Sendable {
 
     /// Every slot, at every step along the braid.
     ///
-    /// A thread shows as `under` at a row when, at that row, it crosses the braid
-    /// beneath the threads holding the columns. That is what keeps it out of the
-    /// middle of the face: it is only seen where it turns.
+    /// A thread shows as `under` at a row when, at that row, it is carried beneath
+    /// the threads holding the columns. That is what keeps it out of the middle of
+    /// the face: it is only seen where it turns. **`nil` where there are no such
+    /// threads to be measured against** — a tube has none, and the derivation does
+    /// not yet say which of two threads of a tube shows on the outside.
     private static func cells(
         courses: [BraidThreadCourse],
         crossings: [BraidCrossing],
         rowCount: Int
     ) -> [BraidPatternCell] {
-        let goesUnder = Set(
-            crossings
-                .filter { $0.layerAgainstThreadsRunningAlong == .under }
-                .map { [$0.row, $0.threadPosition] }
-        )
+        var layers = [[Int]: BraidCrossingLayer]()
+        for crossing in crossings {
+            guard let layer = crossing.layerAgainstThreadsRunningAlong else { continue }
+            layers[[crossing.row, crossing.threadPosition]] = layer
+        }
+        let anyRunsAlong = courses.contains(where: \.runsAlongTheBraid)
         var result = [BraidPatternCell]()
         for course in courses {
             for row in 0..<rowCount {
+                let key = [row, course.threadPosition]
                 result.append(BraidPatternCell(
                     row: row,
                     slot: course.slots[row],
                     threadPosition: course.threadPosition,
-                    layer: goesUnder.contains([row, course.threadPosition]) ? .under : .over
+                    layer: anyRunsAlong ? (layers[key] ?? .over) : nil
                 ))
             }
         }

@@ -61,22 +61,34 @@ struct BraidCrossSection: Equatable, Sendable {
 
     var isSettled: Bool { unsettled == nil }
 
-    /// Whether two runs round the ring have to pass each other.
+    /// Whether two runs across the braid have to pass each other.
     ///
-    /// They do when their ends alternate round the ring: one thread cannot get
-    /// from its start to its finish without crossing the other. Two runs that
-    /// lie side by side, or one wholly inside the other's span, never meet.
+    /// A thread carried from one place on the ring to another takes the straight
+    /// way across, so a run is a chord. Two chords cross when their ends alternate
+    /// round the ring: neither thread can reach its finish without going over or
+    /// under the other. Two runs side by side, or one wholly inside the other's
+    /// span, never meet.
+    ///
+    /// **Runs that share an end do not cross.** One arrives where the other left,
+    /// or both arrive at the same place; either way they follow each other rather
+    /// than pass.
     func runsMustPassEachOther(
         _ first: (from: Int, to: Int),
         _ second: (from: Int, to: Int)
     ) -> Bool {
+        guard
+            first.from != second.from, first.from != second.to,
+            first.to != second.from, first.to != second.to
+        else {
+            return false
+        }
         func isInsideTheArc(_ slot: Int, from start: Int, to end: Int) -> Bool {
             let span = (end - start + slotCount) % slotCount
             let offset = (slot - start + slotCount) % slotCount
             return offset > 0 && offset < span
         }
-        // The run cuts the ring in two. The other run crosses it exactly when one
-        // of its ends is on each side.
+        // The chord cuts the ring in two. The other chord crosses it exactly when
+        // one of its ends is on each side.
         let onOneSide = [second.from, second.to].filter {
             isInsideTheArc($0, from: first.from, to: first.to)
         }

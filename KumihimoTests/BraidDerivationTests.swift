@@ -113,16 +113,30 @@ struct BraidDerivationTests {
     }
 
     /// A thread carried across never surfaces in the middle of a face: it passes
-    /// under every column a lengthwise thread holds. Book A p97's own sample is
-    /// what this reproduces — colour the sideways threads and the body stays plain.
+    /// under every thread running along the braid that it meets. Book A p97's own
+    /// sample is what this reproduces — colour the sideways threads and the body
+    /// stays plain.
+    ///
+    /// **Sixteen runs across the braid, each meeting all eight threads that hold
+    /// the columns, and under every one of them.**
     @Test func nothingCarriedAcrossShowsInTheMiddleOfTheFace() throws {
         let derivation = try hira
         #expect(derivation.columnsHeldLengthwise == [1, 2, 3, 4])
-        #expect(derivation.crossings.count == 16)
-        for crossing in derivation.crossings {
-            #expect(Set(crossing.passedWidths).isSuperset(of: [1, 2, 3, 4]))
+
+        let carried = Set(derivation.threadsCarriedAcrossTheBraid)
+        let acrossTheBraid = derivation.crossings.filter {
+            carried.contains($0.threadPosition) && !$0.meetingsWithThreadsRunningAlong.isEmpty
+        }
+        #expect(acrossTheBraid.count == 16)
+        for crossing in acrossTheBraid {
+            #expect(crossing.meetingsWithThreadsRunningAlong.count == 8)
             #expect(crossing.layerAgainstThreadsRunningAlong == .under)
         }
+        // And not one of them is ever found on top of a thread running along.
+        #expect(derivation.crossings.allSatisfy { crossing in
+            !carried.contains(crossing.threadPosition)
+                || crossing.meetingsWithThreadsRunningAlong.allSatisfy { $0.layer == .under }
+        })
     }
 
     /// **The side taken at a crossing comes out of the order of the moves.** The
@@ -131,12 +145,10 @@ struct BraidDerivationTests {
     /// first.
     @Test func theSideTakenAtACrossingComesFromTheOrderOfTheMoves() throws {
         let derivation = try hira
-        for crossing in derivation.crossings {
-            let course = try #require(derivation.course(ofThread: crossing.threadPosition))
-            #expect(course.layingInstants[crossing.row] <= 2)
+        let carried = Set(derivation.threadsCarriedAcrossTheBraid)
+        for crossing in derivation.crossings where carried.contains(crossing.threadPosition) {
             for meeting in crossing.meetingsWithThreadsRunningAlong {
-                let other = try #require(derivation.course(ofThread: meeting.otherThread))
-                #expect(other.layingInstants[crossing.row] >= 3)
+                #expect(meeting.otherInstant > crossing.instant)
                 #expect(meeting.layer == .under)
             }
         }

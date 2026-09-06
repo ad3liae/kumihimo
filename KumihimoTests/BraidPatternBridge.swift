@@ -45,7 +45,7 @@ enum BraidPatternBridge {
                 let cell = derivation.cells.first {
                     $0.row == row && $0.threadPosition == course.threadPosition
                 }
-                guard let layer = cell?.layer else { return nil }
+                guard let layer = cell?.layer ?? nil else { return nil }
 
                 if let face = fold.face(ofSlot: slot), let column = fold.column(ofSlot: slot) {
                     patches.append(HiraGenjiWeavePatch(
@@ -70,24 +70,32 @@ enum BraidPatternBridge {
             }
         }
 
+        // The shipped pattern records only the runs that cross the braid, and
+        // measures them across the width. The derivation works in chords now, so
+        // the width is put back here, where the comparison needs it.
         for crossing in derivation.crossings {
-            guard let colour = colours[crossing.threadPosition] else { return nil }
             guard
+                let colour = colours[crossing.threadPosition],
                 let course = derivation.courses.first(where: {
                     $0.threadPosition == crossing.threadPosition
                 }),
-                let half = keptFace(of: course, fold: fold)
+                let half = keptFace(of: course, fold: fold),
+                let from = fold.width(ofSlot: crossing.fromSlot),
+                let to = fold.width(ofSlot: crossing.toSlot),
+                abs(to - from) > 1
             else {
-                return nil
+                continue
             }
+            let step = to > from ? 1 : -1
             crossings.append(HiraGenjiWeftCrossing(
                 threadPosition: crossing.threadPosition,
                 colorID: colour,
                 row: crossing.row,
                 face: half.asHiraFace,
-                fromWidthPosition: crossing.fromWidth,
-                toWidthPosition: crossing.toWidth,
-                passedColumns: crossing.passedWidths.filter { (0..<fold.columnCount).contains($0) },
+                fromWidthPosition: from,
+                toWidthPosition: to,
+                passedColumns: Array(stride(from: from + step, to: to, by: step))
+                    .filter { (0..<fold.columnCount).contains($0) },
                 layer: crossing.layerAgainstThreadsRunningAlong ?? .over
             ))
         }
