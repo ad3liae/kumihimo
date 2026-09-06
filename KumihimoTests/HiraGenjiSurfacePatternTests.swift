@@ -96,8 +96,9 @@ struct HiraGenjiSurfacePatternTests {
         #expect(pattern.patches(in: .rightEdge).allSatisfy { $0.threadRole == .outer })
     }
 
-    /// The lane geometry the mesh reads. **The body's joins run straight and the
-    /// two outermost lanes carry the change to the edges.**
+    /// The lane geometry the mesh reads. **The body's joins run straight, and the
+    /// two outermost lanes slope by the same amount in every row of the repeat,
+    /// its first and last included.**
     ///
     /// No join leans: the lean was 0.4 of a step, measured from nothing, and the
     /// references do not settle a value to put in its place — see
@@ -107,49 +108,62 @@ struct HiraGenjiSurfacePatternTests {
     /// What is not straight is the outermost lane on each side, and that is not a
     /// lean. A thread reaches an edge at move 1 or 2 of the cycle while the
     /// threads running along the braid change at moves 3 to 6, so the edges sit
-    /// behind the body by half a row and a third of a row (Task 007G). The change
-    /// from one phase to the other is taken across the lane where the weft shows
-    /// on the face, which is the outermost one.
+    /// behind the body by half a row and a third of a row (Task 007G).
+    ///
+    /// Task 007G had to let that go at the two ends of the repeat, because the
+    /// mesh could not yet carry a row past them; one row in every four came out
+    /// uneven. Task 007H removed the exception, so this test no longer makes one:
+    /// **the first and last rows are checked like all the others.**
     @Test func everyStitchJoinRunsStraightAcrossItsLane() throws {
         let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: fixtureA))
         let rowCount = try #require(HiraGenjiSurfacePatternGenerator.rowCount)
         let front = pattern.patches(in: .front)
+        let columnCount = HiraGenjiSurfacePatternGenerator.columnCount(in: .front)
+        let step = 1 / Float(rowCount)
+        let body = 1..<(columnCount - 1)
 
+        #expect(HiraGenjiSurfacePatternGenerator.faceStitchLean == 0)
         for patch in front {
             #expect(patch.corners.count == 4)
-            #expect(patch.corners.allSatisfy { (0...1).contains($0.x) && (0...1).contains($0.y) })
+            #expect(patch.corners.allSatisfy { (0...1).contains($0.x) })
+            // A lane may reach past the repeat, but only by what the move order
+            // asks for. What reaches past the tile is cut off by the mesh.
+            #expect(patch.corners.allSatisfy { (-1.0...2.0).contains($0.y) })
         }
-        // The first row starts flat and the last row finishes flat.
-        for patch in front where patch.row == 0 {
-            #expect(patch.corners[0].y == 0)
-            #expect(patch.corners[3].y == 0)
-        }
-        for patch in front where patch.row == rowCount - 1 {
-            #expect(patch.corners[1].y == 1)
-            #expect(patch.corners[2].y == 1)
-        }
-        // No join leans, and in the body every row is exactly one step of the
-        // repeat. The outermost lane on each side is excluded: it is where the
-        // phase changes from the body's to the edge's.
-        let step = 1 / Float(rowCount)
-        let columnCount = HiraGenjiSurfacePatternGenerator.columnCount(in: .front)
-        #expect(HiraGenjiSurfacePatternGenerator.faceStitchLean == 0)
-        for patch in front where (1..<(columnCount - 1)).contains(patch.widthColumn) {
+
+        // The body: joins straight across the lane, rows exactly one step, and the
+        // repeat starting and finishing flat.
+        for patch in front where body.contains(patch.widthColumn) {
             #expect(patch.corners[0].y == patch.corners[3].y)
             #expect(patch.corners[1].y == patch.corners[2].y)
             #expect(abs((patch.corners[1].y - patch.corners[0].y) - step) < 0.000_1)
         }
-        // And the outermost lanes do slope, by the amount the move order gives.
+        for patch in front where body.contains(patch.widthColumn) && patch.row == 0 {
+            #expect(patch.corners[0].y == 0)
+            #expect(patch.corners[3].y == 0)
+        }
+        for patch in front where body.contains(patch.widthColumn) && patch.row == rowCount - 1 {
+            #expect(patch.corners[1].y == 1)
+            #expect(patch.corners[2].y == 1)
+        }
+
+        // The outermost lanes: sloping, by the amount the move order gives, and by
+        // **the same amount in every row** — including the first and the last.
         let phases = HiraGenjiSurfacePatternGenerator.longitudinalPhases(
             region: .front, columnCount: columnCount
         )
         #expect(phases[0] != 0)
         #expect(phases[columnCount] != 0)
         #expect(phases[1...(columnCount - 1)].allSatisfy { $0 == 0 })
-        for patch in front
-        where patch.widthColumn == 0 && patch.row > 0 && patch.row < rowCount - 1 {
-            #expect(patch.corners[0].y != patch.corners[3].y)
+        for outer in [0, columnCount - 1] {
+            let slopes = front.filter { $0.widthColumn == outer }
+                .map { $0.corners[0].y - $0.corners[3].y }
+            #expect(slopes.count == rowCount)
+            let first = try #require(slopes.first)
+            #expect(abs(first) > 0.000_1)
+            #expect(slopes.allSatisfy { abs($0 - first) < 0.000_1 })
         }
+
         // The lean still reaches the corners, so stage 3 can turn it back on.
         let leaned = HiraGenjiSurfacePatternGenerator.corners(
             column: 1, row: 1, rowCount: rowCount, columnCount: 6, lean: 0.4

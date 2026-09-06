@@ -152,7 +152,12 @@ enum HiraGenjiSurfaceMeshGenerator {
         var builder = MeshBuilder()
         let uSamples = subdivisionSamples(count: widthSubdivisionsPerPatch)
         let vSamples = subdivisionSamples(count: longitudinalSubdivisionsPerPatch)
-        for repeatIndex in 0..<patternRepeatCount {
+        // One repeat either side of the tile as well. A column shifted along its
+        // own length leaves the tile at one end and is wanted at the other, and
+        // the pattern repeats, so the material that falls off the end is exactly
+        // the material missing at the start. Everything outside the tile is cut
+        // away in `append`, so these two extra passes contribute only that.
+        for repeatIndex in -1...patternRepeatCount {
             for (patchIndex, patch) in pattern.patches.enumerated() {
                 append(
                     patch: patch,
@@ -222,19 +227,88 @@ enum HiraGenjiSurfaceMeshGenerator {
         vSamples: [Float],
         builder: inout MeshBuilder
     ) {
+        // Where the tile's two ends fall inside this patch, one edge of the patch
+        // at a time. A patch that runs past an end of the tile is not drawn whole
+        // and then cut: **the part of it that is inside is what gets divided up.**
+        // The cut is then always a line of the grid, so it never leaves a sliver
+        // to be dropped, and dropping one is what would leave a hole.
+        //
+        // Solved rather than searched for: where a patch sits along the braid is
+        // affine in its own coordinates, so the tile's ends are straight lines
+        // there and each is one division.
+        // Where the patch is wholly outside the tile the range closes to nothing
+        // rather than being dropped, so the piece that is inside tapers to a
+        // corner instead of ending at a hole. The triangles of zero area that
+        // leaves are dropped below.
+        func insideRange(atU u: Float) -> (low: Float, high: Float) {
+            let low = simd_mix(patch.corners[0].y, patch.corners[3].y, u)
+            let high = simd_mix(patch.corners[1].y, patch.corners[2].y, u)
+            let span = high - low
+            guard abs(span) > 1e-12 else { return (0, 1) }
+            let starts = (-Float(repeatIndex) - low) / span
+            let ends = (Float(repeatCount - repeatIndex) - low) / span
+            let lower = max(0, min(starts, ends))
+            let upper = min(1, max(starts, ends))
+            guard upper > lower else {
+                let closed = min(max(0.5 * (lower + upper), 0), 1)
+                return (closed, closed)
+            }
+            return (lower, upper)
+        }
+        let ranges = uSamples.map(insideRange(atU:))
+        guard ranges.contains(where: { $0.high > $0.low }) else { return }
+
         for vIndex in 0..<(vSamples.count - 1) {
             for uIndex in 0..<(uSamples.count - 1) {
+                let left = ranges[uIndex], right = ranges[uIndex + 1]
+                func at(_ side: (low: Float, high: Float), _ sample: Float) -> Float {
+                    side.low + (side.high - side.low) * sample
+                }
                 let locals = [
-                    SIMD2<Float>(uSamples[uIndex], vSamples[vIndex]),
-                    SIMD2<Float>(uSamples[uIndex + 1], vSamples[vIndex]),
-                    SIMD2<Float>(uSamples[uIndex], vSamples[vIndex + 1]),
-                    SIMD2<Float>(uSamples[uIndex + 1], vSamples[vIndex + 1]),
+                    SIMD2<Float>(uSamples[uIndex], at(left, vSamples[vIndex])),
+                    SIMD2<Float>(uSamples[uIndex + 1], at(right, vSamples[vIndex])),
+                    SIMD2<Float>(uSamples[uIndex], at(left, vSamples[vIndex + 1])),
+                    SIMD2<Float>(uSamples[uIndex + 1], at(right, vSamples[vIndex + 1])),
                 ]
                 for triangleLocals in [[locals[0], locals[1], locals[2]],
                                        [locals[1], locals[3], locals[2]]] {
-                    let firstIndex = UInt32(builder.positions.count)
                     let center = triangleLocals.reduce(.zero, +) / 3
                     let isBoundary = boundaryDistance(center) < boundaryWidth
+                    // A cut that grazes a corner leaves a sliver of no area. It
+                    // would draw nothing and would fail the mesh's own check that
+                    // every triangle has some, so it is dropped rather than
+                    // emitted — measured on the drawn surface, by the same
+                    // criterion that check uses.
+                    let drawn = triangleLocals.map { local in
+                        surfacePosition(
+                            patch: patch,
+                            localCoordinate: local,
+                            repeatIndex: repeatIndex,
+                            repeatCount: repeatCount,
+                            halfWidth: halfWidth,
+                            halfThickness: halfThickness,
+                            length: length
+                        )
+                    }
+                    // Where the patch tapers to a corner two of the three fall
+                    // together. Such a triangle draws nothing and would leave the
+                    // mesh with a repeated corner, so it is not emitted.
+                    // Two corners closer together than the tolerance a reader
+                    // would merge them at count as one corner, not two.
+                    let merged = coincidentCornerDistance * coincidentCornerDistance
+                    guard simd_distance_squared(drawn[0], drawn[1]) > merged,
+                          simd_distance_squared(drawn[1], drawn[2]) > merged,
+                          simd_distance_squared(drawn[2], drawn[0]) > merged,
+                          simd_length_squared(
+                              simd_cross(drawn[1] - drawn[0], drawn[2] - drawn[0])
+                          ) > 0.000_000_000_001
+                    else { continue }
+                    // Nor a triangle lying wholly in the cut. It would be a cap
+                    // across the tile's end, which is not part of the surface.
+                    let end = length / 2
+                    guard !drawn.allSatisfy({ abs(abs($0.x) - end) < 0.000_001 })
+                    else { continue }
+                    let firstIndex = UInt32(builder.positions.count)
                     for local in triangleLocals {
                         let position = surfacePosition(
                             patch: patch,
@@ -648,7 +722,11 @@ enum HiraGenjiSurfaceMeshGenerator {
         }
     }
 
-    private static func interpolate(
+    /// Where a point of a patch sits across the braid and along it, in the
+    /// pattern's own coordinates. Internal so a test can work out which repeat a
+    /// triangle came from: a patch may now reach past a repeat's ends, so where
+    /// it is along the braid no longer says which repeat drew it.
+    static func interpolate(
         corners: [SIMD2<Float>],
         local: SIMD2<Float>
     ) -> SIMD2<Float> {
@@ -662,11 +740,31 @@ enum HiraGenjiSurfaceMeshGenerator {
         return progress * progress * (3 - 2 * progress)
     }
 
+    /// How far past either end of the repeat a patch may reach.
+    ///
+    /// The columns do not change at the same point along a row — the six moves of
+    /// a cycle are ordered, Task 007G — so a column shifted along its own length
+    /// starts before the repeat does and finishes after it. Half a row is the most
+    /// the move order asks for; the allowance is one row so the check is about
+    /// catching nonsense rather than about the phase.
+    ///
+    /// What reaches past the **tile's** ends is cut off and emitted at the other
+    /// end instead, so the tile itself stays flat-ended and closed. See
+    /// `append(patch:...)`.
+    static let maximumRepeatOverhang: Float = 1
+
+    /// How near two corners of one triangle may be before they are the same
+    /// corner. Matches the tolerance the surface audits merge points at.
+    static let coincidentCornerDistance: Float = 0.000_1
+
+
     private static func isValid(_ patch: HiraGenjiSurfacePatch) -> Bool {
-        patch.corners.count == 4 && patch.corners.allSatisfy {
+        let low = -maximumRepeatOverhang
+        let high = 1 + maximumRepeatOverhang
+        return patch.corners.count == 4 && patch.corners.allSatisfy {
             $0.x.isFinite && $0.y.isFinite
                 && (0...1).contains($0.x)
-                && (0...1).contains($0.y)
+                && (low...high).contains($0.y)
         }
     }
 
