@@ -16,6 +16,7 @@
 組み上がりを導く一般の道へ移る。007 系と 008〜014 はその下に入る。
 
 - **Task 020 一般の組紐シミュレータ（台・手順列から組み上がりを導く）: 最高優先**: `tasks/020-general-braid-simulator.md`
+  - 正本の読み方（bookC の1手は1本）は `architecture.md`「正本の読み方（作者の指示）」
 
 - 起動画面仕様: `specifications/home-screen.md`
 - 作品編集・詳細画面仕様: `specifications/project-editor.md`
