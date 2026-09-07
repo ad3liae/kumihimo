@@ -16,6 +16,7 @@
 組み上がりを導く一般の道へ移る。007 系と 008〜014 はその下に入る。
 
 - **Task 020 一般の組紐シミュレータ（台・手順列から組み上がりを導く）: 最高優先**: `tasks/020-general-braid-simulator.md`
+  - **深さは Task 022（台の上で組む、Jolt）へ移す。** 引き継ぎは `tasks/021-depth-by-relaxation.md` の末尾
   - 正本の読み方（bookC の1手は1本）は `architecture.md`「正本の読み方（作者の指示）」
 
 - 起動画面仕様: `specifications/home-screen.md`
@@ -49,7 +50,7 @@
 - Task 007J 平源氏を「曲げたタイル」ではなく「糸」で作り直す（**Task 020 へ吸収**。段階A完了・段階B未完。糸の経路と糸のメッシュは Task 020 段階3 の部品として参照する）: `tasks/007j-hira-genji-as-strands.md`
 - Task 016 組み点の物理で寸法を解けるかの調査（未着手。**段階4「製品へどう載せるか」は Task 020 段階4 が引き取る**。段階1〜3 は調査として残る）: `tasks/016-braid-physics-feasibility.md`
 - Task 018 `everyRegionCarriesTheRidgeIncludingBothEdges` が2分かかる件（未着手。優先度低）: `tasks/018-slow-mesh-test.md`
-- Task 021 反発による深さの導出（**021e 平源氏の1ケースで停止**。占有履歴（021b-1）で面の模様は出た。021e は置き方を「越える渡りの上に1本ぶん」に変えて**反転 188 → 3、残差も収束**したが、**1サイクルが 8.5d と模型の 3d の2.8倍**になった。幾何の「密に積む」と模型の「場所ごとの層」が別物だったという結果。**作者の判断待ち**）: `tasks/021-depth-by-relaxation.md`
+- Task 021 反発による深さの導出（**保留。021a〜021e まで実行し、「置く高さの模型」は行き止まりと判明**。占有履歴で面の模様は出た（丸源氏 Task 004 と 32/32、平源氏 p97 3実験）。**続きは Task 022。末尾の「引き継ぎ」を読むこと**）: `tasks/021-depth-by-relaxation.md`
 
 ## 更新方針
 
