@@ -15,9 +15,30 @@ import time
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "task021"))
+import braid_geometry as bg
 import braid as bd
 import stand as st
 import taut
+
+
+def kind_of(move, folded):
+    """What sort of hand this is, read off the derived cross-section.
+
+    A carry that leaves a thread at the same place across the width has taken it
+    from one face to the other; one that changes the width has carried it across.
+    The width map is the fold Task 020 derives (`WIDTH_HIRA` in
+    Scripts/task021/braid_geometry.py); a braid that is a tube has no width, so
+    there is nothing to tell apart.
+    """
+    if bg.is_repositioning(move):
+        return "closing"
+    if not folded:
+        return "braiding"
+    u = bg.notch_ring_coordinate(bg.RING_HIRA)
+    a = bg.WIDTH_HIRA[int(round(u[move[0]])) % 16]
+    b = bg.WIDTH_HIRA[int(round(u[move[1]])) % 16]
+    return "along" if a == b else "across"
 
 
 def main():
@@ -26,8 +47,8 @@ def main():
     ap.add_argument("--dumps", default="", help="write every hand under this prefix")
     ap.add_argument("--hands", type=int, default=0, help="how many of book C's hands to play")
     ap.add_argument("--maru", action="store_true", help="Fig.32 instead of Fig.20")
-    ap.add_argument("--arc", type=float, default=bd.ARC,
-                    help="how far above everything a carried thread goes")
+    ap.add_argument("--freeze-depth", type=float, default=bd.FREEZE_DEPTH,
+                    help="how far below the braiding point the braid has closed over")
     ap.add_argument("--seed-arc", type=float, default=0.0,
                     help="start the seed from an arc instead of a straight line")
     ap.add_argument("--projections", type=int, default=taut.PROJECTIONS)
@@ -49,11 +70,12 @@ def main():
           "bundle radius %.3f d"
           % (stand.tama, stand.threads, stand.takeup, stand.braiding_point_depth(),
              stand.bundle_radius))
-    print("settings  projections %d  settled %.4f  still %.1e  sweeps %d  carry arc %.1f  "
+    print("settings  projections %d  settled %.4f  still %.1e  sweeps %d  freeze depth %.1f  "
           "seed arc %.1f"
-          % (taut.PROJECTIONS, taut.SETTLED, taut.STILL, args.sweeps, args.arc, args.seed_arc))
+          % (taut.PROJECTIONS, taut.SETTLED, taut.STILL, args.sweeps, args.freeze_depth,
+             args.seed_arc))
 
-    braid = bd.Braid(stand, sweeps=args.sweeps)
+    braid = bd.Braid(stand, sweeps=args.sweeps, freeze_depth=args.freeze_depth)
     if args.seed_arc:
         threads, _, _ = st.seed(stand, arc=args.seed_arc)
         braid.free = [t[:-1].copy() for t in threads]
@@ -73,8 +95,9 @@ def main():
         braid.write("%s-hand-00.txt" % args.dumps, 0)
 
     table = bd.FIG32 if args.maru else bd.FIG20
-    print("\nhand  move   thread  swept  secs   sent   taken  crossings  reversals  "
+    print("\nhand  move   kind     thread  swept  secs   sent   taken  crossings  reversals  "
           "link      overlap   braid")
+    growth = {}
     for h in range(args.hands):
         move = table[h % len(table)]
         thread = bd.thread_at(braid, move[0])
@@ -83,15 +106,17 @@ def main():
             return 1
         began = time.time()
         braid.hand = h + 1
-        braid.carry(thread, move[1], arc=args.arc)
+        braid.carry(thread, move[1])
         series = braid.tighten()
         sent, taken, after = braid.take_in(h + 1)
         found = braid.note_crossings()
         turned = braid.reversals()
         swept = series[-1][0] + 1 + after[-1][0] + 1
-        print("%4d  %2d->%2d  %6d  %5d  %5.1f  %5.2f  %6d  %9d  %9d  %.2e  %.2e  %.2f"
-              % (h + 1, move[0], move[1], thread, swept, time.time() - began, sent, taken,
-                 found, len(turned), after[-1][1], after[-1][2], braid.length()))
+        kind = kind_of(move, not args.maru)
+        growth.setdefault(kind, []).append(sent)
+        print("%4d  %2d->%2d  %-7s  %4d  %5d  %5.1f  %5.2f  %6d  %9d  %9d  %.2e  %.2e  %.2f"
+              % (h + 1, move[0], move[1], kind, thread, swept, time.time() - began, sent,
+                 taken, found, len(turned), after[-1][1], after[-1][2], braid.length()))
         sys.stdout.flush()
         if args.dumps:
             braid.write("%s-hand-%02d.txt" % (args.dumps, h + 1), h + 1)
@@ -104,6 +129,11 @@ def main():
 
     if args.hands:
         print("\nthe braid is %.3f d long after %d hands" % (braid.length(), args.hands))
+        print("what sent it down, by the sort of hand (d):")
+        for kind in sorted(growth):
+            sent = growth[kind]
+            print("  %-8s %2d hands, %6.3f in all, %5.3f a hand, biggest %5.3f"
+                  % (kind, len(sent), sum(sent), sum(sent) / len(sent), max(sent)))
     return 0
 
 

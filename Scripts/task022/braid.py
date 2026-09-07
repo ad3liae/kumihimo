@@ -43,15 +43,21 @@ FIG32 = [(17, 4), (22, 3), (6, 19), (1, 20),
          (29, 30), (28, 29), (26, 25), (27, 26),
          (10, 9), (11, 10), (13, 14), (12, 13)]
 
-ARC = 0.0        # solver setting: how far ABOVE the diameter a carry is laid
+# Solver setting: how far below the braiding point a bead has to be before the
+# braid is taken to have closed over it. **Not a radius.** Cutting the braid out
+# with a cylinder would assume a round braid and leave a flat one no room to
+# become flat, so the braid is taken by depth alone and everything above that
+# depth goes on relaxing every hand.
+FREEZE_DEPTH = 3.0
 
 
 class Braid:
     """The threads on the stand, and the braid they have made so far."""
 
-    def __init__(self, stand, sweeps=taut.SWEEPS):
+    def __init__(self, stand, sweeps=taut.SWEEPS, freeze_depth=FREEZE_DEPTH):
         self.stand = stand
         self.sweeps = sweeps
+        self.freeze_depth = freeze_depth
         self.braid_z = stand.braiding_point_depth()
         threads, _, notches = st.seed(stand)
         # The braid starts as the knot: one bead of each thread, at the braiding
@@ -90,7 +96,7 @@ class Braid:
 
     # --- a hand -------------------------------------------------------------
 
-    def carry(self, thread, to_notch, arc=ARC):
+    def carry(self, thread, to_notch):
         """Lay this thread's free part over everything, from where it leaves the
         braid to its new angle on the rim.
 
@@ -98,8 +104,8 @@ class Braid:
         crosses -- the same way Task 021's `sequential.lay` laid a carry down
         (`floor = the highest bead under the carry; height = floor + D`). A hand
         lays a thread down on top of the others; it does not drop it from a height
-        and hope. `arc` lifts it further still, and the answer must not depend on
-        it.
+        and hope. **There is no height to choose here**: a diameter above what is
+        under it is where a thread laid on another thread sits.
         """
         from scipy.spatial import cKDTree
         leaves = self.made[thread][-1][0]
@@ -118,7 +124,7 @@ class Braid:
         height = base.copy()
         for k, under in enumerate(tree.query_ball_point(plan, taut.D)):
             if under:
-                height[k] = max(height[k], float(others[under, 2].max()) + taut.D + arc)
+                height[k] = max(height[k], float(others[under, 2].max()) + taut.D)
         height[0] = leaves[2]        # the route starts at the braid, not above it
         route = np.concatenate([plan, height[:, None]], axis=1)
         laid = taut.respace(route[::-1])   # rim first, the braid end held last
@@ -132,11 +138,19 @@ class Braid:
         return series
 
     def take_in(self, hand):
-        """The braid swallows what is below the braiding point, and is sent down by
-        the height the new crossings stood above it.
+        """The braid swallows what is well below the braiding point, and is sent
+        down by the height the new crossings stood above it.
 
-        The amount is read off the braid itself: the top of everything standing in
-        the braid's own column. Nothing else sets it.
+        Two things are separate here and must stay separate.
+
+        **How far to send it down** is read off the braid's own column, after the
+        threads have settled: the top of everything standing within a bundle's
+        radius of the axis. That is a measurement, and nothing is held by it.
+
+        **What the braid has closed over** is taken by depth alone -- below
+        `freeze_depth` under the braiding point. Everything between there and the
+        braiding point goes on relaxing every hand, which is what lets a braid
+        that wants to be flat become flat.
         """
         column = self.stand.bundle_radius
         p = np.concatenate(self.threads())
@@ -148,15 +162,11 @@ class Braid:
                 for entry in made:
                     entry[0] = entry[0] - np.array([0.0, 0.0, sent])
         series = self.tighten()
-        # What the braid has taken in is what stands **in the braid** below the
-        # braiding point -- inside the bundle's own column, not merely under the
-        # height of it. A thread on its way out to the rim passes below that
-        # height too, three or four diameters out, and it has not been braided.
+        floor = self.braid_z - self.freeze_depth
         taken = 0
         for i, free in enumerate(self.free):
             keep = len(free)
-            while keep > 0 and free[keep - 1][2] <= self.braid_z \
-                    and np.hypot(*free[keep - 1][:2]) <= column + 0.5 * taut.D:
+            while keep > 0 and free[keep - 1][2] <= floor:
                 keep -= 1
             # `made` runs deepest first, and the beads just swallowed run from the
             # junction inward, so they go on deepest first too.
@@ -234,10 +244,10 @@ class Braid:
         with open(path, "w") as f:
             f.write("# braid_on_stand quasi-static  hand %d  threads %d  "
                     "mirror %.1f hole %.1f fillet %.2f thickness %.1f  braid-point %.3f  "
-                    "projections %d settled %.4f arc %.1f  %s\n"
+                    "projections %d settled %.4f freeze-depth %.1f  %s\n"
                     % (hand, len(self.made), self.stand.mirror, self.stand.hole,
                        self.stand.fillet, self.stand.thickness, self.braid_z,
-                       taut.PROJECTIONS, taut.SETTLED, ARC,
+                       taut.PROJECTIONS, taut.SETTLED, self.freeze_depth,
                        "clockwise" if self.stand.clockwise else "anticlockwise"))
             f.write("# laid-in thread bead x y z made   (lengths in thread diameters)\n")
             for t in range(len(self.made)):
