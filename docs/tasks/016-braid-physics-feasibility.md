@@ -1,6 +1,6 @@
 # Task 016: 組み上がりを物理から解けるかの調査
 
-- 状態: 未着手
+- 状態: **完了**（段階2・2b の記録は枝 `claude/task-016-braid-physics-feasibility` の `d0e69c1` / `9b4d789` と `prototypes/braid-physics/README.md`。**この枝はマージしない**）
 - 優先度: 高（Task 008 以降より先。008 以降の中身がこの結論で変わる）
 - 種別: **調査。製品コードを変更しない。**
 

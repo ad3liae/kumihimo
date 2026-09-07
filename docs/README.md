@@ -52,7 +52,7 @@
 - Task 007H 平源氏のタイルの継ぎ目（**完了**。段をタイル端へ持ち出せるようにした）: `tasks/007h-hira-genji-tile-seam.md`
 - Task 007I 平源氏の縁の糸が面の腹の下をくぐって見えるようにする（**Task 020 へ吸収**。中断のまま指示書を残す）: `tasks/007i-hira-genji-edge-lap.md`
 - Task 007J 平源氏を「曲げたタイル」ではなく「糸」で作り直す（**Task 020 へ吸収**。段階A完了・段階B未完。糸の経路と糸のメッシュは Task 020 段階3 の部品として参照する）: `tasks/007j-hira-genji-as-strands.md`
-- Task 016 組み点の物理で寸法を解けるかの調査（未着手。**段階4「製品へどう載せるか」は Task 020 段階4 が引き取る**。段階1〜3 は調査として残る）: `tasks/016-braid-physics-feasibility.md`
+- Task 016 組み点の物理で寸法を解けるかの調査（**完了**。段階2・2b の記録は枝 `claude/task-016-braid-physics-feasibility` の `d0e69c1` / `9b4d789`。**マージしない**。**段階4「製品へどう載せるか」は Task 020 段階4 が引き取る**）: `tasks/016-braid-physics-feasibility.md`
 - Task 018 `everyRegionCarriesTheRidgeIncludingBothEdges` が2分かかる件（未着手。優先度低）: `tasks/018-slow-mesh-test.md`
 - Task 021 反発による深さの導出（**保留。021a〜021e まで実行し、「置く高さの模型」は行き止まりと判明**。占有履歴で面の模様は出た（丸源氏 Task 004 と 32/32、平源氏 p97 3実験）。**続きは Task 022。末尾の「引き継ぎ」を読むこと**）: `tasks/021-depth-by-relaxation.md`
 - Task 022 台の上で組む（Jolt）（**022-1 精査 実施中。指示書を書いた段階で、まだ組んでいない**）: `tasks/022-braid-on-the-stand.md`
