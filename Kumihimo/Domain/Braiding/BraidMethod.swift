@@ -11,9 +11,16 @@ struct BraidMove: Hashable, Sendable {
     let to: Int
 }
 
-/// The moves worked at one instant. Threads moved in the same step are moved
-/// together — the books say "take the outer two of the east group" and mean both
-/// hands at once.
+/// The moves worked at one instant.
+///
+/// **A braiding step carries one move.** The source of record (book C's numbered
+/// disk) moves one thread at a time, so two threads always have a first and a
+/// second. Book A's "take the outer two of the east group" is shorthand for two
+/// moves and names the step; it is not the unit.
+///
+/// A step may still carry several moves, and the closing does: it is one instant
+/// that advances the braid neither round nor along, so nothing inside it is laid
+/// on anything else.
 struct BraidStep: Equatable, Sendable {
     /// The name the source gives the step. **Not read by the derivation.**
     let name: String
@@ -92,7 +99,9 @@ struct BraidStandState: Equatable, Sendable {
     /// The state after one step, and which thread each move carried.
     ///
     /// Every departure is taken before any arrival is set down, so the moves of a
-    /// step happen together rather than one after another.
+    /// step happen together rather than one after another. **A braiding step
+    /// carries one move, so this only bites for the closing**, whose departures
+    /// and arrivals are disjoint anyway.
     /// The threads come back in the order the step lists its moves.
     func applying(_ step: BraidStep) -> (state: BraidStandState, carried: [Int])? {
         var next = threadsByPosition

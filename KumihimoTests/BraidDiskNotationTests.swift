@@ -25,12 +25,14 @@ struct BraidDiskNotationTests {
     }
 
     /// **The difference.** What book C generates is what book A was transcribed as,
-    /// step for step and move for move.
+    /// move for move.
     ///
-    /// Book C prints the two threads of a step in the other order from book A for
-    /// some steps, so the moves of a step are compared as a set. The order inside a
-    /// step decides nothing — the two threads a step carries are never taken past
-    /// each other, which `MaruGenjiMoveRuleSourcesTests` checks.
+    /// **Book A's printed step is the unit compared here, and it is compared as a
+    /// set.** Book A works two threads at once and names them as a pair; book C
+    /// moves one at a time and gives them an order. The generated method keeps book
+    /// C's order — one move to a step — so the two generated steps that make up one
+    /// printed step are taken together and compared without their order.
+    /// `bookCsOrderInsideEachPrintedStepIsKept` checks the order itself.
     @Test func bookCGeneratesTheTablesTranscribedFromBookA() throws {
         let expected: [(String, BraidMethod, [[BraidMove]], [BraidMove])] = [
             ("hira-genji", BraidMethodCatalog.hiraGenji16, [
@@ -58,9 +60,10 @@ struct BraidDiskNotationTests {
         ]
         var comparedMoves = 0
         for (name, generated, steps, closing) in expected {
-            #expect(generated.steps.count == steps.count, "\(name)")
+            #expect(generated.steps.count == steps.count * 2, "\(name)")
             for (index, step) in steps.enumerated() {
-                #expect(Set(generated.steps[index].moves) == Set(step), "\(name) step \(index + 1)")
+                let pair = generated.steps[index * 2].moves + generated.steps[index * 2 + 1].moves
+                #expect(Set(pair) == Set(step), "\(name) printed step \(index + 1)")
                 comparedMoves += step.count
             }
             #expect(Set(generated.closing.moves) == Set(closing), "\(name) closing")
@@ -78,7 +81,7 @@ struct BraidDiskNotationTests {
             crossSection: BraidMethodCatalog.hiraGenji16CrossSection
         ))
         #expect(hira.repeatCycleCount == 4)
-        #expect(hira.instantsPerCycle == 7)
+        #expect(hira.instantsPerCycle == 13)   // twelve moves and the closing
         #expect(hira.threadsRunningAlongTheBraid == [1, 2, 7, 8, 9, 10, 15, 16])
         #expect(hira.fold?.columnCount == 6)
 
@@ -88,9 +91,63 @@ struct BraidDiskNotationTests {
             crossSection: BraidMethodCatalog.maruGenji16CrossSection
         ))
         #expect(maru.repeatCycleCount == 4)
-        #expect(maru.instantsPerCycle == 5)
+        #expect(maru.instantsPerCycle == 9)    // eight moves and the closing
         #expect(maru.fold == nil)
         #expect(maru.faceColumnCount == 8)
+    }
+
+    /// **The order inside each printed step is book C's, not book A's.**
+    ///
+    /// Book C's table is one move to a line, read down the first column and then
+    /// down the next; that order is the order of the hands, so every two threads
+    /// have a first and a second. The generated steps are that sequence.
+    @Test func bookCsOrderInsideEachPrintedStepIsKept() {
+        #expect(BraidMethodCatalog.maruGenji16.steps.flatMap(\.moves) == [
+            BraidMove(from: 7, to: 1), BraidMove(from: 10, to: 16),
+            BraidMove(from: 2, to: 8), BraidMove(from: 15, to: 9),
+            BraidMove(from: 3, to: 13), BraidMove(from: 6, to: 12),
+            BraidMove(from: 14, to: 4), BraidMove(from: 11, to: 5),
+        ])
+        #expect(BraidMethodCatalog.hiraGenji16.steps.flatMap(\.moves) == [
+            BraidMove(from: 3, to: 13), BraidMove(from: 6, to: 12),
+            BraidMove(from: 14, to: 4), BraidMove(from: 11, to: 5),
+            BraidMove(from: 8, to: 1), BraidMove(from: 9, to: 16),
+            BraidMove(from: 1, to: 8), BraidMove(from: 16, to: 9),
+            BraidMove(from: 7, to: 2), BraidMove(from: 10, to: 15),
+            BraidMove(from: 2, to: 7), BraidMove(from: 15, to: 10),
+        ])
+    }
+
+    /// Which printed steps book C works in the other order from book A. **Recorded,
+    /// not judged**: book C is the source of record, so where they differ book C
+    /// decides. Book A's transcription is kept as the set comparison above.
+    @Test func theStepsBookCWorksInTheOtherOrderFromBookAAreListed() {
+        let bookA: [String: [[BraidMove]]] = [
+            "maru-genji": [
+                [BraidMove(from: 10, to: 16), BraidMove(from: 7, to: 1)],
+                [BraidMove(from: 15, to: 9), BraidMove(from: 2, to: 8)],
+                [BraidMove(from: 3, to: 13), BraidMove(from: 6, to: 12)],
+                [BraidMove(from: 14, to: 4), BraidMove(from: 11, to: 5)],
+            ],
+            "hira-genji": [
+                [BraidMove(from: 3, to: 13), BraidMove(from: 6, to: 12)],
+                [BraidMove(from: 14, to: 4), BraidMove(from: 11, to: 5)],
+                [BraidMove(from: 9, to: 16), BraidMove(from: 8, to: 1)],
+                [BraidMove(from: 16, to: 9), BraidMove(from: 1, to: 8)],
+                [BraidMove(from: 10, to: 15), BraidMove(from: 7, to: 2)],
+                [BraidMove(from: 15, to: 10), BraidMove(from: 2, to: 7)],
+            ],
+        ]
+        var reversed = [String: [Int]]()
+        for (name, method) in [("maru-genji", BraidMethodCatalog.maruGenji16),
+                               ("hira-genji", BraidMethodCatalog.hiraGenji16)] {
+            let moves = method.steps.flatMap(\.moves)
+            for (index, printed) in (bookA[name] ?? []).enumerated()
+            where Array(moves[(index * 2)...(index * 2 + 1)]) != printed {
+                reversed[name, default: []].append(index + 1)
+            }
+        }
+        #expect(reversed == ["maru-genji": [1, 2], "hira-genji": [3, 4, 5, 6]])
     }
 
     /// A disk whose cycle does not close on its resting notches is refused rather

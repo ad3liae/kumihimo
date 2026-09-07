@@ -81,18 +81,22 @@ struct MaruGenjiMoveRuleSourcesTests {
         #expect(bookC == implementation)
     }
 
-    /// **What the books do not say, and why it does not matter.**
+    /// **There is no such thing as two threads laid at the same instant.**
     ///
-    /// Book A p94 and book B p73 both name the two threads of a step by the hand
-    /// that takes them — "the left-hand end with the left hand, the right-hand end
-    /// with the right", "the far one with the right hand, the near one with the
-    /// left" — and both are carried at once. Neither says which is laid down
-    /// first. Book C does give a strict sequence, but it works the braid on a disk
-    /// that holds one thread to a notch, so part of its order is the tool's.
+    /// Book A p94 and book B p73 name the two threads of a step by the hand that
+    /// takes them — "the left-hand end with the left hand, the right-hand end with
+    /// the right" — and neither says which is laid down first. **Book C does, and
+    /// book C is the source of record**: its table is one move to a line, read down
+    /// the first column and then down the next, and that is the order of the hands.
+    /// So every two threads have a first and a second, and the generated methods
+    /// carry one move to a step.
     ///
-    /// So for every step, the order inside it is unstated. It changes nothing: the
-    /// two threads never have to pass each other, and neither do any two of the
-    /// closing's shifts.
+    /// Which leaves this empty. The closing is the one instant that still carries
+    /// several moves, and none of its shifts have to pass each other either — each
+    /// goes one place into a slot just vacated.
+    ///
+    /// **The guard stays** for the methods somebody invents on the stand (stage 4),
+    /// where two threads could be declared to move together.
     @Test func noTwoThreadsMovedTogetherEverHaveToPassEachOther() throws {
         for (name, method, section) in [
             (
@@ -109,6 +113,9 @@ struct MaruGenjiMoveRuleSourcesTests {
             let derivation = try #require(BraidDerivation.derive(
                 stand: BraidMethodCatalog.stand16, method: method, crossSection: section
             ))
+            for step in method.steps {
+                #expect(step.moves.count == 1, "\(name) step \(step.name)")
+            }
             let passings = derivation.passingsWithinOneInstant
             #expect(
                 passings.isEmpty,
@@ -119,20 +126,25 @@ struct MaruGenjiMoveRuleSourcesTests {
 
     /// The guard above has to be able to fail. A step that does carry two threads
     /// past each other is caught.
+    ///
+    /// **The generated methods have one move to a step, so such a step has to be
+    /// built by hand here.** Book C never writes one; the guard exists for the
+    /// methods somebody invents on the stand (stage 4), where two threads could be
+    /// declared to move together.
     @Test func aStepThatDoesSendTwoThreadsPastEachOtherIsCaught() throws {
-        // Maru-genji with the destinations of its third step swapped, so the
-        // thread from position 3 finishes beyond the one from position 6 instead
-        // of beside it. Everything else is untouched.
+        // Maru-genji with its two east-to-west moves put into one step and their
+        // destinations swapped, so the thread from position 3 finishes beyond the
+        // one from position 6 instead of beside it. Everything else is untouched.
+        var steps = BraidMethodCatalog.maruGenji16.steps.filter {
+            !$0.name.hasPrefix("eastToWest")
+        }
+        steps.append(BraidStep(name: "eastToWest", moves: [
+            BraidMove(from: 3, to: 12), BraidMove(from: 6, to: 13),
+        ]))
         let crossing = BraidMethod(
             id: "crossing",
             standID: BraidMethodCatalog.maruGenji16.standID,
-            steps: BraidMethodCatalog.maruGenji16.steps.map { step in
-                step.name == "eastToWest"
-                    ? BraidStep(name: step.name, moves: [
-                        BraidMove(from: 3, to: 12), BraidMove(from: 6, to: 13),
-                    ])
-                    : step
-            },
+            steps: steps,
             closing: BraidMethodCatalog.maruGenji16.closing
         )
         let derivation = try #require(BraidDerivation.derive(

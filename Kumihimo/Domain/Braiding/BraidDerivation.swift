@@ -169,15 +169,15 @@ struct BraidDerivation: Equatable, Sendable {
     ///
     /// **Where such a pair exists, the move table cannot say which lies over.**
     /// Both were laid at once, so "the one moved later" has no answer, and the
-    /// order inside the step would have to come from somewhere else — the books,
-    /// or the braider's own hands.
+    /// order inside the step would have to come from somewhere else.
     ///
-    /// It is empty for both known methods. The two threads a step moves are
-    /// carried to opposite sides of the braid, or one inside the other's span, and
-    /// either way they never meet; the closing only ever shifts a thread one place
-    /// into a slot just vacated. **So the order inside a step, which the books
-    /// give as a pair of hands rather than as a sequence, cannot change any of the
-    /// over-and-under.**
+    /// **It is empty for a method whose steps carry one move each**, which is what
+    /// a source that moves one thread at a time generates. Both known methods are
+    /// like that. The closing is the one instant that carries several, and its
+    /// shifts never pass each other: each goes one place into a slot just vacated.
+    ///
+    /// It stays because a method somebody invents on the stand may well declare two
+    /// threads to move together, and then the table really does not say.
     var passingsWithinOneInstant: [(row: Int, instant: Int, threads: (Int, Int))] {
         var result = [(row: Int, instant: Int, threads: (Int, Int))]()
         for row in 0..<repeatCycleCount {

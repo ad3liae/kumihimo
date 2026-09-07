@@ -96,26 +96,57 @@ struct BraidDerivationHiraGenjiAgreementTests {
         #expect(comparedSamples == 80)
     }
 
-    @Test func theRepeatAndTheInstantsPerCycleMatch() throws {
-        #expect(try derivation.repeatCycleCount == HiraGenjiWeaveDerivation.repeatCycleCount())
-        #expect(try derivation.instantsPerCycle == HiraGenjiWeaveDerivation.instantsPerCycle)
+    /// **The two count instants in different units, and that is the whole of the
+    /// difference.**
+    ///
+    /// `HiraGenjiWeaveDerivation` counts book A's printed steps: six of them and
+    /// the closing, seven. The general derivation counts book C's moves, which is
+    /// the source of record: twelve and the closing, thirteen. Book A's step is two
+    /// of book C's moves, so the one maps onto the other and nothing else moved.
+    private static let printedStepsPerCycle = HiraGenjiWeaveDerivation.instantsPerCycle
+
+    /// Book C's instant, read as the printed step it belongs to.
+    private static func printedStep(_ instant: Int, of instantsPerCycle: Int) -> Int {
+        instant == instantsPerCycle ? printedStepsPerCycle : (instant + 1) / 2
     }
 
-    /// Eight places across the width, compared as instants and as phases.
+    @Test func theRepeatAndTheInstantsPerCycleMatch() throws {
+        #expect(try derivation.repeatCycleCount == HiraGenjiWeaveDerivation.repeatCycleCount())
+        #expect(try derivation.instantsPerCycle == (Self.printedStepsPerCycle - 1) * 2 + 1)
+    }
+
+    /// Eight places across the width, compared as instants and as phases — book C's
+    /// instants read back as book A's printed steps.
     @Test func everyArrivalPhaseMatches() throws {
         let derivation = try derivation
         var compared = 0
         for width in -1...HiraGenjiWeaveDerivation.columnCount {
             let oldInstants = HiraGenjiWeaveDerivation.arrivalInstants(atWidthPosition: width)
             let newInstants = try #require(derivation.arrivalInstants(atWidth: width))
+                .map { Self.printedStep($0, of: derivation.instantsPerCycle) }
             #expect(newInstants.map(Float.init).sorted() == oldInstants.sorted())
 
             let oldPhase = HiraGenjiWeaveDerivation.arrivalPhase(atWidthPosition: width)
-            let newPhase = derivation.arrivalPhase(atWidth: width)
-            #expect(newPhase.map(Float.init) == oldPhase)
+            let newPhase = newInstants.isEmpty
+                ? nil
+                : Float(newInstants.reduce(0, +)) / Float(newInstants.count)
+                    / Float(Self.printedStepsPerCycle)
+            #expect(newPhase == oldPhase)
             compared += 1
         }
         #expect(compared == 8)
+    }
+
+    /// **What the finer count gives on its own**, so the change is on the record
+    /// rather than only inside the mapping above. Recorded, not judged.
+    @Test func theArrivalPhasesInBookCsOwnInstants() throws {
+        let derivation = try derivation
+        let phases = (-1...HiraGenjiWeaveDerivation.columnCount)
+            .map { derivation.arrivalPhase(atWidth: $0) }
+        // widths -1 to 6, as thirteenths of a cycle
+        #expect(phases.compactMap { $0.map { ($0 * 26).rounded() / 2 } } == [
+            1.5, 13, 7, 11, 10, 6, 13, 3.5,
+        ] as [Double])
     }
 
     // MARK: - The surface, on the reference colourings

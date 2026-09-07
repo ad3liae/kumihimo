@@ -75,8 +75,8 @@ struct BraidDerivationTests {
     @Test func bothBraidsComeBackToTheirStartAfterFourCycles() throws {
         #expect(try hira.repeatCycleCount == 4)
         #expect(try maru.repeatCycleCount == 4)
-        #expect(try hira.instantsPerCycle == 7)
-        #expect(try maru.instantsPerCycle == 5)
+        #expect(try hira.instantsPerCycle == 13)
+        #expect(try maru.instantsPerCycle == 9)
     }
 
     @Test func everyThreadIsMovedExactlyOnceInEveryCycle() throws {
@@ -156,17 +156,23 @@ struct BraidDerivationTests {
 
     /// The figures Task 007G derived from the move order, reproduced by code that
     /// does not know which braid it is looking at.
+    /// **In book C's instants, which is one move each.** Task 007G counted book A's
+    /// printed steps, two moves at a time, and got sevenths; the source of record
+    /// moves one thread at a time, so a cycle has thirteen instants and not seven.
+    ///
+    /// Read back as printed steps — instant `i` belongs to step `(i+1)/2`, the
+    /// closing to the seventh — these are 007G's own 1, 2, 3.5, 5.5 and 7 sevenths,
+    /// which `BraidDerivationHiraGenjiAgreementTests` holds them to.
     @Test func theArrivalPhasesAreTheOnesTaskZeroZeroSevenGDerived() throws {
         let derivation = try hira
-        let seventh = 1.0 / 7
-        #expect(derivation.arrivalPhase(atWidth: -1) == 1 * seventh)
-        #expect(derivation.arrivalPhase(atWidth: 6) == 2 * seventh)
-        #expect(derivation.arrivalPhase(atWidth: 1) == 3.5 * seventh)
-        #expect(derivation.arrivalPhase(atWidth: 4) == 3.5 * seventh)
-        #expect(derivation.arrivalPhase(atWidth: 2) == 5.5 * seventh)
-        #expect(derivation.arrivalPhase(atWidth: 3) == 5.5 * seventh)
-        #expect(derivation.arrivalPhase(atWidth: 0) == 7 * seventh)
-        #expect(derivation.arrivalPhase(atWidth: 5) == 7 * seventh)
+        #expect(derivation.arrivalPhase(atWidth: -1) == 1.5 / 13.0)   // 007G 1/7
+        #expect(derivation.arrivalPhase(atWidth: 6) == 3.5 / 13.0)    // 007G 2/7
+        #expect(derivation.arrivalPhase(atWidth: 1) == 7 / 13.0)      // 007G 3.5/7
+        #expect(derivation.arrivalPhase(atWidth: 4) == 6 / 13.0)      // 007G 3.5/7
+        #expect(derivation.arrivalPhase(atWidth: 2) == 11 / 13.0)     // 007G 5.5/7
+        #expect(derivation.arrivalPhase(atWidth: 3) == 10 / 13.0)     // 007G 5.5/7
+        #expect(derivation.arrivalPhase(atWidth: 0) == 13 / 13.0)     // 007G 7/7
+        #expect(derivation.arrivalPhase(atWidth: 5) == 13 / 13.0)     // 007G 7/7
     }
 
     // MARK: - Maru-genji: a tube

@@ -121,14 +121,22 @@ struct BraidPatternFigureTests {
         for width in derivation.columnsHeldLengthwise {
             #expect(phases[width] == 0, "width \(width)")
         }
-        // The left edge is half a row behind the body, the right a third of one.
-        let seventh = 1.0 / 7
-        #expect(phases[-1] == 1 * seventh - 4.5 * seventh)
-        #expect(phases[6] == 2 * seventh - 4.5 * seventh)
-        // Exactly half a row, up to the way sevenths land in binary.
-        #expect(abs((phases[-1] ?? 0) + 0.5) < 1e-12)
+        // The left edge sits behind the body, the right rather less so. **In book
+        // C's instants**: a cycle is thirteen of them, one to a move, and the body's
+        // own mean is 8.5 of them.
+        // Seven thirteenths of a row behind, and five for the right edge. Counting
+        // book A's printed steps two at a time, as Task 007G did, made the left one
+        // exactly half a row; the source of record moves one thread at a time and
+        // it is a little more. (The body's mean is a sum of quotients, so these are
+        // compared to within the last bits rather than exactly.)
+        //
+        // **Seven thirteenths behind is six thirteenths ahead**, and the phases are
+        // wrapped into half a row either way, so that is the number here. At a half
+        // exactly the wrap did not bite, which is why 007G never saw it.
+        #expect(abs((phases[-1] ?? 0) - 6.0 / 13) < 1e-12)
+        #expect(abs((phases[6] ?? 0) + 5.0 / 13) < 1e-12)
         // And the outermost columns, where the weft shows, take the other side.
-        #expect(phases[0] == 7 * seventh - 4.5 * seventh)
+        #expect(abs((phases[0] ?? 0) - 4.5 / 13) < 1e-12)
         #expect(phases[5] == phases[0])
     }
 

@@ -26,8 +26,14 @@ struct BraidDiskNotation: Equatable, Sendable {
     /// One cycle, in the order the book prints it.
     let moves: [BraidMove]
 
-    /// How many threads one printed step carries. Book A and book B both work two
-    /// at a time, one in each hand, and book C prints those two as two entries.
+    /// How many threads one *printed* step of book A carries. Book A and book B
+    /// both work two at a time, one in each hand.
+    ///
+    /// **This is book A's unit, not the source of record's.** Book C's table is one
+    /// move to a line, read down the first column and then down the next, and that
+    /// order is the order of the hands. So every two threads have a first and a
+    /// second, and this number is kept only to name the generated steps after the
+    /// printed step they belong to.
     let threadsPerStep: Int
 
     /// How far round the disk a move carries a thread, the short way.
@@ -55,6 +61,16 @@ struct BraidDiskNotation: Equatable, Sendable {
 
     /// The stand's own method: where each thread rests at the start of the cycle
     /// and where it rests at the end.
+    ///
+    /// **One braiding move to a step, in book C's order.** The source of record
+    /// moves one thread at a time, so every two threads have a first and a second
+    /// and there is no such thing as two threads laid at the same instant. Book A's
+    /// "take the outer two of the east group" is shorthand for two moves, and its
+    /// printed step only names the generated steps.
+    ///
+    /// The closing stays one step. It is one instant that carries several threads
+    /// because it advances the braid neither round nor along — that is the settled
+    /// stacking model, not a new rule.
     ///
     /// `nil` when the cycle does not run cleanly — a move with nothing to lift, a
     /// notch taken twice, a cycle that does not finish on the resting notches, or
@@ -97,11 +113,11 @@ struct BraidDiskNotation: Equatable, Sendable {
         }
 
         var steps = [BraidStep]()
-        for (index, name) in stepNames.enumerated() {
-            let threads = carried[(index * threadsPerStep)..<((index + 1) * threadsPerStep)]
-            let moves = threads.compactMap(move)
-            guard moves.count == threadsPerStep else { return nil }
-            steps.append(BraidStep(name: name, moves: moves))
+        for (index, thread) in carried.enumerated() {
+            guard let move = move(thread) else { return nil }
+            let printed = stepNames[index / threadsPerStep]
+            let name = threadsPerStep == 1 ? printed : "\(printed)-\(index % threadsPerStep + 1)"
+            steps.append(BraidStep(name: name, moves: [move]))
         }
         // A thread only ever shifted one notch was not braided this cycle; it is
         // being put back where the next cycle expects it.
