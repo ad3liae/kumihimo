@@ -27,12 +27,14 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import given_length as gl          # segment_distance / contact_pairs / push_apart
 
 D = 1.0
-PROJECTIONS = 2                 # projection passes per sweep, as Task 021
-SETTLED = 0.01 * D              # the overlap that counts as none, as Task 021
-MOST = D / 4                    # no bead steps over a thread in one sweep (021d)
-SWEEPS = 4000                   # cap; convergence is read off the series
-PATIENCE = 300                  # sweeps of standing still, then stop
-STILL = 1e-4                    # a sweep that moves nothing more than this has settled
+PROJECTIONS = 2                 # projection passes an inner round, as Task 021
+SETTLED = 0.01 * D              # the residual that counts as met, as Task 021
+MOST = D / 4                    # no bead steps over a thread in one round (021d)
+SWEEPS = 1000                   # cap on the outer steps
+INNER = 200                     # cap on the inner rounds within one outer step
+SHRINK = 0.1                    # how far a bead goes toward its neighbours' middle
+PATIENCE = 300                  # outer steps of standing still, then stop
+STILL = 1e-4                    # an outer step that moves nothing more has settled
 
 
 def flatten(threads):
@@ -56,21 +58,23 @@ def unflatten(p, threads):
     return out
 
 
-def straighten(p, links, held):
-    """Every free bead half way to the middle of its neighbours.
+def shrink(p, links, held, by=None):
+    """Every free bead a little way toward the middle of its neighbours.
 
-    Half is the most that cannot overshoot when they all move at once, so there is
-    no step size to choose. This is what shortens the thread; the re-spacing then
-    carries the surplus off the end.
+    **This is the only thing that pulls, and it is not a constraint.** A taut
+    thread is the shortest path its two ends allow, so the thread is shortened a
+    little and then the two hard constraints are met again, over and over. The
+    step is small and fixed (`SHRINK`) and is a solver setting: how far the answer
+    is walked toward, not where it is.
     """
     middle = np.zeros_like(p)
     count = np.zeros(len(p))
     a, b = links[:, 0], links[:, 1]
     np.add.at(middle, a, p[b]); np.add.at(count, a, 1)
     np.add.at(middle, b, p[a]); np.add.at(count, b, 1)
-    inner = count == 2
+    within = count == 2
     move = np.zeros_like(p)
-    move[inner] = 0.5 * (middle[inner] / 2.0 - p[inner])
+    move[within] = (SHRINK if by is None else by) * (middle[within] / 2.0 - p[within])
     move[held] = 0.0
     p += move
 
@@ -194,19 +198,44 @@ def residuals(p, links, kind="capsule", rim=None):
     return link, max(0.0, worst)
 
 
-def tighten(threads, stand, frozen=None, sweeps=SWEEPS, every=25, log=None):
-    """Pull every thread tight. Returns the threads and the series of residuals.
+def settle(p, links, rim, held, anchored, stand, cap=None):
+    """Meet the two hard constraints: neighbours a diameter apart, and no two
+    threads through each other. **Nothing pulls in here.**
 
+    Returns how many rounds it took and the residual it got to. Hitting the cap is
+    reported, not hidden: it means the arrangement it was handed cannot be made to
+    satisfy the constraints by moving what is free to move.
+    """
+    cap = INNER if cap is None else cap
+    link = overlap = float('inf')
+    for round_ in range(cap):
+        for _ in range(PROJECTIONS):
+            space_out(p, links, rim, held)
+            push_apart(p, links, gl.contact_pairs(p, links, "capsule"), held)
+            stand.push_out(p)
+            p[held] = anchored
+        link, overlap = residuals(p, links, rim=rim)
+        if max(link, overlap) < SETTLED:
+            return round_ + 1, link, overlap
+    return cap, link, overlap
+
+
+def tighten(threads, stand, frozen=None, sweeps=SWEEPS, every=25, log=None):
+    """Pull every thread tight, the hard constraints first.
+
+    One outer step is: shorten the thread a little, lay the beads out again a
+    diameter apart along it, and then meet the two constraints. **The constraints
+    are met last, so the state this returns satisfies them or says it could not.**
     The two ends of every free part are held: the braid end and the rim end.
 
-    `frozen` is a list, one boolean array a thread, of beads the braid has taken in
-    and which no longer move. **Written for Task 022-2 and not run in 022-1'**: the
-    seed has nothing taken in yet, so every call so far has passed None.
+    `frozen` is a list, one boolean array a thread, of beads the braid has closed
+    over, which no longer move.
     """
     threads = [t.copy() for t in threads]
     series = []
-    since = 0
-    for sweep in range(sweeps):
+    since, rounds, capped = 0, 0, 0
+    link = overlap = float('inf')
+    for step_no in range(sweeps):
         previous = [t.copy() for t in threads]
         p, thread_of, links, rim = flatten(threads)
         held = np.zeros(len(p), dtype=bool)
@@ -218,20 +247,15 @@ def tighten(threads, stand, frozen=None, sweeps=SWEEPS, every=25, log=None):
                 held[first:first + len(t)] |= frozen[i]
             first += len(t)
         anchored = p[held].copy()
+
         began = p.copy()
-        # Straighten once, then satisfy the two constraints. **The hard constraints
-        # go last**: a shortening that is still being answered leaves an overlap
-        # standing, and the answer to a constraint is not an average.
-        straighten(p, links, held)
-        for _ in range(PROJECTIONS):
-            space_out(p, links, rim, held)
-            push_apart(p, links, gl.contact_pairs(p, links, "capsule"), held)
-            stand.push_out(p)
-            p[held] = anchored
-        moved = p - began
+        shrink(p, links, held)
+        p[held] = anchored
+        moved = p - began                           # no bead steps over a thread
         far = np.linalg.norm(moved, axis=1, keepdims=True)
         p = began + np.where(far > MOST, moved * (MOST / np.maximum(far, 1e-12)), moved)
         p[held] = anchored
+
         threads = unflatten(p, threads)
         threads = [respace(t) if frozen is None else respace_free(t, frozen[i])
                    for i, t in enumerate(threads)]
@@ -239,29 +263,41 @@ def tighten(threads, stand, frozen=None, sweeps=SWEEPS, every=25, log=None):
             frozen = [np.concatenate([np.zeros(len(t) - f.sum(), dtype=bool),
                                       np.ones(int(f.sum()), dtype=bool)])
                       for t, f in zip(threads, frozen)]
-        # What the whole sweep did, re-spacing included. A bead that is pushed
-        # one way and laid back the other has not moved.
+
+        p, thread_of, links, rim = flatten(threads)
+        held = np.zeros(len(p), dtype=bool)
+        first = 0
+        for i, t in enumerate(threads):
+            held[first] = True
+            held[first + len(t) - 1] = True
+            if frozen is not None:
+                held[first:first + len(t)] |= frozen[i]
+            first += len(t)
+        anchored = p[held].copy()
+        inner, link, overlap = settle(p, links, rim, held, anchored, stand)
+        rounds += inner
+        capped += 1 if inner >= INNER else 0
+        threads = unflatten(p, threads)
+
         if all(len(a) == len(b) for a, b in zip(previous, threads)):
             step = max(float(np.max(np.linalg.norm(b - a, axis=1)))
                        for a, b in zip(previous, threads))
         else:
             step = float('inf')            # the thread shed or took on a bead
-        p, _, links, rim = flatten(threads)
-        link, overlap = residuals(p, links, rim=rim)
-        if sweep % every == 0 or sweep == sweeps - 1 or step < 1e-4:
-            series.append((sweep, link, overlap, step, sum(len(t) for t in threads)))
+        if step_no % every == 0 or step_no == sweeps - 1:
+            series.append((step_no, link, overlap, step, sum(len(t) for t in threads),
+                           rounds, capped))
             if log:
                 log(series[-1])
-        # **The verdict is the series, not a threshold** (Task 021). Stop when the
-        # threads have stopped moving -- not when the residual is small enough,
-        # because a pair the braid has already closed over cannot be improved by
-        # anything and would otherwise end every tightening after it at once.
         if step > 10 * STILL:
-            since = sweep
-        if step < STILL or sweep - since > PATIENCE:
-            if series[-1][0] != sweep:
-                series.append((sweep, link, overlap, step, sum(len(t) for t in threads)))
+            since = step_no
+        if step < STILL or step_no - since > PATIENCE:
+            if not series or series[-1][0] != step_no:
+                series.append((step_no, link, overlap, step, sum(len(t) for t in threads),
+                               rounds, capped))
             break
+    if not series:
+        series.append((0, link, overlap, 0.0, sum(len(t) for t in threads), rounds, capped))
     return threads, series, frozen
 
 

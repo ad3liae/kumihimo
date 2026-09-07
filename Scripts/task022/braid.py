@@ -137,26 +137,55 @@ class Braid:
         self._absorb(threads)
         return series
 
-    def take_in(self, hand):
+    def tops(self):
+        """The highest thing standing at each place in the braid.
+
+        A place is a cell one diameter across, over the section, and the braid's own
+        column is what counts, up to one diameter above the braiding point -- the
+        braid, the settling zone below it, and the layer a carry has just been laid
+        in. A thread climbing out of the hole on its way to the rim passes through
+        the column too, three diameters up, and it has not been braided. **This is how the braid's
+        growth is measured**: a carry laid across the core stacks a diameter there
+        and nowhere else, and the top of the whole column would not see it.
+        Measuring only; nothing is held by it.
+        """
+        p = np.concatenate(self.threads())
+        take = (np.hypot(p[:, 0], p[:, 1]) <= self.stand.bundle_radius + 0.5 * taut.D) & \
+               (p[:, 2] <= self.braid_z + taut.D)
+        out = {}
+        for point in p[take]:
+            cell = (int(np.floor(point[0] / taut.D)), int(np.floor(point[1] / taut.D)))
+            if point[2] > out.get(cell, -1e30):
+                out[cell] = float(point[2])
+        return out
+
+    def take_in(self, hand, before=None, how="place"):
         """The braid swallows what is well below the braiding point, and is sent
         down by the height the new crossings stood above it.
 
         Two things are separate here and must stay separate.
 
-        **How far to send it down** is read off the braid's own column, after the
-        threads have settled: the top of everything standing within a bundle's
-        radius of the axis. That is a measurement, and nothing is held by it.
+        **How far to send it down** is how much the braid has risen, place by place,
+        after the threads have settled: the largest rise of any cell's top
+        (`tops`). Measuring the top of the whole column instead would miss a carry
+        laid across the core, which stacks a diameter there and nowhere else. That
+        is a measurement, and nothing is held by it.
 
         **What the braid has closed over** is taken by depth alone -- below
         `freeze_depth` under the braiding point. Everything between there and the
         braiding point goes on relaxing every hand, which is what lets a braid
         that wants to be flat become flat.
         """
-        column = self.stand.bundle_radius
-        p = np.concatenate(self.threads())
-        inside = np.hypot(p[:, 0], p[:, 1]) <= column
-        top = float(p[inside, 2].max()) if inside.any() else self.braid_z
-        sent = max(0.0, top - self.braid_z)
+        after = self.tops()
+        if how == "place" and before:
+            # Task 022-2'' item 2: the largest rise of any one place's top.
+            risen = [after[cell] - before[cell] for cell in after if cell in before]
+            sent = max(0.0, max(risen) if risen else 0.0)
+        else:
+            # How far the highest thing in the column stands above the braiding
+            # point. The datum is fixed, so the braid's top comes back to the
+            # braiding point after every hand.
+            sent = max(0.0, (max(after.values()) if after else self.braid_z) - self.braid_z)
         if sent > 0.0:
             for made in self.made:
                 for entry in made:

@@ -47,6 +47,8 @@ def main():
     ap.add_argument("--dumps", default="", help="write every hand under this prefix")
     ap.add_argument("--hands", type=int, default=0, help="how many of book C's hands to play")
     ap.add_argument("--maru", action="store_true", help="Fig.32 instead of Fig.20")
+    ap.add_argument("--growth", choices=("place", "column"), default="place",
+                    help="how far to send the braid down: the largest rise of any one\n                          place's top, or how far the column stands above the braiding point")
     ap.add_argument("--freeze-depth", type=float, default=bd.FREEZE_DEPTH,
                     help="how far below the braiding point the braid has closed over")
     ap.add_argument("--seed-arc", type=float, default=0.0,
@@ -70,10 +72,10 @@ def main():
           "bundle radius %.3f d"
           % (stand.tama, stand.threads, stand.takeup, stand.braiding_point_depth(),
              stand.bundle_radius))
-    print("settings  projections %d  settled %.4f  still %.1e  sweeps %d  freeze depth %.1f  "
-          "seed arc %.1f"
-          % (taut.PROJECTIONS, taut.SETTLED, taut.STILL, args.sweeps, args.freeze_depth,
-             args.seed_arc))
+    print("settings  projections %d  settled %.4f  still %.1e  outer %d  inner %d  shrink %.2f  "
+          "freeze depth %.1f  growth %s"
+          % (taut.PROJECTIONS, taut.SETTLED, taut.STILL, args.sweeps, taut.INNER, taut.SHRINK,
+             args.freeze_depth, args.growth))
 
     braid = bd.Braid(stand, sweeps=args.sweeps, freeze_depth=args.freeze_depth)
     if args.seed_arc:
@@ -82,9 +84,10 @@ def main():
         braid.made = [[[t[-1].copy(), 0]] for t in threads]
     began = time.time()
     series = braid.tighten(every=args.every,
-                           log=lambda r: print("  sweep %4d  link %.2e  overlap %.2e  "
-                                               "moved %.2e  beads %d" % r))
-    print("seed tightened in %.2f s, %d sweeps" % (time.time() - began, series[-1][0] + 1))
+                           log=lambda r: print("  step %4d  link %.2e  overlap %.2e  moved %.2e  "
+                                               "beads %d  inner %d (capped %d)" % r))
+    print("seed tightened in %.2f s: %d outer steps, %d inner rounds, %d capped"
+          % (time.time() - began, series[-1][0] + 1, series[-1][5], series[-1][6]))
     length = [float(np.linalg.norm(np.diff(t, axis=0), axis=1).sum()) for t in braid.threads()]
     print("thread length over the mirror: mean %.2f d, spread %.2f d"
           % (np.mean(length), max(length) - min(length)))
@@ -95,7 +98,7 @@ def main():
         braid.write("%s-hand-00.txt" % args.dumps, 0)
 
     table = bd.FIG32 if args.maru else bd.FIG20
-    print("\nhand  move   kind     thread  swept  secs   sent   taken  crossings  reversals  "
+    print("\nhand  move   kind     thread  outer  inner  cap  secs   sent   taken  cross  rev  "
           "link      overlap   braid")
     growth = {}
     for h in range(args.hands):
@@ -106,17 +109,22 @@ def main():
             return 1
         began = time.time()
         braid.hand = h + 1
+        before = braid.tops()
         braid.carry(thread, move[1])
         series = braid.tighten()
-        sent, taken, after = braid.take_in(h + 1)
+        sent, taken, after = braid.take_in(h + 1, before, args.growth)
         found = braid.note_crossings()
         turned = braid.reversals()
-        swept = series[-1][0] + 1 + after[-1][0] + 1
+        outer = series[-1][0] + 1 + after[-1][0] + 1
+        inner = series[-1][5] + after[-1][5]
+        capped = series[-1][6] + after[-1][6]
         kind = kind_of(move, not args.maru)
         growth.setdefault(kind, []).append(sent)
-        print("%4d  %2d->%2d  %-7s  %4d  %5d  %5.1f  %5.2f  %6d  %9d  %9d  %.2e  %.2e  %.2f"
-              % (h + 1, move[0], move[1], kind, thread, swept, time.time() - began, sent,
-                 taken, found, len(turned), after[-1][1], after[-1][2], braid.length()))
+        print("%4d  %2d->%2d  %-7s  %4d  %5d  %6d  %3d  %5.1f  %5.2f  %5d  %5d  %3d  "
+              "%.2e  %.2e  %.2f"
+              % (h + 1, move[0], move[1], kind, thread, outer, inner, capped,
+                 time.time() - began, sent, taken, found, len(turned),
+                 after[-1][1], after[-1][2], braid.length()))
         sys.stdout.flush()
         if args.dumps:
             braid.write("%s-hand-%02d.txt" % (args.dumps, h + 1), h + 1)
