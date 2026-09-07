@@ -11,60 +11,85 @@ import Foundation
 enum BraidMethodCatalog {
     static let stand16 = BraidStands.round16
 
-    /// Maru-genji on the sixteen-position round stand.
+    /// Book C's Fig.20 and Fig.32 number the same disk the same way: sixteen of its
+    /// thirty-two notches hold a thread at rest. Read off Fig.20's starting diagram
+    /// in Task 005H, and Fig.32 numbers identically.
+    static let diskRestingNotches: [Int: Int] = [
+        1: 15, 2: 16, 5: 1, 6: 2, 9: 3, 10: 4, 13: 5, 14: 6,
+        17: 7, 18: 8, 21: 9, 22: 10, 25: 11, 26: 12, 29: 13, 30: 14,
+    ]
+
+    private static func disk(_ source: String, _ moves: [(Int, Int)]) -> BraidDiskNotation {
+        BraidDiskNotation(
+            source: source,
+            notchCount: 32,
+            standPositionByRestingNotch: diskRestingNotches,
+            moves: moves.map(BraidMove.init(from:to:)),
+            threadsPerStep: 2
+        )
+    }
+
+    /// Maru-genji as book C prints it: Fig.32, twenty-four numbered moves.
+    static let maruGenjiDisk = disk("book C Fig.32", [
+        (17, 4), (22, 3), (6, 19), (1, 20),
+        (9, 28), (14, 27), (30, 11), (25, 12),
+        (2, 1), (3, 2), (5, 6), (4, 5),
+        (21, 22), (20, 21), (18, 17), (19, 18),
+        (29, 30), (28, 29), (26, 25), (27, 26),
+        (10, 9), (11, 10), (13, 14), (12, 13),
+    ])
+
+    /// Hira-genji as book C prints it: Fig.20.
+    static let hiraGenjiDisk = disk("book C Fig.20", [
+        (9, 28), (14, 27), (30, 11), (25, 12),
+        (18, 4), (21, 3), (5, 18), (2, 21),
+        (17, 5), (22, 2), (6, 17), (1, 22),
+        (29, 30), (28, 29), (26, 25), (27, 26),
+        (10, 9), (11, 10), (13, 14), (12, 13),
+        (2, 1), (3, 2), (5, 6), (4, 5),
+    ])
+
+    /// Maru-genji on the sixteen-position round stand, generated from book C.
     ///
     /// Four steps and a closing. Every thread travels, so nothing runs along the
     /// braid and the cross-section stays the stand's own ring — a tube.
     ///
-    /// **The order inside a step is the order book A names the two threads in**,
-    /// and book A names them by which hand takes them: steps 1 and 2 as "the
-    /// left-hand end with the left hand, the right-hand end with the right"
-    /// (p94), steps 3 and 4 as "the far one with the right hand, the near one
-    /// with the left". Book B's diagrams (p73) put the same 左L and 右R on the
-    /// same threads. **Neither book says which of the two is laid down first**,
-    /// because both are carried at once, one in each hand. Book C works the braid
-    /// on a thirty-two notch disk (Fig.32) and does give a strict sequence, but a
-    /// disk holds one thread to a notch, so its order is partly the tool's and not
-    /// the braid's.
-    ///
-    /// **It makes no difference.** The two threads of a step are carried to
-    /// opposite sides of the braid, or one inside the other's span, so they never
-    /// pass each other; nor do any two of the closing's shifts. See
-    /// `BraidDerivation.passingsWithinOneInstant`, which is empty here.
-    static let maruGenji16 = BraidMethod(
-        id: "maru-genji-16",
-        standID: stand16.id,
-        steps: [
-            step("southToNorth", [10, 7], [16, 1]),
-            step("northToSouth", [15, 2], [9, 8]),
-            step("eastToWest", [3, 6], [13, 12]),
-            step("westToEast", [14, 11], [4, 5]),
-        ],
-        closing: step(
-            "closing",
-            [16, 1, 4, 5, 9, 8, 13, 12],
-            [15, 2, 3, 6, 10, 7, 14, 11]
-        )
-    )
+    /// **The step names are book A's**, which prints the same four steps as "take
+    /// the outer threads of one face to the middle of the opposite one". They
+    /// document the table; the derivation never reads them. Book A also names the
+    /// two threads of a step in the other order from book C for some steps, which
+    /// changes nothing: the two are never carried past each other
+    /// (`BraidDerivation.passingsWithinOneInstant`).
+    static let maruGenji16: BraidMethod = {
+        guard let method = maruGenjiDisk.method(
+            id: "maru-genji-16",
+            standID: stand16.id,
+            stepNames: ["southToNorth", "northToSouth", "eastToWest", "westToEast"]
+        ) else {
+            preconditionFailure("book C Fig.32 does not run as a cycle of the sixteen-place stand")
+        }
+        return method
+    }()
 
-    /// Hira-genji on the same stand.
+    /// Hira-genji on the same stand, generated from book C.
     ///
-    /// Six steps and a closing. The east and west threads are carried from one
-    /// side of the braid to the other; the north and south threads stay where they
-    /// are across the width and only turn over, which is what makes the braid flat.
-    static let hiraGenji16 = BraidMethod(
-        id: "hira-genji-16",
-        standID: stand16.id,
-        steps: [
-            step("eastOuterToWestCenter", [3, 6], [13, 12]),
-            step("westOuterToEastCenter", [14, 11], [4, 5]),
-            step("southInnerToNorthCenter", [9, 8], [16, 1]),
-            step("northInnerToSouthCenter", [16, 1], [9, 8]),
-            step("southOuterToNorthOuter", [10, 7], [15, 2]),
-            step("northOuterToSouthOuter", [15, 2], [10, 7]),
-        ],
-        closing: step("closing", [4, 5, 13, 12], [3, 6, 14, 11])
-    )
+    /// Six steps and a closing. The east and west threads are carried from one side
+    /// of the braid to the other; the north and south threads stay where they are
+    /// across the width and only turn over, which is what makes the braid flat.
+    static let hiraGenji16: BraidMethod = {
+        guard let method = hiraGenjiDisk.method(
+            id: "hira-genji-16",
+            standID: stand16.id,
+            stepNames: [
+                "eastOuterToWestCenter", "westOuterToEastCenter",
+                "southInnerToNorthCenter", "northInnerToSouthCenter",
+                "southOuterToNorthOuter", "northOuterToSouthOuter",
+            ]
+        ) else {
+            preconditionFailure("book C Fig.20 does not run as a cycle of the sixteen-place stand")
+        }
+        return method
+    }()
 
     /// The order the threads come in round the hira-genji braid.
     ///
@@ -107,7 +132,4 @@ enum BraidMethodCatalog {
             + "transcribed table; awaiting the author's colouring experiment"
     )
 
-    private static func step(_ name: String, _ from: [Int], _ to: [Int]) -> BraidStep {
-        BraidStep(name: name, moves: zip(from, to).map(BraidMove.init(from:to:)))
-    }
 }

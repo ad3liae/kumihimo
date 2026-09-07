@@ -81,30 +81,45 @@ enum BraidPatternStrings {
 }
 
 #Preview {
-    let derivation = BraidDerivation.derive(
-        stand: BraidMethodCatalog.stand16,
-        method: BraidMethodCatalog.hiraGenji16,
-        crossSection: BraidMethodCatalog.hiraGenji16CrossSection
-    )
-    let assignments = (1...16).map { position in
-        ThreadAssignment(
-            position: position,
-            colorID: ThreadColorID(rawValue: [15, 16, 1, 2, 10, 9, 8, 7].contains(position)
-                ? "natural"
-                : ([3, 6, 14, 11].contains(position) ? "yellow" : "orange"))
-        )
-    }
-    return HStack(spacing: 16) {
-        if let derivation,
-           let front = BraidFigureBuilder.figure(
-               from: derivation, assignments: assignments, face: .front
-           ),
-           let back = BraidFigureBuilder.figure(
-               from: derivation, assignments: assignments, face: .back
-           ) {
-            BraidPatternView(figure: front)
-            BraidPatternView(figure: back)
+    BraidPatternPreview()
+}
+
+private struct BraidPatternPreview: View {
+    private var figures: [BraidFigure] {
+        guard let derivation = BraidDerivation.derive(
+            stand: BraidMethodCatalog.stand16,
+            method: BraidMethodCatalog.hiraGenji16,
+            crossSection: BraidMethodCatalog.hiraGenji16CrossSection
+        ) else {
+            return []
+        }
+        return BraidFace.allCases.compactMap { face in
+            BraidFigureBuilder.figure(
+                from: derivation, assignments: Self.arrowFeather, face: face
+            )
         }
     }
-    .padding()
+
+    /// Book A p97's left sample: everything worked lengthwise in one neutral, and
+    /// on each side the far and near threads one colour and the middle two another.
+    private static var arrowFeather: [ThreadAssignment] {
+        var colours = [Int: String]()
+        for position in [15, 16, 1, 2, 10, 9, 8, 7] { colours[position] = "natural" }
+        for position in [3, 6] { colours[position] = "yellow" }
+        for position in [4, 5] { colours[position] = "orange" }
+        for position in [14, 11] { colours[position] = "green" }
+        for position in [13, 12] { colours[position] = "light-blue" }
+        return (1...16).map {
+            ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: colours[$0] ?? "white"))
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 16) {
+            ForEach(Array(figures.enumerated()), id: \.offset) { _, figure in
+                BraidPatternView(figure: figure)
+            }
+        }
+        .padding()
+    }
 }
