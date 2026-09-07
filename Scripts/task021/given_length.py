@@ -30,7 +30,12 @@ import sequential as q
 D = r.D
 
 # --- solver settings. **Not part of the model.** -----------------------------
-PLACE_STEPS = 50            # let go for this many steps after each hand
+PLACE_STEPS = 200           # let go for this many steps after each hand
+# **A bead may not move more than a quarter of a thread in one step.** Without it
+# a push can carry a bead clean through another thread between one step and the
+# next, and the crossing that was laid comes out the other way up. That is the
+# solver stepping over the constraint, not the braid doing anything.
+MOST = D / 4
 SETTLE = 1000               # after the last hand, the end pull still on
 LOOSE = 1000               # pull off; this is the series the verdict reads
 PROJECTIONS = 2
@@ -116,6 +121,7 @@ def step(p, links, ends, tips, targets, held, anchored, pull, count, kind):
     a, b = links[:, 0], links[:, 1]
     adjacent = {(min(i, j), max(i, j)) for i, j in zip(a, b)}
     for _ in range(count):
+        began = p.copy()
         if pull and len(tips):
             toward = targets - p[tips, :2]
             far = np.linalg.norm(toward, axis=1, keepdims=True)
@@ -141,6 +147,10 @@ def step(p, links, ends, tips, targets, held, anchored, pull, count, kind):
             else:
                 push_apart(p, links, contact_pairs(p, links, kind), held)
             p[held] = anchored
+        moved = p - began                       # no bead steps over a thread
+        far = np.linalg.norm(moved, axis=1, keepdims=True)
+        p = began + np.where(far > MOST, moved * (MOST / np.maximum(far, 1e-12)), moved)
+        p[held] = anchored
     return p
 
 
@@ -165,6 +175,7 @@ def lay(table, ring, folded, R, pull, kind="capsule", cycles=CYCLES):
     thread_of = [thread for thread, _ in sorted(starts.items())]
     tip = {thread: i for i, thread in enumerate(thread_of)}
     laid_in, links, beneath, held_u = [0] * len(p), [], [], dict(sorted(starts.items()))
+    turns, turned = [], []
 
     hands = q.braiding_moves(table, ring, cycles)
     per_cycle = len(hands) // cycles
@@ -174,11 +185,16 @@ def lay(table, ring, folded, R, pull, kind="capsule", cycles=CYCLES):
         corners = [p[tip[thread]], np.array([*a, height]), np.array([*b, height])]
         chain = r.beads_along(corners)[1:]
         first = len(p)
-        below = q.under(p, a, b)
-        if below.any():
-            beneath.append((first + len(chain) - 1,
-                            int(np.nonzero(below)[0][np.argmax(p[below, 2])])))
+        below = np.nonzero(q.under(p, a, b))[0]
         p = np.concatenate([p, np.array(chain)])
+        # **Every crossing this carry makes**, not one of them: the bead of the
+        # carry nearest each bead it was laid over. These are what must not turn
+        # over — the pattern is the topology.
+        laid = np.arange(first, len(p))
+        for other in below:
+            nearest = laid[np.argmin(np.linalg.norm(p[laid, :2] - p[other, :2], axis=1))]
+            if np.linalg.norm(p[nearest, :2] - p[other, :2]) < D:
+                beneath.append((int(nearest), int(other)))
         thread_of.extend([thread] * len(chain))
         laid_in.extend([cycle] * len(chain))
         links.append((tip[thread], first))
@@ -187,6 +203,13 @@ def lay(table, ring, folded, R, pull, kind="capsule", cycles=CYCLES):
         held_u[thread] = u_to
         p = settle_once(p, links, laid_in, thread_of, tip, held_u, ring, folded,
                         pull, PLACE_STEPS, kind, cycles, hold_ends=False)
+        flipped = [(above, under_) for above, under_ in beneath
+                   if p[above, 2] <= p[under_, 2]]
+        if len(flipped) > len(turned):
+            for above, under_ in flipped[len(turned):]:
+                turns.append((index, thread, cycle, int(thread_of[above]),
+                              int(thread_of[under_])))
+            turned = flipped
 
     links, thread_of, laid_in = np.array(links), np.array(thread_of), np.array(laid_in)
     packing, loose = [], []
@@ -198,7 +221,7 @@ def lay(table, ring, folded, R, pull, kind="capsule", cycles=CYCLES):
         p = settle_once(p, links, laid_in, thread_of, tip, held_u, ring, folded,
                         0.0, SAMPLE_EVERY, kind, cycles, hold_ends=True)
         loose.append(residuals(p, links, kind))
-    return p, thread_of, links, laid_in, beneath, packing, loose
+    return p, thread_of, links, laid_in, beneath, packing, loose, turns
 
 
 def settle_once(p, links, laid_in, thread_of, tip, held_u, ring, folded,
@@ -220,14 +243,15 @@ def settle_once(p, links, laid_in, thread_of, tip, held_u, ring, folded,
 
 def measure(table, ring, folded, R, pull, kind, cycles=CYCLES):
     started = time.time()
-    p, thread_of, links, laid_in, beneath, packing, loose = lay(
+    p, thread_of, links, laid_in, beneath, packing, loose, turns = lay(
         table, ring, folded, R, pull, kind, cycles)
     overlaps = [o for _, o in loose]
     settled = overlaps[-1] < SETTLED
     kept, total = q.topology_kept(p, beneath)
     return dict(p=p, thread_of=thread_of, links=links, laid_in=laid_in,
                 packing=packing, loose=loose, settled=settled, kept=kept,
-                total=total, seconds=time.time() - started, beads=len(p))
+                total=total, seconds=time.time() - started, beads=len(p),
+                turns=turns, beneath=beneath)
 
 
 def bisect(table, ring, folded, pull, kind, low=0.5, high=8.0, rounds=BISECTION):
