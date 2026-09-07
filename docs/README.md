@@ -19,9 +19,10 @@
   - **深さは Task 022（台の上で組む、Jolt）へ移す。** 引き継ぎは `tasks/021-depth-by-relaxation.md` の末尾
   - 正本の読み方（bookC の1手は1本）は `architecture.md`「正本の読み方（作者の指示）」
 
-- **Task 022 台の上で組む（Jolt）: 最高優先。Task 020 の続きである**: `tasks/022-braid-on-the-stand.md`
+- **Task 022 台の上で組む（準静的）: 最高優先。Task 020 の続きである**: `tasks/022-braid-on-the-stand.md`
   - **上下は運ぶ順序が決める**（作者の判断、2026-09-07）。**置く高さの模型（021b〜021f）は要らない**
-  - 段: 022-1 精査（**実施中**）、022-2 平源氏を1サイクル組む、022-3 合格条件の判定、022-4 Swift への接続（Task 020 段階3 に相当）
+  - **模型は準静的。質量・重力・慣性・減衰・時間刻みを持たない**（`architecture.md`「組み上がりの解き方は準静的である」）。**Jolt は試した上で不採用**
+  - 段: 022-1'（**完了**。種が張って静止した）、022-2 平源氏を1サイクル組む、022-3 合格条件の判定、022-4 Swift への接続（Task 020 段階3 に相当）
 
 - 起動画面仕様: `specifications/home-screen.md`
 - 作品編集・詳細画面仕様: `specifications/project-editor.md`
@@ -55,7 +56,7 @@
 - Task 016 組み点の物理で寸法を解けるかの調査（**完了**。段階2・2b の記録は枝 `claude/task-016-braid-physics-feasibility` の `d0e69c1` / `9b4d789`。**マージしない**。**段階4「製品へどう載せるか」は Task 020 段階4 が引き取る**）: `tasks/016-braid-physics-feasibility.md`
 - Task 018 `everyRegionCarriesTheRidgeIncludingBothEdges` が2分かかる件（未着手。優先度低）: `tasks/018-slow-mesh-test.md`
 - Task 021 反発による深さの導出（**保留。021a〜021e まで実行し、「置く高さの模型」は行き止まりと判明**。占有履歴で面の模様は出た（丸源氏 Task 004 と 32/32、平源氏 p97 3実験）。**続きは Task 022。末尾の「引き継ぎ」を読むこと**）: `tasks/021-depth-by-relaxation.md`
-- Task 022 台の上で組む（Jolt）（**022-1 精査 実施中。指示書を書いた段階で、まだ組んでいない**）: `tasks/022-braid-on-the-stand.md`
+- Task 022 台の上で組む（準静的）（**022-1' 完了。種が張って静止した。組むのは 022-2 から**）: `tasks/022-braid-on-the-stand.md`
 
 ## 更新方針
 
