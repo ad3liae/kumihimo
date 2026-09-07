@@ -116,3 +116,60 @@ def same_instant_passings():
             total += len(pairs)
             print(f"  {name} z={z}: {len(at[z])} carries, passings {pairs}")
         print(f"  {name}: {total} passings in the first six heights")
+
+
+def slant():
+    """Which way each visible run leans, against Task 004's own observation.
+
+    **Task 004's over/under is not an observation** (Task 020 の記録); what its
+    source drawing does carry is the direction each diamond rises, and that is what
+    is compared here. **Recorded, not judged. Nothing is read as anything else.**
+    """
+    import json
+    table = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                        "task004-table.json")))
+    observed = {(c, r): table[f"{c},{r}"][2] for c in range(8) for r in range(1, 5)}
+    for variant in "AB":
+        pos, thread_of, links, k = r.build(g.FIG32, g.RING_MARU, False, variant, shape=SHAPE)
+        p = np.load(f"/tmp/task021-{SHAPE}-maru-{variant}-0.0001.npy")
+        n = len(g.RING_MARU)
+        angle = (np.degrees(np.arctan2(p[:, 0], p[:, 1])) + 360) % 360
+        sector = ((angle + 360 / n / 2) % 360 // (360 / n)).astype(int)
+        z = np.round(p[:, 2]).astype(int)
+        seen, rows = f.visible(p, thread_of, g.RING_MARU, False, k)
+        leans = {}
+        for (column, row), thread in seen.items():
+            pick = (thread_of == thread) & (z // k == row)
+            if pick.sum() < 2:
+                continue
+            order = np.argsort(z[pick])
+            columns = (sector[pick] // 2)[order]
+            rise = int(columns[-1]) - int(columns[0])
+            leans[(column, row)] = rise
+        flat = sum(1 for v in leans.values() if v == 0)
+        print(f"maru {variant}: {len(leans)} cells read, {flat} of them lean neither way")
+        print("  rises by column and row:",
+              {key: leans[key] for key in sorted(leans)[:16]})
+        print("  Task 004's own rises (True = toward the trailing edge):",
+              {key: observed[key] for key in sorted(observed)[:8]})
+
+
+def hira_section():
+    """Does the lengthwise thread ride up over the weft in the relaxed section?
+
+    The height of the ridge over the hollow, divided by the width of the braid.
+    **Recorded against the measured 0.45, not judged**: the relaxed state has to
+    satisfy the constraints before this means anything.
+    """
+    for variant in "AB":
+        pos, thread_of, links, k = r.build(g.FIG20, g.RING_HIRA, True, variant, shape=SHAPE)
+        p = np.load(f"/tmp/task021-{SHAPE}-hira-{variant}-0.0001.npy")
+        lengthwise = {1, 2, 7, 8, 9, 10, 15, 16}
+        along = np.array([t in lengthwise for t in thread_of])
+        width = p[:, 0].max() - p[:, 0].min()
+        front = p[:, 1] > 0
+        ridge = np.abs(p[front & along, 1]).max() if (front & along).any() else 0
+        hollow = np.abs(p[front & ~along, 1]).max() if (front & ~along).any() else 0
+        print(f"hira {variant}: width {width:.2f}d, lengthwise reaches {ridge:.2f}d, "
+              f"weft reaches {hollow:.2f}d, ridge over hollow {(ridge - hollow):.2f}d, "
+              f"ratio {(ridge - hollow) / width:.3f} (measured 0.45)")
