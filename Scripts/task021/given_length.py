@@ -286,3 +286,90 @@ if __name__ == "__main__":
     print("  bisecting R for hira, capsules:")
     r_min, trail = bisect(g.FIG20, g.RING_HIRA, True, 1e-3, "capsule")
     print(f"  R_min = {r_min:.3f}d   (model 3d = pitch 0.375; measured 0.3665)")
+
+
+# --- Task 021e: the height comes from the crossings, not from a given length ---
+
+def lay_by_crossing(table, ring, folded, pull, kind="capsule", cycles=CYCLES):
+    """Lay each carry one thread above the carries it crosses. **No length given.**
+
+    Task 021d put the braiding point up by R over the hands of a cycle, which for
+    R = 3d and twelve hands is a quarter of a thread a hand — less than a thread is
+    thick, so every carry was laid already inside the one it crossed and which way
+    up they came out was not decided. Here the height is the crossing itself:
+    **one thread's thickness above the highest carry under this one's path.**
+
+    **The runs up the surface are not counted.** A run's top is always the braiding
+    point, so counting them would put every carry above everything and make the
+    cycle as long as it has hands. A carry passing a run is a matter of radius, not
+    of length, and the non-penetration settles it sideways; the closing then shifts
+    the run to the next notch.
+
+    The length of a cycle is what comes out.
+    """
+    u_of = g.notch_ring_coordinate(ring)
+    starts = {thread: u_of[notch] for notch, thread in g.DISK_TO_STAND.items()}
+    p = np.array([[*r.at(u, ring, folded), 0.0] for _, u in sorted(starts.items())])
+    thread_of = [thread for thread, _ in sorted(starts.items())]
+    tip = {thread: i for i, thread in enumerate(thread_of)}
+    laid_in, links, beneath, held_u = [0] * len(p), [], [], dict(sorted(starts.items()))
+    carry = [False] * len(p)
+    turns, turned = [], []
+
+    hands = q.braiding_moves(table, ring, cycles)
+    for index, (thread, cycle, u_from, u_to) in enumerate(hands):
+        a, b = r.at(u_from, ring, folded), r.at(u_to, ring, folded)
+        crossed = q.under(p, a, b) & np.array(carry)
+        floor = float(p[crossed, 2].max()) if crossed.any() else 0.0
+        height = max(floor + D, float(p[tip[thread], 2]))
+        corners = [p[tip[thread]], np.array([*a, height]), np.array([*b, height])]
+        chain = r.beads_along(corners)
+        legs = [float(np.linalg.norm(y - x)) for x, y in zip(corners, corners[1:])]
+        total = sum(legs)
+        is_carry = [total * i / max(1, len(chain) - 1) > legs[0] for i in range(len(chain))]
+        chain, is_carry = chain[1:], is_carry[1:]
+        first = len(p)
+        p = np.concatenate([p, np.array(chain)])
+        thread_of.extend([thread] * len(chain))
+        laid_in.extend([cycle] * len(chain))
+        carry.extend(is_carry)
+        laid = np.arange(first, len(p))[np.array(is_carry)] if any(is_carry) else np.array([], int)
+        for other in np.nonzero(crossed)[0]:
+            if not len(laid):
+                continue
+            nearest = laid[np.argmin(np.linalg.norm(p[laid, :2] - p[other, :2], axis=1))]
+            if np.linalg.norm(p[nearest, :2] - p[other, :2]) < D:
+                beneath.append((int(nearest), int(other)))
+        links.append((tip[thread], first))
+        links.extend((first + i, first + i + 1) for i in range(len(chain) - 1))
+        tip[thread] = len(p) - 1
+        held_u[thread] = u_to
+        p = settle_once(p, links, laid_in, thread_of, tip, held_u, ring, folded,
+                        pull, PLACE_STEPS, kind, cycles, hold_ends=False)
+        flipped = [(above, under_) for above, under_ in beneath
+                   if p[above, 2] <= p[under_, 2]]
+        if len(flipped) > len(turned):
+            for above, under_ in flipped[len(turned):]:
+                turns.append((index, thread, cycle, int(thread_of[above]),
+                              int(thread_of[under_])))
+            turned = flipped
+
+    links, thread_of, laid_in = np.array(links), np.array(thread_of), np.array(laid_in)
+    packing, loose = [], []
+    for _ in range(0, SETTLE, SAMPLE_EVERY):
+        p = settle_once(p, links, laid_in, thread_of, tip, held_u, ring, folded,
+                        pull, SAMPLE_EVERY, kind, cycles, hold_ends=False)
+        packing.append(residuals(p, links, kind))
+    for _ in range(0, LOOSE, SAMPLE_EVERY):
+        p = settle_once(p, links, laid_in, thread_of, tip, held_u, ring, folded,
+                        0.0, SAMPLE_EVERY, kind, cycles, hold_ends=False)
+        loose.append(residuals(p, links, kind))
+    return dict(p=p, thread_of=thread_of, links=links, laid_in=laid_in,
+                beneath=beneath, packing=packing, loose=loose, turns=turns,
+                carry=np.array(carry))
+
+
+def cycle_length(p, laid_in, cycles=CYCLES, ends=ENDS):
+    inside = sorted(set(laid_in.tolist()))[ends:len(set(laid_in.tolist())) - ends]
+    heights = [float(p[laid_in == c, 2].mean()) for c in inside]
+    return (heights[-1] - heights[0]) / max(1, len(heights) - 1), inside
