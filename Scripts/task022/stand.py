@@ -170,7 +170,7 @@ def seed(stand, arc=0.0):
     finds the taut path. Nothing here decides where a thread ends up.
     """
     depth = stand.braiding_point_depth()
-    threads = []
+    threads, notches = [], []
     for notch, position in sorted(RESTING.items(), key=lambda kv: kv[1]):
         b = stand.bundle_angle(position)
         inner = np.array([stand.bundle_radius * math.cos(b),
@@ -182,4 +182,5 @@ def seed(stand, arc=0.0):
         if arc:
             line[:, 2] += arc * np.sin(math.pi * t[:, 0])
         threads.append(line[::-1].copy())      # bead 0 is the tama end, at the rim
-    return threads, depth
+        notches.append(notch)
+    return threads, depth, notches
