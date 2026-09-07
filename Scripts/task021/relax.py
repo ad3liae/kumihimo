@@ -54,9 +54,23 @@ def cross_section(ring, folded):
             for s in range(len(ring))}
 
 
-def build(table, ring, folded, variant, count=6):
-    """Beads on straight lines between successive arrivals. A move to the other
-    side runs through the middle of the section; the arc round the rim is not used."""
+def build(table, ring, folded, variant, count=6, shape="L"):
+    """Beads along each thread's starting path.
+
+    Two shapes, and **only this differs between 021a and 021b-2**:
+
+    `diagonal` (021a): a straight line from one arrival to the next. It puts the
+    beads of a carry at every height in between, so a carry shows on the surface
+    half way across. **It did not agree with the face.**
+
+    `L` (021b-2): the shape the stand's mechanics give (docs/architecture.md
+    「組み台の力学（作者の前提）」). A thread standing at a place is held against
+    the surface at that angle, so it runs *up* the surface from the height it
+    arrived at to the height it leaves. Then it is carried, and the carry is a
+    taut straight line across the section **at one height** — the height it leaves
+    at, which is the height it lands at. A carry touches the surface at its two
+    ends and nowhere else.
+    """
     z_of, k, boundaries, _ = g.lengthwise(table, ring, folded, count, variant)
     place = cross_section(ring, folded)
     positions, thread_of, links = [], [], []
@@ -67,13 +81,21 @@ def build(table, ring, folded, variant, count=6):
                 continue
             slot = boundaries[c + 1][thread]
             nodes.append(np.array([*place[slot], z_of[(thread, c)] * D]))
-        chain = []
+        corners = []
         for a, b in zip(nodes, nodes[1:]):
+            if shape == "L":
+                corners.append(a)
+                corners.append(np.array([a[0], a[1], b[2]]))   # up the surface, in place
+            else:
+                corners.append(a)
+        corners.append(nodes[-1])
+        chain = []
+        for a, b in zip(corners, corners[1:]):
             span = np.linalg.norm(b - a)
             steps = max(1, int(round(span / D)))
             for i in range(steps):
                 chain.append(a + (b - a) * (i / steps))
-        chain.append(nodes[-1])
+        chain.append(corners[-1])
         first = len(positions)
         positions.extend(chain)
         thread_of.extend([thread] * len(chain))
@@ -138,7 +160,12 @@ def relax(positions, thread_of, links, folded, pull,
 
 if __name__ == "__main__":
     import time
-    only = sys.argv[1:] or None          # e.g.  python3 relax.py hira A 0.001
+    shape = "L"
+    argv = sys.argv[1:]
+    if argv and argv[0] in ("L", "diagonal"):
+        shape, argv = argv[0], argv[1:]
+    only = argv or None                  # e.g.  python3 relax.py L hira A 0.001
+    print(f"initial arrangement: {shape}")
     print(f"{'braid':5s} {'var':3s} {'k':>2s} {'beads':>6s} {'pull':>8s} "
           f"{'link err':>10s} {'overlap':>9s} {'secs':>6s}  residual every"
           f" {SAMPLE_EVERY} steps (link)")
@@ -148,11 +175,11 @@ if __name__ == "__main__":
             for pull in (1e-4, 1e-3, 1e-2):
                 if only and [name, variant, f"{pull:g}"] != only:
                     continue
-                pos, threads, links, k = build(table, ring, folded, variant)
+                pos, threads, links, k = build(table, ring, folded, variant, shape=shape)
                 started = time.time()
                 p, link, overlap, series = relax(pos, threads, links, folded, pull)
                 took = time.time() - started
                 trail = " ".join(f"{l:.1e}" for _, l, _ in series)
                 print(f"{name:5s} {variant:3s} {k:2d} {len(pos):6d} {pull:8.4f} "
                       f"{link:10.2e} {overlap:9.2e} {took:6.1f}  {trail}")
-                np.save(f"/tmp/task021-{name}-{variant}-{pull:g}.npy", p)
+                np.save(f"/tmp/task021-{shape}-{name}-{variant}-{pull:g}.npy", p)

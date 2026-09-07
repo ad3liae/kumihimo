@@ -3,6 +3,8 @@ import sys, os, json, numpy as np
 sys.path.insert(0, __file__.rsplit('/', 1)[0])
 import braid_geometry as g, relax as r
 
+SHAPE = sys.argv[1] if len(sys.argv) > 1 else "L"
+
 OUT = "/Users/adeliae/Projects/kumihimo/.build/task021-figures"
 os.makedirs(OUT, exist_ok=True)
 HEX = {'yellow': '#E0B33C', 'blue': '#3E6FB0', 'green': '#2E7D4F', 'light-blue': '#8FC0D8',
@@ -98,7 +100,7 @@ def maru_figure(variant, p, thread_of, k):
                 body += cell(ox + c * CW, TOP + ri * CH, CW - 3, CH - 3, HEX['none'],
                              str(t) if t else "-")
     w = PAD * 2 + 2 * 8 * CW + PAD * 3
-    open(f"{OUT}/relax-maru-unrolled-{variant}.svg", "w").write(
+    open(f"{OUT}/relax-{SHAPE}-maru-unrolled-{variant}.svg", "w").write(
         svg(w, TOP + 8 * CH + PAD, body,
             f"maru-genji, variant {variant} — the relaxed surface against Task 004"))
 
@@ -121,7 +123,7 @@ def hira_figure(variant, p, thread_of, k, name, colours):
             fill = HEX[colours[t]] if (colours and t) else HEX['none']
             body += cell(x, TOP + ri * CH, CW - 3, CH - 3, fill, str(t) if t else "-", 12)
     w = PAD * 2 + len(lanes) * CW
-    open(f"{OUT}/relax-hira-unrolled-{variant}-{name}.svg", "w").write(
+    open(f"{OUT}/relax-{SHAPE}-hira-unrolled-{variant}-{name}.svg", "w").write(
         svg(w, TOP + 4 * CH + PAD, body,
             f"hira-genji, variant {variant} — the relaxed surface, {name}"))
 
@@ -147,17 +149,18 @@ def section_figure(braid, variant, p, thread_of, k, folded):
                      f'<text x="{cx+x*scale}" y="{cy-y*scale+4}" font-family="system-ui,sans-serif"'
                      f' font-size="10" text-anchor="middle" fill="#111">{t}</text>')
     w = PAD + 3 * (S + PAD)
-    open(f"{OUT}/relax-section-{braid}-{variant}.svg", "w").write(
+    open(f"{OUT}/relax-{SHAPE}-section-{braid}-{variant}.svg", "w").write(
         svg(w, TOP + 2 * (S + PAD + 22), body,
             f"{braid}-genji, variant {variant} — the cross-section at six heights"))
 
 
 if __name__ == "__main__":
+    shape = sys.argv[1] if len(sys.argv) > 1 else "L"
     for braid, table, ring, folded in (("hira", g.FIG20, g.RING_HIRA, True),
                                        ("maru", g.FIG32, g.RING_MARU, False)):
         for variant in "AB":
-            pos, thread_of, links, k = r.build(table, ring, folded, variant)
-            p = np.load(f"/tmp/task021-{braid}-{variant}-0.0001.npy")
+            pos, thread_of, links, k = r.build(table, ring, folded, variant, shape=shape)
+            p = np.load(f"/tmp/task021-{shape}-{braid}-{variant}-0.0001.npy")
             if braid == "maru":
                 maru_figure(variant, p, thread_of, k)
             else:
