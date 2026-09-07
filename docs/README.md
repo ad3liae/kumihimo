@@ -48,7 +48,7 @@
 - Task 007J 平源氏を「曲げたタイル」ではなく「糸」で作り直す（**Task 020 へ吸収**。段階A完了・段階B未完。糸の経路と糸のメッシュは Task 020 段階3 の部品として参照する）: `tasks/007j-hira-genji-as-strands.md`
 - Task 016 組み点の物理で寸法を解けるかの調査（未着手。**段階4「製品へどう載せるか」は Task 020 段階4 が引き取る**。段階1〜3 は調査として残る）: `tasks/016-braid-physics-feasibility.md`
 - Task 018 `everyRegionCarriesTheRidgeIncludingBothEdges` が2分かかる件（未着手。優先度低）: `tasks/018-slow-mesh-test.md`
-- Task 021 反発による深さの導出（実行済み・**不合格で停止**。長手の読み A のみ物理的に成立し pitch 0.375 は導出として立つが、緩和後の面は Task 004 とも p97 とも合わない。**Task 020 段階3 は着手しない**）: `tasks/021-depth-by-relaxation.md`
+- Task 021 反発による深さの導出（**021b-1 まで完了**。作者の前提「面に見えるのは留まっている糸」から、占有履歴だけで丸源氏は Task 004 と 32/32 一致・平源氏は p97 の3実験と一致。021a は不合格の記録として残す。次は 021b-2）: `tasks/021-depth-by-relaxation.md`
 
 ## 更新方針
 
