@@ -1,11 +1,11 @@
 """Draws what the stand settled into. Read-only; it decides nothing.
 
-    python3 Scripts/task022/figures.py .build/task022-dumps/seed-long.txt \
-            .build/task022-figures [settling.log]
+    python3 Scripts/task022/figures.py .build/task022-dumps/quasi-seed.txt \
+            .build/task022-figures [the run's log]
 
-Three views, all in thread diameters: the stand in section, the stand from
-above, and a close-up of the outer rim where the thread turns over and the tama
-hangs. Colours only tell threads apart.
+Four views, all in thread diameters: the stand in section, the stand from above
+with the threads numbered, a close-up of the outer rim, and how the residuals
+came down. Colours only tell threads apart.
 """
 import math
 import os
@@ -50,18 +50,23 @@ def mirror_profile(outer, inner, thickness, fillet):
 
 
 def section(p, thread_of, out, cfg):
-    """r against z: the thread coming up the hole, over the mirror, over the rim."""
-    W, H = 900, 620
+    """r against z: the thread leaving the braid, over the hole's rounding, and
+    out along the mirror to the rim. Drawn to scale."""
     r = np.hypot(p[:, 0], p[:, 1])
-    lo_z, hi_z = float(p[:, 2].min()) - 6, 8.0
-    hi_r = float(r.max()) + 8
-    sx = (W - 90) / hi_r
-    sy = (H - 80) / (hi_z - lo_z)
-    s = min(sx, sy)
-    def X(v): return 60 + v * s
-    def Y(v): return H - 30 - (v - lo_z) * s
+    lo_r, hi_r = 0.0, cfg["mirror"] + 6
+    lo_z, hi_z = -cfg["thickness"] - 4, 6.0
+    s = 840.0 / (hi_r - lo_r)
+    W = int((hi_r - lo_r) * s) + 70
+    H = int((hi_z - lo_z) * s) + 70
+
+    def X(v):
+        return 55 + (v - lo_r) * s
+
+    def Y(v):
+        return H - 25 - (v - lo_z) * s
+
     body = []
-    prof = mirror_profile(cfg["mirror"], cfg["hole"], 10.0, cfg["fillet"])
+    prof = mirror_profile(cfg["mirror"], cfg["hole"], cfg["thickness"], cfg["fillet"])
     body.append('<polygon points="' + " ".join(f"{X(a):.1f},{Y(b):.1f}" for a, b in prof) +
                 '" fill="#e8e4dc" stroke="#8a8578" stroke-width="1"/>')
     body.append(f'<line x1="{X(0):.1f}" y1="{Y(hi_z):.1f}" x2="{X(0):.1f}" y2="{Y(lo_z):.1f}" '
@@ -70,15 +75,13 @@ def section(p, thread_of, out, cfg):
         pick = thread_of == t
         pts = " ".join(f"{X(a):.1f},{Y(b):.1f}" for a, b in zip(r[pick], p[pick, 2]))
         body.append(f'<polyline points="{pts}" fill="none" stroke="{PALETTE[t % 16]}" '
-                    'stroke-width="1.1" opacity="0.85"/>')
-    for v in (0, 25, 50, 75, 100, 150, 200):
-        if -v >= lo_z:
-            body.append(f'<line x1="{X(0):.1f}" y1="{Y(-v):.1f}" x2="{X(hi_r):.1f}" '
-                        f'y2="{Y(-v):.1f}" stroke="#eee"/>'
-                        f'<text x="8" y="{Y(-v)+4:.1f}" font-family="Helvetica" font-size="10" '
-                        f'fill="#999">{-v} d</text>')
+                    'stroke-width="1.2" opacity="0.8"/>')
+    for v in (0, -5, -10):
+        if v >= lo_z:
+            body.append(f'<text x="8" y="{Y(v)+4:.1f}" font-family="Helvetica" font-size="10" '
+                        f'fill="#999">{v} d</text>')
     svg(os.path.join(out, "seed-section.svg"), W, H, "\n".join(body),
-        "Task 022-1  the seed in section (radius against height, thread diameters)")
+        "Task 022-1: the settled seed in section, to scale (thread diameters)")
 
 
 def above(p, thread_of, out, cfg):
@@ -103,62 +106,127 @@ def above(p, thread_of, out, cfg):
         pts = " ".join(f"{X(a):.1f},{Y(b):.1f}" for a, b in zip(p[pick, 0], p[pick, 1]))
         body.append(f'<polyline points="{pts}" fill="none" stroke="{PALETTE[t % 16]}" '
                     'stroke-width="1.4" opacity="0.9"/>')
+        # the thread's own number, out past the rim where its tama hangs
+        far = int(np.argmax(np.hypot(p[pick, 0], p[pick, 1])))
+        x, y = p[pick][far, 0], p[pick][far, 1]
+        body.append(f'<text x="{X(x*1.14):.1f}" y="{Y(y*1.14)+4:.1f}" '
+                    f'font-family="Helvetica" font-size="12" font-weight="bold" '
+                    f'fill="{PALETTE[t % 16]}" text-anchor="middle">{t + 1}</text>')
     svg(os.path.join(out, "seed-above.svg"), W, H, "\n".join(body),
-        "Task 022-1  the seed from above, with book C's 32 angles on the rim")
+        "Task 022-1: the settled seed from above (book C's 32 angles, threads numbered)")
 
 
 def rim(p, thread_of, out, cfg):
-    """Close up where the thread turns over the outer rim and the tama hangs."""
-    W, H = 760, 520
+    """Close up where the thread reaches the rim and goes on to its tama. Every
+    capsule is drawn at its own size, so a diameter is a diameter."""
     r = np.hypot(p[:, 0], p[:, 1])
-    lo_r, hi_r = cfg["mirror"] - 14, cfg["mirror"] + 12
-    lo_z, hi_z = -22.0, 6.0
-    s = min((W - 80) / (hi_r - lo_r), (H - 70) / (hi_z - lo_z))
-    def X(v): return 55 + (v - lo_r) * s
-    def Y(v): return H - 30 - (v - lo_z) * s
-    prof = mirror_profile(cfg["mirror"], cfg["hole"], 10.0, cfg["fillet"])
+    lo_r, hi_r = cfg["mirror"] - 18, cfg["mirror"] + 4
+    lo_z, hi_z = -cfg["thickness"] - 3, 5.0
+    s = 700.0 / (hi_r - lo_r)
+    W = int((hi_r - lo_r) * s) + 70
+    H = int((hi_z - lo_z) * s) + 70
+
+    def X(v):
+        return 55 + (v - lo_r) * s
+
+    def Y(v):
+        return H - 25 - (v - lo_z) * s
+
+    prof = mirror_profile(cfg["mirror"], cfg["hole"], cfg["thickness"], cfg["fillet"])
     body = ['<polygon points="' + " ".join(f"{X(a):.1f},{Y(b):.1f}" for a, b in prof) +
             '" fill="#e8e4dc" stroke="#8a8578" stroke-width="1"/>']
     for t in range(int(thread_of.max()) + 1):
         pick = (thread_of == t) & (r > lo_r) & (p[:, 2] > lo_z)
         for a, b in zip(r[pick], p[pick, 2]):
             body.append(f'<circle cx="{X(a):.1f}" cy="{Y(b):.1f}" r="{0.5*s:.1f}" '
-                        f'fill="{PALETTE[t % 16]}" opacity="0.5"/>')
+                        f'fill="{PALETTE[t % 16]}" opacity="0.45"/>')
     svg(os.path.join(out, "seed-rim.svg"), W, H, "\n".join(body),
-        "Task 022-1  the outer rim close up: one capsule, one dot, drawn to size (d)")
+        "Task 022-1: the rim close up, one capsule one dot, to scale")
 
 
-def settling(log, out):
-    xs, ys, zs = [], [], []
+def hole(p, thread_of, out, cfg):
+    """Close up at the hole: where the threads leave the braid, run up tangent to
+    the hole's rounding and lie down on the mirror. Every capsule at its own size."""
+    r = np.hypot(p[:, 0], p[:, 1])
+    lo_r, hi_r = 0.0, cfg["hole"] + 14
+    lo_z, hi_z = -cfg["thickness"] - 2, 4.0
+    s = 700.0 / (hi_r - lo_r)
+    W = int((hi_r - lo_r) * s) + 70
+    H = int((hi_z - lo_z) * s) + 70
+
+    def X(v):
+        return 55 + (v - lo_r) * s
+
+    def Y(v):
+        return H - 25 - (v - lo_z) * s
+
+    prof = mirror_profile(cfg["mirror"], cfg["hole"], cfg["thickness"], cfg["fillet"])
+    body = ['<polygon points="' + " ".join(f"{X(a):.1f},{Y(b):.1f}" for a, b in prof) +
+            '" fill="#e8e4dc" stroke="#8a8578" stroke-width="1"/>',
+            f'<line x1="{X(0):.1f}" y1="{Y(hi_z):.1f}" x2="{X(0):.1f}" y2="{Y(lo_z):.1f}" '
+            'stroke="#bbb" stroke-dasharray="4 4"/>']
+    for t in range(int(thread_of.max()) + 1):
+        pick = (thread_of == t) & (r < hi_r)
+        for a, b in zip(r[pick], p[pick, 2]):
+            body.append(f'<circle cx="{X(a):.1f}" cy="{Y(b):.1f}" r="{0.5*s:.1f}" '
+                        f'fill="{PALETTE[t % 16]}" opacity="0.4"/>')
+    if "braid-point" in cfg:
+        z = cfg["braid-point"]
+        body.append(f'<line x1="{X(0):.1f}" y1="{Y(z):.1f}" x2="{X(hi_r*0.35):.1f}" '
+                    f'y2="{Y(z):.1f}" stroke="#c0392b" stroke-dasharray="5 4"/>')
+        body.append(f'<text x="{X(hi_r*0.36):.1f}" y="{Y(z)+4:.1f}" font-family="Helvetica" '
+                    f'font-size="11" fill="#c0392b">braiding point {z:.2f} d</text>')
+    svg(os.path.join(out, "seed-hole.svg"), W, H, "\n".join(body),
+        "Task 022-1: the hole close up, one capsule one dot, to scale")
+
+
+def residuals(log, out):
+    """How the two residuals and the sweep's movement came down. Read off the run's
+    own output; nothing is fitted to it."""
+    sweeps, link, overlap, moved = [], [], [], []
     for line in open(log):
-        if not line.startswith("settled"):
-            continue
         w = line.split()
-        xs.append(float(w[1])); ys.append(float(w[4])); zs.append(float(w[6]))
-    if not xs:
+        if len(w) < 9 or w[0] != "sweep":
+            continue
+        sweeps.append(float(w[1]))
+        link.append(float(w[3]))
+        overlap.append(float(w[5]))
+        moved.append(float(w[7]))
+    if len(sweeps) < 2:
         return
     W, H = 760, 380
-    top = max(max(ys), 1e-6)
-    def X(v): return 60 + (W - 90) * v / max(xs)
-    def Y(v): return H - 40 - (H - 80) * (math.log10(max(v, 1e-6)) - math.log10(1e-4)) / \
-                             (math.log10(top) - math.log10(1e-4) + 1e-9)
+    floor = 1e-6
+    top = max(max(link), max(overlap), 1e-2)
+
+    def X(v):
+        return 60 + (W - 90) * v / max(sweeps)
+
+    def Y(v):
+        lo, hi = math.log10(floor), math.log10(top)
+        return H - 40 - (H - 80) * (math.log10(max(v, floor)) - lo) / (hi - lo)
+
     body = [f'<line x1="55" y1="{H-40}" x2="{W-20}" y2="{H-40}" stroke="#999"/>',
             f'<line x1="55" y1="30" x2="55" y2="{H-40}" stroke="#999"/>']
-    for name, series, colour in (("fastest capsule", ys, "#c0392b"), ("mean", zs, "#2980b9")):
-        body.append('<polyline points="' + " ".join(f"{X(a):.1f},{Y(b):.1f}"
-                                                    for a, b in zip(xs, series)) +
-                    f'" fill="none" stroke="{colour}" stroke-width="1.6"/>')
-    for e in range(-4, 3):
+    for e in range(-6, 1):
         v = 10.0 ** e
         if v <= top:
-            body.append(f'<text x="10" y="{Y(v)+4:.1f}" font-family="Helvetica" font-size="10" '
-                        f'fill="#999">1e{e}</text>')
-    body.append(f'<text x="{W-200}" y="50" font-family="Helvetica" font-size="11" '
-                'fill="#c0392b">fastest capsule</text>')
-    body.append(f'<text x="{W-200}" y="66" font-family="Helvetica" font-size="11" '
-                'fill="#2980b9">mean</text>')
-    svg(os.path.join(out, "seed-settling.svg"), W, H, "\n".join(body),
-        "Task 022-1  speed while the seed settles (log scale, d per unit time)")
+            body.append(f'<line x1="55" y1="{Y(v):.1f}" x2="{W-20}" y2="{Y(v):.1f}" '
+                        f'stroke="#eee"/>'
+                        f'<text x="10" y="{Y(v)+4:.1f}" font-family="Helvetica" '
+                        f'font-size="10" fill="#999">1e{e}</text>')
+    for name, series, colour, y in (("gap between neighbours", link, "#2980b9", 50),
+                                    ("deepest overlap", overlap, "#c0392b", 66),
+                                    ("moved this sweep", moved, "#7f8c8d", 82)):
+        good = [(a, b) for a, b in zip(sweeps, series) if b < 1e30]
+        body.append('<polyline points="' +
+                    " ".join(f"{X(a):.1f},{Y(b):.1f}" for a, b in good) +
+                    f'" fill="none" stroke="{colour}" stroke-width="1.6"/>')
+        body.append(f'<text x="{W-240}" y="{y}" font-family="Helvetica" font-size="11" '
+                    f'fill="{colour}">{name}</text>')
+    body.append(f'<text x="{W/2:.0f}" y="{H-12}" font-family="Helvetica" font-size="11" '
+                f'fill="#999" text-anchor="middle">sweeps</text>')
+    svg(os.path.join(out, "seed-residuals.svg"), W, H, "\n".join(body),
+        "Task 022-1: the seed being pulled tight (thread diameters, log scale)")
 
 
 def main():
@@ -167,13 +235,15 @@ def main():
     p, thread_of, index_in, hand, header = read_dump.read(dump)
     s = read_dump.settings(header)
     cfg = {"mirror": s.get("mirror", 62.5), "hole": s.get("hole", 7.5),
-           "fillet": s.get("fillet", 1.0),
+           "fillet": s.get("fillet", 1.0), "thickness": s.get("thickness", 10.0),
            "clockwise": "anticlockwise" not in (header[0] if header else "")}
+    cfg["braid-point"] = s.get("braid-point", -1.665)
     section(p, thread_of, out, cfg)
+    hole(p, thread_of, out, cfg)
     above(p, thread_of, out, cfg)
     rim(p, thread_of, out, cfg)
     if len(sys.argv) > 3:
-        settling(sys.argv[3], out)
+        residuals(sys.argv[3], out)
     print("wrote figures into", out)
 
 

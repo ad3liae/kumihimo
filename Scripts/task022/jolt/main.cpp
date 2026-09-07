@@ -33,6 +33,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--fillet")) config.fillet = (float)atof(next());
         else if (!strcmp(argv[i], "--step")) config.step = (float)atof(next());
         else if (!strcmp(argv[i], "--damping")) config.damping = (float)atof(next());
+        else if (!strcmp(argv[i], "--inertia")) config.inertia = (float)atof(next());
         else if (!strcmp(argv[i], "--velocity-steps")) config.velocity_steps = atoi(next());
         else if (!strcmp(argv[i], "--position-steps")) config.position_steps = atoi(next());
         else if (!strcmp(argv[i], "--anticlockwise")) config.clockwise = false;
@@ -50,10 +51,10 @@ int main(int argc, char **argv) {
            defaults.speculative_contact_distance, defaults.baumgarte, defaults.time_before_sleep);
     printf("settings  step %.5f  velocity %d  position %d  collision %d  gravity %.3f  "
            "beads %d  spacing %.2f  knot %.1f  slack %.2f  tama %.0f  takeup %.0f  "
-           "fillet %.2f  damping %.3f  %s\n",
+           "fillet %.2f  damping %.3f  inertia %.0f  %s\n",
            config.step, config.velocity_steps, config.position_steps, config.collision_steps,
            config.gravity, config.beads, config.bead_spacing, config.knot_depth, config.slack,
-           config.tama_mass, config.takeup_mass, config.fillet, config.damping,
+           config.tama_mass, config.takeup_mass, config.fillet, config.damping, config.inertia,
            config.clockwise ? "clockwise" : "anticlockwise");
 
     sim.BuildSeed();
@@ -66,8 +67,9 @@ int main(int argc, char **argv) {
     for (float done = 0.0f; done < settle - 1e-4f; done += slice) {
         last = sim.Settle(std::min(slice, settle - done));
         printf("settled %5.1f   max speed %10.4f   mean %10.5f   awake %5d   "
-               "deepest overlap %8.4f\n",
-               done + slice, last.max_speed, last.mean_speed, last.awake, last.max_penetration);
+               "deepest overlap %8.4f   link mean %6.4f max %6.4f\n",
+               done + slice, last.max_speed, last.mean_speed, last.awake, last.max_penetration,
+               last.mean_stretch, last.max_stretch);
         fflush(stdout);
     }
     printf("tension in the first segment, by thread (gram-force):");
@@ -89,10 +91,11 @@ int main(int argc, char **argv) {
         if (f == nullptr) { fprintf(stderr, "cannot write %s\n", out.c_str()); return 1; }
         fprintf(f, "# braid_on_stand  hands %d  beads %d  threads %d  step %.5f  "
                    "velocity %d  position %d  knot %.1f  slack %.2f  tama %.0f  takeup %.0f  "
-                   "mirror %.1f hole %.1f fillet %.2f  %s\n",
+                   "mirror %.1f hole %.1f fillet %.2f  inertia %.0f  damping %.3f  %s\n",
                 hands, config.beads, config.threads, config.step, config.velocity_steps,
                 config.position_steps, config.knot_depth, config.slack, config.tama_mass,
                 config.takeup_mass, config.mirror_radius, config.hole_radius, config.fillet,
+                config.inertia, config.damping,
                 config.clockwise ? "clockwise" : "anticlockwise");
         fprintf(f, "# hand thread bead x y z   (lengths in thread diameters)\n");
         std::vector<float> p((size_t)sim.BeadCount() * 3);

@@ -1,6 +1,7 @@
-# Task 022: braiding on the stand. The engine is Jolt Physics, pinned by tag.
+# Task 022, the dynamic harness: KEPT AS A RECORD, not adopted.
+# See Scripts/task022/README.md. The engine is Jolt Physics, pinned by tag.
 #
-#     cmake -S Scripts/task022 -B .build/task022-build -G Ninja \
+#     cmake -S Scripts/task022/jolt -B .build/task022-build -G Ninja \
 #           -DCMAKE_BUILD_TYPE=Release
 #     cmake --build .build/task022-build
 #

@@ -220,7 +220,8 @@ void Sim::BuildSeed() {
                                    (JPH::CollisionGroup::SubGroupID)(i + 1));
 
     JPH::CapsuleShapeSettings capsule_settings(c.capsule_half, c.thread_radius);
-    capsule_settings.SetDensity(c.thread_density);
+    // Mass up, gravity down by the same factor: the capsule's weight is unchanged.
+    capsule_settings.SetDensity(c.thread_density * (c.inertia > 0.0f ? c.inertia : 1.0f));
     capsule_settings.SetEmbedded();
     JPH::ShapeRefC capsule = capsule_settings.Create().Get();
 
@@ -273,6 +274,7 @@ void Sim::BuildSeed() {
             bcs.mCollisionGroup = JPH::CollisionGroup(s.filter, (JPH::CollisionGroup::GroupID)t,
                                                       (JPH::CollisionGroup::SubGroupID)i);
             bcs.mEnhancedInternalEdgeRemoval = true;
+            if (c.inertia > 0.0f) bcs.mGravityFactor = 1.0f / c.inertia;
             if (c.damping >= 0.0f) {
                 // Settling is quasi-static: damping only decides how long the
                 // swinging takes, not where it comes to rest. A solver setting.
@@ -344,6 +346,21 @@ Settling Sim::Settle(float seconds) {
     }
     out.mean_speed = s.beads.empty() ? 0.0f : (float)(total / (double)s.beads.size());
     out.max_penetration = s.penetration.deepest;
+
+    // How long the links have become. A point joint is rigid, so anything but 1
+    // is the solver failing to hold the chain, not the thread giving.
+    double sum = 0.0;
+    int links = 0;
+    for (int t = 0; t < s.config.threads; ++t)
+        for (int i = 0; i + 1 < s.config.beads; ++i) {
+            float len = (bi.GetPosition(s.beads[s.BeadIndex(t, i + 1)])
+                         - bi.GetPosition(s.beads[s.BeadIndex(t, i)])).Length();
+            float ratio = len / s.config.bead_spacing;
+            sum += ratio;
+            ++links;
+            out.max_stretch = std::max(out.max_stretch, ratio);
+        }
+    out.mean_stretch = links ? (float)(sum / links) : 0.0f;
     return out;
 }
 

@@ -52,6 +52,15 @@ struct Config {
     bool clockwise = true;
 
     // Solver settings. NOT model constants. Recorded and held fixed.
+    //
+    // A thread capsule weighs 0.0094 g and a tama 100 g, a ratio of about 10^4,
+    // and a sequential-impulse solver cannot hold a chain across that: the links
+    // came out 12-22% long under the real weights (Task 022-1). `inertia`
+    // multiplies the capsules' mass, and their gravity factor is divided by the
+    // same number, so **every capsule still weighs 0.0094 gf** -- only its
+    // inertia grows. Nothing the braid feels changes; what changes is how well
+    // the solver holds it. Run two values and the answer must be the same.
+    float inertia = 1.0f;
     float gravity = 9.81f;
     float damping = -1.0f;          // < 0 keeps the engine's own default (0.05)
     float step = 1.0f / 120.0f;
@@ -70,6 +79,8 @@ struct Settling {
     float mean_speed = 0.0f;
     int awake = 0;                    // bodies Jolt has not put to sleep
     float max_penetration = 0.0f;     // deepest overlap found, in d
+    float mean_stretch = 0.0f;        // link length over its rest length, averaged
+    float max_stretch = 0.0f;         // the longest link, the same way
 };
 
 // What the engine's own defaults are, read out of the engine rather than set
