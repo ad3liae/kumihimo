@@ -128,3 +128,97 @@ def lengthwise(table, ring, folded, count, variant):
                 if boundaries[c + 1][thread] == place:
                     z_of[(thread, c)] = c * k + i
     return z_of, k, boundaries, piles
+
+
+# --- the disk's own thirty-two notches ---------------------------------------
+#
+# **The source of record works on a disk, and a carried thread lands on a notch
+# next to its resting place, not on it.** The closing then walks it in. Reading the
+# table at the sixteen resting places throws that away and puts two threads on the
+# same line; reading it at the thirty-two notches keeps them apart. Nothing here is
+# chosen: the notches, the pairs and the gap between pairs are all counted off the
+# table's own numbering.
+
+def _groups():
+    rest = sorted(DISK_TO_STAND)
+    groups, current = [], [rest[0]]
+    for notch in rest[1:]:
+        if notch - current[-1] == 1:
+            current.append(notch)
+        else:
+            groups.append(current)
+            current = [notch]
+    groups.append(current)
+    gaps = {groups[i + 1][0] - groups[i][-1] for i in range(len(groups) - 1)}
+    gaps.add((groups[0][0] + NOTCHES) - groups[-1][-1])
+    if len(gaps) != 1:
+        raise SystemExit(f"the resting notches are not evenly grouped: gaps {gaps}")
+    return groups, gaps.pop()
+
+
+def notch_ring_coordinate(ring):
+    """Every notch as a place on the braid's cross-section ring, in slots.
+
+    A resting notch is its own slot. A notch between two groups is as far from the
+    nearer resting notch, in slots, as it is in notches divided by the gap — and on
+    the side away from that notch's own partner, because that is the side of the
+    disk it is on.
+    """
+    index = {position: i for i, position in enumerate(ring)}
+    groups, gap = _groups()
+    partner, own = {}, {}
+    for group in groups:
+        for notch in group:
+            others = [n for n in group if n != notch]
+            partner[notch] = others[0] if others else None
+            own[notch] = group
+    size = len(ring)
+
+    def slot(notch):
+        return index[DISK_TO_STAND[notch]]
+
+    def away(notch):
+        """+1 or -1: the way round the ring that leads out of this notch's group."""
+        other = partner[notch]
+        if other is None:
+            return 1
+        step = (slot(notch) - slot(other)) % size
+        return 1 if step == 1 else -1
+
+    out = {}
+    for notch in range(1, NOTCHES + 1):
+        if notch in DISK_TO_STAND:
+            out[notch] = float(slot(notch))
+            continue
+        nearest, distance = None, NOTCHES
+        for rest_notch in DISK_TO_STAND:
+            d = notch_distance(notch, rest_notch)
+            if d < distance:
+                nearest, distance = rest_notch, d
+        out[notch] = (slot(nearest) + away(nearest) * distance / gap) % size
+    return out
+
+
+def notch_carries(table, ring, count, variant):
+    """Every carry as (thread, cycle, u it leaves from, u it lands on, z).
+
+    The thread is named by the place it starts at. `u` is in slots on the braid's
+    cross-section ring, from the disk's own notches. `z` is the settled stacking
+    model's, unchanged: the layer number at the place it lands, times the diameter.
+    """
+    z_of, k, boundaries, _ = lengthwise(table, ring, folded=(ring is RING_HIRA),
+                                        count=count, variant=variant)
+    u_of = notch_ring_coordinate(ring)
+    occupant = dict(DISK_TO_STAND)                 # notch -> thread
+    out = []
+    for cycle in range(count - 1):
+        for move in table:
+            thread = occupant.pop(move[0])
+            occupant[move[1]] = thread
+            if is_repositioning(move):
+                continue
+            z = z_of.get((thread, cycle))
+            if z is None:
+                continue
+            out.append((thread, cycle, u_of[move[0]], u_of[move[1]], z))
+    return out, k, u_of

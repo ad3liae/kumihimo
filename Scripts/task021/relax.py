@@ -42,6 +42,9 @@ SAMPLE_EVERY = 500          # the residual is recorded this often
 # reported and the reader can see which it is.
 
 
+FRONT_HIRA = set(range(0, 7)) | {15}                  # the fold's front arc
+
+
 def cross_section(ring, folded):
     """Where each place sits in the cross-section, from the derived fold or ring."""
     if not folded:
@@ -49,9 +52,28 @@ def cross_section(ring, folded):
         return {s: np.array([radius * np.sin(2 * np.pi * s / len(ring)),
                              radius * np.cos(2 * np.pi * s / len(ring))])
                 for s in range(len(ring))}
-    front = set(range(0, 7)) | {15}                   # the fold's front arc
-    return {s: np.array([g.WIDTH_HIRA[s] * D, (0.5 if s in front else -0.5) * D])
+    return {s: np.array([g.WIDTH_HIRA[s] * D, (0.5 if s in FRONT_HIRA else -0.5) * D])
             for s in range(len(ring))}
+
+
+def at(u, ring, folded):
+    """A point on the cross-section at a fractional place `u`.
+
+    **The radius does not change.** The sixteen resting notches still go round a
+    circumference of sixteen threads; the thirty-two notches simply name half-slots
+    on the same ring. A folded braid reads the width and the side the same way,
+    between the two slots `u` lies between.
+    """
+    size = len(ring)
+    if not folded:
+        radius = size * D / (2 * np.pi)
+        return np.array([radius * np.sin(2 * np.pi * u / size),
+                         radius * np.cos(2 * np.pi * u / size)])
+    low, share = int(np.floor(u)) % size, u - np.floor(u)
+    high = (low + 1) % size
+    def point(s):
+        return np.array([g.WIDTH_HIRA[s] * D, (0.5 if s in FRONT_HIRA else -0.5) * D])
+    return point(low) * (1 - share) + point(high) * share
 
 
 def build(table, ring, folded, variant, count=6, shape="L"):
@@ -71,6 +93,8 @@ def build(table, ring, folded, variant, count=6, shape="L"):
     at, which is the height it lands at. A carry touches the surface at its two
     ends and nowhere else.
     """
+    if shape == "notch":
+        return build_on_notches(table, ring, folded, variant, count)
     z_of, k, boundaries, _ = g.lengthwise(table, ring, folded, count, variant)
     place = cross_section(ring, folded)
     positions, thread_of, links = [], [], []
@@ -103,6 +127,58 @@ def build(table, ring, folded, variant, count=6, shape="L"):
     return (np.array(positions), np.array(thread_of), np.array(links), k)
 
 
+def build_on_notches(table, ring, folded, variant, count=6):
+    """The L arrangement, with the ends where the source of record puts them.
+
+    **Only the cross-section coordinates change.** The lengthwise coordinate is the
+    settled stacking model's, untouched; the shape is still a taut run up the
+    surface and a taut carry across at one height. What changes is that a carry now
+    ends on the notch it is actually put in — beside the resting place, not on it —
+    and the run leans over to the resting place because the closing walks it there
+    without advancing the braid.
+    """
+    carries, k, _ = g.notch_carries(table, ring, count, variant)
+    per_thread = {}
+    for thread, cycle, u_from, u_to, z in carries:
+        per_thread.setdefault(thread, []).append((cycle, u_from, u_to, z))
+    positions, thread_of, links = [], [], []
+    for thread in sorted(per_thread):
+        runs = sorted(per_thread[thread])
+        corners = []
+        for index, (_, u_from, u_to, z) in enumerate(runs):
+            corners.append(np.array([*at(u_from, ring, folded), z * D]))   # leaves here
+            corners.append(np.array([*at(u_to, ring, folded), z * D]))     # lands here
+        chain = beads_along(corners)
+        first = len(positions)
+        positions.extend(chain)
+        thread_of.extend([thread] * len(chain))
+        links.extend((first + i, first + i + 1) for i in range(len(chain) - 1))
+    return (np.array(positions), np.array(thread_of), np.array(links), k)
+
+
+def beads_along(corners):
+    """Beads a diameter apart along the whole path, not along each leg.
+
+    Spacing each leg on its own leaves a link as long as the leg when the leg is
+    shorter than a bead and a half. That is an artefact of where the beads are put
+    down, not of the braid, and it starts the solver with the distance constraint
+    already broken. **Measuring along the path instead starts every link at exactly
+    d.** The older arrangements keep their own spacing so they stay reproducible.
+    """
+    lengths = [float(np.linalg.norm(b - a)) for a, b in zip(corners, corners[1:])]
+    total = sum(lengths)
+    count = max(1, int(round(total / D)))
+    chain, leg, walked = [], 0, 0.0
+    for step in range(count + 1):
+        wanted = total * step / count
+        while leg < len(lengths) - 1 and walked + lengths[leg] < wanted:
+            walked += lengths[leg]
+            leg += 1
+        share = 0.0 if lengths[leg] == 0 else (wanted - walked) / lengths[leg]
+        chain.append(corners[leg] + (corners[leg + 1] - corners[leg]) * share)
+    return chain
+
+
 def relax(positions, thread_of, links, folded, pull,
           iterations=ITERATIONS, settling=SETTLING):
     p = positions.copy()
@@ -110,6 +186,16 @@ def relax(positions, thread_of, links, folded, pull,
     a, b = links[:, 0], links[:, 1]
     adjacent = {(min(i, j), max(i, j)) for i, j in zip(a, b)}
     series = []
+
+    # A unit vector in the section, at right angles to each bead's own run. Used
+    # only to break the tie between two beads at the very same point.
+    run = np.zeros_like(p)
+    np.add.at(run, a, p[b] - p[a])
+    np.add.at(run, b, p[b] - p[a])
+    sideways = np.stack([-run[:, 1], run[:, 0], np.zeros(len(p))], axis=1)
+    length = np.linalg.norm(sideways, axis=1, keepdims=True)
+    sideways = np.where(length > 1e-9, sideways / np.maximum(length, 1e-9),
+                        np.array([1.0, 0.0, 0.0]))
 
     def residuals():
         delta = p[b] - p[a]
@@ -148,7 +234,19 @@ def relax(positions, thread_of, links, folded, pull,
                 i, j = pairs[:, 0], pairs[:, 1]
                 diff = p[i] - p[j]
                 gap = np.linalg.norm(diff, axis=1)
+                # **Two beads at the very same point have no direction to be
+                # pushed apart along**, so the least-motion rule has nothing to
+                # say and they stay stuck for ever while their neighbours walk
+                # away — which is what puts a link at sqrt(2). The tie is broken
+                # the way the pinned lengthwise coordinate already forces: they
+                # slide past each other in the section, at right angles to the
+                # first one's own run. Deterministic, and no magnitude of its own.
+                stuck = gap < 1e-12
+                if stuck.any():
+                    diff[stuck] = sideways[i[stuck]]
+                    gap = np.where(stuck, 0.0, gap)
                 push = ((D - gap) / 2 / np.maximum(gap, 1e-9))[:, None] * diff
+                push[stuck] = diff[stuck] * (D / 2)
                 np.add.at(p, i, push)
                 np.add.at(p, j, -push)
             p[:, 2] = z                                   # the lengthwise coordinate is held
@@ -162,7 +260,7 @@ if __name__ == "__main__":
     import time
     shape = "L"
     argv = sys.argv[1:]
-    if argv and argv[0] in ("L", "diagonal"):
+    if argv and argv[0] in ("L", "diagonal", "notch"):
         shape, argv = argv[0], argv[1:]
     only = argv or None                  # e.g.  python3 relax.py L hira A 0.001
     print(f"initial arrangement: {shape}")
