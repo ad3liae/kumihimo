@@ -42,6 +42,12 @@ struct BraidDiskNotation: Equatable, Sendable {
     /// notches of thirty-two in both Genji braids. Tidying a group back onto its
     /// standard places only ever shifts a thread to the notch next door. There is
     /// no overlap between the two, so nothing has to be marked by hand.
+    ///
+    /// **The one is a constant, and it has only been checked against Fig.20 and
+    /// Fig.32.** Those two leave a gap of ten notches between the shortest braiding
+    /// move and the longest tidy, which is why one is safe here. A square stand
+    /// (stage 5) or a method somebody invents (stage 4) has not been looked at, and
+    /// a braid whose braiding moves are short would need this read another way.
     func isRepositioning(_ move: BraidMove) -> Bool { notches(move) == 1 }
 
     var braidingMoves: [BraidMove] { moves.filter { !isRepositioning($0) } }
