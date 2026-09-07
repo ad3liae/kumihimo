@@ -60,7 +60,10 @@ def cycles(table, ring, count):
             occupant[move[1]] = thread
             if not is_repositioning(move):
                 order.append(DISK_TO_STAND[thread])
-        carried.append({t: i // 2 + 1 for i, t in enumerate(order)})   # Z per printed step
+        # **Z counts book C's moves, one thread at a time.** The source of record
+        # moves one thread to a line, so the two threads book A prints as a pair
+        # have a first and a second, and the later one is laid on the earlier.
+        carried.append({t: i + 1 for i, t in enumerate(order)})
     boundaries.append({DISK_TO_STAND[t]: index[DISK_TO_STAND[n]]
                        for n, t in occupant.items()})
     return boundaries, carried
