@@ -137,8 +137,12 @@ struct BraidCentrelines: Equatable, Sendable {
         let total = (span * span).sum().squareRoot()
         guard total > 1e-9 else { return ([rest.from, rest.to], 0) }
         let count = max(2, Int((total / fine).rounded(.up)) + 1)
+        // Stepped the way the Python steps it, so the two agree bit for bit and a
+        // point on a slab's edge falls the same side in both.
         var along = [Double](repeating: 0, count: count)
-        for index in 0..<count { along[index] = total * Double(index) / Double(count - 1) }
+        let step = total / Double(count - 1)
+        for index in 0..<count { along[index] = Double(index) * step }
+        along[count - 1] = total
         var rise = [Double](repeating: 0, count: count)
         var raised = 0
 
@@ -247,8 +251,9 @@ struct BraidCentrelines: Equatable, Sendable {
         guard total > 1e-12 else { return line }
         let count = max(2, Int((total / fine).rounded(.up)) + 1)
         var out = [SIMD3<Double>]()
+        let step = total / Double(count - 1)
         for index in 0..<count {
-            let want = total * Double(index) / Double(count - 1)
+            let want = index == count - 1 ? total : Double(index) * step
             var leg = 1
             while leg < along.count - 1 && along[leg] < want { leg += 1 }
             let span = along[leg] - along[leg - 1]
