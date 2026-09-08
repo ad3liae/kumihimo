@@ -47,7 +47,7 @@ def main():
     ap.add_argument("--dumps", default="", help="write every hand under this prefix")
     ap.add_argument("--hands", type=int, default=0, help="how many of book C's hands to play")
     ap.add_argument("--maru", action="store_true", help="Fig.32 instead of Fig.20")
-    ap.add_argument("--growth", choices=("place", "column"), default="place",
+    ap.add_argument("--growth", choices=("place", "column"), default="column",
                     help="how far to send the braid down: the largest rise of any one\n                          place's top, or how far the column stands above the braiding point")
     ap.add_argument("--freeze-depth", type=float, default=bd.FREEZE_DEPTH,
                     help="how far below the braiding point the braid has closed over")
@@ -101,6 +101,7 @@ def main():
     print("\nhand  move   kind     thread  outer  inner  cap  secs   sent   taken  cross  rev  "
           "link      overlap   braid")
     growth = {}
+    was, clock = 0.0, time.time()
     for h in range(args.hands):
         move = table[h % len(table)]
         thread = bd.thread_at(braid, move[0])
@@ -128,6 +129,16 @@ def main():
         sys.stdout.flush()
         if args.dumps:
             braid.write("%s-hand-%02d.txt" % (args.dumps, h + 1), h + 1)
+        if (h + 1) % len(table) == 0:
+            cycle = (h + 1) // len(table)
+            frozen = sum(len(m) for m in braid.made)
+            print("cycle %d done: braid %.3f d (this cycle %.3f), frozen %d beads, "
+                  "crossings %d, reversals %d, residual %.2e/%.2e, %.0f s so far"
+                  % (cycle, braid.length(), braid.length() - was, frozen,
+                     len(braid.crossings), len(braid.reversals()),
+                     after[-1][1], after[-1][2], time.time() - clock))
+            sys.stdout.flush()
+            was = braid.length()
         if turned:
             print("\nA crossing came out the other way up. Stopping, as instructed.")
             for ta, ia, tb, ib in turned:

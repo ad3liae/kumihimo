@@ -66,6 +66,11 @@ class Braid:
         self.made = [[[t[-1].copy(), 0]] for t in threads]   # oldest first
         self.notch = list(notches)
         self.crossings = {}          # (ta, ia, tb, ib) -> nothing; a is above b
+        # Which hand last carried each thread. **Not the hand the braid closed over
+        # a bead**: a take-in swallows a slab of every thread at once, so beads laid
+        # many hands apart are frozen together, and comparing by the freezing hand
+        # throws away every crossing there is.
+        self.carried = [0] * stand.threads
         self.hand = 0
 
     # --- the threads as the solver wants them -------------------------------
@@ -130,6 +135,7 @@ class Braid:
         laid = taut.respace(route[::-1])   # rim first, the braid end held last
         self.free[thread] = laid[:-1]     # the last point is the braid's, not the free part's
         self.notch[thread] = to_notch
+        self.carried[thread] = self.hand
 
     def tighten(self, every=1000, log=None):
         threads, series, _ = taut.tighten(self.threads(), self.stand, frozen=self.masks(),
@@ -200,7 +206,7 @@ class Braid:
             # `made` runs deepest first, and the beads just swallowed run from the
             # junction inward, so they go on deepest first too.
             for bead in free[keep:][::-1]:
-                self.made[i].append([bead.copy(), hand])
+                self.made[i].append([bead.copy(), self.carried[i]])
             self.free[i] = free[:keep].copy()
             taken += len(free) - keep
         return sent, taken, series
