@@ -31,6 +31,7 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "task021"))
 import braid_geometry as g
+import directed
 import given_length as gl
 import settle
 
@@ -410,52 +411,63 @@ def main():
     ap.add_argument("--braid", choices=("hira", "maru"), default="hira")
     ap.add_argument("--cycles", type=int, default=2)
     ap.add_argument("--out", default="")
-    ap.add_argument("--rounds", type=int, default=1,
-                    help="passes of the separation. **One.** It only has to put each "
-                         "crossing the right way round; the projection takes the "
-                         "overlaps out afterwards")
-    ap.add_argument("--no-project", action="store_true")
+    ap.add_argument("--cap", type=int, default=directed.CAP)
     args = ap.parse_args()
 
     began = time.time()
+    # **No seeding pass.** The direction each contact parts in is in the projection
+    # itself now, so the construction is laid down straight and nothing is bumped.
     (lines, threads, k, where, order, lifts, bulges, most_lift, most_bulge,
-     stuck, parts, left) = build(args.braid, args.cycles, args.rounds)
-    print("%s: %d threads, %d cycles, k = %d layers a cycle (one cycle is %d d)"
-          % (args.braid, len(lines), args.cycles, k, k))
-    print("  carries lifted over carries: %d (most %.2f d)" % (lifts, most_lift))
-    print("  rests bulged over carries:   %d (most %.2f d)" % (bulges, most_bulge))
-    print("  rest against rest: %d;  pairs still closer than d after the seeding: %d"
-          % (len(stuck), left))
-    reversed_ = turned_over(parts, order)
-    print("  crossings the other way up, before the projection: %d" % len(reversed_))
-    print("  constructed in %.2f s" % (time.time() - began))
+     stuck, parts, left) = build(args.braid, args.cycles, rounds=0)
+    folded = args.braid == "hira"
 
-    thread_order = sorted(lines)
-    spans = carry_spans(parts, order, thread_order)
-    ways = [settle.beads(lines[t]) for t in thread_order]
-    if not args.no_project:
-        began = time.time()
-        ways, rounds, link, overlap, most, mean = settle.project(
-            ways, log=lambda r, l, o: print("    round %5d  neighbours %.2e  overlap %.2e"
-                                            % (r, l, o)))
-        print("  projected: %d rounds, %.1f s, neighbours %.2e, overlap %.2e"
-              % (rounds, time.time() - began, link, overlap))
-        print("  beads moved: most %.3f d, mean %.3f d" % (most, mean))
-        remaining, deepest = settle.left_over(ways)
-        print("  pairs still over the tolerance: %d (deepest %.3f d)" % (remaining, deepest))
-        after = turned_over_after(ways, spans, order, thread_order)
-        print("  crossings the other way up, after the projection: %d" % len(after))
-        for key, gap in sorted(after, key=lambda e: e[1])[:6]:
-            print("    thread %d carry %d is %.3f d under the one it was laid over"
-                  % (key[0], key[2], -gap))
+    def normal_of(thread, i):
+        return normal_at(threads[thread][i][0], where, folded)
+
+    base, axis, kind, thread_of, rank, links, counts = directed.lay_out(
+        parts, order, where, normal_of)
+    print("%s: %d threads, %d cycles, k = %d layers a cycle (one cycle is %d d)"
+          % (args.braid, len(counts), args.cycles, k, k))
+    print("  %d capsules: %d resting, %d carrying;  constructed in %.2f s"
+          % (len(base), int((kind == 0).sum()), int((kind == 1).sum()),
+             time.time() - began))
+
+    began = time.time()
+    p, rounds, link, overlap, offset, stuck_rest, blocked = directed.solve(
+        base, axis, kind, thread_of, rank, links, cap=args.cap,
+        log=lambda r, l, o: print("    round %5d  neighbours %.2e  overlap %.2e"
+                                  % (r, l, o)))
+    print("  parted: %d rounds, %.1f s, neighbours %.2e, overlap %.2e"
+          % (rounds, time.time() - began, link, overlap))
+    rest, carry = offset[kind == 0], offset[kind == 1]
+    print("  bulge of the rests:   most %.3f d, mean %.3f d" % (rest.max(), rest.mean()))
+    print("  lift of the carries:  most %.3f d, mean %.3f d" % (carry.max(), carry.mean()))
+    print("  rest against rest: %d;  contacts no axis could part: %d"
+          % (stuck_rest, blocked))
+
+    ways = []
+    first = 0
+    for thread in sorted(counts):
+        ways.append(p[first:first + counts[thread]])
+        first += counts[thread]
+    remaining, deepest = settle.left_over(ways)
+    print("  pairs still over the tolerance: %d (deepest %.3f d)" % (remaining, deepest))
+
+    spans = carry_spans(parts, order, sorted(counts))
+    after = turned_over_after(ways, spans, order, sorted(counts))
+    print("  crossings the other way up: %d" % len(after))
+    for key, gap in sorted(after, key=lambda e: e[1])[:6]:
+        print("    thread %d carry %d is %.3f d under the one it was laid over"
+              % (key[0], key[2], -gap))
 
     every = np.concatenate(ways)
-    print("  lengthwise %.2f .. %.2f d" % (every[:, 2].min(), every[:, 2].max()))
+    print("  lengthwise %.2f .. %.2f d (%d cycles of %d d)"
+          % (every[:, 2].min(), every[:, 2].max(), args.cycles, k))
     if args.out:
         os.makedirs(os.path.dirname(args.out), exist_ok=True)
         with open(args.out, "w") as f:
-            f.write("# braid constructed  cycles %d  k %d  threads %d  braid-point 0.000\n"
-                    % (args.cycles, k, len(ways)))
+            f.write("# braid constructed, parted along its own axes  cycles %d  k %d  "
+                    "threads %d  braid-point 0.000\n" % (args.cycles, k, len(ways)))
             f.write("# laid-in thread bead x y z made\n")
             for t, way in enumerate(ways):
                 for i, point in enumerate(way):
