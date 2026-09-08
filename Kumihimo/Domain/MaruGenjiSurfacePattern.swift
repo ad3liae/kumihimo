@@ -53,6 +53,77 @@ enum MaruGenjiSurfacePatternGenerator {
     /// reading is right. See `.build/task005i-screenshots/`.
     static let patternAspectRatio: Float = 0.65
 
+    /// Which thread the occupancy history puts in each cell of this drawing.
+    ///
+    /// **The threads are no longer transcribed.** They come from the move table by
+    /// way of `BraidOccupancy`. What joins the two is a correspondence worked out
+    /// here, not chosen: **each column of this drawing is matched to the column of
+    /// the occupancy history whose run of threads it holds**, at the offset along
+    /// the braid where the two run together. If a column matched none, or matched
+    /// more than one, this returns `nil` rather than guessing.
+    ///
+    /// **The order the columns come out in is the transcription's, and that order is
+    /// not reachable from the ring by rotating or mirroring it** — book A's own
+    /// colourings cannot tell the two apart, and the question is open, awaiting the
+    /// author's own braid (`docs/architecture.md`, 丸源氏の64升の表). So the
+    /// correspondence is a permutation and not a rotation, and it says so.
+    ///
+    /// The **shape** of every cell still comes from the transcribed drawing below.
+    /// Only which thread is in it is derived.
+    static func threadByCell(
+        stand: BraidStand, method: BraidMethod, crossSection: BraidCrossSection
+    ) -> [[Int]: Int]? {
+        guard
+            let occupancy = BraidOccupancy.history(of: method, on: stand,
+                                                   crossSection: crossSection, cycles: 4),
+            let columns = occupancy.columns(.landing), columns.count == 8,
+            let grid = occupancy.grid(atColumns: columns, rows: 4)
+        else { return nil }
+
+        // The drawing's own cells, recovered from the shape data below.
+        var drawn = [[Int]: Int]()
+        for strand in sourceStrands {
+            for diamond in strand.diamonds {
+                guard let cell = cell(for: diamond) else { return nil }
+                drawn[[cell.column, cell.row]] = strand.threadPosition
+            }
+        }
+
+        // **The drawing's rows are numbered from one**, and eight of them are the
+        // four cycles drawn twice. Its own checkerboard of over and under is built
+        // on that numbering, so it is left exactly as it is.
+        var out = [[Int]: Int]()
+        for column in 0..<8 {
+            let wanted = (1...4).compactMap { drawn[[column, $0]] }
+            guard wanted.count == 4 else { return nil }
+            // **A run matches more than one column of the history, and that is the
+            // braid's own symmetry**: sixteen threads in eight columns repeat every
+            // four columns, two cycles along. Every match must therefore fill the
+            // column the same way, and that is checked rather than assumed.
+            var filled: [Int]?
+            for other in 0..<8 {
+                for shift in 0..<4 {
+                    for upwards in [true, false] {
+                        let run = (0..<4).map { step in
+                            grid[((shift + (upwards ? step : -step)) % 4 + 4) % 4][other]
+                        }
+                        guard run == wanted else { continue }
+                        let whole = (1...8).map { row -> Int in
+                            let step = (row - 1) % 4
+                            let at = ((shift + (upwards ? step : -step)) % 4 + 4) % 4
+                            return grid[at][other]
+                        }
+                        if let filled, filled != whole { return nil }  // truly ambiguous
+                        filled = whole
+                    }
+                }
+            }
+            guard let filled else { return nil }         // no way round: not this braid
+            for row in 1...8 { out[[column, row]] = filled[row - 1] }
+        }
+        return out
+    }
+
     static func generate(assignments: [ThreadAssignment]) -> MaruGenjiSurfacePattern? {
         let expectedPositions = Set(1...requiredThreadCount)
         let suppliedPositions = Set(assignments.map(\.position))
@@ -67,12 +138,20 @@ enum MaruGenjiSurfacePatternGenerator {
         let colorsByPosition = Dictionary(
             uniqueKeysWithValues: assignments.map { ($0.position, $0.colorID) }
         )
+        guard let threadByCell = threadByCell(
+            stand: BraidMethodCatalog.stand16, method: BraidMethodCatalog.maruGenji16,
+            crossSection: BraidMethodCatalog.maruGenji16CrossSection
+        ) else { return nil }
         let patches = sourceStrands.flatMap { strand -> [MaruGenjiSurfacePatch] in
-            guard let colorID = colorsByPosition[strand.threadPosition] else { return [] }
-            return strand.diamonds.compactMap { diamond in
-                guard let layer = layer(for: diamond) else { return nil }
+            strand.diamonds.compactMap { diamond in
+                guard
+                    let layer = layer(for: diamond),
+                    let cell = cell(for: diamond),
+                    let threadPosition = threadByCell[[cell.column, cell.row]],
+                    let colorID = colorsByPosition[threadPosition]
+                else { return nil }
                 return MaruGenjiSurfacePatch(
-                    threadPosition: strand.threadPosition,
+                    threadPosition: threadPosition,
                     colorID: colorID,
                     layer: layer,
                     corners: normalizedCorners(for: diamond)
@@ -95,12 +174,12 @@ enum MaruGenjiSurfacePatternGenerator {
         return MaruGenjiSurfacePattern(patches: patches)
     }
 
-    private struct SourceStrand {
+    struct SourceStrand {
         let threadPosition: Int
         let diamonds: [SourceDiamond]
     }
 
-    private struct SourceDiamond {
+    struct SourceDiamond {
         let x: Int
         let y: Int
         let risesTowardTrailingEdge: Bool
@@ -108,7 +187,7 @@ enum MaruGenjiSurfacePatternGenerator {
 
     /// The 64-patch correspondence verified by the local Maru-genji comparison page.
     /// Coordinates are retained here as compact integer source data, then rectified below.
-    private static let sourceStrands: [SourceStrand] = [
+    static let sourceStrands: [SourceStrand] = [
         strand(1, (100, 175, false), (100, 375, false), (250, 225, true), (250, 425, true)),
         strand(2, (100, 225, false), (100, 425, false), (250, 275, true), (250, 475, true)),
         strand(3, (200, 300, false), (200, 500, false), (350, 150, true), (350, 350, true)),
@@ -158,11 +237,15 @@ enum MaruGenjiSurfacePatternGenerator {
     /// on `column + row` puts opposite layers on both sides of every crossing and
     /// makes each thread alternate over and under along its length.
     private static func layer(for diamond: SourceDiamond) -> BraidCrossingLayer? {
+        guard let cell = cell(for: diamond) else { return nil }
+        return (cell.column + cell.row).isMultiple(of: 2) ? .over : .under
+    }
+
+    /// Which of the drawing's eight-by-eight cells a diamond is.
+    static func cell(for diamond: SourceDiamond) -> (column: Int, row: Int)? {
         guard let faceTop = faceTopByColumnX[diamond.x] else { return nil }
-        let columnIndex = (diamond.x - 50) / 50
         let centerY = diamond.risesTowardTrailingEdge ? diamond.y + 50 : diamond.y
-        let rowIndex = (centerY - faceTop) / 50
-        return (columnIndex + rowIndex).isMultiple(of: 2) ? .over : .under
+        return ((diamond.x - 50) / 50, (centerY - faceTop) / 50)
     }
 
     private static func normalizedCorners(for diamond: SourceDiamond) -> [SIMD2<Float>] {
