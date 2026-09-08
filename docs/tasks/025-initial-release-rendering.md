@@ -1,6 +1,6 @@
 # Task 025: 初期リリースの描画（レシピのある紐だけを、それらしく）
 
-- 状態: **025-2（レシピの型と模様図）完了**（2026-09-09）。**次は 025-3（立体と z バッファ）。** 結果は末尾「025-2 の結果」。**弦モデルの削除だけ止めて判断を仰いでいる**
+- 状態: **025-3（立体と z バッファ）完了**（2026-09-09）。**次は 025-4（退役判定）。** 結果は末尾「025-3 の結果」。**上下の食い違いで弦モデルの削除は止めたまま、判断を仰いでいる**
 - 優先度: **最高。Task 020 の本体を製品へ載せる段である**
 - 作成日: 2026-09-08
 - 前提: **新しいセッションで始めてよい。** 先に読むもの——`CLAUDE.md`・`AGENTS.md`、
@@ -143,7 +143,8 @@
 
 ## 受け入れ（全体）
 
-1. **レシピを1つ足すのに、手順表・配色・測った値の3つだけで足りる。**
+1. **レシピを1つ足すのに要るのは、手順表・配色・測った値の3つ。**
+   **平らな紐はさらに紐のまわりの並び順を宣言する**（Task 020 判断1、既定は台の縁の順）。
 2. **平源氏 bookA p97 の3実験が、絵から読んで両面で通る。**
 3. **丸源氏 Task 004 の 8×4 が、絵から読んで 32/32 で通る**（鏡像は一致とみなす。E/W は未決）。
 4. **形の値が、測定値か導出値かを型で見分けられる。**
@@ -513,3 +514,142 @@
 **このうち `Features/BraidSimulation/` の15件が、範囲を広げた時点で引っかかる。**
 `Kumihimo/Domain/` 直下の6件（`HiraGenjiWeaveDerivation` ほか）と
 `Features/ProjectEditor/` の3件、`App` と `BraidStrandSurface` は範囲の外のままである。
+
+---
+
+# 025-3 の結果（立体と z バッファ）（2026-09-09）
+
+## 作者の判断（2026-09-09）— この段の前提
+
+1. **弦モデル**: 025-3 で構成が上下を出し、`HiraGenjiWeaveDerivation` との突き合わせを
+   構成の上下で書き直せてから削除する。→ **書き直せなかった。下の「止めたところ」を読むこと。**
+2. **レシピの数**: 受け入れ条件を「**手順表・配色・測った形の値の3つ。平らな紐は紐のまわりの
+   並び順を既定つきで宣言する（Task 020 判断1）**」に直す。**3＋1 で発明ではない。**
+
+## コミット（9本）
+
+| # | コミット | 通った | 打ち切り |
+|---|---|---|---|
+| 0a | `f82f645` 構成の骨を書き出す（Scripts） | — | — |
+| 0b | `3ad8532` 骨の fixture（テストデータ） | — | — |
+| 1 | `d441a90` 場所（`BraidSection`） | 275 | 1 |
+| 2 | `5935a7d` 構成の骨（`BraidConstruction`） | 279 | 1 |
+| 3 | `1c5c752` 山（`BraidCentrelines`） | 283 | 1 |
+| 4 | `d1b41e2` 楕円と、山の高さの出どころ | 288 | 1 |
+| 5 | `63c9c71` z バッファと断面（`BraidPicture`） | 293 | 1 |
+| 6 | `9f29d7c` 読み（`BraidReading`） | 298 | 1 |
+| 7 | `eb56de1` 表示へ接続（`Features/BraidView/`） | 305 | 1 |
+| 7' | `fa21052` 名前の番人の範囲（Scripts） | — | — |
+| 8 | `55af42b` 上下の食い違いを記録 | 306 | 1 |
+
+**打ち切り1件はすべて同じもの**——`everyRegionCarriesTheRidgeIncludingBothEdges` が
+**テスト単位の上限 180 秒**で打ち切られた（Task 018、未着手）。**「テストは通った」とは
+書かない。** なお**上限を 300 秒にすると同じ回が 299 通過・0 落ち**になったので、
+**これは壊れているのではなく遅い。** 番人は全コミットで通っている。
+
+## 差分テストの結果
+
+| 何 | 目標 | 結果 |
+|---|---|---|
+| 場所（座標・法線・種別） | 一致 | **一致**（丸・平の丸／楕円、16場所すべて） |
+| 構成の骨（場所と高さ） | 一致 | **一致**（全糸・全段。持ち上げ 平38・丸60、腹のすれ違い24件の向きも） |
+| 中心線 | **1e-6 d** | **一致**（丸・平、丸／楕円とも。山の数 504 も一致） |
+| k と pitch | 一致 | **一致**（k=3、平 0.375、丸 0.4897） |
+| 断面（幅・厚み・比・外径） | 一致 | **一致（1e-6）** |
+| Task 004 | **32/32 そのもの** | **32/32**（絵から読んで。1行に同じ糸は出ない） |
+| p97 の3実験 | **±1%** | **すべて 1% 以内。** 楕円は 100 / 100 / 0 ちょうど |
+
+**中心線が 1e-6 で合わなかった原因は1つだけだった**——区間の刻み方。
+numpy の `linspace` は `i × step` を作って終点だけ厳密に置く。Swift で `total × i / (n-1)`
+としていたため最下位ビットが違い、**断面を測る薄切りの境界（ちょうど ±0.5 d）で点の
+所属が入れ替わって 1e-4 の差になった。** 刻み方を合わせて消えた。
+
+## 山の高さの出どころ（作者の条件の確認結果）
+
+**生成器のコードで確かめた。**
+
+| 値 | 生成器での定義 | d 比か | 扱い |
+|---|---|---|---|
+| 平源氏 **0.45** | 「**半厚に対する比**」。同じ生成器の説明が「**断面は糸16本まわり・2本厚なので半厚は糸1本の直径**」と書いている | **d 比である** | **`.observed` として使う**（`basis: .threadDiameters`） |
+| 丸源氏 **0.12** | 「**公称半径に対する比**」（`radius * (1 - valleyDepthRatio + crest - sink)`） | **d 比ではない** | **持ち込まない。導出の d/2 のまま。未検証と明記** |
+
+**単位を型に持たせた**（`BraidValueBasis`: `.threadDiameters` / `.aRatio` / `.fractionOf(...)`）。
+**構成は d 比の測定値しか受け取らない。換算はしない**——換算を発明した時点で測定値ではなくなる。
+平源氏の 0.45 は導出の 0.5 に対し **0.90 倍**として使い、**面の位置は動かさず、面から外へ
+出る分だけが縮む。**
+
+## 名前の番人
+
+**`Kumihimo/Features/BraidView/`（新しい表示経路）を範囲に入れた。通っている。**
+
+**`Kumihimo/Features/BraidSimulation/` は入れていない。** 入れると**15ファイルが即座に
+引っかかる**が、**この段では凍結中の2生成器に触るなという指示がある**ので、直せないものを
+落とすことになる。**番人のスクリプトにその理由を書き、退役の時点で入れる**ことにした。
+**例外リストは足していない**（規則の追加になる）。
+
+### 15ファイルの内訳
+
+**(a) 新しい経路が置き換える見込みのもの（025-4 の退役判定の対象）**
+
+    Kumihimo/Features/BraidSimulation/HiraGenjiSurfaceMeshGenerator.swift   凍結中の生成器
+    Kumihimo/Features/BraidSimulation/MaruGenjiSurfaceMeshGenerator.swift   凍結中の生成器
+    Kumihimo/Features/BraidSimulation/MaruGenjiTubeMeshGenerator.swift      管の芯
+    Kumihimo/Features/BraidSimulation/HiraGenji3DPreviewView.swift          生成器を呼ぶだけ
+    Kumihimo/Features/BraidSimulation/MaruGenji3DPreviewView.swift          同上
+    Kumihimo/Features/BraidSimulation/HiraGenjiRealityView.swift            同上
+    Kumihimo/Features/BraidSimulation/MaruGenjiRealityView.swift            同上
+    Kumihimo/Features/BraidSimulation/HiraGenjiThumbnailView.swift          同上
+    Kumihimo/Features/BraidSimulation/MaruGenjiThumbnailView.swift          同上
+
+**(b) 残るもの、と理由**
+
+    MaruGenjiStrandDetailTextures.swift    材質（繊維の見え）。**形の話ではない。**
+    MaruGenjiStrandTextureFactory.swift    同上
+    HiraGenjiStitchDetailTexture.swift     同上
+    HiraGenjiStitchTwist.swift             撚りの縞。Task 005G の測定に紐づく
+    MaruGenjiThumbnailLayout.swift         一覧の並べ方。表示の都合
+    MaruGenjiViewportCoverage.swift        画面に収める計算。表示の都合
+
+**(b) は組み方ごとの見えの話で、レシピ駆動にすると「材質もレシピが持つ」ことになる。**
+**それは初期リリースの範囲を超える**（作者の決定は手順表・配色・測った形の値の3つ）。
+**判断を仰ぐ**——(b) を将来どうするか。
+
+## 止めたところ: **上下は構成と弦モデルで食い違った。弦モデルは削除していない**
+
+指示は「構成の手の順序で上下を出し、`BraidPatternBridge` を書き直し、
+`HiraGenjiWeaveDerivation` と一致したら弦モデルを削除」だった。
+
+**構成側の上下を「腹を通る糸は、面に留まっている糸の下」と定義して突き合わせた。**
+**これは規則の追加ではない**——構成が実際にそこへ渡りを引いている。結果は
+
+    64升のうち  一致 16、食い違い 48
+
+**しかも食い違いは一方向ではない**（「構成が上／弦が下」も「構成が下／弦が上」も出る）。
+**別の定義は試していない。合うまで定義を試すのは合わせ込みである。**
+
+**2つは同じ問いを立てていない。**
+
+- **弦モデル**: 「**どちらが後に運ばれたか**」。`HiraGenjiWeaveDerivation` はこれで
+  bookA / bookB と照合されている。
+- **構成**: 「**糸が実際にどこに座っているか**」。**bookA p97 の3実験を絵から再現したのは
+  こちら**である（両面、楕円で 100 / 100 / 0）。
+
+**判断を仰ぐ**——(a) 弦モデルの上下を正とし、構成の上下は使わない（弦モデルは残る）、
+(b) 構成の上下を正とし、`HiraGenjiWeaveDerivation` との突き合わせ試験を落とす、
+(c) 両方を別の量として残し、どちらが実物かは写真で決める（025-4 へ回す）。
+
+**食い違いは試験に固定した**（`BraidLayerFromConstructionTests`。16 と 48 を書いてある）ので、
+どちらかが動けばそこで分かる。
+
+## 作ったもの
+
+    Kumihimo/Domain/Braiding/BraidSection.swift       場所・法線・面、潰しの導出
+    Kumihimo/Domain/Braiding/BraidConstruction.swift  骨（留まり・渡り・持ち上げ・すれ違い）
+    Kumihimo/Domain/Braiding/BraidCentrelines.swift   山と中心線
+    Kumihimo/Domain/Braiding/BraidPicture.swift       z バッファと断面の実測
+    Kumihimo/Domain/Braiding/BraidReading.swift       読み方の5手順
+    Kumihimo/Features/BraidView/BraidDrawing.swift    絵にする（1本1色）
+    Kumihimo/Features/BraidView/BraidFromRecipe.swift レシピ→構成→中心線→絵
+
+**凍結中の2生成器には触っていない。** 表示への接続は**新旧を並べて出せるところまで**で、
+切り替えは 025-4 である。
