@@ -93,6 +93,23 @@ enum BraidFigureBuilder {
         }
         let colours = Dictionary(uniqueKeysWithValues: assignments.map { ($0.position, $0.colorID) })
         let rowCount = derivation.repeatCycleCount
+
+        // **What shows on the face is what is resting there**, and the occupancy
+        // history is the record of that (`docs/architecture.md`, 組み台の力学).
+        // It is asked here rather than worked out again from the courses, so the
+        // figure and the readings answer out of one object.
+        guard let occupancy = BraidOccupancy.history(
+            of: derivation.method, on: derivation.stand,
+            crossSection: derivation.crossSection, cycles: rowCount
+        ) else { return nil }
+        var slotOfThread = [[Int: Int]]()
+        for boundary in 0...rowCount {
+            guard let at = occupancy.slotByThread(atBoundary: boundary) else { return nil }
+            slotOfThread.append(at)
+        }
+        func slot(ofThread thread: Int, at row: Int) -> Int? {
+            slotOfThread[row % rowCount][thread]
+        }
         let rowsDrawn = rowCount * repeats
         let phases = longitudinalPhases(of: derivation, fold: fold)
 
@@ -105,8 +122,10 @@ enum BraidFigureBuilder {
         // Where each thread shows on this face at each row, if it shows at all.
         // A thread on the other face, or crossing beneath, has no place here.
         func place(of course: BraidThreadCourse, at row: Int) -> Int? {
-            let slot = course.slots[row % rowCount]
-            guard let width = fold.width(ofSlot: slot) else { return nil }
+            guard
+                let slot = slot(ofThread: course.threadPosition, at: row),
+                let width = fold.width(ofSlot: slot)
+            else { return nil }
             if let slotFace = fold.face(ofSlot: slot) {
                 return slotFace == face ? width : nil
             }
@@ -146,8 +165,10 @@ enum BraidFigureBuilder {
                 guard row + 1 < rowsDrawn else { continue }
                 let here = place(of: course, at: row)
                 let next = place(of: course, at: row + 1)
-                let hereWidth = fold.width(ofSlot: course.slots[row % rowCount])
-                let nextWidth = fold.width(ofSlot: course.slots[(row + 1) % rowCount])
+                let hereWidth = slot(ofThread: course.threadPosition, at: row)
+                    .flatMap { fold.width(ofSlot: $0) }
+                let nextWidth = slot(ofThread: course.threadPosition, at: row + 1)
+                    .flatMap { fold.width(ofSlot: $0) }
                 guard let from = hereWidth, let to = nextWidth else { continue }
 
                 // Seen only when the thread is on this face at both ends and stays
