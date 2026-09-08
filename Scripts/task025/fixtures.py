@@ -106,6 +106,50 @@ def centrelines(out, braid, cycles, ellipse):
     return ways, kinds, k, spot, steps
 
 
+def skeletons(out, braid, cycles, ellipse):
+    """The construction before any crest: which place, and at what heights.
+
+    This is what the Swift port has to reproduce first. It is the whole of the
+    lengthwise bookkeeping -- the stacking model's layers, the hand-overs raised a
+    layer, and which way round a face swap passes -- with no geometry of the thread
+    itself in it yet.
+    """
+    import braid_geometry as g2
+    import construct as c
+    folded = braid == "hira"
+    ring = g2.RING_MARU if braid == "maru" else g2.RING_HIRA
+    table = g2.FIG32 if braid == "maru" else g2.FIG20
+    spot = faces.section(ring, folded, ellipse)
+    steps, k = c.trajectories(table, ring, folded, cycles)
+    steps = {t: list(way) for t, way in steps.items()}
+    lifted = construct.hand_over(steps)
+    hands, seat, turn = {}, dict(g2.DISK_TO_STAND), {}
+    for h in range(cycles * len(table)):
+        move = table[h % len(table)]
+        thread = seat.pop(move[0])
+        seat[move[1]] = thread
+        if not g2.is_repositioning(move):
+            turn[thread] = turn.get(thread, -1) + 1
+            hands[(thread, turn[thread])] = h + 1
+    side = construct.side_step(steps, spot, folded, hands)
+    name = "%s-skeleton-%s.json" % (braid, "ellipse" if ellipse else "round")
+    write(out, name, "task023/construct.trajectories + task024/build.hand_over "
+          "+ build.side_step", {
+        "braid": "%s-genji-16" % braid,
+        "cycles": cycles,
+        "layers_per_cycle_k": k,
+        "hand_overs_raised_a_layer": lifted,
+        "steps": {str(t): [{"slot": int(p), "arrived_at": rounded(a),
+                            "left_at": rounded(b), "arrives_next_at": rounded(d_)}
+                           for p, a, b, d_ in way]
+                  for t, way in sorted(steps.items())},
+        "side_steps": {"%d,%d" % key: value for key, value in sorted(side.items())},
+        "wefts_crossing_one_column_at_one_height":
+            [[int(col), rounded(h), int(a), int(b)]
+             for col, h, a, b in construct.wefts_apart(steps, spot, folded)],
+    })
+
+
 def section_of(ways, tube):
     p = np.concatenate([ways[t] for t in sorted(ways)])
     lo, hi = float(p[:, 2].min()), float(p[:, 2].max())
@@ -205,6 +249,9 @@ def main():
     os.makedirs(out, exist_ok=True)
     print("writing into", out)
     occupancy_tables(out)
+    for braid, cycles in (("hira", CYCLES_HIRA), ("maru", CYCLES_MARU)):
+        for ellipse in ((False, True) if braid == "hira" else (False,)):
+            skeletons(out, braid, cycles, ellipse)
     for braid, cycles in (("hira", CYCLES_HIRA), ("maru", CYCLES_MARU)):
         for ellipse in ((False, True) if braid == "hira" else (False,)):
             centrelines(out, braid, cycles, ellipse)
