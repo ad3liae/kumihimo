@@ -1,0 +1,812 @@
+{
+ "braid": "maru-genji-16",
+ "cycles": 7,
+ "hand_overs_raised_a_layer": 60,
+ "layers_per_cycle_k": 3,
+ "made_by": "task023/construct.trajectories + task024/build.hand_over + build.side_step",
+ "side_steps": {},
+ "steps": {
+  "1": [
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 0.0,
+    "left_at": 0.0,
+    "slot": 0
+   },
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 3.0,
+    "left_at": 3.0,
+    "slot": 1
+   },
+   {
+    "arrived_at": 3.0,
+    "arrives_next_at": 9.0,
+    "left_at": 3.0,
+    "slot": 7
+   },
+   {
+    "arrived_at": 9.0,
+    "arrives_next_at": 9.0,
+    "left_at": 9.0,
+    "slot": 6
+   },
+   {
+    "arrived_at": 9.0,
+    "arrives_next_at": 13.0,
+    "left_at": 9.0,
+    "slot": 0
+   },
+   {
+    "arrived_at": 13.0,
+    "arrives_next_at": 15.0,
+    "left_at": 15.0,
+    "slot": 1
+   },
+   {
+    "arrived_at": 15.0,
+    "arrives_next_at": 19.0,
+    "left_at": 15.0,
+    "slot": 7
+   },
+   {
+    "arrived_at": 19.0,
+    "arrives_next_at": 18.0,
+    "left_at": 19.0,
+    "slot": 6
+   }
+  ],
+  "10": [
+   {
+    "arrived_at": 4.0,
+    "arrives_next_at": 0.0,
+    "left_at": 4.0,
+    "slot": 9
+   },
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 0.0,
+    "left_at": 0.0,
+    "slot": 15
+   },
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 6.0,
+    "left_at": 6.0,
+    "slot": 14
+   },
+   {
+    "arrived_at": 6.0,
+    "arrives_next_at": 10.0,
+    "left_at": 6.0,
+    "slot": 8
+   },
+   {
+    "arrived_at": 10.0,
+    "arrives_next_at": 12.0,
+    "left_at": 12.0,
+    "slot": 9
+   },
+   {
+    "arrived_at": 12.0,
+    "arrives_next_at": 16.0,
+    "left_at": 12.0,
+    "slot": 15
+   },
+   {
+    "arrived_at": 16.0,
+    "arrives_next_at": 18.0,
+    "left_at": 18.0,
+    "slot": 14
+   },
+   {
+    "arrived_at": 18.0,
+    "arrives_next_at": 21.0,
+    "left_at": 21.0,
+    "slot": 8
+   }
+  ],
+  "11": [
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 2.0,
+    "left_at": 2.0,
+    "slot": 10
+   },
+   {
+    "arrived_at": 2.0,
+    "arrives_next_at": 7.0,
+    "left_at": 2.0,
+    "slot": 4
+   },
+   {
+    "arrived_at": 7.0,
+    "arrives_next_at": 8.0,
+    "left_at": 8.0,
+    "slot": 5
+   },
+   {
+    "arrived_at": 8.0,
+    "arrives_next_at": 12.0,
+    "left_at": 8.0,
+    "slot": 11
+   },
+   {
+    "arrived_at": 12.0,
+    "arrives_next_at": 14.0,
+    "left_at": 14.0,
+    "slot": 10
+   },
+   {
+    "arrived_at": 14.0,
+    "arrives_next_at": 18.0,
+    "left_at": 14.0,
+    "slot": 4
+   },
+   {
+    "arrived_at": 18.0,
+    "arrives_next_at": 20.0,
+    "left_at": 20.0,
+    "slot": 5
+   },
+   {
+    "arrived_at": 20.0,
+    "arrives_next_at": 23.0,
+    "left_at": 23.0,
+    "slot": 11
+   }
+  ],
+  "12": [
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 3.0,
+    "left_at": 0.0,
+    "slot": 11
+   },
+   {
+    "arrived_at": 3.0,
+    "arrives_next_at": 5.0,
+    "left_at": 5.0,
+    "slot": 10
+   },
+   {
+    "arrived_at": 5.0,
+    "arrives_next_at": 9.0,
+    "left_at": 5.0,
+    "slot": 4
+   },
+   {
+    "arrived_at": 9.0,
+    "arrives_next_at": 11.0,
+    "left_at": 11.0,
+    "slot": 5
+   },
+   {
+    "arrived_at": 11.0,
+    "arrives_next_at": 15.0,
+    "left_at": 11.0,
+    "slot": 11
+   },
+   {
+    "arrived_at": 15.0,
+    "arrives_next_at": 17.0,
+    "left_at": 17.0,
+    "slot": 10
+   },
+   {
+    "arrived_at": 17.0,
+    "arrives_next_at": 21.0,
+    "left_at": 17.0,
+    "slot": 4
+   },
+   {
+    "arrived_at": 21.0,
+    "arrives_next_at": 20.0,
+    "left_at": 21.0,
+    "slot": 5
+   }
+  ],
+  "13": [
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 0.0,
+    "left_at": 0.0,
+    "slot": 12
+   },
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 5.0,
+    "left_at": 5.0,
+    "slot": 13
+   },
+   {
+    "arrived_at": 5.0,
+    "arrives_next_at": 9.0,
+    "left_at": 5.0,
+    "slot": 3
+   },
+   {
+    "arrived_at": 9.0,
+    "arrives_next_at": 11.0,
+    "left_at": 11.0,
+    "slot": 2
+   },
+   {
+    "arrived_at": 11.0,
+    "arrives_next_at": 15.0,
+    "left_at": 11.0,
+    "slot": 12
+   },
+   {
+    "arrived_at": 15.0,
+    "arrives_next_at": 17.0,
+    "left_at": 17.0,
+    "slot": 13
+   },
+   {
+    "arrived_at": 17.0,
+    "arrives_next_at": 21.0,
+    "left_at": 17.0,
+    "slot": 3
+   },
+   {
+    "arrived_at": 21.0,
+    "arrives_next_at": 20.0,
+    "left_at": 21.0,
+    "slot": 2
+   }
+  ],
+  "14": [
+   {
+    "arrived_at": 6.0,
+    "arrives_next_at": 2.0,
+    "left_at": 6.0,
+    "slot": 13
+   },
+   {
+    "arrived_at": 2.0,
+    "arrives_next_at": 6.0,
+    "left_at": 2.0,
+    "slot": 3
+   },
+   {
+    "arrived_at": 6.0,
+    "arrives_next_at": 8.0,
+    "left_at": 8.0,
+    "slot": 2
+   },
+   {
+    "arrived_at": 8.0,
+    "arrives_next_at": 12.0,
+    "left_at": 8.0,
+    "slot": 12
+   },
+   {
+    "arrived_at": 12.0,
+    "arrives_next_at": 14.0,
+    "left_at": 14.0,
+    "slot": 13
+   },
+   {
+    "arrived_at": 14.0,
+    "arrives_next_at": 18.0,
+    "left_at": 14.0,
+    "slot": 3
+   },
+   {
+    "arrived_at": 18.0,
+    "arrives_next_at": 20.0,
+    "left_at": 20.0,
+    "slot": 2
+   },
+   {
+    "arrived_at": 20.0,
+    "arrives_next_at": 23.0,
+    "left_at": 23.0,
+    "slot": 12
+   }
+  ],
+  "15": [
+   {
+    "arrived_at": 7.0,
+    "arrives_next_at": 1.0,
+    "left_at": 7.0,
+    "slot": 14
+   },
+   {
+    "arrived_at": 1.0,
+    "arrives_next_at": 5.0,
+    "left_at": 1.0,
+    "slot": 8
+   },
+   {
+    "arrived_at": 5.0,
+    "arrives_next_at": 6.0,
+    "left_at": 6.0,
+    "slot": 9
+   },
+   {
+    "arrived_at": 6.0,
+    "arrives_next_at": 10.0,
+    "left_at": 6.0,
+    "slot": 15
+   },
+   {
+    "arrived_at": 10.0,
+    "arrives_next_at": 12.0,
+    "left_at": 12.0,
+    "slot": 14
+   },
+   {
+    "arrived_at": 12.0,
+    "arrives_next_at": 16.0,
+    "left_at": 12.0,
+    "slot": 8
+   },
+   {
+    "arrived_at": 16.0,
+    "arrives_next_at": 18.0,
+    "left_at": 18.0,
+    "slot": 9
+   },
+   {
+    "arrived_at": 18.0,
+    "arrives_next_at": 21.0,
+    "left_at": 21.0,
+    "slot": 15
+   }
+  ],
+  "16": [
+   {
+    "arrived_at": 1.0,
+    "arrives_next_at": 8.0,
+    "left_at": 1.0,
+    "slot": 15
+   },
+   {
+    "arrived_at": 8.0,
+    "arrives_next_at": 3.0,
+    "left_at": 8.0,
+    "slot": 14
+   },
+   {
+    "arrived_at": 3.0,
+    "arrives_next_at": 7.0,
+    "left_at": 3.0,
+    "slot": 8
+   },
+   {
+    "arrived_at": 7.0,
+    "arrives_next_at": 9.0,
+    "left_at": 9.0,
+    "slot": 9
+   },
+   {
+    "arrived_at": 9.0,
+    "arrives_next_at": 13.0,
+    "left_at": 9.0,
+    "slot": 15
+   },
+   {
+    "arrived_at": 13.0,
+    "arrives_next_at": 15.0,
+    "left_at": 15.0,
+    "slot": 14
+   },
+   {
+    "arrived_at": 15.0,
+    "arrives_next_at": 19.0,
+    "left_at": 15.0,
+    "slot": 8
+   },
+   {
+    "arrived_at": 19.0,
+    "arrives_next_at": 18.0,
+    "left_at": 19.0,
+    "slot": 9
+   }
+  ],
+  "2": [
+   {
+    "arrived_at": 4.0,
+    "arrives_next_at": 0.0,
+    "left_at": 4.0,
+    "slot": 1
+   },
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 0.0,
+    "left_at": 0.0,
+    "slot": 7
+   },
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 6.0,
+    "left_at": 6.0,
+    "slot": 6
+   },
+   {
+    "arrived_at": 6.0,
+    "arrives_next_at": 10.0,
+    "left_at": 6.0,
+    "slot": 0
+   },
+   {
+    "arrived_at": 10.0,
+    "arrives_next_at": 12.0,
+    "left_at": 12.0,
+    "slot": 1
+   },
+   {
+    "arrived_at": 12.0,
+    "arrives_next_at": 16.0,
+    "left_at": 12.0,
+    "slot": 7
+   },
+   {
+    "arrived_at": 16.0,
+    "arrives_next_at": 18.0,
+    "left_at": 18.0,
+    "slot": 6
+   },
+   {
+    "arrived_at": 18.0,
+    "arrives_next_at": 21.0,
+    "left_at": 21.0,
+    "slot": 0
+   }
+  ],
+  "3": [
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 2.0,
+    "left_at": 2.0,
+    "slot": 2
+   },
+   {
+    "arrived_at": 2.0,
+    "arrives_next_at": 7.0,
+    "left_at": 2.0,
+    "slot": 12
+   },
+   {
+    "arrived_at": 7.0,
+    "arrives_next_at": 8.0,
+    "left_at": 8.0,
+    "slot": 13
+   },
+   {
+    "arrived_at": 8.0,
+    "arrives_next_at": 12.0,
+    "left_at": 8.0,
+    "slot": 3
+   },
+   {
+    "arrived_at": 12.0,
+    "arrives_next_at": 14.0,
+    "left_at": 14.0,
+    "slot": 2
+   },
+   {
+    "arrived_at": 14.0,
+    "arrives_next_at": 18.0,
+    "left_at": 14.0,
+    "slot": 12
+   },
+   {
+    "arrived_at": 18.0,
+    "arrives_next_at": 20.0,
+    "left_at": 20.0,
+    "slot": 13
+   },
+   {
+    "arrived_at": 20.0,
+    "arrives_next_at": 23.0,
+    "left_at": 23.0,
+    "slot": 3
+   }
+  ],
+  "4": [
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 3.0,
+    "left_at": 0.0,
+    "slot": 3
+   },
+   {
+    "arrived_at": 3.0,
+    "arrives_next_at": 5.0,
+    "left_at": 5.0,
+    "slot": 2
+   },
+   {
+    "arrived_at": 5.0,
+    "arrives_next_at": 9.0,
+    "left_at": 5.0,
+    "slot": 12
+   },
+   {
+    "arrived_at": 9.0,
+    "arrives_next_at": 11.0,
+    "left_at": 11.0,
+    "slot": 13
+   },
+   {
+    "arrived_at": 11.0,
+    "arrives_next_at": 15.0,
+    "left_at": 11.0,
+    "slot": 3
+   },
+   {
+    "arrived_at": 15.0,
+    "arrives_next_at": 17.0,
+    "left_at": 17.0,
+    "slot": 2
+   },
+   {
+    "arrived_at": 17.0,
+    "arrives_next_at": 21.0,
+    "left_at": 17.0,
+    "slot": 12
+   },
+   {
+    "arrived_at": 21.0,
+    "arrives_next_at": 20.0,
+    "left_at": 21.0,
+    "slot": 13
+   }
+  ],
+  "5": [
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 0.0,
+    "left_at": 0.0,
+    "slot": 4
+   },
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 5.0,
+    "left_at": 5.0,
+    "slot": 5
+   },
+   {
+    "arrived_at": 5.0,
+    "arrives_next_at": 9.0,
+    "left_at": 5.0,
+    "slot": 11
+   },
+   {
+    "arrived_at": 9.0,
+    "arrives_next_at": 11.0,
+    "left_at": 11.0,
+    "slot": 10
+   },
+   {
+    "arrived_at": 11.0,
+    "arrives_next_at": 15.0,
+    "left_at": 11.0,
+    "slot": 4
+   },
+   {
+    "arrived_at": 15.0,
+    "arrives_next_at": 17.0,
+    "left_at": 17.0,
+    "slot": 5
+   },
+   {
+    "arrived_at": 17.0,
+    "arrives_next_at": 21.0,
+    "left_at": 17.0,
+    "slot": 11
+   },
+   {
+    "arrived_at": 21.0,
+    "arrives_next_at": 20.0,
+    "left_at": 21.0,
+    "slot": 10
+   }
+  ],
+  "6": [
+   {
+    "arrived_at": 6.0,
+    "arrives_next_at": 2.0,
+    "left_at": 6.0,
+    "slot": 5
+   },
+   {
+    "arrived_at": 2.0,
+    "arrives_next_at": 6.0,
+    "left_at": 2.0,
+    "slot": 11
+   },
+   {
+    "arrived_at": 6.0,
+    "arrives_next_at": 8.0,
+    "left_at": 8.0,
+    "slot": 10
+   },
+   {
+    "arrived_at": 8.0,
+    "arrives_next_at": 12.0,
+    "left_at": 8.0,
+    "slot": 4
+   },
+   {
+    "arrived_at": 12.0,
+    "arrives_next_at": 14.0,
+    "left_at": 14.0,
+    "slot": 5
+   },
+   {
+    "arrived_at": 14.0,
+    "arrives_next_at": 18.0,
+    "left_at": 14.0,
+    "slot": 11
+   },
+   {
+    "arrived_at": 18.0,
+    "arrives_next_at": 20.0,
+    "left_at": 20.0,
+    "slot": 10
+   },
+   {
+    "arrived_at": 20.0,
+    "arrives_next_at": 23.0,
+    "left_at": 23.0,
+    "slot": 4
+   }
+  ],
+  "7": [
+   {
+    "arrived_at": 7.0,
+    "arrives_next_at": 1.0,
+    "left_at": 7.0,
+    "slot": 6
+   },
+   {
+    "arrived_at": 1.0,
+    "arrives_next_at": 5.0,
+    "left_at": 1.0,
+    "slot": 0
+   },
+   {
+    "arrived_at": 5.0,
+    "arrives_next_at": 6.0,
+    "left_at": 6.0,
+    "slot": 1
+   },
+   {
+    "arrived_at": 6.0,
+    "arrives_next_at": 10.0,
+    "left_at": 6.0,
+    "slot": 7
+   },
+   {
+    "arrived_at": 10.0,
+    "arrives_next_at": 12.0,
+    "left_at": 12.0,
+    "slot": 6
+   },
+   {
+    "arrived_at": 12.0,
+    "arrives_next_at": 16.0,
+    "left_at": 12.0,
+    "slot": 0
+   },
+   {
+    "arrived_at": 16.0,
+    "arrives_next_at": 18.0,
+    "left_at": 18.0,
+    "slot": 1
+   },
+   {
+    "arrived_at": 18.0,
+    "arrives_next_at": 21.0,
+    "left_at": 21.0,
+    "slot": 7
+   }
+  ],
+  "8": [
+   {
+    "arrived_at": 1.0,
+    "arrives_next_at": 8.0,
+    "left_at": 1.0,
+    "slot": 7
+   },
+   {
+    "arrived_at": 8.0,
+    "arrives_next_at": 3.0,
+    "left_at": 8.0,
+    "slot": 6
+   },
+   {
+    "arrived_at": 3.0,
+    "arrives_next_at": 7.0,
+    "left_at": 3.0,
+    "slot": 0
+   },
+   {
+    "arrived_at": 7.0,
+    "arrives_next_at": 9.0,
+    "left_at": 9.0,
+    "slot": 1
+   },
+   {
+    "arrived_at": 9.0,
+    "arrives_next_at": 13.0,
+    "left_at": 9.0,
+    "slot": 7
+   },
+   {
+    "arrived_at": 13.0,
+    "arrives_next_at": 15.0,
+    "left_at": 15.0,
+    "slot": 6
+   },
+   {
+    "arrived_at": 15.0,
+    "arrives_next_at": 19.0,
+    "left_at": 15.0,
+    "slot": 0
+   },
+   {
+    "arrived_at": 19.0,
+    "arrives_next_at": 18.0,
+    "left_at": 19.0,
+    "slot": 1
+   }
+  ],
+  "9": [
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 0.0,
+    "left_at": 0.0,
+    "slot": 8
+   },
+   {
+    "arrived_at": 0.0,
+    "arrives_next_at": 3.0,
+    "left_at": 3.0,
+    "slot": 9
+   },
+   {
+    "arrived_at": 3.0,
+    "arrives_next_at": 9.0,
+    "left_at": 3.0,
+    "slot": 15
+   },
+   {
+    "arrived_at": 9.0,
+    "arrives_next_at": 9.0,
+    "left_at": 9.0,
+    "slot": 14
+   },
+   {
+    "arrived_at": 9.0,
+    "arrives_next_at": 13.0,
+    "left_at": 9.0,
+    "slot": 8
+   },
+   {
+    "arrived_at": 13.0,
+    "arrives_next_at": 15.0,
+    "left_at": 15.0,
+    "slot": 9
+   },
+   {
+    "arrived_at": 15.0,
+    "arrives_next_at": 19.0,
+    "left_at": 15.0,
+    "slot": 15
+   },
+   {
+    "arrived_at": 19.0,
+    "arrives_next_at": 18.0,
+    "left_at": 19.0,
+    "slot": 14
+   }
+  ]
+ },
+ "thread_diameter": 1.0,
+ "wefts_crossing_one_column_at_one_height": []
+}
