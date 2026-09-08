@@ -1,6 +1,6 @@
 # Task 025: 初期リリースの描画（レシピのある紐だけを、それらしく）
 
-- 状態: **025-4 は折衷へ**（2026-09-09、作者の判定。**退役しない**）。**形は旧生成器、色は占有履歴。** 1〜2 完了、次は 3（生成器の組み名を外す）。結果は末尾「025-4 の判定」と「025-4 の 1〜2」
+- 状態: **025-4 は折衷へ**（2026-09-09、作者の判定。**退役しない**）。**形は族の描き手、色は占有履歴。** 1〜3 完了、次は 4（番人の範囲）。結果は末尾「025-4 の判定」「025-4 の 1〜2」「025-4 の 3」
 - 優先度: **最高。Task 020 の本体を製品へ載せる段である**
 - 作成日: 2026-09-08
 - 前提: **新しいセッションで始めてよい。** 先に読むもの——`CLAUDE.md`・`AGENTS.md`、
@@ -968,3 +968,85 @@ RealityKit を回さずに絵にするための判定道具で、製品コード
 ## 5 の記録（024 の保留に足した）
 
 > **面に出るのは縦の棒で、写真の斜めの糸筋にならない。糸が面の上を斜めに走る構成が要る。**
+
+---
+
+# 025-4 の 3 の結果（生成器を紐の族の描き手にした）（2026-09-09）
+
+## 改名の一覧
+
+| 前 | 後 | 何 |
+|---|---|---|
+| `HiraGenjiSurfaceMeshGenerator` | **`Flat16SurfaceMesh`** | 平ら16本の面の描き手 |
+| `HiraGenjiSurfaceMeshData` | `Flat16SurfaceMeshData` | その出力 |
+| `HiraGenjiSurfaceRegion` | `Flat16SurfaceRegion` | 同 |
+| `MaruGenjiSurfaceMeshGenerator` | **`RoundTube16SurfaceMesh`** | 丸い筒16本の面の描き手 |
+| `MaruGenjiSurfaceMeshData` | `RoundTube16SurfaceMeshData` | その出力 |
+| `MaruGenjiTubeMeshGenerator` | **`RoundTube16CoreMesh`** | 筒の芯 |
+| `HiraGenjiSurfacePattern(+Generator, Patch)` | **`Flat16SurfacePattern…`** | 描き手に渡す面の模様 |
+| `MaruGenjiSurfacePattern(+Generator, Patch)` | **`RoundTube16SurfacePattern…`** | 同 |
+
+ファイルも同名に改めた（`git mv` なので履歴は続く）。試験ファイル4つも同様。
+
+**族の判定は紐から読む**（`BraidFamily.family(of:)`）——**畳めるなら平ら（面の列数つき）、
+畳めないなら筒**、それに糸数。**レシピを描き手へ渡すのは `BraidFamilyDrawing`** で、
+**族に合う描き手が無ければ `nil` を返す**（教わっていない紐を間違って描くよりよい）。
+
+**架空の紐**（Fig.32 を1/4回転した表）が**レシピ → 族 → 丸い筒の描き手 → メッシュ**まで
+流れることを試験にした。**模様は占有履歴から、形は族の定数。**
+
+## 形の定数の出どころ（**値は1つも変えていない**）
+
+`BraidValueSource` に **`.declared`** を足した——**写真に対して目で合わせた数**。
+**測定値ではない**（それを出す手順が無い）**し、導出値でもない**（何もそれを含意しない）。
+`.declared` の値は必ず「目で較正した」という未決の注記を持つ。
+
+### 平ら16本（`Flat16SurfaceMesh.shape`）
+
+| 名 | 値 | 出どころ |
+|---|---|---|
+| 幅÷厚み | **3.3359** | **`.observed`** 周長＝糸16本・厚み＝糸2本をこのファイルの輪郭で解いた |
+| 幅÷厚み 下限／上限 | 3.1 / 3.7 | **`.observed`** 2つの読みが許す帯 |
+| 山÷半厚 | **0.45** | **`.observed`** bookA p96 の輪郭＋物理（半厚＝糸1本の直径） |
+| 1手のピッチ÷紐幅 | **0.3665** | **`.observed`** bookA p96 / bookB p23 |
+| 輪郭の指数 | 5 | **`.declared`** 断面の形を目で合わせた |
+| 境界の幅 | 0.035 | **`.declared`** 糸間の暗い線の見え |
+| 境界の深さ | 0.012 | **`.declared`** 同 |
+| 画面上の半幅 | 0.72 | **`.declared`** 表示の大きさ。形ではない |
+
+### 丸い筒16本（`RoundTube16SurfaceMesh.shape`）
+
+| 名 | 値 | 出どころ |
+|---|---|---|
+| 山÷公称半径 | **0.12** | **`.observed`** Task 005J。**d 単位でなく、積だけが写真に縛られる**（未決） |
+| 1周期÷1周 | **0.65** | **`.observed`** Task 005I の 1.8〜2.15。**レンダリングと比較で求め、積だけが縛られる**（未決） |
+| 谷の深さ | 0.03 | **`.declared`** 溝の見え |
+| 越える側の追加の山 | 0.16 | **`.declared`** |
+| くぐる側の山の減り | 0.55 | **`.declared`** |
+| 越える側のかぶり | 0.16 | **`.declared`** |
+| かぶりの沈み | 0.004 | **`.declared`** |
+| 撚りの角度 | 30° | **`.declared`** 繊維の縞の傾き |
+| 撚りの浮き | 0.005 | **`.declared`** |
+| 画面上の半径 | 0.48 | **`.declared`** 表示の大きさ。形ではない |
+
+**測定値5・目で合わせた数12。** **メッシュの全頂点のハッシュが改名前と同一である**ことを
+試験で押さえた（平ら 366,552 頂点、筒 294,936 頂点）。
+
+## 描き手の中に残っている組み方固有の導出（**この段では消さない**）
+
+| どこ | 何を取っているか |
+|---|---|
+| `Flat16SurfacePattern.swift:55,56,60` | `HiraGenjiWeaveDerivation.columnCount` / `edgeThreadCount` / `rowCount`——**面の列数・縁の本数・周期の段数** |
+| `Flat16SurfacePattern.swift:124` | `HiraGenjiWeavePatternGenerator.generate`——**升の割り当てそのもの**（糸の識別は 2 で占有履歴に置き換わったが、**どの場所にどの升があるかはここが決めている**） |
+| `Flat16SurfacePattern.swift:362,371` | `HiraGenjiWeaveDerivation.arrivalPhase(atWidthPosition:)`——**到着の位相**（Task 007G） |
+| `Flat16SurfaceMesh.swift:549–551` | `HiraGenjiWeaveDerivation.boardPositionCount` / `columnCount` / `edgeThreadCount`——**断面の弧長の割り振り** |
+
+**丸い筒の側には残っていない**（升の割り当ては `threadByCell` で占有履歴から、形は転記された
+図面から）。
+
+**平らな側に残っているのは「場所と升の対応」と「到着の位相」で、どちらも一般の導出
+（`BraidFold`・`BraidDerivation.arrivalPhase`）が同じものを持っている。**
+**置き換えは 4（番人の範囲）で扱う。この段では消していない。**
+
+**既定の回: 325 通過・1 打ち切り**（Task 018、上限180秒）**・2 skip**（並置の絵）。
+**番人は通っている**（`Features/BraidSimulation/` はまだ範囲外）。
