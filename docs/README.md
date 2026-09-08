@@ -19,9 +19,11 @@
   - **深さは Task 022（台の上で組む、Jolt）へ移す。** 引き継ぎは `tasks/021-depth-by-relaxation.md` の末尾
   - 正本の読み方（bookC の1手は1本）は `architecture.md`「正本の読み方（作者の指示）」
 
-- **Task 023 張った糸を構成的に組む: 最高優先。Task 020 の続きである**: `tasks/023-taut-thread-construction.md`
-  - **探索も反復もしない。** 占有履歴・bookC の順序・積み重ね模型・断面から、3D の折れ線を書き下す
-  - 段: 023-1 構成と平源氏2サイクルの図、023-2 検査（平・丸4サイクル）、023-3 Swift（Task 020 段階3、凍結中の2生成器の退役、積3）
+- **Task 024 山の構成（糸の半径から）: 最高優先。Task 020 の続きである**: `tasks/024-crest-by-half-diameter.md`
+  - **越える糸を +d/2、くぐる糸を −d/2。solver を使わない**（`architecture.md`「山は糸の半径から出る」）
+  - 段: 024-1（**完了**。構成 0.12 秒、長手 3 d ちょうど。表面の非貫入は通らない）、024-2 検査4サイクルと自由部分、024-3 Swift
+
+- Task 023 張った糸を構成的に組む（**保留**。solver の研究。末尾「引き継ぎ」）: `tasks/023-taut-thread-construction.md`
 
 - Task 022 台の上で組む（準静的）（**閉じた**。準静的の模型は束を締めるものを持たず、糸どうしが触れない。締めるものを足すと 021c へ戻る）: `tasks/022-braid-on-the-stand.md`
 
@@ -57,7 +59,7 @@
 - Task 016 組み点の物理で寸法を解けるかの調査（**完了**。段階2・2b の記録は枝 `claude/task-016-braid-physics-feasibility` の `d0e69c1` / `9b4d789`。**マージしない**。**段階4「製品へどう載せるか」は Task 020 段階4 が引き取る**）: `tasks/016-braid-physics-feasibility.md`
 - Task 018 `everyRegionCarriesTheRidgeIncludingBothEdges` が2分かかる件（未着手。優先度低）: `tasks/018-slow-mesh-test.md`
 - Task 021 反発による深さの導出（**保留。021a〜021e まで実行し、「置く高さの模型」は行き止まりと判明**。占有履歴で面の模様は出た（丸源氏 Task 004 と 32/32、平源氏 p97 3実験）。**続きは Task 022。末尾の「引き継ぎ」を読むこと**）: `tasks/021-depth-by-relaxation.md`
-- Task 023 張った糸を構成的に組む（**023-1 実施中**）: `tasks/023-taut-thread-construction.md`
+- Task 024 山の構成（糸の半径から）（**024-1 完了。次は 024-2**）: `tasks/024-crest-by-half-diameter.md`
 
 ## 更新方針
 
