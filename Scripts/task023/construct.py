@@ -24,12 +24,15 @@ import argparse
 import math
 import os
 import sys
+import time
 
 import numpy as np
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "task021"))
 import braid_geometry as g
 import given_length as gl
+import settle
 
 D = 1.0
 HANDS = 24          # book C's cycle, both figures
@@ -132,6 +135,21 @@ def join(rests, carried):
     return np.array(out)
 
 
+def cross(p0, p1, q0, q1):
+    """Where two segments cross in plan, if they do: the point and how far along
+    each of them it is."""
+    r, t = p1[:2] - p0[:2], q1[:2] - q0[:2]
+    denom = r[0] * t[1] - r[1] * t[0]
+    if abs(denom) < 1e-12:
+        return None
+    gap = q0[:2] - p0[:2]
+    a = (gap[0] * t[1] - gap[1] * t[0]) / denom
+    b = (gap[0] * r[1] - gap[1] * r[0]) / denom
+    if not (0.0 < a < 1.0 and 0.0 < b < 1.0):
+        return None
+    return p0[:2] + a * r, a, b
+
+
 def normal_at(place, where, folded):
     """Which way is out of the braid at this place: the surface's normal. A tube's
     is radial; a flat braid's is through its thickness on a face, and across its
@@ -202,7 +220,84 @@ def bump(way, at, direction, amount):
     return np.array(out)
 
 
-def build(braid, cycles, rounds=4):
+def carry_spans(parts, order, thread_order):
+    """Where each carry sits along its thread, as a fraction of the whole, so it can
+    be found again after the beads have been laid out and projected."""
+    out = {}
+    for thread in thread_order:
+        rests, carried = parts[thread]
+        legs, marks = [], []
+        for i, rest in enumerate(rests):
+            legs.append(("rest", i, np.array(rest)))
+            if i < len(carried):
+                legs.append(("carry", i, np.array(carried[i])))
+        along, total = [], 0.0
+        for kind, i, way in legs:
+            length = float(np.linalg.norm(np.diff(way, axis=0), axis=1).sum())
+            along.append((kind, i, total, total + length))
+            total += length
+        for kind, i, a, b in along:
+            if kind == "carry" and total > 1e-9:
+                out[(thread, "carry", i)] = (a / total, b / total)
+    return out
+
+
+def turned_over_after(ways, spans, order, thread_order):
+    """The same question after the projection, from the beads themselves."""
+    carries = []
+    for key, (a, b) in spans.items():
+        way = ways[thread_order.index(key[0])]
+        first = min(len(way) - 2, int(round(a * (len(way) - 1))))
+        last = max(first + 1, int(round(b * (len(way) - 1))))
+        carries.append((key, way[first], way[min(last, len(way) - 1)]))
+    out = []
+    for a in range(len(carries)):
+        for b in range(a):
+            key_a, a0, a1 = carries[a]
+            key_b, b0, b1 = carries[b]
+            if key_a[0] == key_b[0]:
+                continue
+            hit = cross(a0, a1, b0, b1)
+            if hit is None:
+                continue
+            _, t, u = hit
+            mine = a0[2] + t * (a1[2] - a0[2])
+            other = b0[2] + u * (b1[2] - b0[2])
+            late = key_a if order[key_a] > order[key_b] else key_b
+            high, low = (mine, other) if late is key_a else (other, mine)
+            if high <= low:
+                out.append((late, high - low))
+    return out
+
+
+def turned_over(parts, order, ways=None):
+    """Crossings that are not the way round the hand that laid them left them.
+
+    The construction knows which carry was laid later -- book C's order -- so this
+    asks the question directly, without going back through the move table.
+    """
+    carries = [(key, np.array(parts[key[0]][1][key[2]]))
+               for key in order if len(parts[key[0]][1][key[2]]) > 1]
+    out = []
+    for a in range(len(carries)):
+        for b in range(a):
+            (key_a, way_a), (key_b, way_b) = carries[a], carries[b]
+            if key_a[0] == key_b[0]:
+                continue
+            hit = cross(way_a[0], way_a[-1], way_b[0], way_b[-1])
+            if hit is None:
+                continue
+            at, t, u = hit
+            mine = float(np.interp(t, [0, 1], [way_a[0][2], way_a[-1][2]]))
+            other = float(np.interp(u, [0, 1], [way_b[0][2], way_b[-1][2]]))
+            late, early = (key_a, key_b) if order[key_a] > order[key_b] else (key_b, key_a)
+            high, low = (mine, other) if late is key_a else (other, mine)
+            if high <= low:
+                out.append((late, early, high - low))
+    return out
+
+
+def build(braid, cycles, rounds=1):
     table = g.FIG32 if braid == "maru" else g.FIG20
     ring = g.RING_MARU if braid == "maru" else g.RING_HIRA
     folded = braid == "hira"
@@ -315,27 +410,58 @@ def main():
     ap.add_argument("--braid", choices=("hira", "maru"), default="hira")
     ap.add_argument("--cycles", type=int, default=2)
     ap.add_argument("--out", default="")
-    ap.add_argument("--rounds", type=int, default=4,
-                    help="passes of the separation; each pass parts every pair it can")
+    ap.add_argument("--rounds", type=int, default=1,
+                    help="passes of the separation. **One.** It only has to put each "
+                         "crossing the right way round; the projection takes the "
+                         "overlaps out afterwards")
+    ap.add_argument("--no-project", action="store_true")
     args = ap.parse_args()
+
+    began = time.time()
     (lines, threads, k, where, order, lifts, bulges, most_lift, most_bulge,
      stuck, parts, left) = build(args.braid, args.cycles, args.rounds)
     print("%s: %d threads, %d cycles, k = %d layers a cycle (one cycle is %d d)"
           % (args.braid, len(lines), args.cycles, k, k))
     print("  carries lifted over carries: %d (most %.2f d)" % (lifts, most_lift))
     print("  rests bulged over carries:   %d (most %.2f d)" % (bulges, most_bulge))
-    print("  rest against rest, left alone: %d" % len(stuck))
-    print("  pairs still closer than d when the passes ran out: %d" % left)
-    for far, a, b in stuck[:6]:
-        print("    thread %d %s %d and thread %d %s %d are %.3f d apart"
-              % (a[0], a[1], a[2], b[0], b[1], b[2], far))
-    span = np.concatenate(list(lines.values()))
-    print("  lengthwise %.2f .. %.2f d;  section %.2f x %.2f d"
-          % (span[:, 2].min(), span[:, 2].max(),
-             span[:, 0].max() - span[:, 0].min() + D,
-             span[:, 1].max() - span[:, 1].min() + D))
+    print("  rest against rest: %d;  pairs still closer than d after the seeding: %d"
+          % (len(stuck), left))
+    reversed_ = turned_over(parts, order)
+    print("  crossings the other way up, before the projection: %d" % len(reversed_))
+    print("  constructed in %.2f s" % (time.time() - began))
+
+    thread_order = sorted(lines)
+    spans = carry_spans(parts, order, thread_order)
+    ways = [settle.beads(lines[t]) for t in thread_order]
+    if not args.no_project:
+        began = time.time()
+        ways, rounds, link, overlap, most, mean = settle.project(
+            ways, log=lambda r, l, o: print("    round %5d  neighbours %.2e  overlap %.2e"
+                                            % (r, l, o)))
+        print("  projected: %d rounds, %.1f s, neighbours %.2e, overlap %.2e"
+              % (rounds, time.time() - began, link, overlap))
+        print("  beads moved: most %.3f d, mean %.3f d" % (most, mean))
+        remaining, deepest = settle.left_over(ways)
+        print("  pairs still over the tolerance: %d (deepest %.3f d)" % (remaining, deepest))
+        after = turned_over_after(ways, spans, order, thread_order)
+        print("  crossings the other way up, after the projection: %d" % len(after))
+        for key, gap in sorted(after, key=lambda e: e[1])[:6]:
+            print("    thread %d carry %d is %.3f d under the one it was laid over"
+                  % (key[0], key[2], -gap))
+
+    every = np.concatenate(ways)
+    print("  lengthwise %.2f .. %.2f d" % (every[:, 2].min(), every[:, 2].max()))
     if args.out:
-        write(args.out, lines, k, args.cycles)
+        os.makedirs(os.path.dirname(args.out), exist_ok=True)
+        with open(args.out, "w") as f:
+            f.write("# braid constructed  cycles %d  k %d  threads %d  braid-point 0.000\n"
+                    % (args.cycles, k, len(ways)))
+            f.write("# laid-in thread bead x y z made\n")
+            for t, way in enumerate(ways):
+                for i, point in enumerate(way):
+                    f.write("%d %d %d %.5f %.5f %.5f 1\n"
+                            % (int(point[2] // max(k, 1)) * HANDS + 1, t, i,
+                               point[0], point[1], point[2]))
         print("  wrote", args.out)
 
 
