@@ -52,12 +52,28 @@ struct Flat16SurfacePattern: Equatable, Sendable {
 /// there and is gone.
 enum Flat16SurfacePatternGenerator {
     static let requiredThreadCount = 16
-    static let broadFaceColumnCount = HiraGenjiWeaveDerivation.columnCount
-    static let edgeColumnCount = HiraGenjiWeaveDerivation.edgeThreadCount
+
+    /// The braid this drawing is of, worked out from the moves.
+    ///
+    /// **The counts below used to come from the per-braid derivation.** They come
+    /// from the general working-out now: the fold says how many columns a face has
+    /// and how many threads turn at an edge, the cross-section says how many places
+    /// there are round the braid, and braiding until the stand comes back to itself
+    /// says how many steps a repeat takes.
+    static let working = BraidDerivation.derive(
+        stand: BraidMethodCatalog.stand16,
+        method: BraidMethodCatalog.hiraGenji16,
+        crossSection: BraidMethodCatalog.hiraGenji16CrossSection
+    )
+
+    static var broadFaceColumnCount: Int { working?.fold?.columnCount ?? 0 }
+    /// Two at each edge, one on each side of the braid.
+    static var edgeColumnCount: Int { (working?.fold?.turningSlots.count ?? 0) / 2 }
+    static var boardPositionCount: Int { working?.crossSection.slotCount ?? 0 }
 
     /// Steps along the braid in one repeat. Four, from the move rules, where the
     /// old hand-written table had two.
-    static var rowCount: Int? { HiraGenjiWeavePatternGenerator.rowCount }
+    static var rowCount: Int? { working?.repeatCycleCount }
 
     static var patchCount: Int? {
         rowCount.map { 2 * broadFaceColumnCount * $0 + 2 * edgeColumnCount * $0 }

@@ -546,9 +546,11 @@ enum Flat16SurfaceMesh {
     /// edge thread 1.09. The braid is worked in one thickness of thread, so that
     /// cannot be right.
     static func arcSpan(of region: Flat16SurfaceRegion) -> (start: Float, length: Float) {
-        let round = Float(HiraGenjiWeaveDerivation.boardPositionCount)
-        let face = Float(HiraGenjiWeaveDerivation.columnCount) / round
-        let edge = Float(HiraGenjiWeaveDerivation.edgeThreadCount) / round
+        // The cross-section's own counts: how many places round the braid, how
+        // many columns a face, how many threads turn at an edge.
+        let round = Float(Flat16SurfacePatternGenerator.boardPositionCount)
+        let face = Float(Flat16SurfacePatternGenerator.broadFaceColumnCount) / round
+        let edge = Float(Flat16SurfacePatternGenerator.edgeColumnCount) / round
         switch region {
         // Centred on the right-hand end of the width, so it straddles the wrap.
         case .rightEdge: return (1 - edge / 2, edge)
