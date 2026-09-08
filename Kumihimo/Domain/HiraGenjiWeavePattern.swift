@@ -170,17 +170,21 @@ enum HiraGenjiWeavePatternGenerator {
             return nil
         }
 
+        // **Which thread is at each place comes from the occupancy history.**
+        // The join is worked out, not chosen: every place this drawing uses -- a
+        // column on a face, or one of the two threads at an edge -- is matched to
+        // the slot of the history whose run of threads it holds. A place that
+        // matched none, or matched two that disagree, stops this rather than being
+        // guessed past.
+        guard let threadByPlace = threadByPlace(cycleCount: rowCount, courses: courses)
+        else { return nil }
+
         var patches = [HiraGenjiWeavePatch]()
         var edgePlaces = [HiraGenjiWeaveEdgePlace]()
         var crossings = [HiraGenjiWeftCrossing]()
 
         for course in courses {
-            guard
-                let colorID = colorsByPosition[course.threadPosition],
-                let half = keptFace(of: course)
-            else {
-                return nil
-            }
+            guard let half = keptFace(of: course) else { return nil }
             let kind: HiraGenjiThreadCourseKind = course.runsAlongTheBraid
                 ? .lengthwise
                 : .carriedAcross
@@ -195,6 +199,14 @@ enum HiraGenjiWeavePatternGenerator {
                 let sample = course.samples[row]
                 let next = course.samples[row + 1]
 
+                // The thread at this place at this row, from the history.
+                let key = Self.key(of: sample.place, half: half)
+                guard
+                    let run = threadByPlace[key], run.indices.contains(row),
+                    let colorID = colorsByPosition[run[row]]
+                else { return nil }
+                let threadHere = run[row]
+
                 switch sample.place {
                 case .face(let face, let column):
                     guard (0..<columnCount).contains(column) else { return nil }
@@ -202,7 +214,7 @@ enum HiraGenjiWeavePatternGenerator {
                         column: column,
                         row: row,
                         face: face,
-                        threadPosition: course.threadPosition,
+                        threadPosition: threadHere,
                         colorID: colorID,
                         course: kind,
                         layer: kind == .carriedAcross ? .under : .over,
@@ -213,7 +225,7 @@ enum HiraGenjiWeavePatternGenerator {
                         edge: edge,
                         row: row,
                         half: half,
-                        threadPosition: course.threadPosition,
+                        threadPosition: threadHere,
                         colorID: colorID
                     ))
                 }
@@ -227,7 +239,7 @@ enum HiraGenjiWeavePatternGenerator {
                 let passed = stride(from: from + step, to: to, by: step)
                     .filter { (0..<columnCount).contains($0) }
                 crossings.append(HiraGenjiWeftCrossing(
-                    threadPosition: course.threadPosition,
+                    threadPosition: threadHere,
                     colorID: colorID,
                     row: row,
                     face: half,
@@ -260,6 +272,69 @@ enum HiraGenjiWeavePatternGenerator {
     /// turns over every cycle and keeps to neither, so this is only asked of the
     /// ones carried across — but it is derived the same way for both: the faces
     /// the course actually visits.
+    /// A place of this drawing, as a key: a column on a face, or one of the two
+    /// threads at an edge, told apart by the half of the braid it keeps to.
+    static func key(of place: HiraGenjiWeaveDerivation.Place, half: HiraGenjiBraidFace) -> [Int] {
+        switch place {
+        case let .face(face, column): return [0, face == .front ? 0 : 1, column]
+        case let .edge(edge): return [1, edge == .left ? 0 : 1, half == .front ? 0 : 1]
+        }
+    }
+
+    /// Every place's run of threads, taken from the occupancy history.
+    ///
+    /// **Matched, not assumed.** Each place's run in the drawing is looked for
+    /// among the slots of the history; the slot that holds the same run, at the
+    /// same offset along the braid, is the one the place is. `nil` if any place
+    /// matches none, or matches two slots that would fill it differently.
+    static func threadByPlace(
+        cycleCount: Int, courses: [HiraGenjiThreadCourse]
+    ) -> [[Int]: [Int]]? {
+        guard
+            let occupancy = BraidOccupancy.history(
+                of: BraidMethodCatalog.hiraGenji16, on: BraidMethodCatalog.stand16,
+                crossSection: BraidMethodCatalog.hiraGenji16CrossSection, cycles: cycleCount
+            ),
+            let lanes = occupancy.lanes(rows: cycleCount)
+        else { return nil }
+
+        // What the drawing itself has at each place, row by row.
+        var drawn = [[Int]: [Int?]]()
+        for course in courses {
+            guard let half = keptFace(of: course) else { return nil }
+            for row in 0..<cycleCount {
+                guard course.samples.indices.contains(row) else { return nil }
+                let key = key(of: course.samples[row].place, half: half)
+                var run = drawn[key] ?? [Int?](repeating: nil, count: cycleCount)
+                run[row] = course.threadPosition
+                drawn[key] = run
+            }
+        }
+
+        var out = [[Int]: [Int]]()
+        for (key, maybe) in drawn {
+            let wanted = maybe.compactMap { $0 }
+            guard wanted.count == cycleCount else { return nil }
+            var filled: [Int]?
+            for (_, run) in lanes {
+                for shift in 0..<cycleCount {
+                    let candidate = (0..<cycleCount).map { run[($0 + shift) % cycleCount] }
+                    guard candidate == wanted else { continue }
+                    if let filled, filled != candidate { return nil }
+                    filled = candidate
+                }
+            }
+            guard let filled else { return nil }
+            out[key] = filled
+        }
+        return out
+    }
+
+    /// For the tests that hold the derived threads against the shipped ones.
+    static func keptFaceForTesting(_ course: HiraGenjiThreadCourse) -> HiraGenjiBraidFace? {
+        keptFace(of: course)
+    }
+
     private static func keptFace(of course: HiraGenjiThreadCourse) -> HiraGenjiBraidFace? {
         let faces = Set(course.samples.compactMap(\.face))
         if faces.count == 1 { return faces.first }

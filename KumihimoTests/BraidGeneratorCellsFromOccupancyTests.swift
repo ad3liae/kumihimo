@@ -84,3 +84,59 @@ struct BraidGeneratorCellsFromOccupancyTests {
         #expect(Set(mesh.colorGroups.keys).isSubset(of: wanted))
     }
 }
+
+/// The flat braid's half of the same join.
+@MainActor
+struct BraidFlatGeneratorCellsFromOccupancyTests {
+    private var courses: [HiraGenjiThreadCourse] {
+        get throws {
+            let rows = try #require(HiraGenjiWeavePatternGenerator.rowCount)
+            return try #require(HiraGenjiWeaveDerivation.courses(cycleCount: rows))
+        }
+    }
+
+    /// **The derived threads are the ones the shipped derivation has**, at every
+    /// place of the drawing and every row: the six columns of each face and both
+    /// threads at both edges.
+    @Test func theDerivedThreadsAreTheShippedOnes() throws {
+        let rows = try #require(HiraGenjiWeavePatternGenerator.rowCount)
+        let courses = try courses
+        let byPlace = try #require(HiraGenjiWeavePatternGenerator.threadByPlace(
+            cycleCount: rows, courses: courses
+        ))
+        // Six columns a face and two threads at each edge: sixteen places.
+        #expect(byPlace.count == 16)
+        var checked = 0
+        for course in courses {
+            let half = try #require(HiraGenjiWeavePatternGenerator.keptFaceForTesting(course))
+            for row in 0..<rows {
+                let key = HiraGenjiWeavePatternGenerator.key(
+                    of: course.samples[row].place, half: half
+                )
+                let run = try #require(byPlace[key])
+                #expect(run[row] == course.threadPosition, "place \(key) row \(row)")
+                checked += 1
+            }
+        }
+        #expect(checked == 16 * rows)
+    }
+
+    /// Book A p96's colouring still comes out as the photographed braid, and p97's
+    /// three experiments still come out, with the threads coming from the moves.
+    @Test func theShippedSurfaceIsUnchanged() throws {
+        for assignments in [BraidMethodCatalog.hiraGenji16Colouring,
+                            BraidReferenceColourings.bookAP97Left,
+                            BraidReferenceColourings.bookAP97Right,
+                            BraidReferenceColourings.bookAP96] {
+            let pattern = try #require(
+                HiraGenjiWeavePatternGenerator.generate(assignments: assignments))
+            #expect(pattern.columnCount == 6)
+            let surface = try #require(
+                HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
+            let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: surface))
+            #expect(mesh.triangleCount > 0)
+            let wanted = Set(assignments.map(\.colorID))
+            #expect(Set(mesh.colorGroups.keys).isSubset(of: wanted))
+        }
+    }
+}
