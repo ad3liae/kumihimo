@@ -433,7 +433,7 @@ def main():
              time.time() - began))
 
     began = time.time()
-    p, rounds, link, overlap, offset, stuck_rest, blocked = directed.solve(
+    p, rounds, link, overlap, offset, stuck_rest, unreachable = directed.solve(
         base, axis, kind, thread_of, rank, links, cap=args.cap,
         log=lambda r, l, o: print("    round %5d  neighbours %.2e  overlap %.2e"
                                   % (r, l, o)))
@@ -442,8 +442,8 @@ def main():
     rest, carry = offset[kind == 0], offset[kind == 1]
     print("  bulge of the rests:   most %.3f d, mean %.3f d" % (rest.max(), rest.mean()))
     print("  lift of the carries:  most %.3f d, mean %.3f d" % (carry.max(), carry.mean()))
-    print("  rest against rest: %d;  contacts no axis could part: %d"
-          % (stuck_rest, blocked))
+    print("  rest against rest: %d;  contacts the axis never reaches: %d"
+          % (stuck_rest, unreachable))
 
     ways = []
     first = 0

@@ -20,6 +20,7 @@ The distance between neighbours of one thread is corrected along the same axes.
 **Where a rest stands on the surface, and the line a carry takes through the
 section, are never moved.** The only length is d.
 """
+import math
 import os
 import sys
 
@@ -76,53 +77,68 @@ def lay_out(parts, order, where, normal_of, spacing=D):
             np.array(rank, dtype=float), np.array(links, dtype=int), counts)
 
 
+def reach(p, q, a, spacing=D):
+    """How far along `a` a point at `p` has to go to be `spacing` from `q`.
+
+    **Solved, not linearised.** |p + t a - q| = d with |a| = 1 is a quadratic in t,
+    and the smallest t that is not negative is
+
+        t = -s + sqrt(s^2 - (r^2 - d^2)),   s = a . (p - q),  r = |p - q|
+
+    A point 0.9 d to one side and level with another is 0.44 d from clearing it,
+    and this says so. **Where the discriminant is negative the axis never reaches
+    that distance** -- that pair is counted and left where it is, not forced.
+    """
+    gap = p - q
+    s = float(a @ gap)
+    disc = s * s - (float(gap @ gap) - spacing * spacing)
+    if disc < 0.0:
+        return None
+    return -s + math.sqrt(disc)
+
+
 def solve(base, axis, kind, thread_of, rank, links, cap=CAP, tolerance=TOLERANCE,
           log=None, every=200):
     """Push until nothing is inside anything else. Returns the points and a report."""
     offset = np.zeros(len(base))
-    stuck_rest, blocked = 0, 0
+    stuck_rest, unreachable = 0, 0
     link_res = over_res = float('inf')
     for round_ in range(cap):
         p = base + offset[:, None] * axis
         # --- no two threads through each other -----------------------------
+        want = np.zeros(len(base))
         pairs = gl.contact_pairs(p, links, "capsule")
         if pairs is not None and len(pairs):
             i0, i1 = links[pairs[:, 0], 0], links[pairs[:, 0], 1]
             j0, j1 = links[pairs[:, 1], 0], links[pairs[:, 1], 1]
-            s, t, gap = gl.segment_distance(p[i0], p[i1], p[j0], p[j1])
+            u, v, gap = gl.segment_distance(p[i0], p[i1], p[j0], p[j1])
             far = np.linalg.norm(gap, axis=1)
-            close = far < D - 1e-12
-            for m in np.nonzero(close)[0]:
+            for m in np.nonzero(far < D - 1e-12)[0]:
                 a0, a1, b0, b1 = i0[m], i1[m], j0[m], j1[m]
                 if thread_of[a0] == thread_of[b0]:
                     continue
-                want = D - far[m]
-                unit = gap[m] / max(far[m], 1e-9)          # points from b towards a
-                # a segment is a rest only if both its ends are; the one that
-                # joins a rest to a carry leaves the surface, so it counts as a carry
+                # a segment is a rest only if both its ends are; the one that joins
+                # a rest to a carry leaves the surface, so it counts as a carry
                 a_is_rest = kind[a0] == 0 and kind[a1] == 0
                 b_is_rest = kind[b0] == 0 and kind[b1] == 0
                 if a_is_rest and b_is_rest:
                     stuck_rest += 1
                     continue
+                here = p[a0] + u[m] * (p[a1] - p[a0])
+                there = p[b0] + v[m] * (p[b1] - p[b0])
                 if a_is_rest != b_is_rest:
-                    move, share, out = ((a0, a1), (1 - s[m], s[m]), unit) if a_is_rest \
-                        else ((b0, b1), (1 - t[m], t[m]), -unit)
+                    move = (a0, a1) if a_is_rest else (b0, b1)
                 else:
-                    later = rank[a0] > rank[b0]
-                    move, share, out = ((a0, a1), (1 - s[m], s[m]), unit) if later \
-                        else ((b0, b1), (1 - t[m], t[m]), -unit)
-                lever = sum(w * max(float(axis[i] @ out), 0.0) for i, w in zip(move, share))
-                if lever < FLAT:
-                    blocked += 1
-                    continue
-                # **a point never moves further than the violation it is answering.**
-                # Where the axis lies across the separation the step is short and the
-                # pair takes more rounds; it cannot run away.
-                step = min(want / lever, want)
-                for i, w in zip(move, share):
-                    if float(axis[i] @ out) > 0:
-                        offset[i] += step * w
+                    move = (a0, a1) if rank[a0] > rank[b0] else (b0, b1)
+                mine, other = (here, there) if move[0] in (a0, a1) else (there, here)
+                for i in move:
+                    step = reach(mine, other, axis[i])
+                    if step is None:
+                        unreachable += 1
+                        continue
+                    if step > want[i]:
+                        want[i] = step
+        offset += want                       # one step a point: the largest it owes
         # --- neighbours a diameter apart -----------------------------------
         p = base + offset[:, None] * axis
         for _ in range(2):
@@ -147,4 +163,4 @@ def solve(base, axis, kind, thread_of, rank, links, cap=CAP, tolerance=TOLERANCE
         if max(link_res, over_res) < tolerance:
             break
     p = base + offset[:, None] * axis
-    return p, round_ + 1, link_res, over_res, offset, stuck_rest, blocked
+    return p, round_ + 1, link_res, over_res, offset, stuck_rest, unreachable
