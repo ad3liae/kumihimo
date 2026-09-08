@@ -2,18 +2,23 @@
 # The derivation must not know the name of a braid.
 #
 # Everything under Kumihimo/Domain/Braiding/ works out a braid from a stand and a
-# table of moves, and everything under Kumihimo/Features/BraidPattern/ draws that
-# working-out. The tables themselves live outside both (Kumihimo/Domain/
-# BraidMethodCatalog.swift), so adding a braid is adding data. If a braid's name
-# appears in either, that separation has been lost and the third braid will cost
-# what the first two did.
+# table of moves; Kumihimo/Features/BraidPattern/ draws that working-out flat and
+# Kumihimo/Features/BraidView/ draws it solid. The tables themselves live outside
+# them all (Kumihimo/Domain/BraidMethodCatalog.swift), so adding a braid is adding
+# data. If a braid's name appears in any of them, that separation has been lost and
+# the third braid will cost what the first two did.
+#
+# Kumihimo/Features/BraidSimulation/ is NOT watched yet. It holds the two frozen
+# per-braid generators and the views around them, which Task 025-4 decides the fate
+# of; adding it here today would fail on fifteen files that this stage is under
+# instruction not to touch. It joins the list when they retire.
 #
 # Run from the repository root:
 #     sh Scripts/check-braiding-is-general.sh
 
 set -eu
 
-directories="Kumihimo/Domain/Braiding Kumihimo/Features/BraidPattern"
+directories="Kumihimo/Domain/Braiding Kumihimo/Features/BraidPattern Kumihimo/Features/BraidView"
 names="MaruGenji\|HiraGenji"
 
 for directory in $directories; do
