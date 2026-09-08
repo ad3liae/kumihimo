@@ -57,8 +57,14 @@ struct BraidSection: Equatable, Sendable {
     /// Works the section out of the fold, or out of the ring when there is none.
     ///
     /// `flatten` presses the faces together; a tube is never pressed.
+    ///
+    /// `thicknessScale` takes the braid's thickness to a measured one. **It is not a
+    /// number to be chosen**: it comes from `thicknessScale(toMeet:from:)`, which
+    /// solves it in one step out of a measured width-over-thickness. The faces and
+    /// the crests move together, so **the crest as a fraction of the half-thickness
+    /// — which is the form book A gives it in — does not change.**
     static func section(
-        slotCount: Int, fold: BraidFold?, flatten: Bool = false
+        slotCount: Int, fold: BraidFold?, flatten: Bool = false, thicknessScale: Double = 1
     ) -> BraidSection? {
         guard slotCount > 0 else { return nil }
         guard let fold else {
@@ -79,9 +85,10 @@ struct BraidSection: Equatable, Sendable {
         // braid is the ring folded in half.
         let faceThreads = fold.columnCount
         let width = Double(slotCount) / 2
-        let pressed = flatten
+        var pressed = flatten
             ? flattened(width: width, faceThreads: faceThreads)
             : (width: 1.0, thickness: 1.0)
+        pressed.thickness *= thicknessScale
         let middle = (Double(fold.columnCount) - 1) / 2
 
         var places = [Int: Place]()
@@ -109,6 +116,30 @@ struct BraidSection: Equatable, Sendable {
         return BraidSection(places: places, threadWidth: pressed.width,
                             threadThickness: pressed.thickness)
     }
+
+    /// The scale that takes a braid of this section to a measured width over
+    /// thickness.
+    ///
+    /// **A division, applied again until it stops moving** — not a search. Scaling
+    /// the through-thickness direction is very nearly inversely proportional to the
+    /// ratio, but not exactly: the section's own principal axis turns a little as
+    /// the braid thins, so the width it is measured along turns with it. Each
+    /// division lands closer, and the correction is what is left of a straight
+    /// proportion rather than a step-size somebody chose. `nil` when there is
+    /// nothing measured to meet.
+    static func thicknessScale(
+        toMeet measured: BraidMeasurement?, from built: Double
+    ) -> Double? {
+        guard let measured, measured.isObserved, measured.value > 0, built > 0 else {
+            return nil
+        }
+        return built / measured.value
+    }
+
+    /// How close a built ratio has to come before the scale stops being divided
+    /// again, and how many times it may be.
+    static let ratioSettled = 1e-9
+    static let ratioRounds = 12
 
     /// Where a carry goes when it crosses from one face to the other: through the
     /// middle, which is the neutral plane. **The belly is an empty layer except

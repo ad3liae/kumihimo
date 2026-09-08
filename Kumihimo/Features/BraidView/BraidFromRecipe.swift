@@ -17,6 +17,9 @@ struct BraidFromRecipe {
     let occupancy: BraidOccupancy
     let section: BraidSectionMeasure?
     let pitch: BraidMeasurement
+    /// What the braid's width over thickness was taken from: the recipe's measured
+    /// value where it has one, and the construction's own otherwise.
+    let widthOverThickness: BraidMeasurement
 
     /// `cycles` is how much of the braid to build; three shows a repeat with a
     /// cycle spare at each end.
@@ -32,21 +35,60 @@ struct BraidFromRecipe {
                 of: worked.method, on: stand, crossSection: worked.section,
                 fold: worked.derivation.fold, cycles: cycles + 2
             ),
-            let construction = BraidConstruction.construct(
-                of: worked.method, on: stand, crossSection: worked.section,
-                fold: worked.derivation.fold, cycles: cycles,
-                // A tube is never pressed; a flat braid is, unless asked otherwise.
-                flatten: flatten && worked.derivation.fold != nil
-            ),
-            let lines = BraidCentrelines.centrelines(
-                of: construction, crestHeight: recipe.shape.crestHeight
-            )
+            // A tube is never pressed; a flat braid is, unless asked otherwise.
+            let pressed = flatten && worked.derivation.fold != nil ? true : false,
+            let first = built(worked, on: stand, cycles: cycles, flatten: pressed,
+                              crestHeight: recipe.shape.crestHeight, thicknessScale: 1)
         else { return nil }
+
+        // **The braid's thickness is a measured value where the recipe has one.**
+        // Scaling the through-thickness direction leaves the width alone, so the
+        // scale that meets the measurement is one division away from what the
+        // construction came out at -- no search, and nothing fitted by eye.
+        var lines = first
+        var ratio = BraidMeasurement.derived(
+            BraidSectionMeasure.measure(first, tube: worked.derivation.fold == nil)?
+                .widthOverThickness ?? 0,
+            by: "measured on the braid the construction came out with"
+        )
+        if worked.derivation.fold != nil, let measured = recipe.shape.widthOverThickness {
+            var scale = 1.0
+            var here = ratio.value
+            for _ in 0..<BraidSection.ratioRounds {
+                guard abs(here - measured.value) > BraidSection.ratioSettled,
+                      let step = BraidSection.thicknessScale(toMeet: measured, from: here),
+                      let again = built(worked, on: stand, cycles: cycles, flatten: pressed,
+                                        crestHeight: recipe.shape.crestHeight,
+                                        thicknessScale: scale * step),
+                      let now = BraidSectionMeasure.measure(again, tube: false)
+                else { break }
+                scale *= step
+                lines = again
+                here = now.widthOverThickness
+            }
+            ratio = abs(here - measured.value) <= 1e-4 ? measured : BraidMeasurement.derived(
+                here, by: "measured on the braid; the recipe's value was not reached"
+            )
+        }
+
         return BraidFromRecipe(
             recipe: recipe, lines: lines, occupancy: occupancy,
             section: BraidSectionMeasure.measure(lines, tube: worked.derivation.fold == nil),
-            pitch: stacking.pitchPerBraidWidth
+            pitch: stacking.pitchPerBraidWidth, widthOverThickness: ratio
         )
+    }
+
+    private static func built(
+        _ worked: (method: BraidMethod, section: BraidCrossSection, derivation: BraidDerivation),
+        on stand: BraidStand, cycles: Int, flatten: Bool,
+        crestHeight: BraidMeasurement?, thicknessScale: Double
+    ) -> BraidCentrelines? {
+        guard let construction = BraidConstruction.construct(
+            of: worked.method, on: stand, crossSection: worked.section,
+            fold: worked.derivation.fold, cycles: cycles, flatten: flatten,
+            thicknessScale: thicknessScale
+        ) else { return nil }
+        return BraidCentrelines.centrelines(of: construction, crestHeight: crestHeight)
     }
 
     /// The braid drawn from every view worth showing, with the recipe's colouring.

@@ -82,12 +82,14 @@ struct BraidConstruction: Equatable, Sendable {
         crossSection: BraidCrossSection,
         fold: BraidFold?,
         cycles: Int,
-        flatten: Bool = false
+        flatten: Bool = false,
+        thicknessScale: Double = 1
     ) -> BraidConstruction? {
         guard
             cycles > 0,
             let section = BraidSection.section(slotCount: crossSection.slotCount,
-                                               fold: fold, flatten: flatten),
+                                               fold: fold, flatten: flatten,
+                                               thicknessScale: thicknessScale),
             let occupancy = BraidOccupancy.history(of: method, on: stand,
                                                    crossSection: crossSection,
                                                    cycles: cycles + 1),

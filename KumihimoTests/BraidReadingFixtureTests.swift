@@ -13,8 +13,8 @@ struct BraidReadingFixtureTests {
 
     /// The three colourings of `Scripts/task021/occupancy.py`'s `P97`, and the two
     /// colours it counts as worked lengthwise.
-    private static let plain: Set<String> = ["natural", "white"]
-    private static let p97: [String: [String: [String]]] = [
+    static let plain: Set<String> = ["natural", "white"]
+    static let p97: [String: [String: [String]]] = [
         "weft-only": ["north": ["natural", "natural", "natural", "natural"],
                       "east": ["yellow", "red", "red", "yellow"],
                       "south": ["natural", "natural", "natural", "natural"],
@@ -55,7 +55,7 @@ struct BraidReadingFixtureTests {
         let maru: Maru
     }
 
-    private func colouring(_ trial: String) throws -> [Int: String] {
+    static func colouring(_ trial: String) throws -> [Int: String] {
         let named = try #require(Self.p97[trial])
         var out = [Int: String]()
         for group in BraidMethodCatalog.stand16.groups {
@@ -77,7 +77,7 @@ struct BraidReadingFixtureTests {
                                   ("back", SIMD3<Double>(0, 1, 0))] {
             let picture = BraidPicture.paint(built, looking: direction)
             for trial in Self.p97.keys.sorted() {
-                let colours = try colouring(trial)
+                let colours = try Self.colouring(trial)
                 let count = BraidReading.face(
                     picture, section: section, widths: [1, 2, 3, 4],
                     workedLengthwise: { Self.plain.contains(colours[$0] ?? "") }
@@ -96,7 +96,7 @@ struct BraidReadingFixtureTests {
             let picture = BraidPicture.paint(built, looking: direction)
             for (trial, wanted) in [("weft-only", 100.0), ("arrow-feather", 100.0),
                                     ("ladder", 0.0)] {
-                let colours = try colouring(trial)
+                let colours = try Self.colouring(trial)
                 let count = BraidReading.face(
                     picture, section: built.construction.section, widths: [1, 2, 3, 4],
                     workedLengthwise: { Self.plain.contains(colours[$0] ?? "") }
