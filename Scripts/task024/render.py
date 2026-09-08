@@ -192,42 +192,150 @@ def symmetric(spot, ways, kinds, steps):
     return trouble
 
 
-def read_maru(ways, k, cycles=4, columns=8):
-    """The tube's face: eight views round it, one patch a cycle."""
+def unroll(seens, path, gap=2):
+    """The eight views laid side by side: the tube cut open and flattened."""
+    H = max(v.shape[0] for v in seens)
+    W = sum(v.shape[1] for v in seens) + gap * (len(seens) - 1)
+    sheet = np.full((H, W), -1, dtype=int)
+    x = 0
+    for v in seens:
+        h, w = v.shape
+        sheet[:h, x:x + w] = v
+        x += w + gap
+    save(sheet, path)
+
+
+def maru_columns(reading="landing", places=16):
+    """The angle and the place of each of the eight columns.
+
+    The round braid's sixteen resting places stand **22.5 degrees apart**, and the
+    occupancy history folds them into **eight columns, one closing pair each**
+    (`occupancy.closing_columns`). A view every 45 degrees -- which is what this
+    used to take -- therefore points **between** the two places of a pair for half
+    of the eight, and the same thread then comes out twice in one row.
+
+    Two angles can be claimed for a column:
+
+    * **landing**: the place a braiding move lands on. Exactly one of a pair's two
+      places is such a place; the other is only ever reached by the closing. This
+      is the place the transcription's own reading uses
+      (`occupancy.maru_grid(reading="landing")`), and a thread rests on it, so the
+      eye is looking at a thread and not at the seam between two.
+    * **middle**: halfway between the pair's two places. It keeps the eight views
+      evenly spaced, which is tidy, but it points at the seam, and a seam belongs
+      to two threads at once.
+
+    **The landing angle is the one taken**, because the drawing must answer the
+    same question the transcription asks -- what rests at that place at that cycle
+    -- and only a place can answer it. Both are computed so both can be read.
+    """
+    import braid_geometry as g
+    import occupancy as oc
+    pairs, landings = oc.closing_columns(g.FIG32, g.RING_MARU)
+    step = 2 * math.pi / places
+    angles, places_out = [], []
+    for pair in pairs:
+        inside = [q for q in pair if q in landings]
+        if len(inside) != 1:
+            raise SystemExit("pair %s does not hold exactly one landing" % (pair,))
+        places_out.append(inside[0])
+        angles.append(inside[0] * step if reading == "landing"
+                      else (pair[0] + 0.5) * step)
+    if reading not in ("landing", "middle"):
+        raise SystemExit("no such reading: %r" % (reading,))
+    return angles, places_out
+
+
+def maru_rows(steps, places, k):
+    """Where each column's rows stand, and where the braid has settled.
+
+    **The columns do not change over at the same height.** A place's resting thread
+    changes when a hand lands there, and the hands of one cycle land at different
+    moments, so the eight columns' rests sit at heights that differ by up to two
+    diameters. A horizontal line drawn across the tube cuts the eight columns at
+    eight different points of the cycle, so it is not one row at all. Each column
+    is read at its own rest instead. **Only where to look comes from here; what is
+    there is still whatever the picture has in front.**
+
+    The first rests at a place are the seed being taken up, not the braid: their
+    spacing is 1 and 2 before it becomes the cycle's own pitch k. The row to start
+    at is the first one from which every column's spacing is k -- that is read off
+    the heights, not chosen.
+    """
+    at = {}
+    for thread, way in steps.items():
+        for place, start, leave, _ in way:
+            # where the thread lands, which is the moment the occupancy history
+            # reads; the last rest of all runs on to the top of the braid, so its
+            # far end says nothing
+            at.setdefault(place, []).append(start)
+    settled = 0
+    heights = []
+    for place in places:
+        hs = sorted(at[place])
+        gaps = [b - a for a, b in zip(hs[:-1], hs[1:])]
+        first = 0
+        for i in range(len(gaps) - 1, -1, -1):
+            if abs(gaps[i] - k) > 1e-9:
+                first = i + 1
+                break
+        settled = max(settled, first)
+        heights.append(hs)
+    return heights, settled
+
+
+def read_maru(ways, steps, k, rows=4, reading="landing"):
+    """The tube's face: one view a column, one patch a cycle.
+
+    **The eye stands over the column.** The view runs along the inward radial at
+    that column's angle, so the nearest point of the tube -- the middle of the
+    silhouette -- is the place itself.
+    """
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "..", "task021"))
     import occupancy as oc
-    p = np.concatenate([ways[t] for t in sorted(ways)])
-    lo, hi = p[:, 2].min(), p[:, 2].max()
-    grid = []
+    angles, places = maru_columns(reading)
+    heights, settled = maru_rows(steps, places, k)
     seen_by_view = []
-    for c in range(columns):
-        angle = 2 * math.pi * c / columns
-        direction = [math.cos(angle), math.sin(angle), 0]
-        box, u, v, n = box_for(ways, direction)      # each view in its own frame
-        seen, _, _ = paint(ways, direction, box, D, D, 8)
-        seen_by_view.append(seen)
-    for row in range(cycles):
-        z = lo + (row + 0.5) * k
+    for angle in angles:
+        direction = [-math.cos(angle), -math.sin(angle), 0.0]   # from outside, inwards
+        box, u, v, n = box_for(ways, direction)
+        seen, _, (u0, u1, v0, v1, W, H) = paint(ways, direction, box, D, D, 8)
+        seen_by_view.append((seen, v0))
+    grid = []
+    for row in range(rows):
         line = []
-        for c in range(columns):
-            seen = seen_by_view[c]
+        for c in range(len(angles)):
+            hs = heights[c]
+            if settled + row >= len(hs):
+                raise SystemExit("only %d rests at column %d: braid more cycles"
+                                 % (len(hs), c))
+            z = hs[settled + row]
+            seen, v0 = seen_by_view[c]
             H, W = seen.shape
-            y = int((z - (lo - 0.5)) * 8)
-            y = min(max(y, 0), H - 1)
-            # the middle of the silhouette is the point of the tube nearest the eye
+            y = min(max(int((z - v0) * 8), 0), H - 1)
             painted = np.nonzero(seen[y] >= 0)[0]
             middle = seen[y, W // 2 - 4:W // 2 + 4] if not len(painted) else \
                 seen[y, max(int(painted.mean()) - 4, 0):int(painted.mean()) + 4]
             middle = middle[middle >= 0]
             line.append(int(np.bincount(middle).argmax()) if len(middle) else 0)
         grid.append(line)
-    target = oc.task004()
-    ranked = oc.matches(grid, target)
+    ranked = oc.matches(grid, oc.task004())
+    twice = [(r, sorted(set(t for t in line if line.count(t) > 1)))
+             for r, line in enumerate(grid) if len(set(line)) < len(line)]
+    print("    views on the %s angle: %s"
+          % (reading, ", ".join("%.1f" % math.degrees(a) for a in angles)))
+    print("    rows read from rest %d (the braid has settled into pitch %d there)"
+          % (settled, k))
     print("    the eight views, cycle by cycle:")
     for row, line in enumerate(grid):
         print("      cycle %d: %s" % (row, line))
+    if twice:
+        for row, who in twice:
+            print("      a thread twice in cycle %d: %s" % (row, who))
+    else:
+        print("      no thread appears twice in one row")
     print("    best agreement with Task 004: %d/32 (mirror=%s rotation=%d upwards=%s "
           "shift=%d)" % (ranked[0][0], ranked[0][1], ranked[0][2], ranked[0][3],
                          ranked[0][4]))
-    return grid, seen_by_view
+    return grid, [seen for seen, _ in seen_by_view], ranked[0]
