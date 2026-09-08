@@ -2,58 +2,16 @@ import Foundation
 import Testing
 @testable import Kumihimo
 
-/// Task 025-3: can the construction say which side of a crossing a thread takes,
-/// as the chord model does?
+/// Task 025-4: what the chord model used to answer, and what answers it now.
 ///
-/// The construction's answer is not a rule added on top: **a thread carried through
-/// the belly is under the threads resting on the faces**, and that is where the
-/// carry is actually drawn. If it agreed with the chord model everywhere, the chord
-/// model would have nothing left to say and could go.
-///
-/// **They agree, 64 cells of 64.**
-///
-/// A first attempt at this reported 16 of 64 and was wrong: it asked whether the
-/// carry crossed *the belly*, when what matters is whether the carry runs *across
-/// the braid* at all. A weft that stays on one face still passes the columns
-/// between its ends, and it passes them inside. The reported disagreement was that
-/// mistake and nothing else (Task 025-3's report; corrected in 025-4).
-@MainActor
-struct BraidLayerFromConstructionTests {
-    @Test func theConstructionAndTheChordModelSayTheSameThing() throws {
-        let derivation = try #require(BraidDerivation.derive(
-            stand: BraidMethodCatalog.stand16, method: BraidMethodCatalog.hiraGenji16,
-            crossSection: BraidMethodCatalog.hiraGenji16CrossSection
-        ))
-        let construction = try #require(BraidConstruction.construct(
-            of: derivation.method, on: derivation.stand,
-            crossSection: derivation.crossSection, fold: derivation.fold,
-            cycles: derivation.repeatCycleCount + 1
-        ))
-        var agreed = 0
-        var disagreed = [String]()
-        for cell in derivation.cells {
-            guard let theirs = cell.layer else { continue }
-            guard let mine = construction.layer(ofThread: cell.threadPosition,
-                                                atRow: cell.row)
-            else {
-                disagreed.append("row \(cell.row) thread \(cell.threadPosition): "
-                                 + "the construction has nothing to say")
-                continue
-            }
-            if mine == theirs {
-                agreed += 1
-            } else {
-                disagreed.append("row \(cell.row) thread \(cell.threadPosition): "
-                                 + "construction \(mine.rawValue), chords \(theirs.rawValue)")
-            }
-        }
-        // Recorded, not accepted. If either side moves, this is where it shows.
-        let report = "agreed \(agreed), disagreed \(disagreed.count); first few: "
-            + disagreed.prefix(4).joined(separator: "; ")
-        #expect(agreed == 64, Comment(rawValue: report))
-        #expect(disagreed.isEmpty, Comment(rawValue: report))
-    }
-}
+/// The chord model was retired here. Before it went, its over and under was held
+/// against the construction's — "a carry that passes places other than the one it
+/// lands on passes them inside, so it is under whatever rests there" — and the two
+/// agreed **64 cells of 64**. (An earlier attempt reported 16 of 64 and was wrong:
+/// it asked whether the carry crossed *the belly*, when what matters is whether it
+/// runs *across the braid* at all. A weft that stays on one face still passes the
+/// columns between its ends.) That comparison went with the model it was checking;
+/// what is left is the claim that stands on its own.
 
 /// Task 025-4: the stacking model's own claim about the body, which is the one
 /// piece of independent support the construction's over and under has.

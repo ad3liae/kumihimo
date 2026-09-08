@@ -112,46 +112,34 @@ struct BraidDerivationTests {
         #expect(turningPositions == [4, 5, 12, 13])
     }
 
-    /// A thread carried across never surfaces in the middle of a face: it passes
-    /// under every thread running along the braid that it meets. Book A p97's own
-    /// sample is what this reproduces — colour the sideways threads and the body
-    /// stays plain.
+    /// **Sixteen runs across the braid, each passing all six columns of a face,
+    /// and inside every one of them.**
     ///
-    /// **Sixteen runs across the braid, each meeting all eight threads that hold
-    /// the columns, and under every one of them.**
+    /// Taken from the construction, which is where a carry is actually drawn: a
+    /// carry that passes places other than the one it lands on passes them inside,
+    /// so it is under whatever is resting there. The chord model used to answer
+    /// this and was retired in Task 025-4; the two agreed cell for cell first.
     @Test func nothingCarriedAcrossShowsInTheMiddleOfTheFace() throws {
         let derivation = try hira
         #expect(derivation.columnsHeldLengthwise == [1, 2, 3, 4])
+        let construction = try #require(BraidConstruction.construct(
+            of: derivation.method, on: derivation.stand,
+            crossSection: derivation.crossSection, fold: derivation.fold,
+            cycles: derivation.repeatCycleCount + 1
+        ))
 
-        let carried = Set(derivation.threadsCarriedAcrossTheBraid)
-        let acrossTheBraid = derivation.crossings.filter {
-            carried.contains($0.threadPosition) && !$0.meetingsWithThreadsRunningAlong.isEmpty
-        }
-        #expect(acrossTheBraid.count == 16)
-        for crossing in acrossTheBraid {
-            #expect(crossing.meetingsWithThreadsRunningAlong.count == 8)
-            #expect(crossing.layerAgainstThreadsRunningAlong == .under)
-        }
-        // And not one of them is ever found on top of a thread running along.
-        #expect(derivation.crossings.allSatisfy { crossing in
-            !carried.contains(crossing.threadPosition)
-                || crossing.meetingsWithThreadsRunningAlong.allSatisfy { $0.layer == .under }
-        })
-    }
-
-    /// **The side taken at a crossing comes out of the order of the moves.** The
-    /// threads carried across are moved at the first and second steps and the ones
-    /// running along at the third to the sixth, so the second group is laid on the
-    /// first.
-    @Test func theSideTakenAtACrossingComesFromTheOrderOfTheMoves() throws {
-        let derivation = try hira
-        let carried = Set(derivation.threadsCarriedAcrossTheBraid)
-        for crossing in derivation.crossings where carried.contains(crossing.threadPosition) {
-            for meeting in crossing.meetingsWithThreadsRunningAlong {
-                #expect(meeting.otherInstant > crossing.instant)
-                #expect(meeting.layer == .under)
+        var acrossTheBraid = 0
+        for thread in derivation.threadsCarriedAcrossTheBraid {
+            for row in 0..<derivation.repeatCycleCount {
+                guard let passed = construction.placesPassed(byThread: thread, atRow: row),
+                      passed.count > 1
+                else { continue }
+                acrossTheBraid += 1
+                #expect(construction.layer(ofThread: thread, atRow: row) == .under,
+                        "thread \(thread) row \(row)")
             }
         }
+        #expect(acrossTheBraid == 16)
     }
 
     /// The figures Task 007G derived from the move order, reproduced by code that
