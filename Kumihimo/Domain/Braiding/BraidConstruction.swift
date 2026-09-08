@@ -34,6 +34,9 @@ struct BraidConstruction: Equatable, Sendable {
     let sideSteps: [SideStep: Double]
     let layersPerCycle: Int
     let section: BraidSection
+    /// Kept so the construction can say which places a carry passes.
+    let fold: BraidFold?
+    let slotCount: Int
 
     /// Two wefts crossing one column at one height. **The model says this cannot
     /// happen** — a column takes a landing and two passings in a cycle, so two
@@ -43,7 +46,32 @@ struct BraidConstruction: Equatable, Sendable {
     static func == (a: BraidConstruction, b: BraidConstruction) -> Bool {
         a.steps == b.steps && a.handOversRaisedALayer == b.handOversRaisedALayer
             && a.sideSteps == b.sideSteps && a.layersPerCycle == b.layersPerCycle
-            && a.section == b.section
+            && a.section == b.section && a.fold == b.fold && a.slotCount == b.slotCount
+    }
+
+    // MARK: - Which side of a crossing
+
+    /// The places this row's carry passes, the one it lands on included.
+    func placesPassed(byThread thread: Int, atRow row: Int) -> [Int]? {
+        guard let way = steps[thread], row + 1 < way.count else { return nil }
+        return BraidStacking.slotsOccupied(
+            from: way[row].slot, to: way[row + 1].slot, slotCount: slotCount, fold: fold
+        )
+    }
+
+    /// Which side of the threads resting on the surface this thread takes at this
+    /// row.
+    ///
+    /// **This is where the thread is, not a rule about who moved when.** A carry
+    /// that runs across the braid passes places other than the one it lands on, and
+    /// it passes them *inside* — so it is under whatever is resting there. A thread
+    /// that only steps next door, or stays, passes nothing and is on the surface.
+    ///
+    /// `nil` when the row has no carry to speak of, which is the end of what was
+    /// built.
+    func layer(ofThread thread: Int, atRow row: Int) -> BraidCrossingLayer? {
+        guard let passed = placesPassed(byThread: thread, atRow: row) else { return nil }
+        return passed.count > 1 ? .under : .over
     }
 
     // MARK: - Building
@@ -113,7 +141,8 @@ struct BraidConstruction: Equatable, Sendable {
 
         return BraidConstruction(
             steps: steps, handOversRaisedALayer: lifted, sideSteps: sides,
-            layersPerCycle: k, section: section, weftsSharingAHeight: clashes
+            layersPerCycle: k, section: section, fold: fold,
+            slotCount: crossSection.slotCount, weftsSharingAHeight: clashes
         )
     }
 

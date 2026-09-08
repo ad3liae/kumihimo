@@ -4,13 +4,32 @@ import Foundation
 /// Rebuilds the shipped flat-braid surface out of the general working-out, so the
 /// two can be compared object for object.
 ///
-/// **This exists to make a difference visible, not to ship.** It reads only the
-/// derivation, and every value it fills in is one the derivation already worked
-/// out — the fold says which face and which column, the courses say which thread,
-/// the move order says which side of a crossing.
+/// **This exists to make a difference visible, not to ship.** Every value it fills
+/// in is one the working-out already has — the fold says which face and which
+/// column, the courses say which thread, and **which side of a crossing a thread
+/// takes comes from the construction**: a carry that runs across the braid passes
+/// the columns between its ends, and it passes them inside.
+///
+/// It used to take that last one from the chord model. The author's ruling of
+/// 2026-09-09 made the construction the source, and the two agree cell for cell
+/// (`BraidLayerFromConstructionTests`), so nothing about this comparison moved.
 enum BraidPatternBridge {
     static func hiraStylePattern(
         from derivation: BraidDerivation,
+        assignments: [ThreadAssignment]
+    ) -> HiraGenjiWeavePattern? {
+        guard let construction = BraidConstruction.construct(
+            of: derivation.method, on: derivation.stand,
+            crossSection: derivation.crossSection, fold: derivation.fold,
+            cycles: derivation.repeatCycleCount + 1
+        ) else { return nil }
+        return hiraStylePattern(from: derivation, construction: construction,
+                                assignments: assignments)
+    }
+
+    static func hiraStylePattern(
+        from derivation: BraidDerivation,
+        construction: BraidConstruction,
         assignments: [ThreadAssignment]
     ) -> HiraGenjiWeavePattern? {
         guard
@@ -42,10 +61,9 @@ enum BraidPatternBridge {
                 else {
                     return nil
                 }
-                let cell = derivation.cells.first {
-                    $0.row == row && $0.threadPosition == course.threadPosition
-                }
-                guard let layer = cell?.layer ?? nil else { return nil }
+                guard let layer = construction.layer(
+                    ofThread: course.threadPosition, atRow: row
+                ) else { return nil }
 
                 if let face = fold.face(ofSlot: slot), let column = fold.column(ofSlot: slot) {
                     patches.append(HiraGenjiWeavePatch(
@@ -71,33 +89,33 @@ enum BraidPatternBridge {
         }
 
         // The shipped pattern records only the runs that cross the braid, and
-        // measures them across the width. The derivation works in chords now, so
-        // the width is put back here, where the comparison needs it.
-        for crossing in derivation.crossings {
+        // measures them across the width, so the width is put back here.
+        for course in derivation.courses {
             guard
-                let colour = colours[crossing.threadPosition],
-                let course = derivation.courses.first(where: {
-                    $0.threadPosition == crossing.threadPosition
-                }),
-                let half = keptFace(of: course, fold: fold),
-                let from = fold.width(ofSlot: crossing.fromSlot),
-                let to = fold.width(ofSlot: crossing.toSlot),
-                abs(to - from) > 1
-            else {
-                continue
+                let colour = colours[course.threadPosition],
+                let half = keptFace(of: course, fold: fold)
+            else { continue }
+            for row in 0..<rowCount {
+                guard
+                    let way = construction.steps[course.threadPosition], row + 1 < way.count,
+                    let from = fold.width(ofSlot: way[row].slot),
+                    let to = fold.width(ofSlot: way[row + 1].slot),
+                    abs(to - from) > 1,
+                    let layer = construction.layer(ofThread: course.threadPosition, atRow: row)
+                else { continue }
+                let step = to > from ? 1 : -1
+                crossings.append(HiraGenjiWeftCrossing(
+                    threadPosition: course.threadPosition,
+                    colorID: colour,
+                    row: row,
+                    face: half.asHiraFace,
+                    fromWidthPosition: from,
+                    toWidthPosition: to,
+                    passedColumns: Array(stride(from: from + step, to: to, by: step))
+                        .filter { (0..<fold.columnCount).contains($0) },
+                    layer: layer
+                ))
             }
-            let step = to > from ? 1 : -1
-            crossings.append(HiraGenjiWeftCrossing(
-                threadPosition: crossing.threadPosition,
-                colorID: colour,
-                row: crossing.row,
-                face: half.asHiraFace,
-                fromWidthPosition: from,
-                toWidthPosition: to,
-                passedColumns: Array(stride(from: from + step, to: to, by: step))
-                    .filter { (0..<fold.columnCount).contains($0) },
-                layer: crossing.layerAgainstThreadsRunningAlong ?? .over
-            ))
         }
 
         return HiraGenjiWeavePattern(
