@@ -34,7 +34,8 @@ struct BraidCentrelines: Equatable, Sendable {
     /// number chosen to look right — it falls out of the thread's radius and the
     /// half a diameter a weft in the belly lies below the face.
     static let derivedCrestHeight = BraidMeasurement.derived(
-        0.5, by: "half the thread's diameter: the arc round a thread lying d/2 below"
+        0.5, basis: .threadDiameters,
+        by: "half the thread's diameter: the arc round a thread lying d/2 below"
     )
 
     /// A measured crest height, in diameters, replacing the derived one.
@@ -45,7 +46,9 @@ struct BraidCentrelines: Equatable, Sendable {
     /// keeps the derived height, and its own value says so; which braids those are
     /// is written beside the values, in the catalogue.
     static func rise(for measured: BraidMeasurement?) -> (scale: Double, height: BraidMeasurement) {
-        guard let measured, measured.isObserved, derivedCrestHeight.value > 0 else {
+        guard let measured, measured.isObserved, measured.isInThreadDiameters,
+              derivedCrestHeight.value > 0
+        else {
             return (1, derivedCrestHeight)
         }
         return (measured.value / derivedCrestHeight.value, measured)

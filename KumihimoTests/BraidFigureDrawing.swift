@@ -1,4 +1,7 @@
+import CoreGraphics
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 @testable import Kumihimo
 
 /// Draws a figure as an SVG so a person can look at it.
@@ -64,4 +67,21 @@ enum BraidFigureDrawing {
         try svg.write(to: url, atomically: true, encoding: .utf8)
         return url
     }
+}
+
+extension BraidFigureDrawing {
+    /// Writes a drawn braid out as a PNG, for looking at.
+    @discardableResult
+    static func write(_ image: CGImage, named name: String) throws -> URL {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent("\(name).png")
+        guard let destination = CGImageDestinationCreateWithURL(
+            url as CFURL, "public.png" as CFString, 1, nil
+        ) else { throw Trouble.couldNotWrite(name) }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else { throw Trouble.couldNotWrite(name) }
+        return url
+    }
+
+    enum Trouble: Error { case couldNotWrite(String) }
 }

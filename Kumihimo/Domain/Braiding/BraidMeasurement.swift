@@ -29,6 +29,21 @@ enum BraidValueSource: Equatable, Sendable {
     }
 }
 
+/// What a number is a fraction of.
+///
+/// **A length the construction can use has to be in thread diameters**, because a
+/// thread's diameter is the only length the construction has. A number given as a
+/// fraction of something else is carried as it is and **never converted here** —
+/// inventing the conversion is how a measurement stops being a measurement.
+enum BraidValueBasis: Equatable, Sendable {
+    /// A length, in thread diameters.
+    case threadDiameters
+    /// A bare ratio: width over thickness, a count per width, and the like.
+    case aRatio
+    /// A fraction of something else. Say what.
+    case fractionOf(String)
+}
+
 /// One number about a braid's shape, with where it came from.
 ///
 /// **A value with no source cannot be built.** That is the whole point of the type:
@@ -38,6 +53,8 @@ struct BraidMeasurement: Equatable, Sendable {
     let value: Double
     /// The band the reference gives, when it gives one rather than a single value.
     let spread: ClosedRange<Double>?
+    /// What the number is a fraction of.
+    let basis: BraidValueBasis
     let source: BraidValueSource
     /// What about this number is not settled, if anything. **A working answer is
     /// still an answer, but it must say it is working** — the round braid's crest
@@ -48,11 +65,13 @@ struct BraidMeasurement: Equatable, Sendable {
     init(
         _ value: Double,
         spread: ClosedRange<Double>? = nil,
+        basis: BraidValueBasis = .aRatio,
         source: BraidValueSource,
         unsettled: String? = nil
     ) {
         self.value = value
         self.spread = spread
+        self.basis = basis
         self.source = source
         self.unsettled = unsettled
     }
@@ -60,20 +79,26 @@ struct BraidMeasurement: Equatable, Sendable {
     static func observed(
         _ value: Double,
         spread: ClosedRange<Double>? = nil,
+        basis: BraidValueBasis = .aRatio,
         from origin: String,
         unsettled: String? = nil
     ) -> BraidMeasurement {
-        BraidMeasurement(value, spread: spread, source: .observed(origin),
+        BraidMeasurement(value, spread: spread, basis: basis, source: .observed(origin),
                          unsettled: unsettled)
     }
 
     static func derived(
         _ value: Double,
+        basis: BraidValueBasis = .aRatio,
         by working: String,
         unsettled: String? = nil
     ) -> BraidMeasurement {
-        BraidMeasurement(value, source: .derived(working), unsettled: unsettled)
+        BraidMeasurement(value, basis: basis, source: .derived(working),
+                         unsettled: unsettled)
     }
+
+    /// Whether this is a length the construction can use as it stands.
+    var isInThreadDiameters: Bool { basis == .threadDiameters }
 
     var isObserved: Bool { source.isObserved }
     var isDerived: Bool { source.isDerived }

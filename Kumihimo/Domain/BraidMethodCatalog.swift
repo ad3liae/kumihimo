@@ -148,7 +148,8 @@ enum BraidMethodCatalog {
         // half-thickness is one thread's diameter -- sixteen threads round the
         // section and two through it -- so its 0.45 of a half-thickness is 0.45 d.
         crestHeight: .observed(
-            0.45, from: "book A p96, the silhouette with the physics (a fraction of "
+            0.45, basis: .threadDiameters,
+            from: "book A p96, the silhouette with the physics (a fraction of "
                 + "the half-thickness, which is one thread's diameter)"
         )
     )
@@ -165,7 +166,8 @@ enum BraidMethodCatalog {
         // compared with a crest measured in diameters. The round braid keeps the
         // derived d/2, and that is unverified against a photograph.
         crestHeight: .observed(
-            0.12, from: "Task 005J, as a fraction of the nominal radius",
+            0.12, basis: .fractionOf("the tube's nominal radius"),
+            from: "Task 005J, as a fraction of the nominal radius",
             unsettled: "not in thread diameters, so it is not carried into the "
                 + "construction; and only the product with the pattern's aspect "
                 + "ratio 0.65 is held by the photographs"
