@@ -5,9 +5,10 @@ lines up the surface, carries are straight through the section, and the lengthwi
 coordinate is the stacking model's -- with three things settled by the author
 (docs/architecture.md, 山は糸の半径から出る):
 
-  the section is three planes   the neutral middle is 0, the front stands at +d and
-                                the back at -d, and a carry crossing the belly runs
-                                through 0
+  the braid is two thick       the front stands at +d/2 and the back at -d/2 and
+                                they touch; a weft crosses the belly through 0 at
+                                its own height, and pushes the two faces apart to
+                                +d and -d **only where it passes**
   the crest goes out            a thread on a face bulges d/2 along that face's
                                 normal where another thread passes under it, and
                                 **never inwards**. So an over and an under can never
@@ -63,6 +64,30 @@ def hand_over(steps):
     return moved
 
 
+def wefts_apart(steps, spot, folded):
+    """**Two wefts never cross the same column at the same height.** The stacking
+    model puts one cycle of a column at a landing plus two passings, so two wefts
+    in a column stand a diameter apart lengthwise. If any share a height, the
+    reading of the model is wrong and the hands are listed rather than mended."""
+    if not folded:
+        return []
+    seen, clash = {}, []
+    for thread, way in steps.items():
+        for i in range(len(way) - 1):
+            place, _, leave, arrive = way[i]
+            here, _, face = spot[place]
+            there, _, other = spot[way[i + 1][0]]
+            if face == other or "edge" in (face, other):
+                continue                      # not a weft crossing the belly
+            column = round((here[0] + there[0]) / 2.0)
+            key = (column, round((leave + arrive) / 2.0, 3))
+            if key in seen:
+                clash.append((key[0], key[1], seen[key], thread))
+            else:
+                seen[key] = thread
+    return clash
+
+
 def pieces(steps, spot, folded):
     """Rests and carries, with the face each one belongs to."""
     rests, carries = [], []
@@ -82,7 +107,7 @@ def pieces(steps, spot, folded):
     return rests, carries
 
 
-def crest(rest, way, others, shape):
+def crest(rest, way, others, shape, later_than=None):
     """Where another thread passes under this resting one, it rides over it by half
     a diameter. **Outwards only**, and where several meet, the highest wins."""
     line = rest
@@ -94,7 +119,8 @@ def crest(rest, way, others, shape):
     points = line[0] + (line[-1] - line[0])[None, :] * (along / total)[:, None]
     rise = np.zeros(count)
     marks = []
-    for other in others:
+    for who, other in others:
+        later = later_than(who) if later_than else False
         for a, b in zip(other[:-1], other[1:]):
             u, v, gap = c.gl.segment_distance(line[:1], line[-1:], a[None, :], b[None, :])
             far = float(np.linalg.norm(gap[0]))
@@ -102,8 +128,9 @@ def crest(rest, way, others, shape):
                 continue
             here = line[0] + u[0] * (line[-1] - line[0])
             there = a + v[0] * (b - a)
-            if float((there - here) @ way) > 1e-9:
-                continue                                  # it is outside, not under
+            outside = float((there - here) @ way)
+            if outside > 1e-9 and not later:
+                continue      # it is outside this one, and it was there first
             at = float(u[0]) * total
             x = np.clip(np.abs(along - at) / (D / 2), 0.0, 1.0)
             shape_of = (D / 2) * (1 - x) if shape == "straight" \
@@ -125,17 +152,19 @@ def build(braid, cycles, shape="arc"):
     plain = {t: pieces(steps[t], spot, folded) for t in steps}
     everything = []
     for t, (rests, carries) in plain.items():
-        for line, _, _, _ in rests:
-            everything.append((t, line))
-        for line, _, _ in carries:
-            everything.append((t, line))
+        for i, (line, _, _, _) in enumerate(rests):
+            everything.append((t, line, float(steps[t][i][1])))
+        for i, (line, _, _) in enumerate(carries):
+            everything.append((t, line, float(steps[t][i][2])))
 
     ways, kinds, crests = {}, {}, 0
     for t, (rests, carries) in plain.items():
-        others = [line for who, line in everything if who != t]
+        others = [(rank, line) for who, line, rank in everything if who != t]
         points, mark = [], []
         for i, (line, way, face, place) in enumerate(rests):
-            drawn, marks = crest(line, way, others, shape)
+            mine = float(steps[t][i][1])
+            drawn, marks = crest(line, way, others, shape,
+                                 later_than=lambda rank: mine > rank + 1e-9)
             crests += len(marks)
             if points and np.linalg.norm(drawn[0] - points[-1]) < 1e-9:
                 drawn = drawn[1:]
@@ -226,6 +255,10 @@ def main():
     print("%s, %d cycles, crest %s: %d threads, k = %d (one cycle is %d d)"
           % (args.braid, args.cycles, args.shape, len(ways), k, k))
     print("  crests: %d;  hand-overs raised a layer: %d" % (crests, lifted))
+    clash = wefts_apart(steps, spot, args.braid == "hira")
+    print("  two wefts crossing one column at the same height: %d" % len(clash))
+    for column, height, a, b in clash[:6]:
+        print("    column %d at %.1f d: threads %d and %d" % (column, height, a, b))
     print("  pairs of threads overlapping: %d touching the surface (deepest %.3f d), "
           "%d in the core only (%.3f d)" % (surface, deep_s, core, deep_c))
     print("  resting threads with something outside them: %d (worst %.3f d)" % (wrong, worst))
