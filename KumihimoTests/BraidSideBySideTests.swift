@@ -120,4 +120,79 @@ struct BraidSideBySideTests {
         try Self.record(report, named: "compare-maru")
         #expect((newSection.outerDiameter ?? 0) > 0)
     }
+
+    // MARK: - The pictures the author looks at (Task 025-4 step 2)
+
+    /// Straight on, and turned the way a braid is held for a photograph.
+    ///
+    /// **No numbers on these.** The judgement is the author's eye, and the
+    /// reference photographs are put beside them so there is something to judge
+    /// against.
+    static let views: [(name: String, direction: SIMD3<Double>)] = [
+        ("front", SIMD3(0, -1, 0)),
+        ("angled", SIMD3(0.32, -1, -0.38)),
+    ]
+
+    @Test func bothPathsAreDrawnStraightOnAndTurned() throws {
+        // The flat braid, in the colouring book A p96 photographs.
+        let flat = try #require(BraidFromRecipe.build(
+            BraidMethodCatalog.hiraGenji16Recipe, on: BraidMethodCatalog.stand16
+        ))
+        var colours = [Int: ThreadColorValue]()
+        for assignment in BraidMethodCatalog.hiraGenji16Colouring {
+            colours[assignment.position] = (ThreadColorCatalog.colors
+                .first { $0.id == assignment.colorID } ?? ThreadColorCatalog.defaultColor).value
+        }
+        for view in Self.views {
+            let picture = BraidPicture.paint(flat.lines, looking: view.direction)
+            let image = try #require(BraidDrawing.image(of: picture, colours: colours))
+            try BraidFigureDrawing.write(image, named: "look-hira-new-\(view.name)")
+        }
+        let flatPattern = try #require(HiraGenjiSurfacePatternGenerator.generate(
+            assignments: BraidMethodCatalog.hiraGenji16Colouring
+        ))
+        let flatMesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: flatPattern))
+        for view in Self.views {
+            let drawn = try #require(BraidMeshDrawing.paint(
+                BraidMeshDrawing.Mesh(positions: flatMesh.positions,
+                                      byColour: flatMesh.colorGroups),
+                looking: view.direction
+            ))
+            let image = try #require(BraidMeshDrawing.image(of: drawn))
+            try BraidFigureDrawing.write(image, named: "look-hira-old-\(view.name)")
+        }
+
+        // The tube, in the colouring book A p94 photographs.
+        let tube = try #require(BraidFromRecipe.build(
+            BraidMethodCatalog.maruGenji16Recipe, on: BraidMethodCatalog.stand16
+        ))
+        var tubeColours = [Int: ThreadColorValue]()
+        for assignment in BraidMethodCatalog.maruGenji16Colouring {
+            tubeColours[assignment.position] = (ThreadColorCatalog.colors
+                .first { $0.id == assignment.colorID } ?? ThreadColorCatalog.defaultColor).value
+        }
+        for view in Self.views {
+            let picture = BraidPicture.paint(tube.lines, looking: view.direction)
+            let image = try #require(BraidDrawing.image(of: picture, colours: tubeColours))
+            try BraidFigureDrawing.write(image, named: "look-maru-new-\(view.name)")
+        }
+        let tubePattern = try #require(MaruGenjiSurfacePatternGenerator.generate(
+            assignments: BraidMethodCatalog.maruGenji16Colouring
+        ))
+        let tubeMesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: tubePattern))
+        for view in Self.views {
+            let drawn = try #require(BraidMeshDrawing.paint(
+                BraidMeshDrawing.Mesh(positions: tubeMesh.positions,
+                                      byColour: tubeMesh.colorGroups),
+                looking: view.direction
+            ))
+            let image = try #require(BraidMeshDrawing.image(of: drawn))
+            try BraidFigureDrawing.write(image, named: "look-maru-old-\(view.name)")
+        }
+
+        #expect(FileManager.default.fileExists(
+            atPath: BraidFigureDrawing.directory
+                .appendingPathComponent("look-maru-old-angled.png").path
+        ))
+    }
 }
