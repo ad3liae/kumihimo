@@ -84,6 +84,14 @@ struct BraidCrossing: Equatable, Sendable {
 }
 
 /// One thread standing at one slot at one step along the braid.
+///
+/// **Retired from the product (Task 025-2, 2026-09-09).** What shows on a face is
+/// whatever is resting there, and `BraidOccupancy` is the record of that; nothing
+/// the app draws asks the chord model any more. It is still here because the tests
+/// that hold this working-out against the two book-checked per-braid ones read
+/// `cells` and `crossings` for over and under, and the occupancy history does not
+/// answer that question — the construction of Task 024 does, and porting it is
+/// Task 025-3. **Do not reach for this from new product code.**
 struct BraidPatternCell: Equatable, Sendable {
     let row: Int
     let slot: Int
