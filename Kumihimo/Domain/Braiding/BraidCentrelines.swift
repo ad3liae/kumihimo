@@ -23,9 +23,33 @@ struct BraidCentrelines: Equatable, Sendable {
     /// How many crests were raised.
     let crests: Int
     let construction: BraidConstruction
+    /// What the crest was drawn at, and where that came from.
+    let crestHeight: BraidMeasurement
 
     /// How finely a piece is drawn, so a crest is a shape rather than a corner.
     static let fine = 1.0 / 8
+
+    /// What the construction says a crest is, before any measurement: **a thread
+    /// lying on a surface stands half its own diameter proud of it**. This is not a
+    /// number chosen to look right — it falls out of the thread's radius and the
+    /// half a diameter a weft in the belly lies below the face.
+    static let derivedCrestHeight = BraidMeasurement.derived(
+        0.5, by: "half the thread's diameter: the arc round a thread lying d/2 below"
+    )
+
+    /// A measured crest height, in diameters, replacing the derived one.
+    ///
+    /// **The measurement has to be in diameters**, and a measurement in any other
+    /// unit is not converted here — converting it would be inventing the
+    /// conversion. A braid whose measured crest is a fraction of something else
+    /// keeps the derived height, and its own value says so; which braids those are
+    /// is written beside the values, in the catalogue.
+    static func rise(for measured: BraidMeasurement?) -> (scale: Double, height: BraidMeasurement) {
+        guard let measured, measured.isObserved, derivedCrestHeight.value > 0 else {
+            return (1, derivedCrestHeight)
+        }
+        return (measured.value / derivedCrestHeight.value, measured)
+    }
 
     var threads: [Int] { points.keys.sorted() }
 
@@ -106,6 +130,7 @@ struct BraidCentrelines: Equatable, Sendable {
         others: [(rank: Double, line: [SIMD3<Double>])],
         width w: Double,
         thickness t: Double,
+        scale: Double = 1,
         laterThan: (Double) -> Bool
     ) -> (points: [SIMD3<Double>], crests: Int) {
         let span = rest.to - rest.from
@@ -143,14 +168,18 @@ struct BraidCentrelines: Equatable, Sendable {
         }
         var points = [SIMD3<Double>]()
         for index in 0..<count {
-            points.append(rest.from + span * (along[index] / total) + outward * rise[index])
+            points.append(rest.from + span * (along[index] / total)
+                          + outward * (rise[index] * scale))
         }
         return (points, raised)
     }
 
     // MARK: - Building
 
-    static func centrelines(of construction: BraidConstruction) -> BraidCentrelines? {
+    static func centrelines(
+        of construction: BraidConstruction, crestHeight measured: BraidMeasurement? = nil
+    ) -> BraidCentrelines? {
+        let (scale, height) = rise(for: measured)
         let section = construction.section
         let w = section.threadWidth, t = section.threadThickness
 
@@ -182,7 +211,8 @@ struct BraidCentrelines: Equatable, Sendable {
                 let arrived = way[index].arrivedAt
                 var (line, raised) = crest(
                     rest: piece.rest, outward: piece.outward, others: others,
-                    width: w, thickness: t, laterThan: { arrived > $0 + 1e-9 }
+                    width: w, thickness: t, scale: scale,
+                    laterThan: { arrived > $0 + 1e-9 }
                 )
                 crests += raised
                 if let last = drawn.last, let first = line.first,
@@ -202,7 +232,7 @@ struct BraidCentrelines: Equatable, Sendable {
             kinds[thread] = mark
         }
         return BraidCentrelines(points: points, kinds: kinds, crests: crests,
-                                construction: construction)
+                                construction: construction, crestHeight: height)
     }
 
     /// A polyline drawn again with its points a `fine` step apart along it.

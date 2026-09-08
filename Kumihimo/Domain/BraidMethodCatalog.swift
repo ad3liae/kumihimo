@@ -144,7 +144,13 @@ enum BraidMethodCatalog {
             3.3359, from: "a perimeter of sixteen threads and a thickness of two"
         ),
         pitchPerBraidWidth: .observed(0.3665, from: "book A p96 / book B p23"),
-        crestHeight: .observed(0.45, from: "book A p96, the silhouette with the physics")
+        // **In diameters.** That generator's own working says the flat braid's
+        // half-thickness is one thread's diameter -- sixteen threads round the
+        // section and two through it -- so its 0.45 of a half-thickness is 0.45 d.
+        crestHeight: .observed(
+            0.45, from: "book A p96, the silhouette with the physics (a fraction of "
+                + "the half-thickness, which is one thread's diameter)"
+        )
     )
 
     /// The measured values for maru-genji.
@@ -153,10 +159,16 @@ enum BraidMethodCatalog {
     /// product** — Task 005J could separate neither from the photographs — so each
     /// carries that on its face rather than in a comment.
     static let maruGenji16Shape = BraidShapeValues(
+        // **Not carried into the construction.** The generator's 0.12 is a
+        // fraction of the tube's nominal radius, not of a thread's diameter
+        // (`MaruGenjiSurfaceMeshGenerator.crestHeightRatio`), so it cannot be
+        // compared with a crest measured in diameters. The round braid keeps the
+        // derived d/2, and that is unverified against a photograph.
         crestHeight: .observed(
-            0.12, from: "Task 005J",
-            unsettled: "only the product with the pattern's aspect ratio 0.65 is held "
-                + "by the photographs; neither value is checked on its own"
+            0.12, from: "Task 005J, as a fraction of the nominal radius",
+            unsettled: "not in thread diameters, so it is not carried into the "
+                + "construction; and only the product with the pattern's aspect "
+                + "ratio 0.65 is held by the photographs"
         ),
         chevronsPerBraidWidth: .observed(
             2.0, spread: 1.8...2.15, from: "photographs, Task 005I"
