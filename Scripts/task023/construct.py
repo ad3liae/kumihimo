@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "task021"))
 import braid_geometry as g
 import directed
+import free
 import given_length as gl
 import settle
 
@@ -433,32 +434,59 @@ def main():
              time.time() - began))
 
     began = time.time()
-    p, rounds, link, overlap, offset, stuck_rest, unreachable = directed.solve(
+    p, rounds, link, overlap, disp, outside, unreachable = free.solve(
         base, axis, kind, thread_of, rank, links, cap=args.cap,
         log=lambda r, l, o: print("    round %5d  neighbours %.2e  overlap %.2e"
                                   % (r, l, o)))
     print("  parted: %d rounds, %.1f s, neighbours %.2e, overlap %.2e"
           % (rounds, time.time() - began, link, overlap))
-    rest, carry = offset[kind == 0], offset[kind == 1]
+    moved = np.linalg.norm(disp, axis=1)
+    rest, carry = moved[kind == 0], moved[kind == 1]
     print("  bulge of the rests:   most %.3f d, mean %.3f d" % (rest.max(), rest.mean()))
-    print("  lift of the carries:  most %.3f d, mean %.3f d" % (carry.max(), carry.mean()))
-    print("  rest against rest: %d;  contacts the axis never reaches: %d"
-          % (stuck_rest, unreachable))
+    print("  the carries moved:    most %.3f d, mean %.3f d" % (carry.max(), carry.mean()))
+    print("  carries put back inside the surface: %d;  steps that never reach: %d"
+          % (outside, unreachable))
 
     ways = []
     first = 0
     for thread in sorted(counts):
         ways.append(p[first:first + counts[thread]])
         first += counts[thread]
-    remaining, deepest = settle.left_over(ways)
-    print("  pairs still over the tolerance: %d (deepest %.3f d)" % (remaining, deepest))
+    # **the surface is what is judged**: the rests are the surface, the carries are
+    # inside it, and nothing inside is seen
+    pairs = gl.contact_pairs(p, links, "capsule")
+    surface = inside = 0
+    deepest_surface = deepest_inside = 0.0
+    if pairs is not None and len(pairs):
+        i0, i1 = links[pairs[:, 0], 0], links[pairs[:, 0], 1]
+        j0, j1 = links[pairs[:, 1], 0], links[pairs[:, 1], 1]
+        _, _, gap = gl.segment_distance(p[i0], p[i1], p[j0], p[j1])
+        over = directed.D - np.linalg.norm(gap, axis=1)
+        for m in np.nonzero(over > directed.TOLERANCE)[0]:
+            if thread_of[i0[m]] == thread_of[j0[m]]:
+                continue
+            on_face = (kind[i0[m]] == 0 and kind[i1[m]] == 0) or \
+                      (kind[j0[m]] == 0 and kind[j1[m]] == 0)
+            if on_face:
+                surface += 1
+                deepest_surface = max(deepest_surface, float(over[m]))
+            else:
+                inside += 1
+                deepest_inside = max(deepest_inside, float(over[m]))
+    print("  over the tolerance: %d on the surface (deepest %.3f d), %d inside "
+          "(deepest %.3f d)" % (surface, deepest_surface, inside, deepest_inside))
 
-    spans = carry_spans(parts, order, sorted(counts))
-    after = turned_over_after(ways, spans, order, sorted(counts))
-    print("  crossings the other way up: %d" % len(after))
-    for key, gap in sorted(after, key=lambda e: e[1])[:6]:
-        print("    thread %d carry %d is %.3f d under the one it was laid over"
-              % (key[0], key[2], -gap))
+    # **the reversals that matter are on the surface**: a carry must not come out
+    # past the thread resting over it. Inside the core nothing is seen.
+    from scipy.spatial import cKDTree
+    rests = np.nonzero(kind == 0)[0]
+    carry = np.nonzero(kind == 1)[0]
+    tree = cKDTree(p[rests])
+    _, near = tree.query(p[carry])
+    out = axis[rests[near]]
+    past = np.einsum('ij,ij->i', p[carry], out) - np.einsum('ij,ij->i', p[rests[near]], out)
+    print("  carries standing outside the surface: %d (furthest %.3f d)"
+          % (int((past > directed.TOLERANCE).sum()), float(past.max())))
 
     every = np.concatenate(ways)
     print("  lengthwise %.2f .. %.2f d (%d cycles of %d d)"
