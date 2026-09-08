@@ -24,9 +24,27 @@ import braid_geometry as g
 D = 1.0
 
 
-def section(ring, folded):
+def flattened(folded, threads=16, face_threads=6, width=8.0):
+    """How wide and how thick a thread is once it is pressed against its neighbours.
+
+    **Silk is a bundle, not a rod.** Where threads are pressed side by side they
+    spread: a face `width` diameters across carrying `face_threads` of them gives
+    each **w = width / face_threads**, and the section keeps its area, so
+    **t = d^2 / w**. The edges (two threads over two diameters) and the tube
+    (sixteen threads round a sixteen-sided figure, each a diameter wide) are not
+    pressed, so w = t = d there. **d is the diameter it would have if it were
+    round again.**
+    """
+    if not folded:
+        return D, D
+    w = width / face_threads
+    return w, D * D / w
+
+
+def section(ring, folded, ellipse=False):
     """Where each place stands, and which way is out of the braid there."""
     size = len(ring)
+    w, t = flattened(folded) if ellipse else (D, D)
     out = {}
     if not folded:
         radius = D / (2 * math.sin(math.pi / size))
@@ -42,10 +60,11 @@ def section(ring, folded):
             side = seen.get(width, 0)
             seen[width] = side + 1
             spot = np.array([float(width) * D, 0.5 * D if side == 0 else -0.5 * D])
+            # an edge is two threads over two diameters: not pressed, so not flattened
             way = np.array([math.copysign(1.0, float(width) - 2.5), 0.0, 0.0])
             out[p] = (spot, way, "edge")
         else:
-            spot = np.array([float(width) * D, 0.5 * D if face == "F" else -0.5 * D])
+            spot = np.array([float(width) * w, 0.5 * t if face == "F" else -0.5 * t])
             way = np.array([0.0, 1.0 if face == "F" else -1.0, 0.0])
             out[p] = (spot, way, "front" if face == "F" else "back")
     return out

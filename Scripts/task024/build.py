@@ -88,7 +88,39 @@ def wefts_apart(steps, spot, folded):
     return clash
 
 
-def pieces(steps, spot, folded):
+def side_step(steps, spot, folded, hands):
+    """Two threads swapping faces in the same column at the same height pass each
+    other **sideways**, not one above the other.
+
+    The belly is an empty layer except where a weft is crossing it, so both can go
+    through at the same height; they part across the width instead, half a thread
+    each way. **Which way round is a promise, not geometry** (024): the one that
+    moved later goes to its own right, the earlier one to its left. The slant this
+    gives each column is written down as a prediction to hold against a photograph.
+    """
+    if not folded:
+        return {}
+    seen, side = {}, {}
+    for thread, way in steps.items():
+        for i in range(len(way) - 1):
+            place, _, leave, arrive = way[i]
+            here, _, face = spot[place]
+            there, _, other = spot[way[i + 1][0]]
+            if face == other or "edge" in (face, other):
+                continue
+            key = (round((here[0] + there[0]) / 2.0), round((leave + arrive) / 2.0, 3))
+            if key in seen:
+                first_thread, first_i = seen[key]
+                late = (thread, i) if hands.get((thread, i), 0) > \
+                    hands.get((first_thread, first_i), 0) else (first_thread, first_i)
+                early = (first_thread, first_i) if late == (thread, i) else (thread, i)
+                side[late], side[early] = +1.0, -1.0
+            else:
+                seen[key] = (thread, i)
+    return side
+
+
+def pieces(thread, steps, spot, folded, side=None, w=D):
     """Rests and carries, with the face each one belongs to."""
     rests, carries = [], []
     for i, (place, start, leave, arrive) in enumerate(steps):
@@ -100,16 +132,28 @@ def pieces(steps, spot, folded):
             legs = [np.array([here[0], here[1], leave * D])]
             if folded and face != other and "edge" not in (face, other):
                 middle = faces.belly(here, there)        # through the neutral plane
-                legs.append(np.array([middle[0], middle[1],
+                across = (side or {}).get((thread, i), 0.0)
+                legs.append(np.array([middle[0] + across * w / 2.0, middle[1],
                                       (leave + arrive) * D / 2.0]))
             legs.append(np.array([there[0], there[1], arrive * D]))
             carries.append((np.array(legs), face, other))
     return rests, carries
 
 
-def crest(rest, way, others, shape, later_than=None):
-    """Where another thread passes under this resting one, it rides over it by half
-    a diameter. **Outwards only**, and where several meet, the highest wins."""
+def crest(rest, way, others, shape, later_than=None, size=(D, D)):
+    """Where another thread passes under this resting one, it rides over it.
+
+    **The crest is the arc round the thread underneath**, brought back to the line
+    it was on. A thread of half-width `w` and half-thickness `t` lying `s` from the
+    line leaves a crest `t*sqrt(1 - (u/w)^2) - s` high, `u` from the middle, so it
+    is **2w*sqrt(1 - (s/t)^2) wide** -- with round threads and a weft in the belly,
+    s = d/2 and the crest is 1.73 d wide. **The width is geometry, not a number.**
+
+    **Outwards only**, and where several meet, the highest wins. Two that meet on
+    the same face at the same height are parted by book C's order: the one laid
+    later comes out over the other.
+    """
+    w, t = size
     line = rest
     total = float(np.linalg.norm(line[-1] - line[0]))
     if total < 1e-9:
@@ -124,32 +168,49 @@ def crest(rest, way, others, shape, later_than=None):
         for a, b in zip(other[:-1], other[1:]):
             u, v, gap = c.gl.segment_distance(line[:1], line[-1:], a[None, :], b[None, :])
             far = float(np.linalg.norm(gap[0]))
-            if far >= D:
+            if far >= max(w, t):
                 continue
             here = line[0] + u[0] * (line[-1] - line[0])
             there = a + v[0] * (b - a)
             outside = float((there - here) @ way)
             if outside > 1e-9 and not later:
                 continue      # it is outside this one, and it was there first
+            s = abs(outside)
+            if s >= t:
+                continue
             at = float(u[0]) * total
-            x = np.clip(np.abs(along - at) / (D / 2), 0.0, 1.0)
-            shape_of = (D / 2) * (1 - x) if shape == "straight" \
-                else (D / 2) * np.sqrt(np.maximum(1 - x * x, 0.0))
+            half = w * math.sqrt(max(1.0 - (s / t) ** 2, 0.0))
+            x = np.clip(np.abs(along - at) / max(half, 1e-9), 0.0, 1.0)
+            shape_of = (t - s) * (1 - x) if shape == "straight" \
+                else np.maximum(t * np.sqrt(np.maximum(1 - x * x, 0.0)) - s, 0.0)
             rise = np.maximum(rise, shape_of)             # the highest wins
             marks.append(at)
     return points + rise[:, None] * way, marks
 
 
-def build(braid, cycles, shape="arc"):
+def build(braid, cycles, shape="arc", ellipse=False):
     table = g.FIG32 if braid == "maru" else g.FIG20
     ring = g.RING_MARU if braid == "maru" else g.RING_HIRA
     folded = braid == "hira"
-    spot = faces.section(ring, folded)
+    spot = faces.section(ring, folded, ellipse)
     steps, k = c.trajectories(table, ring, folded, cycles)
     steps = {t: list(way) for t, way in steps.items()}
     lifted = hand_over(steps)
 
-    plain = {t: pieces(steps[t], spot, folded) for t in steps}
+    hands = {}
+    who = c.g.DISK_TO_STAND.copy()
+    table = g.FIG32 if braid == "maru" else g.FIG20
+    seat = dict(g.DISK_TO_STAND)
+    turn = {}
+    for h in range(cycles * len(table)):
+        move = table[h % len(table)]
+        thread = seat.pop(move[0]); seat[move[1]] = thread
+        if not g.is_repositioning(move):
+            turn[thread] = turn.get(thread, -1) + 1
+            hands[(thread, turn[thread])] = h + 1
+    side = side_step(steps, spot, folded, hands)
+    wide, thick = faces.flattened(folded) if ellipse else (D, D)
+    plain = {tt: pieces(tt, steps[tt], spot, folded, side, wide) for tt in steps}
     everything = []
     for t, (rests, carries) in plain.items():
         for i, (line, _, _, _) in enumerate(rests):
@@ -164,7 +225,8 @@ def build(braid, cycles, shape="arc"):
         for i, (line, way, face, place) in enumerate(rests):
             mine = float(steps[t][i][1])
             drawn, marks = crest(line, way, others, shape,
-                                 later_than=lambda rank: mine > rank + 1e-9)
+                                 later_than=lambda rank: mine > rank + 1e-9,
+                                 size=(wide, thick))
             crests += len(marks)
             if points and np.linalg.norm(drawn[0] - points[-1]) < 1e-9:
                 drawn = drawn[1:]
@@ -180,7 +242,7 @@ def build(braid, cycles, shape="arc"):
                 points.extend(drawn); mark.extend([1] * len(drawn))
         ways[t] = np.array(points)
         kinds[t] = np.array(mark)
-    return ways, kinds, k, spot, steps, crests, lifted
+    return ways, kinds, k, spot, steps, crests, lifted, side
 
 
 def measure(ways, kinds):
@@ -242,11 +304,14 @@ def main():
     ap.add_argument("--braid", choices=("hira", "maru"), default="hira")
     ap.add_argument("--cycles", type=int, default=2)
     ap.add_argument("--shape", choices=("arc", "straight"), default="arc")
+    ap.add_argument("--ellipse", action="store_true",
+                    help="let the threads flatten where they press together")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
 
     began = time.time()
-    ways, kinds, k, spot, steps, crests, lifted = build(args.braid, args.cycles, args.shape)
+    ways, kinds, k, spot, steps, crests, lifted, side = build(
+        args.braid, args.cycles, args.shape, args.ellipse)
     surface, core, deep_s, deep_c = measure(ways, kinds)
     wrong, worst = outward(ways, kinds, spot, steps)
     took = time.time() - began
@@ -254,7 +319,8 @@ def main():
     p = np.concatenate([ways[t] for t in sorted(ways)])
     print("%s, %d cycles, crest %s: %d threads, k = %d (one cycle is %d d)"
           % (args.braid, args.cycles, args.shape, len(ways), k, k))
-    print("  crests: %d;  hand-overs raised a layer: %d" % (crests, lifted))
+    print("  crests: %d;  hand-overs raised a layer: %d;  face swaps passing sideways: %d"
+          % (crests, lifted, len(side)))
     clash = wefts_apart(steps, spot, args.braid == "hira")
     print("  two wefts crossing one column at the same height: %d" % len(clash))
     for column, height, a, b in clash[:6]:
