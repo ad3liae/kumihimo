@@ -132,4 +132,91 @@ enum BraidMethodCatalog {
             + "transcribed table; awaiting the author's colouring experiment"
     )
 
+    // MARK: - Recipes
+
+    /// The measured values for hira-genji. **All four sources are references.**
+    ///
+    /// The pitch is kept here as the measurement it is; what the stacking model
+    /// works out for itself (0.375) is a `.derived` value on `BraidStacking` and
+    /// the two are held side by side rather than one replacing the other.
+    static let hiraGenji16Shape = BraidShapeValues(
+        widthOverThickness: .observed(
+            3.3359, from: "a perimeter of sixteen threads and a thickness of two"
+        ),
+        pitchPerBraidWidth: .observed(0.3665, from: "book A p96 / book B p23"),
+        crestHeight: .observed(0.45, from: "book A p96, the silhouette with the physics")
+    )
+
+    /// The measured values for maru-genji.
+    ///
+    /// **The crest height and the pattern's aspect ratio are held only as a
+    /// product** — Task 005J could separate neither from the photographs — so each
+    /// carries that on its face rather than in a comment.
+    static let maruGenji16Shape = BraidShapeValues(
+        crestHeight: .observed(
+            0.12, from: "Task 005J",
+            unsettled: "only the product with the pattern's aspect ratio 0.65 is held "
+                + "by the photographs; neither value is checked on its own"
+        ),
+        chevronsPerBraidWidth: .observed(
+            2.0, spread: 1.8...2.15, from: "photographs, Task 005I"
+        )
+    )
+
+    /// A colouring written the way the books write one: by the stand's four
+    /// groups, each listed outermost first, which is how the sources list them.
+    /// Positions the source leaves out come out in the catalogue's default.
+    static func colouring(
+        on stand: BraidStand, _ byGroup: [String: [String]]
+    ) -> [ThreadAssignment] {
+        var colours = [Int: String]()
+        for group in stand.groups {
+            guard let names = byGroup[group.name] else { continue }
+            for (position, name) in zip(group.positions, names) { colours[position] = name }
+        }
+        return stand.positionIDs.map { position in
+            ThreadAssignment(
+                position: position,
+                colorID: colours[position].map(ThreadColorID.init(rawValue:))
+                    ?? ThreadColorCatalog.defaultColor.id
+            )
+        }
+    }
+
+    /// Book A p94's own colouring for maru-genji, whose finished braid is
+    /// photographed at the head of the same page.
+    static let maruGenji16Colouring = colouring(on: stand16, [
+        "north": ["pink", "orange", "orange", "pink"],
+        "east": Array(repeating: "black", count: 4),
+        "south": ["natural", "red", "red", "natural"],
+        "west": Array(repeating: "black", count: 4),
+    ])
+
+    /// Book A p96's starting diagram for hira-genji, photographed at the head of
+    /// the same page.
+    static let hiraGenji16Colouring = colouring(on: stand16, [
+        "north": ["purple", "purple", "black", "orange"],
+        "east": Array(repeating: "pink", count: 4),
+        "south": ["purple", "purple", "black", "orange"],
+        "west": Array(repeating: "pink", count: 4),
+    ])
+
+    static let maruGenji16Recipe = BraidRecipe(
+        id: "maru-genji-16",
+        name: "丸源氏組",
+        notation: maruGenjiDisk,
+        colouring: maruGenji16Colouring,
+        shape: maruGenji16Shape
+    )
+
+    static let hiraGenji16Recipe = BraidRecipe(
+        id: "hira-genji-16",
+        name: "平源氏組",
+        notation: hiraGenjiDisk,
+        colouring: hiraGenji16Colouring,
+        shape: hiraGenji16Shape,
+        orderRoundTheBraid: hiraGenji16CrossSection
+    )
+
+    static let recipes: [BraidRecipe] = [maruGenji16Recipe, hiraGenji16Recipe]
 }
