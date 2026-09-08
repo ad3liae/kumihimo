@@ -114,31 +114,82 @@ def save(seen, path, palette=None):
         f.write("</svg>\n")
 
 
-def read_hira(ways, ellipse, cycles=2):
-    """Book A p97, read off the picture rather than off the beads."""
+def box_for(ways, direction):
+    """The picture's own frame: where the braid sits in the view's own u and v.
+
+    **Each view has its own u.** Looking at the two faces of a flat braid, one has
+    u along +x and the other along -x, so a column of the braid is not at the same
+    picture coordinate in both. Reading both pictures at the same u was what made
+    one face look bare.
+    """
+    u, v, n = frame(direction)
+    p = np.concatenate([ways[t] for t in sorted(ways)])
+    us, vs = p @ u, p @ v
+    return (us.min() - 1, us.max() + 1, vs.min() - 0.5, vs.max() + 0.5), u, v, n
+
+
+def read_hira(ways, ellipse, body=(1, 2, 3, 4)):
+    """Book A p97, read off the picture rather than off the beads.
+
+    The body is the eight places the occupancy history calls the body -- widths one
+    to four on each face. **Widths nought and five, and the turns at the edges, are
+    the edging**, and the edging is meant to be coloured
+    (docs/architecture.md, 平源氏の幅の読み).
+    """
     sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                     "..", "task021"))
     import occupancy as oc
     wide, thick = faces.flattened(True) if ellipse else (D, D)
-    p = np.concatenate([ways[t] for t in sorted(ways)])
-    box = (p[:, 0].min() - 1, p[:, 0].max() + 1, p[:, 2].min() - 0.5, p[:, 2].max() + 0.5)
-    out = {}
-    for name, direction in (("front", [0, 1, 0]), ("back", [0, -1, 0])):
-        seen, _, _ = paint(ways, direction, box, wide, thick, 8)
+    out, counts = {}, {}
+    for name, direction in (("front", [0, -1, 0]), ("back", [0, 1, 0])):
+        # the viewer stands where the face is, so the normal points into the braid
+        box, u, v, n = box_for(ways, direction)
+        seen, _, (u0, u1, v0, v1, W, H) = paint(ways, direction, box, wide, thick, 8)
         out[name] = seen
-    for trial, colours in oc.P97.items():
-        counts = {}
-        for name, seen in out.items():
-            painted = seen[seen >= 0]
-            plain = sum(1 for t in painted if colours[int(t)] in oc.LENGTHWISE_COLOURS)
-            counts[name] = (plain, len(painted))
-        print("    %-13s front %d of %d painted are worked lengthwise (%.0f%%);  "
-              "back %d of %d (%.0f%%)"
-              % (trial, counts["front"][0], counts["front"][1],
-                 100 * counts["front"][0] / max(counts["front"][1], 1),
-                 counts["back"][0], counts["back"][1],
-                 100 * counts["back"][0] / max(counts["back"][1], 1)))
-    return out
+        for trial, colours in oc.P97.items():
+            plain = total = 0
+            for width in body:
+                # the column's place in *this* picture, not in the world
+                spot = np.array([width * wide, 0.0, 0.0])
+                col = int((float(spot @ u) - u0) * 8)
+                if not (0 <= col < W):
+                    continue
+                strip = seen[:, max(col - 3, 0):col + 4]
+                who = strip[strip >= 0]
+                total += len(who)
+                plain += sum(1 for t in who
+                             if colours[int(t)] in oc.LENGTHWISE_COLOURS)
+            counts[(name, trial)] = (plain, total)
+    for (name, trial), (plain, total) in sorted(counts.items()):
+        if total:
+            print("    %-5s %-13s %5d of %5d painted are worked lengthwise (%3.0f%%)"
+                  % (name, trial, plain, total, 100 * plain / total))
+    return out, counts
+
+
+def symmetric(spot, ways, kinds, steps):
+    """**The two faces must be built alike.** Every resting place the same distance
+    from the middle, and every crest going out of its own face."""
+    trouble = []
+    for place, (here, way, face) in spot.items():
+        if face == "front" and abs(here[1] - abs(here[1])) > 1e-9:
+            trouble.append(("front place %d is not on the +side" % place))
+        if face == "back" and here[1] > 0:
+            trouble.append(("back place %d is not on the -side" % place))
+        if face in ("front", "back") and abs(abs(here[1]) - abs(way[1]) * abs(here[1])) > 1e-9:
+            trouble.append(("place %d's normal does not follow its face" % place))
+    ups = [abs(here[1]) for here, way, face in spot.values() if face == "front"]
+    downs = [abs(here[1]) for here, way, face in spot.values() if face == "back"]
+    if ups and downs and abs(max(ups) - max(downs)) > 1e-9:
+        trouble.append("the two faces are not the same distance from the middle")
+    p = np.concatenate([ways[t] for t in sorted(ways)])
+    kind = np.concatenate([kinds[t] for t in sorted(kinds)])
+    rest = p[kind == 0]
+    out, back = float(rest[:, 1].max()), float(rest[:, 1].min())
+    if abs(out + back) > 1e-6:
+        trouble.append("the crests do not reach as far one way as the other: "
+                       "%+.3f against %+.3f" % (out, back))
+    return trouble
 
 
 def read_maru(ways, k, cycles=4, columns=8):
@@ -152,8 +203,9 @@ def read_maru(ways, k, cycles=4, columns=8):
     seen_by_view = []
     for c in range(columns):
         angle = 2 * math.pi * c / columns
-        seen, _, box = paint(ways, [math.cos(angle), math.sin(angle), 0],
-                             (-4, 4, lo - 0.5, hi + 0.5), D, D, 8)
+        direction = [math.cos(angle), math.sin(angle), 0]
+        box, u, v, n = box_for(ways, direction)      # each view in its own frame
+        seen, _, _ = paint(ways, direction, box, D, D, 8)
         seen_by_view.append(seen)
     for row in range(cycles):
         z = lo + (row + 0.5) * k
@@ -163,7 +215,10 @@ def read_maru(ways, k, cycles=4, columns=8):
             H, W = seen.shape
             y = int((z - (lo - 0.5)) * 8)
             y = min(max(y, 0), H - 1)
-            middle = seen[y, W // 2 - 4:W // 2 + 4]
+            # the middle of the silhouette is the point of the tube nearest the eye
+            painted = np.nonzero(seen[y] >= 0)[0]
+            middle = seen[y, W // 2 - 4:W // 2 + 4] if not len(painted) else \
+                seen[y, max(int(painted.mean()) - 4, 0):int(painted.mean()) + 4]
             middle = middle[middle >= 0]
             line.append(int(np.bincount(middle).argmax()) if len(middle) else 0)
         grid.append(line)
