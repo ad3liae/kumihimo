@@ -1,0 +1,463 @@
+{
+ "hira": {
+  "ellipse": {
+   "faces_built_alike": true,
+   "layers_per_cycle_k": 3,
+   "p97": {
+    "arrow-feather": {
+     "lengthwise": 2688,
+     "painted": 2688,
+     "percent": 100.0
+    },
+    "ladder": {
+     "lengthwise": 0,
+     "painted": 2688,
+     "percent": 0.0
+    },
+    "weft-only": {
+     "lengthwise": 2688,
+     "painted": 2688,
+     "percent": 100.0
+    }
+   },
+   "p97_by_face": {
+    "back/arrow-feather": {
+     "lengthwise": 2688,
+     "painted": 2688,
+     "percent": 100.0
+    },
+    "back/ladder": {
+     "lengthwise": 0,
+     "painted": 2688,
+     "percent": 0.0
+    },
+    "back/weft-only": {
+     "lengthwise": 2688,
+     "painted": 2688,
+     "percent": 100.0
+    },
+    "front/arrow-feather": {
+     "lengthwise": 2688,
+     "painted": 2688,
+     "percent": 100.0
+    },
+    "front/ladder": {
+     "lengthwise": 0,
+     "painted": 2688,
+     "percent": 0.0
+    },
+    "front/weft-only": {
+     "lengthwise": 2688,
+     "painted": 2688,
+     "percent": 100.0
+    }
+   },
+   "section": {
+    "lengthwise": [
+     0.0,
+     11.0
+    ],
+    "ratio": 2.660787,
+    "thickness_max": 3.561263,
+    "thickness_mean": 3.364598,
+    "width_mean": 8.952478
+   }
+  },
+  "round": {
+   "faces_built_alike": true,
+   "layers_per_cycle_k": 3,
+   "p97": {
+    "arrow-feather": {
+     "lengthwise": 2631,
+     "painted": 2672,
+     "percent": 98.465569
+    },
+    "ladder": {
+     "lengthwise": 41,
+     "painted": 2672,
+     "percent": 1.534431
+    },
+    "weft-only": {
+     "lengthwise": 2631,
+     "painted": 2672,
+     "percent": 98.465569
+    }
+   },
+   "p97_by_face": {
+    "back/arrow-feather": {
+     "lengthwise": 2654,
+     "painted": 2672,
+     "percent": 99.326347
+    },
+    "back/ladder": {
+     "lengthwise": 18,
+     "painted": 2672,
+     "percent": 0.673653
+    },
+    "back/weft-only": {
+     "lengthwise": 2654,
+     "painted": 2672,
+     "percent": 99.326347
+    },
+    "front/arrow-feather": {
+     "lengthwise": 2631,
+     "painted": 2672,
+     "percent": 98.465569
+    },
+    "front/ladder": {
+     "lengthwise": 41,
+     "painted": 2672,
+     "percent": 1.534431
+    },
+    "front/weft-only": {
+     "lengthwise": 2631,
+     "painted": 2672,
+     "percent": 98.465569
+    }
+   },
+   "section": {
+    "lengthwise": [
+     0.0,
+     11.0
+    ],
+    "ratio": 2.157573,
+    "thickness_max": 4.153639,
+    "thickness_mean": 3.850636,
+    "width_mean": 8.308028
+   }
+  }
+ },
+ "hira_claim": {
+  "arrow-feather": "about 100 percent",
+  "ladder": "about 0 percent",
+  "source": "book A p97",
+  "weft-only": "about 100 percent worked lengthwise"
+ },
+ "made_by": "task024/render.py",
+ "made_from": "task024/render.py, at 8 pixels a thread diameter",
+ "maru": {
+  "landing": {
+   "a_thread_twice_in_a_row": [],
+   "agreement": {
+    "laid_on": [
+     [
+      16,
+      1,
+      12,
+      13,
+      8,
+      9,
+      4,
+      5
+     ],
+     [
+      15,
+      2,
+      11,
+      14,
+      7,
+      10,
+      3,
+      6
+     ],
+     [
+      9,
+      8,
+      5,
+      4,
+      1,
+      16,
+      13,
+      12
+     ],
+     [
+      10,
+      7,
+      6,
+      3,
+      2,
+      15,
+      14,
+      11
+     ]
+    ],
+    "mirror": true,
+    "of": 32,
+    "rotation": 4,
+    "same": 32,
+    "shift": 0,
+    "upwards": false
+   },
+   "grid": [
+    [
+     8,
+     13,
+     12,
+     1,
+     16,
+     5,
+     4,
+     9
+    ],
+    [
+     2,
+     3,
+     6,
+     7,
+     10,
+     11,
+     14,
+     15
+    ],
+    [
+     1,
+     4,
+     5,
+     8,
+     9,
+     12,
+     13,
+     16
+    ],
+    [
+     7,
+     14,
+     11,
+     2,
+     15,
+     6,
+     3,
+     10
+    ]
+   ],
+   "view_angles_degrees": [
+    0.0,
+    67.5,
+    90.0,
+    157.5,
+    180.0,
+    247.5,
+    270.0,
+    337.5
+   ]
+  },
+  "layers_per_cycle_k": 3,
+  "middle": {
+   "a_thread_twice_in_a_row": [
+    3,
+    4,
+    5,
+    6,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+   ],
+   "agreement": {
+    "laid_on": [
+     [
+      16,
+      7,
+      12,
+      4,
+      8,
+      16,
+      4,
+      12
+     ],
+     [
+      15,
+      2,
+      11,
+      3,
+      7,
+      15,
+      3,
+      11
+     ],
+     [
+      9,
+      2,
+      5,
+      13,
+      1,
+      9,
+      13,
+      5
+     ],
+     [
+      10,
+      7,
+      6,
+      14,
+      2,
+      10,
+      14,
+      6
+     ]
+    ],
+    "mirror": true,
+    "of": 32,
+    "rotation": 4,
+    "same": 18,
+    "shift": 2,
+    "upwards": false
+   },
+   "grid": [
+    [
+     1,
+     13,
+     5,
+     2,
+     9,
+     5,
+     13,
+     9
+    ],
+    [
+     7,
+     3,
+     11,
+     2,
+     15,
+     11,
+     3,
+     15
+    ],
+    [
+     8,
+     4,
+     12,
+     7,
+     16,
+     12,
+     4,
+     16
+    ],
+    [
+     2,
+     14,
+     6,
+     7,
+     10,
+     6,
+     14,
+     10
+    ]
+   ],
+   "view_angles_degrees": [
+    11.25,
+    56.25,
+    101.25,
+    146.25,
+    191.25,
+    236.25,
+    281.25,
+    326.25
+   ]
+  },
+  "rows": {
+   "read_from_rest": 2,
+   "rest_heights_by_column": [
+    [
+     0.0,
+     1.0,
+     3.0,
+     6.0,
+     9.0,
+     12.0,
+     15.0,
+     18.0
+    ],
+    [
+     0.0,
+     2.0,
+     5.0,
+     8.0,
+     11.0,
+     14.0,
+     17.0,
+     20.0
+    ],
+    [
+     0.0,
+     2.0,
+     5.0,
+     8.0,
+     11.0,
+     14.0,
+     17.0,
+     20.0
+    ],
+    [
+     0.0,
+     1.0,
+     3.0,
+     6.0,
+     9.0,
+     12.0,
+     15.0,
+     18.0
+    ],
+    [
+     0.0,
+     1.0,
+     3.0,
+     6.0,
+     9.0,
+     12.0,
+     15.0,
+     18.0
+    ],
+    [
+     0.0,
+     2.0,
+     5.0,
+     8.0,
+     11.0,
+     14.0,
+     17.0,
+     20.0
+    ],
+    [
+     0.0,
+     2.0,
+     5.0,
+     8.0,
+     11.0,
+     14.0,
+     17.0,
+     20.0
+    ],
+    [
+     0.0,
+     1.0,
+     3.0,
+     6.0,
+     9.0,
+     12.0,
+     15.0,
+     18.0
+    ]
+   ],
+   "why": "the first rest from which every column's spacing is k"
+  },
+  "section": {
+   "lengthwise": [
+    0.0,
+    23.0
+   ],
+   "outer_diameter": 8.034024,
+   "ratio": 1.086858,
+   "thickness_max": 7.950733,
+   "thickness_mean": 6.758307,
+   "width_mean": 7.34532
+  }
+ },
+ "reading_procedure": "docs/measurement-procedures.md section 5",
+ "thread_diameter": 1.0
+}

@@ -6,11 +6,35 @@
 
 - `product.md`: プロダクトの目的、対象ユーザー、MVPの範囲
 - `architecture.md`: 技術方針、データと画面の責務、設計上の決定
-- `measurement-procedures.md`: 実物の写真とレンダーを突き合わせる測り方の正本
+- `measurement-procedures.md`: 実物の写真とレンダーを突き合わせる測り方の正本。**構成した紐の読み方（5節）もここにある**
 - `specifications/`: ユーザーから見た機能仕様と受け入れ条件
 - `tasks/`: Workerへ渡す、範囲を限定した実装指示
 
 ## 現在の仕様とタスク
+
+**Task 020 が本体である。** 組み方ごとの専用コードを書く方向はここで終わりとし、台と手順列から
+組み上がりを導く一般の道へ移る。007 系と 008〜014 はその下に入る。
+
+**初期リリースはレシピ（手順表）のある伝統的な紐に限り、物理シミュレーションを載せない**
+（作者の決定、2026-09-08。`architecture.md`「初期リリースはレシピのある紐に限る」）。
+**編み出せる版になったら物理を再検討する。**
+
+- **Task 025 初期リリースの描画（レシピのある紐だけを、それらしく）: 最高優先。次はこれ**: `tasks/025-initial-release-rendering.md`
+  - レシピ＝**手順表 ＋ 配色 ＋ 測った形の値**。測定値は `.observed`、導出値は `.derived` と型で分ける
+  - 段: 025-1 棚卸し（docs と Scripts のみ）、025-2 レシピの型と模様図、025-3 立体と z バッファ、025-4 凍結中の2生成器の退役
+
+- **Task 020 一般の組紐シミュレータ（台・手順列から組み上がりを導く）: 本体**: `tasks/020-general-braid-simulator.md`
+  - **構成した紐を描いて読んだ結果が両方の正本と一致した**（2026-09-08、末尾の里程標）
+  - 段階4・段階5 は**初期リリースの外**。段階2・段階3 は Task 025 が引き取る
+  - 正本の読み方（bookC の1手は1本）は `architecture.md`「正本の読み方（作者の指示）」
+
+- Task 024 山の構成（糸の半径から）（**区切った**。立つものは 025 へ転用、残りは保留。末尾「024 を区切る」）: `tasks/024-crest-by-half-diameter.md`
+  - 到達点: **平源氏 bookA p97 の3実験が両面で通り（楕円 100/100/0）、丸源氏 Task 004 と 32/32**
+  - **越える糸を +d/2、くぐる糸を −d/2。solver を使わない**（`architecture.md`「山は糸の半径から出る」）
+
+- Task 023 張った糸を構成的に組む（**保留**。solver の研究。末尾「引き継ぎ」）: `tasks/023-taut-thread-construction.md`
+
+- Task 022 台の上で組む（準静的）（**閉じた**。準静的の模型は束を締めるものを持たず、糸どうしが触れない。締めるものを足すと 021c へ戻る）: `tasks/022-braid-on-the-stand.md`
 
 - 起動画面仕様: `specifications/home-screen.md`
 - 作品編集・詳細画面仕様: `specifications/project-editor.md`
@@ -37,6 +61,13 @@
 - Task 007F 平源氏の表面模様を織り構造として作り直す（**完了**。Task 007E へ引き継ぎ済み）: `tasks/007f-hira-genji-weave-model.md`
 - Task 005J 丸源氏の遮蔽マップと畝の高さ（段階1・2 完了。遮蔽は両スロットへ。畝はシルエット法が丸い紐に使えず未確定）: `tasks/005j-maru-genji-ambient-occlusion.md`
 - Task 015 UIテストで RealityKit が落ちる件（未着手。退行ではない）: `tasks/015-ui-test-realitykit-crash.md`
+- Task 007G 平源氏の縁の位相（**完了**。到着の位相を手番から導いた）: `tasks/007g-hira-genji-edge-phase.md`
+- Task 007H 平源氏のタイルの継ぎ目（**完了**。段をタイル端へ持ち出せるようにした）: `tasks/007h-hira-genji-tile-seam.md`
+- Task 007I 平源氏の縁の糸が面の腹の下をくぐって見えるようにする（**Task 020 へ吸収**。中断のまま指示書を残す）: `tasks/007i-hira-genji-edge-lap.md`
+- Task 007J 平源氏を「曲げたタイル」ではなく「糸」で作り直す（**Task 020 へ吸収**。段階A完了・段階B未完。糸の経路と糸のメッシュは Task 020 段階3 の部品として参照する）: `tasks/007j-hira-genji-as-strands.md`
+- Task 016 組み点の物理で寸法を解けるかの調査（**完了**。段階2・2b の記録は枝 `claude/task-016-braid-physics-feasibility` の `d0e69c1` / `9b4d789`。**マージしない**。**段階4「製品へどう載せるか」は Task 020 段階4 が引き取る**）: `tasks/016-braid-physics-feasibility.md`
+- Task 018 `everyRegionCarriesTheRidgeIncludingBothEdges` が2分かかる件（未着手。優先度低）: `tasks/018-slow-mesh-test.md`
+- Task 021 反発による深さの導出（**保留。021a〜021e まで実行し、「置く高さの模型」は行き止まりと判明**。占有履歴で面の模様は出た（丸源氏 Task 004 と 32/32、平源氏 p97 3実験）。**続きは Task 022。末尾の「引き継ぎ」を読むこと**）: `tasks/021-depth-by-relaxation.md`
 
 ## 更新方針
 

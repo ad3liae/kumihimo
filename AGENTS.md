@@ -34,6 +34,9 @@
 - 並べ替え、空状態、削除など、表示以外の振る舞いは可能な限り自動テストする。
 - シミュレータを利用できる場合は、標準文字サイズとアクセシビリティ文字サイズ、ライト／ダークモードを確認する。
 - 検証できなかった項目は、完了報告で明示する。
+- 導出（`Kumihimo/Domain/Braiding/`）に組み方の名前が入っていないことを
+  `sh Scripts/check-braiding-is-general.sh` で確かめる。組み方ごとの手順表は
+  `Kumihimo/Domain/BraidMethodCatalog.swift` に置くこと。
 
 ## テストの回し方
 
