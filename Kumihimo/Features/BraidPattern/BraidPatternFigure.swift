@@ -242,3 +242,110 @@ enum BraidFigureBuilder {
         return course.slots.first.flatMap { fold.face(ofSlot: $0) }
     }
 }
+
+/// The face of a braid that is a tube, unrolled.
+///
+/// **A tube has no fold, so it has no faces and no edges** — it has one surface,
+/// and the occupancy history folds its slots into columns, a closing pair each.
+/// The columns stand at the angles of the slots a hand lands on, which are not
+/// evenly spaced: the two slots of a pair are half a column apart, and a figure
+/// drawn on the halfway angles reads the seam between two threads rather than
+/// either of them.
+struct BraidTubeFigure: Equatable, Sendable {
+    struct Column: Equatable, Sendable {
+        /// The slot of the cross-section this column is read at: the one a hand
+        /// lands on.
+        let slot: Int
+        /// Where that slot stands round the braid, in turns from the first slot.
+        let angleInTurns: Double
+    }
+
+    let columns: [Column]
+    let shapes: [BraidFigure.Shape]
+    /// Cycles to one repeat.
+    let rowCount: Int
+    let rowsDrawn: Int
+    let size: SIMD2<Double>
+
+    /// **Shown, not hidden.** A tube has no origin and no printed direction, so a
+    /// figure of one agrees with a transcription up to a rotation, a mirror, the
+    /// way up and where the transcription started. Anything the cross-section
+    /// itself is unsure of is carried here too.
+    let unsettled: [String]
+
+    func appearance(atColumn column: Int, row: Int) -> BraidFigure.Shape? {
+        shapes.first { $0.place?.width == column && $0.place?.row == row && $0.isOnTheFace }
+    }
+
+    func row(_ row: Int) -> [BraidFigure.Shape] {
+        (0..<columns.count).compactMap { appearance(atColumn: $0, row: row) }
+    }
+}
+
+extension BraidFigureBuilder {
+    /// `nil` for a braid the derivation has folded flat — that one has faces, and
+    /// `figure(from:assignments:face:repeats:)` draws them.
+    static func tube(
+        from derivation: BraidDerivation,
+        assignments: [ThreadAssignment],
+        repeats: Int = 3
+    ) -> BraidTubeFigure? {
+        guard
+            derivation.fold == nil,
+            repeats > 0,
+            assignments.count == derivation.threadCount,
+            Set(assignments.map(\.position)) == Set(derivation.stand.positionIDs)
+        else {
+            return nil
+        }
+        let colours = Dictionary(uniqueKeysWithValues: assignments.map { ($0.position, $0.colorID) })
+        let rowCount = derivation.repeatCycleCount
+        let rowsDrawn = rowCount * repeats
+        let slotCount = derivation.crossSection.slotCount
+
+        guard
+            let occupancy = BraidOccupancy.history(
+                of: derivation.method, on: derivation.stand,
+                crossSection: derivation.crossSection, cycles: rowCount
+            ),
+            let slots = occupancy.columns(.landing),
+            let grid = occupancy.grid(atColumns: slots, rows: rowCount)
+        else { return nil }
+
+        let columns = slots.map {
+            BraidTubeFigure.Column(slot: $0,
+                                   angleInTurns: Double($0) / Double(slotCount))
+        }
+
+        var shapes = [BraidFigure.Shape]()
+        for row in 0..<rowsDrawn {
+            for (column, thread) in grid[row % rowCount].enumerated() {
+                guard let colour = colours[thread] else { return nil }
+                let centre = SIMD2(Double(column) + 0.5, Double(row) + 0.5)
+                let half = 0.46
+                shapes.append(BraidFigure.Shape(
+                    kind: .appearance,
+                    threadPosition: thread,
+                    colorID: colour,
+                    points: [
+                        centre + SIMD2(-half, -half), centre + SIMD2(half, -half),
+                        centre + SIMD2(half, half), centre + SIMD2(-half, half),
+                    ],
+                    isOnTheFace: true,
+                    place: BraidFigure.Place(width: column, row: row)
+                ))
+            }
+        }
+
+        var unsettled = ["a tube has no origin and no printed direction, so this "
+                         + "agrees with a transcription up to a rotation, a mirror, "
+                         + "the way up and where the transcription started"]
+        if let note = derivation.crossSection.unsettled { unsettled.append(note) }
+
+        return BraidTubeFigure(
+            columns: columns, shapes: shapes, rowCount: rowCount, rowsDrawn: rowsDrawn,
+            size: SIMD2(Double(columns.count), Double(rowsDrawn)),
+            unsettled: unsettled
+        )
+    }
+}
