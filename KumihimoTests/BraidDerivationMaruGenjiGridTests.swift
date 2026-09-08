@@ -43,7 +43,7 @@ struct BraidDerivationMaruGenjiGridTests {
             let plain = (1...16).map {
                 ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: "white"))
             }
-            let pattern = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: plain))
+            let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: plain))
             return pattern.patches.map { patch in
                 let rises = patch.corners[2].y > patch.corners[1].y
                 return TableCell(

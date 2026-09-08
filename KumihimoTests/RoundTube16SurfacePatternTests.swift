@@ -2,10 +2,10 @@ import Foundation
 import Testing
 @testable import Kumihimo
 
-struct MaruGenjiSurfacePatternTests {
+struct RoundTube16SurfacePatternTests {
     @Test func validAssignmentsProduceTheFixedSixtyFourPatchCorrespondence() throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixture1)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixture1)
         )
 
         #expect(pattern.patches.count == 64)
@@ -13,7 +13,7 @@ struct MaruGenjiSurfacePatternTests {
         #expect(pattern.patches.allSatisfy { patch in
             patch.corners.allSatisfy {
                 (0...1).contains($0.x)
-                    && (0...MaruGenjiSurfacePatternGenerator.maximumUnwrappedV).contains($0.y)
+                    && (0...RoundTube16SurfacePatternGenerator.maximumUnwrappedV).contains($0.y)
             }
         })
         #expect(pattern.patches.contains { patch in patch.corners.contains { $0.y > 1 } })
@@ -27,10 +27,10 @@ struct MaruGenjiSurfacePatternTests {
 
     @Test func generationIsDeterministicIncludingPatchOrderAndCoordinates() throws {
         let first = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixture3)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixture3)
         )
         let second = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: Array(fixture3.reversed()))
+            RoundTube16SurfacePatternGenerator.generate(assignments: Array(fixture3.reversed()))
         )
 
         #expect(first == second)
@@ -38,7 +38,7 @@ struct MaruGenjiSurfacePatternTests {
 
     @Test func flattenedFacesShareTheSameLongitudinalOrigin() throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixture1)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixture1)
         )
 
         let minimumVByFace = (0..<4).map { face in
@@ -63,11 +63,11 @@ struct MaruGenjiSurfacePatternTests {
             ThreadAssignment(position: 17, colorID: blue),
         ]
 
-        #expect(MaruGenjiSurfacePatternGenerator.generate(assignments: duplicate) == nil)
-        #expect(MaruGenjiSurfacePatternGenerator.generate(assignments: outOfRange) == nil)
-        #expect(MaruGenjiSurfacePatternGenerator.generate(assignments: Array(valid.dropLast())) == nil)
+        #expect(RoundTube16SurfacePatternGenerator.generate(assignments: duplicate) == nil)
+        #expect(RoundTube16SurfacePatternGenerator.generate(assignments: outOfRange) == nil)
+        #expect(RoundTube16SurfacePatternGenerator.generate(assignments: Array(valid.dropLast())) == nil)
         #expect(
-            MaruGenjiSurfacePatternGenerator.generate(
+            RoundTube16SurfacePatternGenerator.generate(
                 assignments: valid + [ThreadAssignment(position: 17, colorID: blue)]
             ) == nil
         )
@@ -75,7 +75,7 @@ struct MaruGenjiSurfacePatternTests {
 
     @Test func cyclicPositionShiftPreservesPatchAndColorCounts() throws {
         let original = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixture3)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixture3)
         )
         let shiftedAssignments = fixture3.map { assignment in
             ThreadAssignment(
@@ -84,7 +84,7 @@ struct MaruGenjiSurfacePatternTests {
             )
         }
         let shifted = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: shiftedAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: shiftedAssignments)
         )
 
         #expect(original.patches.count == shifted.patches.count)
@@ -93,9 +93,9 @@ struct MaruGenjiSurfacePatternTests {
     }
 
     @Test func threeVerifiedFixturesKeepTheirFixedSpatialSignatures() throws {
-        let first = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: fixture1))
-        let second = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: fixture2))
-        let third = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: fixture3))
+        let first = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture1))
+        let second = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture2))
+        let third = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture3))
 
         #expect(spatialSignature(first) ==
             "BBBBBBBBPPPPPPPPBBBBBBBBPPPPPPPPBBBBBBBBPPPPPPPPBBBBBBBBPPPPPPPP")
@@ -107,9 +107,9 @@ struct MaruGenjiSurfacePatternTests {
     }
 
     @Test func fixturesExpressFineChevronSolidFacesAndPhaseShift() throws {
-        let first = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: fixture1))
-        let second = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: fixture2))
-        let third = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: fixture3))
+        let first = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture1))
+        let second = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture2))
+        let third = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture3))
 
         let firstFaces = faceColorSequences(first)
         #expect(firstFaces.allSatisfy { Set($0).count == 2 })
@@ -126,15 +126,15 @@ struct MaruGenjiSurfacePatternTests {
 
     @Test func colorChangeUpdatesThePatternConsumedByThumbnailAndSurfaceMesh() throws {
         let before = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixture2)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixture2)
         )
-        let beforeMesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: before))
+        let beforeMesh = try #require(RoundTube16SurfaceMesh.generate(pattern: before))
         var changedAssignments = fixture2
         changedAssignments[0].colorID = pink
         let after = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: changedAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: changedAssignments)
         )
-        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: after))
+        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: after))
 
         #expect(before != after)
         #expect(after.patches.count { $0.colorID == pink } == 36)
@@ -180,11 +180,11 @@ struct MaruGenjiSurfacePatternTests {
         }
     }
 
-    private func colorCounts(in pattern: MaruGenjiSurfacePattern) -> [ThreadColorID: Int] {
+    private func colorCounts(in pattern: RoundTube16SurfacePattern) -> [ThreadColorID: Int] {
         Dictionary(grouping: pattern.patches, by: \.colorID).mapValues(\.count)
     }
 
-    private func spatialSignature(_ pattern: MaruGenjiSurfacePattern) -> String {
+    private func spatialSignature(_ pattern: RoundTube16SurfacePattern) -> String {
         pattern.patches.sorted { first, second in
             let firstCenter = center(of: first)
             let secondCenter = center(of: second)
@@ -196,7 +196,7 @@ struct MaruGenjiSurfacePatternTests {
     }
 
     private func faceColorSequences(
-        _ pattern: MaruGenjiSurfacePattern
+        _ pattern: RoundTube16SurfacePattern
     ) -> [[ThreadColorID]] {
         (0..<4).map { face in
             pattern.patches.filter { patch in
@@ -207,7 +207,7 @@ struct MaruGenjiSurfacePatternTests {
         }
     }
 
-    private func center(of patch: MaruGenjiSurfacePatch) -> SIMD2<Float> {
+    private func center(of patch: RoundTube16SurfacePatch) -> SIMD2<Float> {
         patch.corners.reduce(.zero, +) / Float(patch.corners.count)
     }
 

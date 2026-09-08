@@ -152,7 +152,7 @@ struct MaruGenjiSimulationTests {
         ]
 
         let mesh = try #require(
-            MaruGenjiTubeMeshGenerator.generate(points: points, sideCount: 6)
+            RoundTube16CoreMesh.generate(points: points, sideCount: 6)
         )
 
         #expect(mesh.positions.count == 18)
@@ -171,7 +171,7 @@ struct MaruGenjiSimulationTests {
         ]
         let sideCount = 8
         let mesh = try #require(
-            MaruGenjiTubeMeshGenerator.generate(points: points, sideCount: sideCount)
+            RoundTube16CoreMesh.generate(points: points, sideCount: sideCount)
         )
 
         for ring in 0..<(points.count - 1) {

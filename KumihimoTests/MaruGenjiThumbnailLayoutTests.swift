@@ -14,7 +14,7 @@ struct MaruGenjiThumbnailLayoutTests {
 
     @Test(arguments: frames)
     func oneRepeatKeepsTheAspectRatioInsteadOfFillingTheFrame(_ size: CGSize) throws {
-        let aspectRatio = MaruGenjiSurfacePatternGenerator.patternAspectRatio
+        let aspectRatio = RoundTube16SurfacePatternGenerator.patternAspectRatio
         let layout = try #require(MaruGenjiThumbnailLayout(size: size, aspectRatio: aspectRatio))
 
         // The height carries one full turn around the braid, so one repeat along it
@@ -28,7 +28,7 @@ struct MaruGenjiThumbnailLayoutTests {
         let layout = try #require(
             MaruGenjiThumbnailLayout(
                 size: size,
-                aspectRatio: MaruGenjiSurfacePatternGenerator.patternAspectRatio
+                aspectRatio: RoundTube16SurfacePatternGenerator.patternAspectRatio
             )
         )
 
@@ -44,7 +44,7 @@ struct MaruGenjiThumbnailLayoutTests {
     }
 
     @Test func repeatCountFollowsTheFrameWidth() throws {
-        let aspectRatio = MaruGenjiSurfacePatternGenerator.patternAspectRatio
+        let aspectRatio = RoundTube16SurfacePatternGenerator.patternAspectRatio
         let narrow = try #require(
             MaruGenjiThumbnailLayout(size: CGSize(width: 120, height: 96), aspectRatio: aspectRatio)
         )
@@ -58,9 +58,9 @@ struct MaruGenjiThumbnailLayoutTests {
 
     @Test func aChevronLeansTheSameWayAndAsFarAsItDoesOnTheMesh() throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
-        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
         let layout = try #require(
             MaruGenjiThumbnailLayout(
                 size: CGSize(width: 320, height: 96),
@@ -69,9 +69,9 @@ struct MaruGenjiThumbnailLayoutTests {
         )
         let surface = BraidStrandSurfaceBuilder.surface(for: pattern)
 
-        #expect(surface.segments.count == MaruGenjiSurfacePatternGenerator.patchCount)
+        #expect(surface.segments.count == RoundTube16SurfacePatternGenerator.patchCount)
         for segment in surface.segments {
-            let world = MaruGenjiSurfaceMeshGenerator.worldOffset(
+            let world = RoundTube16SurfaceMesh.worldOffset(
                 segment.centerlineDelta,
                 radius: mesh.baseRadius,
                 length: mesh.length,
@@ -86,7 +86,7 @@ struct MaruGenjiThumbnailLayoutTests {
             #expect(abs(modelled - flat) < 0.1)
             // Half the chevrons run the other way, so compare the acute angle each
             // one makes with the axis.
-            let lean = atan(1 / MaruGenjiSurfacePatternGenerator.patternAspectRatio) * 180 / .pi
+            let lean = atan(1 / RoundTube16SurfacePatternGenerator.patternAspectRatio) * 180 / .pi
             #expect(abs(min(abs(modelled), 180 - abs(modelled)) - lean) < 0.1)
         }
     }
@@ -123,7 +123,7 @@ struct MaruGenjiThumbnailLayoutTests {
     }
 
     private var fixtureAssignments: [ThreadAssignment] {
-        (1...MaruGenjiSurfacePatternGenerator.requiredThreadCount).map { position in
+        (1...RoundTube16SurfacePatternGenerator.requiredThreadCount).map { position in
             ThreadAssignment(
                 position: position,
                 colorID: ThreadColorID(rawValue: position.isMultiple(of: 2) ? "pink" : "blue")

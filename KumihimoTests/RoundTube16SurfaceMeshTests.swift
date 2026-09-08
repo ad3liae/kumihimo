@@ -54,9 +54,9 @@ struct MaruGenjiSurfaceMeshTests {
 
     @Test func everySurfacePatchReachesTheMesh() throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
-        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
 
         #expect(mesh.triangleSegmentIndices.allSatisfy { pattern.patches.indices.contains($0) })
         for index in pattern.patches.indices {
@@ -71,9 +71,9 @@ struct MaruGenjiSurfaceMeshTests {
         // the chevron density is inversely proportional to this ratio, and 0.65 puts
         // it between the two readings of the photograph, 1.8 counted by eye and 2.15
         // measured off the normalised strip.
-        #expect(abs(MaruGenjiSurfacePatternGenerator.patternAspectRatio - 0.65) < 0.000_1)
-        #expect(MaruGenjiSurfacePattern(patches: []).aspectRatio
-            == MaruGenjiSurfacePatternGenerator.patternAspectRatio)
+        #expect(abs(RoundTube16SurfacePatternGenerator.patternAspectRatio - 0.65) < 0.000_1)
+        #expect(RoundTube16SurfacePattern(patches: []).aspectRatio
+            == RoundTube16SurfacePatternGenerator.patternAspectRatio)
     }
 
     /// The one number the density depends on. A repeat is eight chevron rows, so the
@@ -85,10 +85,10 @@ struct MaruGenjiSurfaceMeshTests {
         _ repeatCount: Int
     ) throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
         let mesh = try #require(
-            MaruGenjiSurfaceMeshGenerator.generate(
+            RoundTube16SurfaceMesh.generate(
                 pattern: pattern,
                 radius: radius,
                 patternRepeatCount: repeatCount
@@ -127,10 +127,10 @@ struct MaruGenjiSurfaceMeshTests {
         _ repeatCount: Int
     ) throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
         let mesh = try #require(
-            MaruGenjiSurfaceMeshGenerator.generate(
+            RoundTube16SurfaceMesh.generate(
                 pattern: pattern,
                 radius: radius,
                 patternRepeatCount: repeatCount
@@ -151,25 +151,25 @@ struct MaruGenjiSurfaceMeshTests {
 
     @Test func defaultsDeriveTheLengthFromTheRadiusAndTheAspect() {
         let expected = 2 * Float.pi
-            * MaruGenjiSurfaceMeshGenerator.defaultRadius
-            * MaruGenjiSurfacePatternGenerator.patternAspectRatio
-            * Float(MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount)
+            * RoundTube16SurfaceMesh.defaultRadius
+            * RoundTube16SurfacePatternGenerator.patternAspectRatio
+            * Float(RoundTube16SurfaceMesh.defaultPatternRepeatCount)
 
-        #expect(abs(MaruGenjiSurfaceMeshGenerator.defaultLength - expected) < 0.000_1)
-        #expect(abs(MaruGenjiSurfaceMeshGenerator.defaultLength - 7.841) < 0.005)
+        #expect(abs(RoundTube16SurfaceMesh.defaultLength - expected) < 0.000_1)
+        #expect(abs(RoundTube16SurfaceMesh.defaultLength - 7.841) < 0.005)
     }
 
     @Test func everyRidgeLeansAtTheAngleTheDeclaredAspectImplies() throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
-        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
 
         let angles = try pattern.patches.indices.map { index in
             try crestAngleToAxisInDegrees(of: mesh, segmentIndex: index)
         }
 
-        #expect(angles.count == MaruGenjiSurfacePatternGenerator.patchCount)
+        #expect(angles.count == RoundTube16SurfacePatternGenerator.patchCount)
         // The angle is a consequence of the density, not a target of its own: a
         // repeat 0.65 turns long puts a chevron at atan(1 / 0.65) off the axis. The
         // tolerance only covers the sampling of the crest, not a shear.
@@ -179,12 +179,12 @@ struct MaruGenjiSurfaceMeshTests {
 
     @Test func theRidgeAngleIsIndependentOfTheRadiusAndTheRepeatCount() throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
 
         for (radius, repeatCount) in [(Float(0.2), 7), (Float(1.35), 3)] {
             let mesh = try #require(
-                MaruGenjiSurfaceMeshGenerator.generate(
+                RoundTube16SurfaceMesh.generate(
                     pattern: pattern,
                     radius: radius,
                     patternRepeatCount: repeatCount
@@ -197,17 +197,17 @@ struct MaruGenjiSurfaceMeshTests {
 
     /// The lean the declared aspect puts a chevron at, measured from the braid axis.
     private var ridgeAngleToAxisInDegrees: Float {
-        atan(1 / MaruGenjiSurfacePatternGenerator.patternAspectRatio) * 180 / .pi
+        atan(1 / RoundTube16SurfacePatternGenerator.patternAspectRatio) * 180 / .pi
     }
 
     // MARK: - Round strands
 
     @Test func everyStrandIsARidgeWithItsEdgesInTheSharedValley() throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
-        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
-        let base = MaruGenjiSurfaceMeshGenerator.defaultRadius
+        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let base = RoundTube16SurfaceMesh.defaultRadius
         let tolerance: Float = 0.000_1
 
         for index in pattern.patches.indices {
@@ -234,16 +234,16 @@ struct MaruGenjiSurfaceMeshTests {
 
     @Test func radiusStaysInsideTheConfiguredReliefRange() throws {
         let mesh = try makeMesh()
-        let base = MaruGenjiSurfaceMeshGenerator.defaultRadius
+        let base = RoundTube16SurfaceMesh.defaultRadius
         let highest = base * (
-            1 - MaruGenjiSurfaceMeshGenerator.valleyDepthRatio
-                + MaruGenjiSurfaceMeshGenerator.crestHeightRatio
-                * (1 + MaruGenjiSurfaceMeshGenerator.overCrossingLift)
+            1 - RoundTube16SurfaceMesh.valleyDepthRatio
+                + RoundTube16SurfaceMesh.crestHeightRatio
+                * (1 + RoundTube16SurfaceMesh.overCrossingLift)
         )
         let radii = mesh.positions.indices.map { radius(of: mesh, at: $0) }
 
         let lowest = mesh.valleyFloorRadius
-            - base * MaruGenjiSurfaceMeshGenerator.overCrossingLapSink
+            - base * RoundTube16SurfaceMesh.overCrossingLapSink
         #expect(radii.allSatisfy { $0 >= lowest - 0.000_1 })
         #expect(radii.allSatisfy { $0 <= highest + 0.000_1 })
         // The silhouette has to undulate rather than trace a circle.
@@ -251,16 +251,16 @@ struct MaruGenjiSurfaceMeshTests {
     }
 
     @Test func theStrandPassingOverACrossingCoversTheStepBelowIt() {
-        let radius = MaruGenjiSurfaceMeshGenerator.defaultRadius
-        let floor = radius * (1 - MaruGenjiSurfaceMeshGenerator.valleyDepthRatio)
+        let radius = RoundTube16SurfaceMesh.defaultRadius
+        let floor = radius * (1 - RoundTube16SurfaceMesh.valleyDepthRatio)
 
         for step in 0...20 {
             let across = Float(step) / 10 - 1
             for along in [Float(0), Float(1)] {
-                let over = MaruGenjiSurfaceMeshGenerator.strandRadius(
+                let over = RoundTube16SurfaceMesh.strandRadius(
                     layer: .over, along: along, across: across, radius: radius
                 )
-                let under = MaruGenjiSurfaceMeshGenerator.strandRadius(
+                let under = RoundTube16SurfaceMesh.strandRadius(
                     layer: .under, along: along, across: across, radius: radius
                 )
                 #expect(over >= under)
@@ -272,10 +272,10 @@ struct MaruGenjiSurfaceMeshTests {
         // leave a gap however differently their crests are scaled.
         for along in [Float(0), Float(0.5), Float(1)] {
             for across in [Float(-1), Float(1)] {
-                #expect(abs(MaruGenjiSurfaceMeshGenerator.strandRadius(
+                #expect(abs(RoundTube16SurfaceMesh.strandRadius(
                     layer: .over, along: along, across: across, radius: radius
                 ) - floor) < 0.000_01)
-                #expect(abs(MaruGenjiSurfaceMeshGenerator.strandRadius(
+                #expect(abs(RoundTube16SurfaceMesh.strandRadius(
                     layer: .under, along: along, across: across, radius: radius
                 ) - floor) < 0.000_01)
             }
@@ -284,9 +284,9 @@ struct MaruGenjiSurfaceMeshTests {
 
     @Test func onlyTheOverStrandSealsACrossingSoTheWallsNeverOverlap() throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
-        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
 
         #expect(mesh.triangleIsCrossingWall.contains(true))
         #expect(mesh.triangleIsCrossingWall.contains(false))
@@ -304,7 +304,7 @@ struct MaruGenjiSurfaceMeshTests {
 
     @Test func longitudinalTileBoundariesHaveMatchingGeometry() throws {
         let mesh = try makeMesh()
-        let halfLength = MaruGenjiSurfaceMeshGenerator.defaultLength / 2
+        let halfLength = RoundTube16SurfaceMesh.defaultLength / 2
         // The visible skin has to present the same ring at both ends so tiles can be
         // repeated. The walls sealing a crossing are excluded: one of them may begin
         // exactly on a repeat boundary, and the adjoining tile carries its
@@ -352,10 +352,10 @@ struct MaruGenjiSurfaceMeshTests {
         // in, so only the shear the group corrects for differs.
         #expect(mesh.twist.groups.allSatisfy {
             abs($0.coefficients.phasePerAlong)
-                == 2 * .pi * Float(MaruGenjiSurfaceMeshGenerator.fiberCount)
+                == 2 * .pi * Float(RoundTube16SurfaceMesh.fiberCount)
         })
 
-        for segmentIndex in 0..<MaruGenjiSurfacePatternGenerator.patchCount {
+        for segmentIndex in 0..<RoundTube16SurfacePatternGenerator.patchCount {
             let fit = try twistPhaseFit(of: mesh, segmentIndex: segmentIndex)
             let coefficients = try #require(mesh.twist.coefficients(forSegment: segmentIndex))
             // An affine phase is a phase with no break in it: every vertex of the
@@ -387,7 +387,7 @@ struct MaruGenjiSurfaceMeshTests {
         let mesh = try makeMesh()
         let surface = BraidStrandSurfaceBuilder.surface(
             for: try #require(
-                MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+                RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
             )
         )
 
@@ -399,12 +399,12 @@ struct MaruGenjiSurfaceMeshTests {
             )
         }
 
-        #expect(angles.count == MaruGenjiSurfacePatternGenerator.patchCount)
+        #expect(angles.count == RoundTube16SurfacePatternGenerator.patchCount)
         // Every strand twists the same way round, which is what makes the braid
         // read as one yarn rather than two.
         #expect(angles.allSatisfy { $0 > 0 })
         #expect(angles.allSatisfy {
-            abs($0 - MaruGenjiSurfaceMeshGenerator.twistAngleDegrees) <= 3
+            abs($0 - RoundTube16SurfaceMesh.twistAngleDegrees) <= 3
         })
     }
 
@@ -415,7 +415,7 @@ struct MaruGenjiSurfaceMeshTests {
         // groups than this would mean more materials than colours times two.
         #expect(mesh.twist.groups.count == 2)
         #expect(mesh.twist.groupIndexBySegment.count
-            == MaruGenjiSurfacePatternGenerator.patchCount)
+            == RoundTube16SurfacePatternGenerator.patchCount)
         #expect(Set(mesh.twist.groupIndexBySegment) == Set(mesh.twist.groups.indices))
         #expect(mesh.materialGroups.count
             <= Set(mesh.materialGroups.keys.map(\.colorID)).count * 2)
@@ -444,8 +444,8 @@ struct MaruGenjiSurfaceMeshTests {
         #expect(MaruGenjiStrandTextureFactory.crossSectionOffset(forRow: 1) == -1)
         #expect(abs(MaruGenjiStrandTextureFactory.crossSectionOffset(forRow: 0.5)) < 0.000_1)
         for sample in stride(from: Float(0), through: 1, by: 0.125) {
-            let offset = MaruGenjiSurfaceMeshGenerator.crossSectionOffset(forSample: sample)
-            let row = 1 - MaruGenjiSurfaceMeshGenerator.crossSectionSample(forOffset: offset)
+            let offset = RoundTube16SurfaceMesh.crossSectionOffset(forSample: sample)
+            let row = 1 - RoundTube16SurfaceMesh.crossSectionSample(forOffset: offset)
             #expect(abs(MaruGenjiStrandTextureFactory.crossSectionOffset(forRow: row) - offset)
                 < 0.000_1)
         }
@@ -453,25 +453,25 @@ struct MaruGenjiSurfaceMeshTests {
 
     @Test func twistGroupsAndStrandTexturesAreDeterministic() throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
         let surface = BraidStrandSurfaceBuilder.surface(for: pattern)
-        func grouping(radius: Float) -> MaruGenjiSurfaceMeshGenerator.TwistGrouping {
-            MaruGenjiSurfaceMeshGenerator.twistGrouping(
+        func grouping(radius: Float) -> RoundTube16SurfaceMesh.TwistGrouping {
+            RoundTube16SurfaceMesh.twistGrouping(
                 for: surface,
                 radius: radius,
-                length: MaruGenjiSurfaceMeshGenerator.length(radius: radius),
-                repeatCount: MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount
+                length: RoundTube16SurfaceMesh.length(radius: radius),
+                repeatCount: RoundTube16SurfaceMesh.defaultPatternRepeatCount
             )
         }
 
-        #expect(grouping(radius: MaruGenjiSurfaceMeshGenerator.defaultRadius)
-            == grouping(radius: MaruGenjiSurfaceMeshGenerator.defaultRadius))
+        #expect(grouping(radius: RoundTube16SurfaceMesh.defaultRadius)
+            == grouping(radius: RoundTube16SurfaceMesh.defaultRadius))
         // A larger braid is the same braid: the strands group the same way and the
         // maps built once at the default radius still belong to them.
-        #expect(grouping(radius: 2 * MaruGenjiSurfaceMeshGenerator.defaultRadius)
+        #expect(grouping(radius: 2 * RoundTube16SurfaceMesh.defaultRadius)
             .groupIndexBySegment
-            == grouping(radius: MaruGenjiSurfaceMeshGenerator.defaultRadius)
+            == grouping(radius: RoundTube16SurfaceMesh.defaultRadius)
             .groupIndexBySegment)
 
         for twist in MaruGenjiStrandTextureFactory.twistGroups {
@@ -494,10 +494,10 @@ struct MaruGenjiSurfaceMeshTests {
 
     @Test func meshGenerationIsDeterministic() throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
-        let first = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
-        let second = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let first = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let second = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
 
         #expect(first.positions == second.positions)
         #expect(first.normals == second.normals)
@@ -514,28 +514,28 @@ struct MaruGenjiSurfaceMeshTests {
 
     @Test func malformedPatternAndParametersFailSafely() throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
 
-        #expect(MaruGenjiSurfaceMeshGenerator.generate(
-            pattern: MaruGenjiSurfacePattern(patches: Array(pattern.patches.dropLast()))
+        #expect(RoundTube16SurfaceMesh.generate(
+            pattern: RoundTube16SurfacePattern(patches: Array(pattern.patches.dropLast()))
         ) == nil)
-        #expect(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern, radius: .nan) == nil)
-        #expect(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern, radius: 0) == nil)
-        #expect(MaruGenjiSurfaceMeshGenerator.generate(
-            pattern: MaruGenjiSurfacePattern(patches: pattern.patches, aspectRatio: 0)
+        #expect(RoundTube16SurfaceMesh.generate(pattern: pattern, radius: .nan) == nil)
+        #expect(RoundTube16SurfaceMesh.generate(pattern: pattern, radius: 0) == nil)
+        #expect(RoundTube16SurfaceMesh.generate(
+            pattern: RoundTube16SurfacePattern(patches: pattern.patches, aspectRatio: 0)
         ) == nil)
-        #expect(MaruGenjiSurfaceMeshGenerator.generate(
-            pattern: MaruGenjiSurfacePattern(patches: pattern.patches, aspectRatio: .nan)
+        #expect(RoundTube16SurfaceMesh.generate(
+            pattern: RoundTube16SurfacePattern(patches: pattern.patches, aspectRatio: .nan)
         ) == nil)
-        #expect(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern, patternRepeatCount: 0) == nil)
-        #expect(MaruGenjiSurfaceMeshGenerator.generate(
+        #expect(RoundTube16SurfaceMesh.generate(pattern: pattern, patternRepeatCount: 0) == nil)
+        #expect(RoundTube16SurfaceMesh.generate(
             pattern: pattern,
-            alongStrandSubdivisions: MaruGenjiSurfaceMeshGenerator.minimumAlongStrandSubdivisions - 1
+            alongStrandSubdivisions: RoundTube16SurfaceMesh.minimumAlongStrandSubdivisions - 1
         ) == nil)
-        #expect(MaruGenjiSurfaceMeshGenerator.generate(
+        #expect(RoundTube16SurfaceMesh.generate(
             pattern: pattern,
-            acrossStrandSubdivisions: MaruGenjiSurfaceMeshGenerator.minimumAcrossStrandSubdivisions - 1
+            acrossStrandSubdivisions: RoundTube16SurfaceMesh.minimumAcrossStrandSubdivisions - 1
         ) == nil)
     }
 
@@ -546,9 +546,9 @@ struct MaruGenjiSurfaceMeshTests {
             ProjectEditorPreviewData.maruGenjiSurfaceFixture1,
         ] {
             let pattern = try #require(
-                MaruGenjiSurfacePatternGenerator.generate(assignments: assignments)
+                RoundTube16SurfacePatternGenerator.generate(assignments: assignments)
             )
-            let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+            let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
 
             var indices = [UInt32]()
             var materialIndices = [UInt32]()
@@ -598,14 +598,14 @@ struct MaruGenjiSurfaceMeshTests {
         }
     }
 
-    private func makeMesh() throws -> MaruGenjiSurfaceMeshData {
+    private func makeMesh() throws -> RoundTube16SurfaceMeshData {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixtureAssignments)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
-        return try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        return try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
     }
 
-    private func radius(of mesh: MaruGenjiSurfaceMeshData, at index: Int) -> Float {
+    private func radius(of mesh: RoundTube16SurfaceMeshData, at index: Int) -> Float {
         let position = mesh.positions[index]
         return hypot(position.y, position.z)
     }
@@ -615,19 +615,19 @@ struct MaruGenjiSurfaceMeshTests {
     /// stripe and its reverse are the same stripe, so only that range tells the
     /// two hands apart.
     private func stripeAngleInDegrees(
-        of mesh: MaruGenjiSurfaceMeshData,
+        of mesh: RoundTube16SurfaceMeshData,
         surface: BraidStrandSurface,
         segmentIndex: Int
     ) throws -> Float {
         let segment = surface.segments[segmentIndex]
         let fit = try twistPhaseFit(of: mesh, segmentIndex: segmentIndex)
-        let along = MaruGenjiSurfaceMeshGenerator.worldOffset(
+        let along = RoundTube16SurfaceMesh.worldOffset(
             segment.centerlineDelta,
             radius: mesh.baseRadius,
             length: mesh.length,
             repeatCount: mesh.patternRepeatCount
         )
-        let across = MaruGenjiSurfaceMeshGenerator.worldOffset(
+        let across = RoundTube16SurfaceMesh.worldOffset(
             segment.meanHalfWidth,
             radius: mesh.baseRadius,
             length: mesh.length,
@@ -646,7 +646,7 @@ struct MaruGenjiSurfaceMeshTests {
     /// across + offset` over every vertex of one strand. A stripe that broke or
     /// restarted inside the strand would leave a residual behind.
     private func twistPhaseFit(
-        of mesh: MaruGenjiSurfaceMeshData,
+        of mesh: RoundTube16SurfaceMeshData,
         segmentIndex: Int
     ) throws -> (phasePerAlong: Float, phasePerAcross: Float, maximumResidual: Float) {
         let indices = mesh.positions.indices.filter {
@@ -693,7 +693,7 @@ struct MaruGenjiSurfaceMeshTests {
     /// Angle between one strand's crest line and the braid axis, measured on the
     /// generated geometry: axial distance against arc length around the braid.
     private func crestAngleToAxisInDegrees(
-        of mesh: MaruGenjiSurfaceMeshData,
+        of mesh: RoundTube16SurfaceMeshData,
         segmentIndex: Int
     ) throws -> Float {
         let crest = mesh.positions.indices.filter {
@@ -728,7 +728,7 @@ struct MaruGenjiSurfaceMeshTests {
 
     private func radiiByLongitudinalPosition(
         _ indices: [Int],
-        in mesh: MaruGenjiSurfaceMeshData
+        in mesh: RoundTube16SurfaceMeshData
     ) -> [Int: [Float]] {
         var result = [Int: [Float]]()
         for index in indices {
@@ -764,7 +764,7 @@ struct MaruGenjiSurfaceMeshTests {
     private func boundariesMatch(
         _ startIndices: [Int],
         _ endIndices: [Int],
-        in mesh: MaruGenjiSurfaceMeshData
+        in mesh: RoundTube16SurfaceMeshData
     ) -> Bool {
         func hasMatch(for sourceIndex: Int, in candidates: [Int]) -> Bool {
             let sourcePosition = mesh.positions[sourceIndex]
@@ -787,7 +787,7 @@ struct MaruGenjiSurfaceMeshTests {
 
     private func edgeColorIDs(
         _ boundaryIndices: [Int],
-        in mesh: MaruGenjiSurfaceMeshData
+        in mesh: RoundTube16SurfaceMeshData
     ) -> Set<ThreadColorID> {
         let boundarySet = Set(boundaryIndices.map(UInt32.init))
         return Set(mesh.colorGroups.compactMap { colorID, indices in

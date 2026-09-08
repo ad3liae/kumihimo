@@ -6,11 +6,11 @@ import Testing
 
 struct HiraGenjiSurfaceMeshTests {
     @Test func meshIsAnOpenRoundedFlatBraidWithEveryRegion() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
 
-        #expect(abs(HiraGenjiSurfaceMeshGenerator.widthToThicknessRatio - 3.4) <= 0.3)
-        #expect(Set(mesh.surfaceVertexRegions) == Set(HiraGenjiSurfaceRegion.allCases))
+        #expect(abs(Flat16SurfaceMesh.widthToThicknessRatio - 3.4) <= 0.3)
+        #expect(Set(mesh.surfaceVertexRegions) == Set(Flat16SurfaceRegion.allCases))
         #expect(mesh.positions.count == mesh.normals.count)
         #expect(mesh.positions.count == mesh.textureCoordinates.count)
         #expect(mesh.positions.count == mesh.boundaryDistances.count)
@@ -34,12 +34,12 @@ struct HiraGenjiSurfaceMeshTests {
         // does: the width grows by 93% of a crest, near enough the whole of it.
         let yExtent = extent(mesh.positions.map(\.y))
         let zExtent = extent(mesh.positions.map(\.z))
-        let stated = HiraGenjiSurfaceMeshGenerator.widthToThicknessRatio
-        let crest = HiraGenjiSurfaceMeshGenerator.crestHeightRatio
+        let stated = Flat16SurfaceMesh.widthToThicknessRatio
+        let crest = Flat16SurfaceMesh.crestHeightRatio
         #expect(yExtent / zExtent < stated)
         #expect(abs(yExtent / zExtent * (1 + crest) / (stated + crest) - 1) < 0.02)
         // The thickness is exactly the section plus a crest on each face.
-        let halfThickness = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
+        let halfThickness = Flat16SurfaceMesh.defaultHalfThickness
         #expect(abs(zExtent / (2 * halfThickness * (1 + crest)) - 1) < 0.005)
     }
 
@@ -47,20 +47,20 @@ struct HiraGenjiSurfaceMeshTests {
     /// sixteen threads round, so the outline the generator draws has to measure
     /// sixteen thread widths right round.
     @Test func theCrossSectionIsSixteenThreadsRoundAndTwoThreadsThick() {
-        let halfWidth = HiraGenjiSurfaceMeshGenerator.defaultHalfWidth
-        let halfThickness = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
+        let halfWidth = Flat16SurfaceMesh.defaultHalfWidth
+        let halfThickness = Flat16SurfaceMesh.defaultHalfThickness
         // Two threads thick, so one thread is one half-thickness wide.
         let threadWidth = halfThickness
-        let perimeter = HiraGenjiSurfaceMeshGenerator.perimeter(
+        let perimeter = Flat16SurfaceMesh.perimeter(
             halfWidth: halfWidth,
             halfThickness: halfThickness
         )
 
         #expect(abs(perimeter / threadWidth - 16) < 0.01)
         #expect(abs(halfWidth / halfThickness
-            - HiraGenjiSurfaceMeshGenerator.widthToThicknessRatio) < 0.000_1)
+            - Flat16SurfaceMesh.widthToThicknessRatio) < 0.000_1)
         // The same solving at any size: the ratio is a shape, not a length.
-        let scaled = HiraGenjiSurfaceMeshGenerator.perimeter(
+        let scaled = Flat16SurfaceMesh.perimeter(
             halfWidth: 3 * halfWidth,
             halfThickness: 3 * halfThickness
         )
@@ -72,10 +72,10 @@ struct HiraGenjiSurfaceMeshTests {
     /// A thread's run is one cell, not a length of band: its bulge peaks at the
     /// middle of its step and dies at both ends, where it dives under the pick.
     @Test func aThreadsRunRisesAndDiesWithinItsOwnStep() throws {
-        let crest = HiraGenjiSurfaceMeshGenerator.crestHeightRatio
+        let crest = Flat16SurfaceMesh.crestHeightRatio
         let middleOfTheLane: Float = 0.5
 
-        let top = HiraGenjiSurfaceMeshGenerator.crossingRelief(
+        let top = Flat16SurfaceMesh.crossingRelief(
             SIMD2<Float>(middleOfTheLane, 0.5)
         )
         #expect(abs(top - crest) < 0.000_1)
@@ -83,11 +83,11 @@ struct HiraGenjiSurfaceMeshTests {
         // Falling away from it into a valley before the pick takes over, so the
         // lane is not one length of band but a run of separate cells.
         let along = stride(from: Float(0.5), through: 1, by: 0.01).map {
-            HiraGenjiSurfaceMeshGenerator.crossingRelief(SIMD2<Float>(middleOfTheLane, $0))
+            Flat16SurfaceMesh.crossingRelief(SIMD2<Float>(middleOfTheLane, $0))
         }
         let valley = try #require(along.min())
         #expect(valley < crest * 0.4)
-        #expect(valley < crest * (1 - MaruGenjiSurfaceMeshGenerator.underCrossingDip))
+        #expect(valley < crest * (1 - RoundTube16SurfaceMesh.underCrossingDip))
         // The thread's own bulge falls away all the way; what rises again at the
         // very end is the pick, not the thread.
         let bulge = stride(from: Float(0.5), through: 1, by: 0.01).map { v -> Float in
@@ -96,8 +96,8 @@ struct HiraGenjiSurfaceMeshTests {
         }
         #expect(zip(bulge, bulge.dropFirst()).allSatisfy { $0 >= $1 - 0.000_1 })
         // The two ends of a step are the same height, so instanced tiles meet.
-        let head = HiraGenjiSurfaceMeshGenerator.crossingRelief(SIMD2<Float>(middleOfTheLane, 0))
-        let tail = HiraGenjiSurfaceMeshGenerator.crossingRelief(SIMD2<Float>(middleOfTheLane, 1))
+        let head = Flat16SurfaceMesh.crossingRelief(SIMD2<Float>(middleOfTheLane, 0))
+        let tail = Flat16SurfaceMesh.crossingRelief(SIMD2<Float>(middleOfTheLane, 1))
         #expect(abs(head - tail) < 0.000_1)
     }
 
@@ -105,11 +105,11 @@ struct HiraGenjiSurfaceMeshTests {
     /// the same height in every lane, so it reads as one thread lying across
     /// rather than as a seam between cells.
     @Test func thePickLiesRightAcrossTheBraidAtEveryJoin() {
-        let crest = HiraGenjiSurfaceMeshGenerator.crestHeightRatio
-        let sunk = crest * (1 - MaruGenjiSurfaceMeshGenerator.underCrossingDip)
+        let crest = Flat16SurfaceMesh.crestHeightRatio
+        let sunk = crest * (1 - RoundTube16SurfaceMesh.underCrossingDip)
 
         let acrossTheJoin = stride(from: Float(0), through: 1, by: 0.05).map {
-            HiraGenjiSurfaceMeshGenerator.crossingRelief(SIMD2<Float>($0, 0))
+            Flat16SurfaceMesh.crossingRelief(SIMD2<Float>($0, 0))
         }
         #expect(acrossTheJoin.allSatisfy { abs($0 - sunk) < 0.000_1 })
 
@@ -118,7 +118,7 @@ struct HiraGenjiSurfaceMeshTests {
         // And it never stands above one.
         for u in stride(from: Float(0), through: 1, by: 0.05) {
             for v in stride(from: Float(0), through: 1, by: 0.05) {
-                let relief = HiraGenjiSurfaceMeshGenerator.crossingRelief(SIMD2<Float>(u, v))
+                let relief = Flat16SurfaceMesh.crossingRelief(SIMD2<Float>(u, v))
                 #expect(relief <= crest + 0.000_1)
                 #expect(relief >= -0.000_1)
             }
@@ -129,20 +129,20 @@ struct HiraGenjiSurfaceMeshTests {
     /// width is of a step's length — which is the aspect ratio stage 2.5a
     /// measured, not a figure of its own.
     @Test func thePickIsOneYarnWide() {
-        let stepInYarns = HiraGenjiSurfacePatternGenerator.stitchPitchPerBraidWidth
-            * Float(HiraGenjiSurfacePatternGenerator.broadFaceColumnCount)
-        #expect(abs(HiraGenjiSurfaceMeshGenerator.pickHalfSpan * 2 * stepInYarns - 1) < 0.000_1)
-        #expect((0.2...0.3).contains(HiraGenjiSurfaceMeshGenerator.pickHalfSpan))
+        let stepInYarns = Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth
+            * Float(Flat16SurfacePatternGenerator.broadFaceColumnCount)
+        #expect(abs(Flat16SurfaceMesh.pickHalfSpan * 2 * stepInYarns - 1) < 0.000_1)
+        #expect((0.2...0.3).contains(Flat16SurfaceMesh.pickHalfSpan))
     }
 
     /// Read on the drawn mesh rather than on the formula: down the middle of a
     /// lane the surface rises and falls once per step, and the low points sit at
     /// the joins between steps.
     @Test func theDrawnSurfaceFallsAtEveryJoinBetweenSteps() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
-        let crest = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
-            * HiraGenjiSurfaceMeshGenerator.crestHeightRatio
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let crest = Flat16SurfaceMesh.defaultHalfThickness
+            * Flat16SurfaceMesh.crestHeightRatio
 
         // Vertices down the middle of a front lane, in order along the braid.
         let middle = mesh.positions.indices.filter { index in
@@ -168,11 +168,11 @@ struct HiraGenjiSurfaceMeshTests {
     /// edge. So each region has to measure exactly that many thread widths of
     /// the outline.
     @Test func eachRegionIsAsManyThreadWidthsRoundAsItHasThreadsInIt() {
-        let halfWidth = HiraGenjiSurfaceMeshGenerator.defaultHalfWidth
-        let halfThickness = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
+        let halfWidth = Flat16SurfaceMesh.defaultHalfWidth
+        let halfThickness = Flat16SurfaceMesh.defaultHalfThickness
         let threadWidth = halfThickness
 
-        for region in HiraGenjiSurfaceRegion.allCases {
+        for region in Flat16SurfaceRegion.allCases {
             let expected: Float = region == .front || region == .back
                 ? Float(HiraGenjiWeaveDerivation.columnCount)
                 : Float(HiraGenjiWeaveDerivation.edgeThreadCount)
@@ -182,8 +182,8 @@ struct HiraGenjiSurfaceMeshTests {
             #expect(abs(threads / expected - 1) < 0.03)
         }
         // The four spans tile the way round exactly once.
-        let spans = HiraGenjiSurfaceRegion.allCases
-            .map { HiraGenjiSurfaceMeshGenerator.arcSpan(of: $0).length }
+        let spans = Flat16SurfaceRegion.allCases
+            .map { Flat16SurfaceMesh.arcSpan(of: $0).length }
         #expect(abs(spans.reduce(0, +) - 1) < 0.000_1)
     }
 
@@ -192,11 +192,11 @@ struct HiraGenjiSurfaceMeshTests {
     /// steps of the superellipse's angle, which made the middle two lanes five
     /// times the outermost two.
     @Test func everyLaneOfAFaceIsOneThreadWideRoundTheOutline() {
-        let halfWidth = HiraGenjiSurfaceMeshGenerator.defaultHalfWidth
-        let halfThickness = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
-        let lanes = HiraGenjiSurfacePatternGenerator.broadFaceColumnCount
+        let halfWidth = Flat16SurfaceMesh.defaultHalfWidth
+        let halfThickness = Flat16SurfaceMesh.defaultHalfThickness
+        let lanes = Flat16SurfacePatternGenerator.broadFaceColumnCount
 
-        for region in [HiraGenjiSurfaceRegion.front, .back] {
+        for region in [Flat16SurfaceRegion.front, .back] {
             let widths = (0..<lanes).map { lane in
                 arcLength(
                     of: region,
@@ -218,12 +218,12 @@ struct HiraGenjiSurfaceMeshTests {
     /// measure 1.75 (book A p96) and 1.00 (book B p23); the angle-divided
     /// outline this replaced measured 5.17.
     @Test func theSixLanesOfAFaceComeOutTheSameWidthAcrossTheBraid() {
-        let halfWidth = HiraGenjiSurfaceMeshGenerator.defaultHalfWidth
-        let halfThickness = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
-        let lanes = HiraGenjiSurfacePatternGenerator.broadFaceColumnCount
+        let halfWidth = Flat16SurfaceMesh.defaultHalfWidth
+        let halfThickness = Flat16SurfaceMesh.defaultHalfThickness
+        let lanes = Flat16SurfacePatternGenerator.broadFaceColumnCount
 
         func edgeX(_ lane: Int) -> Float {
-            HiraGenjiSurfaceMeshGenerator.crossSectionPoint(
+            Flat16SurfaceMesh.crossSectionPoint(
                 region: .front,
                 regionU: Float(lane) / Float(lanes),
                 halfWidth: halfWidth,
@@ -241,8 +241,8 @@ struct HiraGenjiSurfaceMeshTests {
     /// The arc-length map is the inverse of the arc-length function, so equal
     /// steps of it are equal distances round the outline.
     @Test func theArcLengthMapDividesTheOutlineEvenly() {
-        let arcs = HiraGenjiSurfaceMeshGenerator.arcLengths(
-            forRatio: HiraGenjiSurfaceMeshGenerator.widthToThicknessRatio
+        let arcs = Flat16SurfaceMesh.arcLengths(
+            forRatio: Flat16SurfaceMesh.widthToThicknessRatio
         )
         #expect(arcs.angle(atArcFraction: 0) == 0)
         // Wrapping round lands back where it started.
@@ -250,9 +250,9 @@ struct HiraGenjiSurfaceMeshTests {
         // Sixteen equal steps of arc are sixteen equal distances round the
         // outline. Measured as arc, not as the chord: the outline turns sharply
         // at its four corners and a chord across one cuts it.
-        let halfWidth = HiraGenjiSurfaceMeshGenerator.defaultHalfWidth
-        let halfThickness = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
-        let power = 2 / HiraGenjiSurfaceMeshGenerator.superellipseExponent
+        let halfWidth = Flat16SurfaceMesh.defaultHalfWidth
+        let halfThickness = Flat16SurfaceMesh.defaultHalfThickness
+        let power = 2 / Flat16SurfaceMesh.superellipseExponent
         func point(_ fraction: Float) -> SIMD2<Float> {
             let angle = arcs.angle(atArcFraction: fraction)
             func signed(_ value: Float) -> Float {
@@ -281,7 +281,7 @@ struct HiraGenjiSurfaceMeshTests {
     /// Arc length between two points of one region, walked on the outline the
     /// generator draws rather than taken from a formula for it.
     private func arcLength(
-        of region: HiraGenjiSurfaceRegion,
+        of region: Flat16SurfaceRegion,
         from start: Float,
         to end: Float,
         halfWidth: Float,
@@ -289,12 +289,12 @@ struct HiraGenjiSurfaceMeshTests {
         samples: Int = 4_096
     ) -> Float {
         var total: Float = 0
-        var previous = HiraGenjiSurfaceMeshGenerator.crossSectionPoint(
+        var previous = Flat16SurfaceMesh.crossSectionPoint(
             region: region, regionU: start, halfWidth: halfWidth, halfThickness: halfThickness
         )
         for step in 1...samples {
             let u = start + (end - start) * Float(step) / Float(samples)
-            let point = HiraGenjiSurfaceMeshGenerator.crossSectionPoint(
+            let point = Flat16SurfaceMesh.crossSectionPoint(
                 region: region, regionU: u, halfWidth: halfWidth, halfThickness: halfThickness
             )
             total += simd_distance(previous, point)
@@ -309,7 +309,7 @@ struct HiraGenjiSurfaceMeshTests {
     /// full height on the crest and nothing at all in the valleys it shares with
     /// the strands either side of it.
     @Test func theRidgeIsSemiEllipticalAndVanishesInTheSharedValleys() {
-        let profile = HiraGenjiSurfaceMeshGenerator.crestProfile(across:)
+        let profile = Flat16SurfaceMesh.crestProfile(across:)
 
         #expect(profile(0) == 1)
         #expect(profile(-1) == 0)
@@ -333,7 +333,7 @@ struct HiraGenjiSurfaceMeshTests {
     /// owes nothing to a photograph — and the value is the middle of the overlap.
     /// See `crestHeightRatio` for the working.
     @Test func theCrestIsWhatTheFinishedBraidsEdgeMeasures() {
-        let crest = HiraGenjiSurfaceMeshGenerator.crestHeightRatio
+        let crest = Flat16SurfaceMesh.crestHeightRatio
 
         #expect((0.41...0.50).contains(crest))
         // Inverting the ripple the render draws: sigma per cent = 9.55 * crest.
@@ -356,11 +356,11 @@ struct HiraGenjiSurfaceMeshTests {
     ///
     /// Task 005J is to measure the round braid's crest the same way.
     @Test func theRoundBraidsCrestIsStillTheUnmeasuredOne() {
-        let flatPerYarn = HiraGenjiSurfaceMeshGenerator.crestHeightRatio
-        let roundYarnWidth = 2 * Float.pi * MaruGenjiSurfaceMeshGenerator.defaultRadius
-            / Float(MaruGenjiSurfacePatternGenerator.patchCount).squareRoot()
-        let roundPerYarn = MaruGenjiSurfaceMeshGenerator.defaultRadius
-            * MaruGenjiSurfaceMeshGenerator.crestHeightRatio / roundYarnWidth
+        let flatPerYarn = Flat16SurfaceMesh.crestHeightRatio
+        let roundYarnWidth = 2 * Float.pi * RoundTube16SurfaceMesh.defaultRadius
+            / Float(RoundTube16SurfacePatternGenerator.patchCount).squareRoot()
+        let roundPerYarn = RoundTube16SurfaceMesh.defaultRadius
+            * RoundTube16SurfaceMesh.crestHeightRatio / roundYarnWidth
 
         #expect(abs(roundPerYarn - 0.153) < 0.005)
         // The flat braid's yarn is one half-thickness wide, so its ratio is also
@@ -374,13 +374,13 @@ struct HiraGenjiSurfaceMeshTests {
     /// cut side rather than as the yarn turning back on itself.
     @Test func everyRegionCarriesTheRidgeIncludingBothEdges() throws {
         let pattern = try #require(
-            HiraGenjiSurfacePatternGenerator.generate(assignments: assignments)
+            Flat16SurfacePatternGenerator.generate(assignments: assignments)
         )
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
-        let halfThickness = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
-        let crest = halfThickness * HiraGenjiSurfaceMeshGenerator.crestHeightRatio
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let halfThickness = Flat16SurfaceMesh.defaultHalfThickness
+        let crest = halfThickness * Flat16SurfaceMesh.crestHeightRatio
 
-        var reliefByRegion = [HiraGenjiSurfaceRegion: (low: Float, high: Float)]()
+        var reliefByRegion = [Flat16SurfaceRegion: (low: Float, high: Float)]()
         for (index, position) in mesh.positions.enumerated() {
             let region = mesh.surfaceVertexRegions[index]
             let relief = reliefFromThePlainOutline(position)
@@ -389,8 +389,8 @@ struct HiraGenjiSurfaceMeshTests {
             reliefByRegion[region] = (min(seen.low, relief), max(seen.high, relief))
         }
 
-        #expect(Set(reliefByRegion.keys) == Set(HiraGenjiSurfaceRegion.allCases))
-        for region in HiraGenjiSurfaceRegion.allCases {
+        #expect(Set(reliefByRegion.keys) == Set(Flat16SurfaceRegion.allCases))
+        for region in Flat16SurfaceRegion.allCases {
             let seen = try #require(reliefByRegion[region])
             // Reaches the crest, within the sampling the mesh actually carries.
             #expect(seen.high > crest * 0.9)
@@ -405,13 +405,13 @@ struct HiraGenjiSurfaceMeshTests {
     /// not against a formula for it.
     private func reliefFromThePlainOutline(_ position: SIMD3<Float>) -> Float {
         let point = SIMD2<Float>(position.y, position.z)
-        let halfWidth = HiraGenjiSurfaceMeshGenerator.defaultHalfWidth
-        let halfThickness = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
+        let halfWidth = Flat16SurfaceMesh.defaultHalfWidth
+        let halfThickness = Flat16SurfaceMesh.defaultHalfThickness
         var nearest = Float.greatestFiniteMagnitude
         var nearestPoint = SIMD2<Float>.zero
-        for region in HiraGenjiSurfaceRegion.allCases {
+        for region in Flat16SurfaceRegion.allCases {
             for step in 0...256 {
-                let outline = HiraGenjiSurfaceMeshGenerator.crossSectionPoint(
+                let outline = Flat16SurfaceMesh.crossSectionPoint(
                     region: region,
                     regionU: Float(step) / 256,
                     halfWidth: halfWidth,
@@ -433,10 +433,10 @@ struct HiraGenjiSurfaceMeshTests {
     /// references it was measured from. Both are quoted so a change to the figure
     /// has to face both of them.
     @Test func aStitchIsAsLongAsTheReferenceBraidsMeasure() throws {
-        let rowCount = try #require(HiraGenjiSurfacePatternGenerator.rowCount)
-        let braidWidth = 2 * HiraGenjiSurfaceMeshGenerator.defaultHalfWidth
-        let stitchLength = HiraGenjiSurfaceMeshGenerator.defaultLength
-            / Float(HiraGenjiSurfaceMeshGenerator.defaultPatternRepeatCount)
+        let rowCount = try #require(Flat16SurfacePatternGenerator.rowCount)
+        let braidWidth = 2 * Flat16SurfaceMesh.defaultHalfWidth
+        let stitchLength = Flat16SurfaceMesh.defaultLength
+            / Float(Flat16SurfaceMesh.defaultPatternRepeatCount)
             / Float(rowCount)
         let pitch = stitchLength / braidWidth
 
@@ -447,40 +447,40 @@ struct HiraGenjiSurfaceMeshTests {
         #expect(abs(pitch - (0.351 + 0.382) / 2) < 0.001)
         // Said against the yarn: a stitch is about twice as long as one thread
         // is wide. The hard-coded length this replaced made it 0.59.
-        let yarnWidth = braidWidth / Float(HiraGenjiSurfacePatternGenerator.broadFaceColumnCount)
+        let yarnWidth = braidWidth / Float(Flat16SurfacePatternGenerator.broadFaceColumnCount)
         #expect((1.9...2.5).contains(stitchLength / yarnWidth))
     }
 
     /// Length is derived from the cross-section and the pattern, never stored, so
     /// a braid drawn at another size keeps its stitches the same shape.
     @Test func theLengthFollowsTheWidthSoAStitchKeepsItsShapeAtAnySize() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
-        let halfWidth = HiraGenjiSurfaceMeshGenerator.defaultHalfWidth
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
+        let halfWidth = Flat16SurfaceMesh.defaultHalfWidth
 
         for scale in [Float(0.5), 1, 3] {
-            let length = HiraGenjiSurfaceMeshGenerator.length(
+            let length = Flat16SurfaceMesh.length(
                 halfWidth: scale * halfWidth,
                 aspectRatio: pattern.aspectRatio,
-                patternRepeatCount: HiraGenjiSurfaceMeshGenerator.defaultPatternRepeatCount
+                patternRepeatCount: Flat16SurfaceMesh.defaultPatternRepeatCount
             )
-            #expect(abs(length / (scale * HiraGenjiSurfaceMeshGenerator.defaultLength) - 1) < 0.001)
+            #expect(abs(length / (scale * Flat16SurfaceMesh.defaultLength) - 1) < 0.001)
         }
         // And repeats only add length; they never restretch a stitch.
-        let one = HiraGenjiSurfaceMeshGenerator.length(
+        let one = Flat16SurfaceMesh.length(
             halfWidth: halfWidth, aspectRatio: pattern.aspectRatio, patternRepeatCount: 1
         )
-        let three = HiraGenjiSurfaceMeshGenerator.length(
+        let three = Flat16SurfaceMesh.length(
             halfWidth: halfWidth, aspectRatio: pattern.aspectRatio, patternRepeatCount: 3
         )
         #expect(abs(three / one - 3) < 0.001)
         #expect(abs(pattern.aspectRatio
             - Float(pattern.rowCount)
-            * HiraGenjiSurfacePatternGenerator.stitchPitchPerBraidWidth) < 0.000_1)
+            * Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth) < 0.000_1)
     }
 
     @Test func meshHasNoEndCapTriangles() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
         let indices = mesh.allTriangleIndices
 
         let containsEndCap = stride(from: 0, to: indices.count, by: 3).contains { offset in
@@ -492,8 +492,8 @@ struct HiraGenjiSurfaceMeshTests {
     }
 
     @Test func everySurfaceTriangleHasArea() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
         let indices = mesh.allTriangleIndices
         let containsDegenerateTriangle = stride(from: 0, to: indices.count, by: 3).contains { offset in
             let a = mesh.positions[Int(indices[offset])]
@@ -516,9 +516,9 @@ struct HiraGenjiSurfaceMeshTests {
     /// which is what makes the tiles meet, and asking for the same sample points
     /// asks for something the braid does not owe.
     @Test func consecutiveTilesMeetOnTheSameSurface() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
-        let length = HiraGenjiSurfaceMeshGenerator.defaultLength
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let length = Flat16SurfaceMesh.defaultLength
         let start = mesh.positions.indices.filter { abs(mesh.positions[$0].x + length / 2) < 0.000_001 }
         let end = mesh.positions.indices.filter { abs(mesh.positions[$0].x - length / 2) < 0.000_001 }
 
@@ -542,18 +542,18 @@ struct HiraGenjiSurfaceMeshTests {
     }
 
     @Test func consecutivePatternRepeatsKeepColorAndBoundaryMaterialPhase() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
         // Four repeats, and the two compared are the middle two. The first and
         // the last are the ones the tile's ends cut through, so they are missing
         // the piece that was carried to the other end of the tile; comparing a cut
         // repeat with an uncut one would be comparing the cut, not the pattern.
         let repeatCount = 4
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(
+        let mesh = try #require(Flat16SurfaceMesh.generate(
             pattern: pattern,
             patternRepeatCount: repeatCount
         ))
-        let length = HiraGenjiSurfaceMeshGenerator.length(
-            halfWidth: HiraGenjiSurfaceMeshGenerator.defaultHalfWidth,
+        let length = Flat16SurfaceMesh.length(
+            halfWidth: Flat16SurfaceMesh.defaultHalfWidth,
             aspectRatio: pattern.aspectRatio,
             patternRepeatCount: repeatCount
         )
@@ -581,7 +581,7 @@ struct HiraGenjiSurfaceMeshTests {
                     // patch may reach past a repeat's ends, so a row of one repeat
                     // can lie partly in the next one's stretch of the tile.
                     let along = (centerX + length / 2) / length * Float(repeatCount)
-                    let inPatch = HiraGenjiSurfaceMeshGenerator.interpolate(
+                    let inPatch = Flat16SurfaceMesh.interpolate(
                         corners: pattern.patches[patchIndex].corners,
                         local: centerUV
                     ).y
@@ -607,8 +607,8 @@ struct HiraGenjiSurfaceMeshTests {
     }
 
     @Test @MainActor func allMaterialGroupsBuildOneRealityKitMesh() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
         let groups = mesh.colorGroups.sorted { $0.key.rawValue < $1.key.rawValue }
             + mesh.boundaryColorGroups.sorted { $0.key.rawValue < $1.key.rawValue }
         var indices = [UInt32]()
@@ -630,28 +630,28 @@ struct HiraGenjiSurfaceMeshTests {
     }
 
     @Test func malformedInputsFailSafely() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
-        #expect(HiraGenjiSurfaceMeshGenerator.generate(
-            pattern: HiraGenjiSurfacePattern(
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
+        #expect(Flat16SurfaceMesh.generate(
+            pattern: Flat16SurfacePattern(
                 patches: Array(pattern.patches.dropLast()),
                 rowCount: pattern.rowCount,
                 aspectRatio: pattern.aspectRatio
             )
         ) == nil)
         // A pattern that declares no shape cannot say how long a repeat is.
-        #expect(HiraGenjiSurfaceMeshGenerator.generate(
-            pattern: HiraGenjiSurfacePattern(
+        #expect(Flat16SurfaceMesh.generate(
+            pattern: Flat16SurfacePattern(
                 patches: pattern.patches,
                 rowCount: pattern.rowCount,
                 aspectRatio: 0
             )
         ) == nil)
-        #expect(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern, halfWidth: .nan) == nil)
-        #expect(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern, halfThickness: 0) == nil)
+        #expect(Flat16SurfaceMesh.generate(pattern: pattern, halfWidth: .nan) == nil)
+        #expect(Flat16SurfaceMesh.generate(pattern: pattern, halfThickness: 0) == nil)
         // Too round and too flat: both are outside the flat braid's own section.
-        #expect(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern, halfThickness: 0.5) == nil)
-        #expect(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern, halfThickness: 0.12) == nil)
-        #expect(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern, patternRepeatCount: 0) == nil)
+        #expect(Flat16SurfaceMesh.generate(pattern: pattern, halfThickness: 0.5) == nil)
+        #expect(Flat16SurfaceMesh.generate(pattern: pattern, halfThickness: 0.12) == nil)
+        #expect(Flat16SurfaceMesh.generate(pattern: pattern, patternRepeatCount: 0) == nil)
     }
 
     private var assignments: [ThreadAssignment] {
@@ -675,7 +675,7 @@ struct HiraGenjiSurfaceMeshTests {
     /// whenever it happens to straddle a step.
     private func boundaryProfile(
         _ indices: [Int],
-        mesh: HiraGenjiSurfaceMeshData
+        mesh: Flat16SurfaceMeshData
     ) -> [[Float]] {
         indices.map { index in
             [
@@ -694,7 +694,7 @@ struct HiraGenjiSurfaceMeshTests {
     /// instanced tiles to meet without a seam in the stripes.
     private func twistPhaseProfile(
         _ indices: [Int],
-        mesh: HiraGenjiSurfaceMeshData
+        mesh: Flat16SurfaceMeshData
     ) -> [[Float]] {
         let twist = HiraGenjiStitchTwistGrouping.groups().first
         return indices.map {

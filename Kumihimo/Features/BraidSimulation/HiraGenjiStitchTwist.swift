@@ -52,14 +52,14 @@ enum HiraGenjiStitchTwistGrouping {
     static var stripesPerStitchBeforeRounding: Float {
         let roundSegmentInYarns = Float(MaruGenjiStrandTextureFactory.width)
             / Float(MaruGenjiStrandTextureFactory.height)
-        let perYarn = Float(MaruGenjiSurfaceMeshGenerator.fiberCount) / roundSegmentInYarns
+        let perYarn = Float(RoundTube16SurfaceMesh.fiberCount) / roundSegmentInYarns
         return perYarn * stitchLengthInYarns
     }
 
     /// One step along the braid, in yarn widths.
     static var stitchLengthInYarns: Float {
-        HiraGenjiSurfacePatternGenerator.stitchPitchPerBraidWidth
-            * Float(HiraGenjiSurfacePatternGenerator.broadFaceColumnCount)
+        Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth
+            * Float(Flat16SurfacePatternGenerator.broadFaceColumnCount)
     }
 
     /// Phase turned over one stitch. Fixed, so every stitch shows the same
@@ -72,11 +72,11 @@ enum HiraGenjiStitchTwistGrouping {
     /// `twistAngleDegrees` to the yarn's own direction — the same solve the round
     /// braid does, without the shear term, which is zero here.
     static func twist(
-        in region: HiraGenjiSurfaceRegion,
-        halfWidth: Float = HiraGenjiSurfaceMeshGenerator.defaultHalfWidth,
-        halfThickness: Float = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
+        in region: Flat16SurfaceRegion,
+        halfWidth: Float = Flat16SurfaceMesh.defaultHalfWidth,
+        halfThickness: Float = Flat16SurfaceMesh.defaultHalfThickness
     ) -> HiraGenjiStitchTwist? {
-        let angle = MaruGenjiSurfaceMeshGenerator.twistAngleDegrees * .pi / 180
+        let angle = RoundTube16SurfaceMesh.twistAngleDegrees * .pi / 180
         let sine = sin(angle)
         let cosine = cos(angle)
         guard sine != 0 else { return nil }
@@ -106,12 +106,12 @@ enum HiraGenjiStitchTwistGrouping {
     /// The distinct coefficient sets the braid needs, rounded before grouping so
     /// a stitch lands in the same group at any size.
     static func groups(
-        halfWidth: Float = HiraGenjiSurfaceMeshGenerator.defaultHalfWidth,
-        halfThickness: Float = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
+        halfWidth: Float = Flat16SurfaceMesh.defaultHalfWidth,
+        halfThickness: Float = Flat16SurfaceMesh.defaultHalfThickness
     ) -> [HiraGenjiStitchTwist] {
         var seen = [Int]()
         var groups = [HiraGenjiStitchTwist]()
-        for region in HiraGenjiSurfaceRegion.allCases {
+        for region in Flat16SurfaceRegion.allCases {
             guard
                 let twist = twist(in: region, halfWidth: halfWidth, halfThickness: halfThickness)
             else {
@@ -130,9 +130,9 @@ enum HiraGenjiStitchTwistGrouping {
     /// back off the coefficients. What the solve is for.
     static func stripeAngleDegrees(
         of twist: HiraGenjiStitchTwist,
-        in region: HiraGenjiSurfaceRegion,
-        halfWidth: Float = HiraGenjiSurfaceMeshGenerator.defaultHalfWidth,
-        halfThickness: Float = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
+        in region: Flat16SurfaceRegion,
+        halfWidth: Float = Flat16SurfaceMesh.defaultHalfWidth,
+        halfThickness: Float = Flat16SurfaceMesh.defaultHalfThickness
     ) -> Float? {
         let along = stitchLength(halfWidth: halfWidth, halfThickness: halfThickness)
         let across = laneWidth(in: region, halfWidth: halfWidth, halfThickness: halfThickness)
@@ -150,21 +150,21 @@ enum HiraGenjiStitchTwistGrouping {
 
     /// One step along the braid, in world units.
     static func stitchLength(halfWidth: Float, halfThickness: Float) -> Float {
-        2 * halfWidth * HiraGenjiSurfacePatternGenerator.stitchPitchPerBraidWidth
+        2 * halfWidth * Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth
     }
 
     /// One lane of a region, measured round the outline, in world units. Every
     /// lane is one yarn wide since stage 2.5c.
     static func laneWidth(
-        in region: HiraGenjiSurfaceRegion,
+        in region: Flat16SurfaceRegion,
         halfWidth: Float,
         halfThickness: Float
     ) -> Float {
-        let span = HiraGenjiSurfaceMeshGenerator.arcSpan(of: region).length
-        let perimeter = HiraGenjiSurfaceMeshGenerator.perimeter(
+        let span = Flat16SurfaceMesh.arcSpan(of: region).length
+        let perimeter = Flat16SurfaceMesh.perimeter(
             halfWidth: halfWidth,
             halfThickness: halfThickness
         )
-        return perimeter * span / Float(HiraGenjiSurfacePatternGenerator.columnCount(in: region))
+        return perimeter * span / Float(Flat16SurfacePatternGenerator.columnCount(in: region))
     }
 }

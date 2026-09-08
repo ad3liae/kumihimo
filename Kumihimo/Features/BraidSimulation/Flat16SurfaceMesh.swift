@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-struct HiraGenjiSurfaceMeshData: Sendable {
+struct Flat16SurfaceMeshData: Sendable {
     let positions: [SIMD3<Float>]
     let normals: [SIMD3<Float>]
     let textureCoordinates: [SIMD2<Float>]
@@ -9,7 +9,7 @@ struct HiraGenjiSurfaceMeshData: Sendable {
     let colorGroups: [ThreadColorID: [UInt32]]
     let boundaryColorGroups: [ThreadColorID: [UInt32]]
     let surfaceVertexPatchIndices: [Int]
-    let surfaceVertexRegions: [HiraGenjiSurfaceRegion]
+    let surfaceVertexRegions: [Flat16SurfaceRegion]
 
     var allTriangleIndices: [UInt32] {
         (Array(colorGroups.values) + Array(boundaryColorGroups.values)).flatMap { $0 }
@@ -18,7 +18,56 @@ struct HiraGenjiSurfaceMeshData: Sendable {
     var triangleCount: Int { allTriangleIndices.count / 3 }
 }
 
-enum HiraGenjiSurfaceMeshGenerator {
+enum Flat16SurfaceMesh {
+    /// **The family this draws**, and nothing narrower. Sixteen threads folded to
+    /// six columns a face; which braid it is does not come into it.
+    static let family = BraidFamily.flat(threads: 16, columns: 6)
+
+    /// Where every number this drawing rests on came from. **No value here is
+    /// changed by saying so** — this only says what each one is.
+    static var shape: BraidFamilyShape {
+        BraidFamilyShape(family: family, values: [
+            "width over thickness": .observed(
+                Double(widthToThicknessRatio),
+                from: "a perimeter of sixteen threads and a thickness of two, solved "
+                    + "on this file's own outline (docs/measurement-procedures.md)"
+            ),
+            "width over thickness, least": .observed(
+                Double(minimumWidthToThicknessRatio), from: "the band the two readings allow"
+            ),
+            "width over thickness, most": .observed(
+                Double(maximumWidthToThicknessRatio), from: "the band the two readings allow"
+            ),
+            "crest over half thickness": .observed(
+                Double(crestHeightRatio), basis: .threadDiameters,
+                from: "book A p96's silhouette with the physics; the half-thickness is "
+                    + "one thread's diameter (docs/measurement-procedures.md, 1 and 2)"
+            ),
+            "pitch of one step over braid width": .observed(
+                Double(Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth),
+                from: "book A p96 / book B p23"
+            ),
+            "outline exponent": .declared(
+                Double(superellipseExponent),
+                calibratedBy: "the shape of the section as drawn; set against the "
+                    + "photographs by eye, not derived"
+            ),
+            "boundary width": .declared(
+                Double(boundaryWidth),
+                calibratedBy: "how wide the dark line between threads looks"
+            ),
+            "boundary depth": .declared(
+                Double(boundaryDepthRatio),
+                calibratedBy: "how deep the dark line between threads looks"
+            ),
+            "half width on screen": .declared(
+                Double(defaultHalfWidth),
+                calibratedBy: "how big the braid should be in the view; a display size, "
+                    + "not a shape"
+            ),
+        ])
+    }
+
     static let defaultHalfWidth: Float = 0.72
 
     /// Half-width over half-thickness.
@@ -63,7 +112,7 @@ enum HiraGenjiSurfaceMeshGenerator {
     static var defaultLength: Float {
         length(
             halfWidth: defaultHalfWidth,
-            aspectRatio: HiraGenjiSurfacePatternGenerator.patternAspectRatio ?? 0,
+            aspectRatio: Flat16SurfacePatternGenerator.patternAspectRatio ?? 0,
             patternRepeatCount: defaultPatternRepeatCount
         )
     }
@@ -121,18 +170,18 @@ enum HiraGenjiSurfaceMeshGenerator {
     static let superellipseExponent: Float = 5
 
     static func generate(
-        pattern: HiraGenjiSurfacePattern,
+        pattern: Flat16SurfacePattern,
         halfWidth: Float = defaultHalfWidth,
         halfThickness: Float = defaultHalfThickness,
         patternRepeatCount: Int = defaultPatternRepeatCount
-    ) -> HiraGenjiSurfaceMeshData? {
+    ) -> Flat16SurfaceMeshData? {
         let length = length(
             halfWidth: halfWidth,
             aspectRatio: pattern.aspectRatio,
             patternRepeatCount: patternRepeatCount
         )
         guard
-            pattern.patches.count == HiraGenjiSurfacePatternGenerator.patchCount,
+            pattern.patches.count == Flat16SurfacePatternGenerator.patchCount,
             halfWidth.isFinite,
             halfThickness.isFinite,
             pattern.aspectRatio.isFinite,
@@ -192,7 +241,7 @@ enum HiraGenjiSurfaceMeshGenerator {
             return nil
         }
 
-        return HiraGenjiSurfaceMeshData(
+        return Flat16SurfaceMeshData(
             positions: builder.positions,
             normals: builder.normals,
             textureCoordinates: builder.textureCoordinates,
@@ -212,11 +261,11 @@ enum HiraGenjiSurfaceMeshGenerator {
         var colorGroups = [ThreadColorID: [UInt32]]()
         var boundaryColorGroups = [ThreadColorID: [UInt32]]()
         var surfaceVertexPatchIndices = [Int]()
-        var surfaceVertexRegions = [HiraGenjiSurfaceRegion]()
+        var surfaceVertexRegions = [Flat16SurfaceRegion]()
     }
 
     private static func append(
-        patch: HiraGenjiSurfacePatch,
+        patch: Flat16SurfacePatch,
         patchIndex: Int,
         repeatIndex: Int,
         repeatCount: Int,
@@ -354,7 +403,7 @@ enum HiraGenjiSurfaceMeshGenerator {
     }
 
     private static func surfacePosition(
-        patch: HiraGenjiSurfacePatch,
+        patch: Flat16SurfacePatch,
         localCoordinate: SIMD2<Float>,
         repeatIndex: Int,
         repeatCount: Int,
@@ -387,7 +436,7 @@ enum HiraGenjiSurfaceMeshGenerator {
     /// the flat cross-section normal hid the yarn crown and fibre grooves even
     /// though their vertices existed in the mesh.
     private static func surfaceNormal(
-        patch: HiraGenjiSurfacePatch,
+        patch: Flat16SurfacePatch,
         localCoordinate: SIMD2<Float>,
         repeatIndex: Int,
         repeatCount: Int,
@@ -430,7 +479,7 @@ enum HiraGenjiSurfaceMeshGenerator {
     }
 
     private static func fallbackNormal(
-        patch: HiraGenjiSurfacePatch,
+        patch: Flat16SurfacePatch,
         localCoordinate: SIMD2<Float>,
         halfWidth: Float,
         halfThickness: Float
@@ -467,7 +516,7 @@ enum HiraGenjiSurfaceMeshGenerator {
             halfThickness: halfThickness
         )
         // The four regions meet end to end and close the outline between them.
-        for region in [HiraGenjiSurfaceRegion.rightEdge, .front, .leftEdge, .back] {
+        for region in [Flat16SurfaceRegion.rightEdge, .front, .leftEdge, .back] {
             for step in 1...samplesPerRegion {
                 let point = crossSectionPoint(
                     region: region,
@@ -496,7 +545,7 @@ enum HiraGenjiSurfaceMeshGenerator {
     /// threads instead of 6 and 2 — a face thread 0.97 of a thread wide and an
     /// edge thread 1.09. The braid is worked in one thickness of thread, so that
     /// cannot be right.
-    static func arcSpan(of region: HiraGenjiSurfaceRegion) -> (start: Float, length: Float) {
+    static func arcSpan(of region: Flat16SurfaceRegion) -> (start: Float, length: Float) {
         let round = Float(HiraGenjiWeaveDerivation.boardPositionCount)
         let face = Float(HiraGenjiWeaveDerivation.columnCount) / round
         let edge = Float(HiraGenjiWeaveDerivation.edgeThreadCount) / round
@@ -513,7 +562,7 @@ enum HiraGenjiSurfaceMeshGenerator {
     /// length**, so every lane inside it is the same distance round — which is
     /// what makes each lane one thread wide.
     static func crossSectionPoint(
-        region: HiraGenjiSurfaceRegion,
+        region: Flat16SurfaceRegion,
         regionU: Float,
         halfWidth: Float,
         halfThickness: Float
@@ -682,7 +731,7 @@ enum HiraGenjiSurfaceMeshGenerator {
             * alongTheRun * alongTheRun
         let fromTheJoin = min(local.y, 1 - local.y) / pickHalfSpan
         let pick = crestHeightRatio
-            * (1 - MaruGenjiSurfaceMeshGenerator.underCrossingDip)
+            * (1 - RoundTube16SurfaceMesh.underCrossingDip)
             * crestProfile(across: min(fromTheJoin, 1))
         return max(thread, pick)
     }
@@ -693,8 +742,8 @@ enum HiraGenjiSurfaceMeshGenerator {
     /// braid's width, which is six yarns. Derived, so it follows the aspect ratio
     /// measured in stage 2.5a rather than standing on its own.
     static var pickHalfSpan: Float {
-        0.5 / (HiraGenjiSurfacePatternGenerator.stitchPitchPerBraidWidth
-            * Float(HiraGenjiSurfacePatternGenerator.broadFaceColumnCount))
+        0.5 / (Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth
+            * Float(Flat16SurfacePatternGenerator.broadFaceColumnCount))
     }
 
     /// Semi-elliptical cross-section: 1 on the crest, 0 at either side.
@@ -758,7 +807,7 @@ enum HiraGenjiSurfaceMeshGenerator {
     static let coincidentCornerDistance: Float = 0.000_1
 
 
-    private static func isValid(_ patch: HiraGenjiSurfacePatch) -> Bool {
+    private static func isValid(_ patch: Flat16SurfacePatch) -> Bool {
         let low = -maximumRepeatOverhang
         let high = 1 + maximumRepeatOverhang
         return patch.corners.count == 4 && patch.corners.allSatisfy {

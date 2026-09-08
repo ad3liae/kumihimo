@@ -28,9 +28,9 @@ import Testing
 struct BraidSurfaceWatertightnessTests {
     @Test func maruGenjiSurfaceIsOpaqueFromEveryLineOfSight() throws {
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: fixture)
+            RoundTube16SurfacePatternGenerator.generate(assignments: fixture)
         )
-        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
 
         for axis in SurfaceOpacityAudit.Axis.allCases {
             let audit = SurfaceOpacityAudit(
@@ -47,15 +47,15 @@ struct BraidSurfaceWatertightnessTests {
 
     @Test func hiraGenjiSurfaceIsOpaqueFromEveryLineOfSight() throws {
         let pattern = try #require(
-            HiraGenjiSurfacePatternGenerator.generate(assignments: fixture)
+            Flat16SurfacePatternGenerator.generate(assignments: fixture)
         )
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
 
         for axis in SurfaceOpacityAudit.Axis.allCases {
             let audit = SurfaceOpacityAudit(
                 positions: mesh.positions,
                 indices: mesh.allTriangleIndices,
-                tileEndX: HiraGenjiSurfaceMeshGenerator.defaultLength / 2,
+                tileEndX: Flat16SurfaceMesh.defaultLength / 2,
                 axis: axis
             )
             #expect(audit.rays > 1_000)
@@ -66,13 +66,13 @@ struct BraidSurfaceWatertightnessTests {
 
     @Test func hiraGenjiSurfaceIsEdgeWatertightAwayFromItsTileEnds() throws {
         let pattern = try #require(
-            HiraGenjiSurfacePatternGenerator.generate(assignments: fixture)
+            Flat16SurfacePatternGenerator.generate(assignments: fixture)
         )
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
         let audit = SurfaceEdgeAudit(
             positions: mesh.positions,
             indices: mesh.allTriangleIndices,
-            tileEndX: HiraGenjiSurfaceMeshGenerator.defaultLength / 2
+            tileEndX: Flat16SurfaceMesh.defaultLength / 2
         )
 
         #expect(audit.trianglesWithARepeatedCorner == 0)
@@ -85,14 +85,14 @@ struct BraidSurfaceWatertightnessTests {
 
     @Test func hiraGenjiPatchesMeetTheirNeighboursOnTheirSharedEdges() throws {
         let pattern = try #require(
-            HiraGenjiSurfacePatternGenerator.generate(assignments: fixture)
+            Flat16SurfacePatternGenerator.generate(assignments: fixture)
         )
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
         let audit = SharedRimAudit(
             positions: mesh.positions,
             groupOfVertex: mesh.surfaceVertexPatchIndices,
             isOnARim: mesh.textureCoordinates.map { $0.x < 0.001 || $0.x > 0.999 },
-            tileEndX: HiraGenjiSurfaceMeshGenerator.defaultLength / 2
+            tileEndX: Flat16SurfaceMesh.defaultLength / 2
         )
 
         #expect(audit.checkedVertices > 1_000)

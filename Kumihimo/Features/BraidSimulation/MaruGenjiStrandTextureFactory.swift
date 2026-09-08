@@ -78,7 +78,7 @@ enum MaruGenjiStrandTextureFactory {
         guard gradient.x.isFinite, gradient.y.isFinite else { return nil }
         // Height and gradient are both scaled by the radius, so the slope the
         // normal map stores is the same at any braid size.
-        let amplitude = MaruGenjiSurfaceMeshGenerator.twistReliefRatio
+        let amplitude = RoundTube16SurfaceMesh.twistReliefRatio
 
         return colorImage { along, across in
             let offset = crossSectionOffset(forRow: across)
@@ -103,21 +103,21 @@ enum MaruGenjiStrandTextureFactory {
     /// strand at a fixed angle. Confirmed by rendering — see the Task 005G
     /// screenshots.
     static func crossSectionOffset(forRow row: Float) -> Float {
-        MaruGenjiSurfaceMeshGenerator.crossSectionOffset(forSample: 1 - row)
+        RoundTube16SurfaceMesh.crossSectionOffset(forSample: 1 - row)
     }
 
     // MARK: - Shared strand metrics
 
-    typealias Twist = MaruGenjiSurfaceMeshGenerator.TwistGroup
+    typealias Twist = RoundTube16SurfaceMesh.TwistGroup
 
     /// The twist groups the maps are generated for, in the order the mesh numbers
     /// them. The strand shape is the same for every colouring and the grouping is
     /// independent of the radius, so this one grouping serves every mesh.
-    static let twistGrouping = MaruGenjiSurfaceMeshGenerator.twistGrouping(
+    static let twistGrouping = RoundTube16SurfaceMesh.twistGrouping(
         for: referenceSurface,
-        radius: MaruGenjiSurfaceMeshGenerator.defaultRadius,
-        length: MaruGenjiSurfaceMeshGenerator.defaultLength,
-        repeatCount: MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount
+        radius: RoundTube16SurfaceMesh.defaultRadius,
+        length: RoundTube16SurfaceMesh.defaultLength,
+        repeatCount: RoundTube16SurfaceMesh.defaultPatternRepeatCount
     )
 
     static var twistGroups: [Twist] {
@@ -127,10 +127,10 @@ enum MaruGenjiStrandTextureFactory {
     /// The strand shape is the same for every colouring, so a fixed single-colour
     /// pattern is enough to read the geometry the detail maps have to match.
     private static let referenceSurface: BraidStrandSurface = {
-        let assignments = (1...MaruGenjiSurfacePatternGenerator.requiredThreadCount).map {
+        let assignments = (1...RoundTube16SurfacePatternGenerator.requiredThreadCount).map {
             ThreadAssignment(position: $0, colorID: ThreadColorCatalog.defaultColor.id)
         }
-        guard let pattern = MaruGenjiSurfacePatternGenerator.generate(assignments: assignments) else {
+        guard let pattern = RoundTube16SurfacePatternGenerator.generate(assignments: assignments) else {
             return BraidStrandSurface(segments: [])
         }
         return BraidStrandSurfaceBuilder.surface(for: pattern)

@@ -7,7 +7,7 @@ struct TubeMeshData: Equatable, Sendable {
     let triangleIndices: [UInt32]
 }
 
-enum MaruGenjiTubeMeshGenerator {
+enum RoundTube16CoreMesh {
     static func generate(
         points: [SIMD3<Float>],
         tubeRadius: Float = 0.052,

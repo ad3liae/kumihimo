@@ -5,7 +5,7 @@ struct HiraGenjiThumbnailView: View {
 
     var body: some View {
         Canvas { context, size in
-            guard let pattern = HiraGenjiSurfacePatternGenerator.generate(assignments: assignments) else {
+            guard let pattern = Flat16SurfacePatternGenerator.generate(assignments: assignments) else {
                 return
             }
             // Keep one stitch close to one lane width at the card's usual aspect

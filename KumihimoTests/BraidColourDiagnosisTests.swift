@@ -16,8 +16,8 @@ struct BraidColourDiagnosisTests {
         }
 
         // The frozen generator.
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
         lines.append("")
         lines.append("frozen generator, triangles by colour:")
         for (colour, indices) in mesh.colorGroups.sorted(by: { $0.key.rawValue < $1.key.rawValue }) {
@@ -63,9 +63,9 @@ struct BraidColourDiagnosisTests {
             }
         }
         lines.append("new path, extents: " + extents(newPoints))
-        let maruPattern = try #require(MaruGenjiSurfacePatternGenerator.generate(
+        let maruPattern = try #require(RoundTube16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.maruGenji16Colouring))
-        let maruMesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: maruPattern))
+        let maruMesh = try #require(RoundTube16SurfaceMesh.generate(pattern: maruPattern))
         lines.append("frozen tube generator, mesh extents: " + extents(maruMesh.positions))
 
         try BraidSideBySideTests.record(lines.joined(separator: "\n"),

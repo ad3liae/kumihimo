@@ -25,17 +25,17 @@ struct BraidMeshHashTests {
     }
 
     @Test func theFlatBraidsMeshIsTheShapeItWas() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.hiraGenji16Colouring))
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
         #expect(mesh.positions.count == 366_552)
         #expect(Self.hash(mesh.positions) == 0x78b4_526d_00e7_4a38)
     }
 
     @Test func theRoundBraidsMeshIsTheShapeItWas() throws {
-        let pattern = try #require(MaruGenjiSurfacePatternGenerator.generate(
+        let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.maruGenji16Colouring))
-        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
         #expect(mesh.positions.count == 294_936)
         #expect(Self.hash(mesh.positions) == 0xe3fc_af47_ceea_d34e)
     }

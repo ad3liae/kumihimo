@@ -85,8 +85,8 @@ struct HiraGenjiRealityView: UIViewRepresentable {
             sharedMaterials = []
             tileCount = 0
 
-            guard let pattern = HiraGenjiSurfacePatternGenerator.generate(assignments: assignments),
-                  let surface = HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern) else {
+            guard let pattern = Flat16SurfacePatternGenerator.generate(assignments: assignments),
+                  let surface = Flat16SurfaceMesh.generate(pattern: pattern) else {
                 Self.logger.error("Flat surface generation failed")
                 controller.reportFailure()
                 return
@@ -188,12 +188,12 @@ struct HiraGenjiRealityView: UIViewRepresentable {
                     cameraDistance: HiraGenjiRealityView.cameraDistance,
                     verticalFieldOfView: HiraGenjiRealityView.verticalFieldOfView,
                     minimumScale: MaruGenjiViewerController.minimumScale,
-                    tileLength: HiraGenjiSurfaceMeshGenerator.defaultLength
+                    tileLength: Flat16SurfaceMesh.defaultLength
                   ),
                   coverage.tileCount != tileCount,
                   let offsets = MaruGenjiViewportCoverageCalculator.tileOffsets(
                     tileCount: coverage.tileCount,
-                    tileLength: HiraGenjiSurfaceMeshGenerator.defaultLength
+                    tileLength: Flat16SurfaceMesh.defaultLength
                   ) else { return }
 
             tileRoot.children.removeAll()

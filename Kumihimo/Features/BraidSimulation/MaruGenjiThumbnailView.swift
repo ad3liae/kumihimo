@@ -6,7 +6,7 @@ struct MaruGenjiThumbnailView: View {
     var body: some View {
         Canvas { context, size in
             guard
-                let pattern = MaruGenjiSurfacePatternGenerator.generate(assignments: assignments),
+                let pattern = RoundTube16SurfacePatternGenerator.generate(assignments: assignments),
                 let layout = MaruGenjiThumbnailLayout(
                     size: size,
                     aspectRatio: pattern.aspectRatio

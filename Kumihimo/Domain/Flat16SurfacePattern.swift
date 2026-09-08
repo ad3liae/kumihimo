@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-enum HiraGenjiSurfaceRegion: CaseIterable, Hashable, Sendable {
+enum Flat16SurfaceRegion: CaseIterable, Hashable, Sendable {
     case front
     case back
     case leftEdge
@@ -15,8 +15,8 @@ enum HiraGenjiThreadRole: Equatable, Sendable {
     case outer
 }
 
-struct HiraGenjiSurfacePatch: Equatable, Sendable {
-    let region: HiraGenjiSurfaceRegion
+struct Flat16SurfacePatch: Equatable, Sendable {
+    let region: Flat16SurfaceRegion
     let threadRole: HiraGenjiThreadRole
     let threadPosition: Int
     let colorID: ThreadColorID
@@ -27,8 +27,8 @@ struct HiraGenjiSurfacePatch: Equatable, Sendable {
     let corners: [SIMD2<Float>]
 }
 
-struct HiraGenjiSurfacePattern: Equatable, Sendable {
-    let patches: [HiraGenjiSurfacePatch]
+struct Flat16SurfacePattern: Equatable, Sendable {
+    let patches: [Flat16SurfacePatch]
     /// Steps along the braid in one repeat.
     let rowCount: Int
     /// Length of one repeat divided by the braid's width. The mesh derives its
@@ -36,7 +36,7 @@ struct HiraGenjiSurfacePattern: Equatable, Sendable {
     /// its own, so a stitch cannot come out the wrong shape.
     let aspectRatio: Float
 
-    func patches(in region: HiraGenjiSurfaceRegion) -> [HiraGenjiSurfacePatch] {
+    func patches(in region: Flat16SurfaceRegion) -> [Flat16SurfacePatch] {
         patches.filter { $0.region == region }
     }
 }
@@ -50,7 +50,7 @@ struct HiraGenjiSurfacePattern: Equatable, Sendable {
 /// checked against book A's two controlled samples. The correspondence this file
 /// used to carry — a table hand-written from one cycle's move order — was refuted
 /// there and is gone.
-enum HiraGenjiSurfacePatternGenerator {
+enum Flat16SurfacePatternGenerator {
     static let requiredThreadCount = 16
     static let broadFaceColumnCount = HiraGenjiWeaveDerivation.columnCount
     static let edgeColumnCount = HiraGenjiWeaveDerivation.edgeThreadCount
@@ -117,7 +117,7 @@ enum HiraGenjiSurfacePatternGenerator {
         rowCount.map { Float($0) * stitchPitchPerBraidWidth }
     }
 
-    static func generate(assignments: [ThreadAssignment]) -> HiraGenjiSurfacePattern? {
+    static func generate(assignments: [ThreadAssignment]) -> Flat16SurfacePattern? {
         guard
             let rowCount,
             let aspectRatio = patternAspectRatio,
@@ -128,8 +128,8 @@ enum HiraGenjiSurfacePatternGenerator {
             return nil
         }
 
-        var patches = [HiraGenjiSurfacePatch]()
-        for region in HiraGenjiSurfaceRegion.allCases {
+        var patches = [Flat16SurfacePatch]()
+        for region in Flat16SurfaceRegion.allCases {
             let columnCount = columnCount(in: region)
             let offsets = stitchBoundaryOffsets(region: region, columnCount: columnCount)
             let phases = longitudinalPhases(region: region, columnCount: columnCount)
@@ -145,7 +145,7 @@ enum HiraGenjiSurfacePatternGenerator {
                     else {
                         return nil
                     }
-                    patches.append(HiraGenjiSurfacePatch(
+                    patches.append(Flat16SurfacePatch(
                         region: region,
                         threadRole: place.role,
                         threadPosition: place.threadPosition,
@@ -166,14 +166,14 @@ enum HiraGenjiSurfacePatternGenerator {
         }
 
         guard patches.count == patchCount else { return nil }
-        return HiraGenjiSurfacePattern(
+        return Flat16SurfacePattern(
             patches: patches,
             rowCount: rowCount,
             aspectRatio: aspectRatio
         )
     }
 
-    static func columnCount(in region: HiraGenjiSurfaceRegion) -> Int {
+    static func columnCount(in region: Flat16SurfaceRegion) -> Int {
         switch region {
         case .front, .back: return broadFaceColumnCount
         case .leftEdge, .rightEdge: return edgeColumnCount
@@ -199,7 +199,7 @@ enum HiraGenjiSurfacePatternGenerator {
     /// edge from the back, so their two lanes are in opposite orders.
     private static func occupant(
         of weave: HiraGenjiWeavePattern,
-        region: HiraGenjiSurfaceRegion,
+        region: Flat16SurfaceRegion,
         column: Int,
         row: Int
     ) -> Occupant? {
@@ -294,7 +294,7 @@ enum HiraGenjiSurfacePatternGenerator {
     /// **The phase applies at every join, the repeat's ends included.** It is a
     /// constant shift of the whole lane, so the lane stays exactly periodic; what
     /// reaches past the end of the tile is cut off there and drawn at the other
-    /// end instead (`HiraGenjiSurfaceMeshGenerator.clippedToTile`).
+    /// end instead (`Flat16SurfaceMesh.clippedToTile`).
     ///
     /// Task 007G had to hold the ends straight, because the mesh could not yet
     /// move that overhang and letting it out left a hole. That made one join in
@@ -335,7 +335,7 @@ enum HiraGenjiSurfacePatternGenerator {
     /// face column, which is where the weft shows on the face. The regions still
     /// meet along their shared boundary, so the surface stays closed.
     static func longitudinalPhases(
-        region: HiraGenjiSurfaceRegion,
+        region: Flat16SurfaceRegion,
         columnCount: Int
     ) -> [Float] {
         switch region {
@@ -391,7 +391,7 @@ enum HiraGenjiSurfacePatternGenerator {
     /// them, the same correspondence `occupant(of:region:column:row:)` uses. Both
     /// lanes of an edge are the one place across the width: they lie one behind
     /// the other through the thickness, not side by side.
-    static func widthPosition(region: HiraGenjiSurfaceRegion, column: Int) -> Int {
+    static func widthPosition(region: Flat16SurfaceRegion, column: Int) -> Int {
         switch region {
         case .front: return broadFaceColumnCount - 1 - column
         case .back: return column
@@ -404,7 +404,7 @@ enum HiraGenjiSurfacePatternGenerator {
     /// columns lean opposite ways, and the two faces lean opposite ways to each
     /// other so the braid reads the same from either side.
     private static func stitchBoundaryOffsets(
-        region: HiraGenjiSurfaceRegion,
+        region: Flat16SurfaceRegion,
         columnCount: Int
     ) -> [Float] {
         let amplitude = region == .front || region == .back ? faceStitchLean : edgeStitchLean

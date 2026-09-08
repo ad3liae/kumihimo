@@ -60,8 +60,8 @@ struct HiraGenjiStitchDetailTextureTests {
     /// The map is drawn taller than it is wide because a stitch is, so its detail
     /// stays about square where it lands.
     @Test func theMapIsShapedLikeAStitch() {
-        let stitch = HiraGenjiSurfacePatternGenerator.stitchPitchPerBraidWidth
-            * Float(HiraGenjiSurfacePatternGenerator.broadFaceColumnCount)
+        let stitch = Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth
+            * Float(Flat16SurfacePatternGenerator.broadFaceColumnCount)
         let map = Float(HiraGenjiStitchDetailTexture.height)
             / Float(HiraGenjiStitchDetailTexture.width)
         #expect(abs(map / stitch - 1) < 0.15)

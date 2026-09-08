@@ -162,7 +162,7 @@ enum BraidMethodCatalog {
     static let maruGenji16Shape = BraidShapeValues(
         // **Not carried into the construction.** The generator's 0.12 is a
         // fraction of the tube's nominal radius, not of a thread's diameter
-        // (`MaruGenjiSurfaceMeshGenerator.crestHeightRatio`), so it cannot be
+        // (`RoundTube16SurfaceMesh.crestHeightRatio`), so it cannot be
         // compared with a crest measured in diameters. The round braid keeps the
         // derived d/2, and that is unverified against a photograph.
         crestHeight: .observed(

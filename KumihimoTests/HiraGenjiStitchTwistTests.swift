@@ -7,9 +7,9 @@ struct HiraGenjiStitchTwistTests {
     /// The point of solving per strand: every one of them shows the same yarn,
     /// twisted the same way and by the same amount.
     @Test func everyStitchShowsTheStripesAtTheNominalAngle() throws {
-        let nominal = MaruGenjiSurfaceMeshGenerator.twistAngleDegrees
+        let nominal = RoundTube16SurfaceMesh.twistAngleDegrees
 
-        for region in HiraGenjiSurfaceRegion.allCases {
+        for region in Flat16SurfaceRegion.allCases {
             let twist = try #require(HiraGenjiStitchTwistGrouping.twist(in: region))
             let angle = try #require(
                 HiraGenjiStitchTwistGrouping.stripeAngleDegrees(of: twist, in: region)
@@ -21,7 +21,7 @@ struct HiraGenjiStitchTwistTests {
     /// One yarn, one hand. What this replaced leaned one way for the threads
     /// worked lengthwise and the other for those worked across.
     @Test func everyStitchLeansTheSameWay() throws {
-        let hands = try HiraGenjiSurfaceRegion.allCases.map { region in
+        let hands = try Flat16SurfaceRegion.allCases.map { region in
             HiraGenjiStitchTwistGrouping.hand(
                 of: try #require(HiraGenjiStitchTwistGrouping.twist(in: region))
             )
@@ -40,10 +40,10 @@ struct HiraGenjiStitchTwistTests {
     /// Every lane really is one yarn wide, in every region, which is what makes
     /// the single group correct.
     @Test func everyLaneIsOneYarnWideInEveryRegion() {
-        let halfWidth = HiraGenjiSurfaceMeshGenerator.defaultHalfWidth
-        let halfThickness = HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
+        let halfWidth = Flat16SurfaceMesh.defaultHalfWidth
+        let halfThickness = Flat16SurfaceMesh.defaultHalfThickness
 
-        for region in HiraGenjiSurfaceRegion.allCases {
+        for region in Flat16SurfaceRegion.allCases {
             let lane = HiraGenjiStitchTwistGrouping.laneWidth(
                 in: region, halfWidth: halfWidth, halfThickness: halfThickness
             )
@@ -57,7 +57,7 @@ struct HiraGenjiStitchTwistTests {
     @Test func theStripesStandAboutAsFarApartAsTheRoundBraids() {
         let roundSegmentInYarns = Float(MaruGenjiStrandTextureFactory.width)
             / Float(MaruGenjiStrandTextureFactory.height)
-        let roundPerYarn = Float(MaruGenjiSurfaceMeshGenerator.fiberCount) / roundSegmentInYarns
+        let roundPerYarn = Float(RoundTube16SurfaceMesh.fiberCount) / roundSegmentInYarns
         let flatPerYarn = HiraGenjiStitchTwistGrouping.stripesPerStitch
             / HiraGenjiStitchTwistGrouping.stitchLengthInYarns
 

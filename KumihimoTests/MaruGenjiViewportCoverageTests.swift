@@ -25,7 +25,7 @@ struct MaruGenjiViewportCoverageTests {
         let wide = try #require(calculate(viewport: SIMD2<Float>(1_194, 700)))
 
         #expect(wide.tileCount >= narrow.tileCount)
-        #expect(wide.coveredLength == Float(wide.tileCount) * MaruGenjiSurfaceMeshGenerator.defaultLength)
+        #expect(wide.coveredLength == Float(wide.tileCount) * RoundTube16SurfaceMesh.defaultLength)
     }
 
     @Test(arguments: [
@@ -53,8 +53,8 @@ struct MaruGenjiViewportCoverageTests {
         let visibleHeight = 2 * MaruGenjiRealityView.cameraDistance
             * tan(MaruGenjiRealityView.verticalFieldOfView / 2)
         let visibleWidth = visibleHeight * viewport.x / viewport.y
-        let repeatLength = MaruGenjiSurfaceMeshGenerator.defaultLength
-            / Float(MaruGenjiSurfaceMeshGenerator.defaultPatternRepeatCount)
+        let repeatLength = RoundTube16SurfaceMesh.defaultLength
+            / Float(RoundTube16SurfaceMesh.defaultPatternRepeatCount)
 
         // A repeat is a little under one turn of braid, so a few of them fit across
         // the screen at rest. Anything near the pre-Task-005F eight would mean the
@@ -89,7 +89,7 @@ struct MaruGenjiViewportCoverageTests {
     }
 
     @Test func tileOffsetsAreCenteredAndJoinWithoutGapOrOverlap() throws {
-        let tileLength = MaruGenjiSurfaceMeshGenerator.defaultLength
+        let tileLength = RoundTube16SurfaceMesh.defaultLength
         let offsets = try #require(
             MaruGenjiViewportCoverageCalculator.tileOffsets(
                 tileCount: 5,
@@ -118,7 +118,7 @@ struct MaruGenjiViewportCoverageTests {
         cameraDistance: Float = MaruGenjiRealityView.cameraDistance,
         verticalFieldOfView: Float = MaruGenjiRealityView.verticalFieldOfView,
         minimumScale: Float = MaruGenjiViewerController.minimumScale,
-        tileLength: Float = MaruGenjiSurfaceMeshGenerator.defaultLength
+        tileLength: Float = RoundTube16SurfaceMesh.defaultLength
     ) -> MaruGenjiViewportCoverage? {
         MaruGenjiViewportCoverageCalculator.calculate(
             viewportSize: viewport,

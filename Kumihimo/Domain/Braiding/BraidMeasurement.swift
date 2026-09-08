@@ -13,18 +13,34 @@ enum BraidValueSource: Equatable, Sendable {
     case observed(String)
     /// Worked out. Say from what.
     case derived(String)
+    /// **Set by eye against a photograph, and nothing more.** Not measured -- no
+    /// procedure produced it — and not derived — nothing implies it. A drawing may
+    /// need such a number to look like the thing; carrying it as `.declared` keeps
+    /// it from ever being mistaken for either of the others.
+    case declared(String)
 
     var isObserved: Bool {
         if case .observed = self { return true }
         return false
     }
 
-    var isDerived: Bool { !isObserved }
+    var isDerived: Bool {
+        if case .derived = self { return true }
+        return false
+    }
 
-    /// The book, page or working-out. Not display text; a view writes its own.
+    /// Neither measured nor worked out: calibrated by eye.
+    var isDeclared: Bool {
+        if case .declared = self { return true }
+        return false
+    }
+
+    /// The book, page, working-out or calibration. Not display text; a view writes
+    /// its own.
     var origin: String {
         switch self {
-        case let .observed(origin), let .derived(origin): return origin
+        case let .observed(origin), let .derived(origin), let .declared(origin):
+            return origin
         }
     }
 }
@@ -97,11 +113,25 @@ struct BraidMeasurement: Equatable, Sendable {
                          unsettled: unsettled)
     }
 
+    /// A number set by eye against a photograph. **Calibrated, not derived**, and
+    /// it says so wherever it is read.
+    static func declared(
+        _ value: Double,
+        basis: BraidValueBasis = .aRatio,
+        calibratedBy how: String
+    ) -> BraidMeasurement {
+        BraidMeasurement(value, basis: basis, source: .declared(how),
+                         unsettled: "calibrated against a photograph by eye; "
+                             + "no procedure produced it and nothing implies it")
+    }
+
     /// Whether this is a length the construction can use as it stands.
     var isInThreadDiameters: Bool { basis == .threadDiameters }
 
     var isObserved: Bool { source.isObserved }
     var isDerived: Bool { source.isDerived }
+    /// Set by eye against a photograph.
+    var isDeclared: Bool { source.isDeclared }
     var isSettled: Bool { unsettled == nil }
 
     /// Whether the value sits inside the band the reference gives. `true` when

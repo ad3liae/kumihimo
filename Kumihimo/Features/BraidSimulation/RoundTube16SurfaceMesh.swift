@@ -8,7 +8,7 @@ struct MaruGenjiSurfaceMaterialKey: Hashable, Sendable {
     let twistGroupIndex: Int
 }
 
-struct MaruGenjiSurfaceMeshData: Sendable {
+struct RoundTube16SurfaceMeshData: Sendable {
     let positions: [SIMD3<Float>]
     let normals: [SIMD3<Float>]
     let tangents: [SIMD3<Float>]
@@ -23,7 +23,7 @@ struct MaruGenjiSurfaceMeshData: Sendable {
     /// Twist phase in radians. Continuous inside one strand segment.
     let twistPhases: [Float]
     /// The twist groups the strands fall into, and which group each strand uses.
-    let twist: MaruGenjiSurfaceMeshGenerator.TwistGrouping
+    let twist: RoundTube16SurfaceMesh.TwistGrouping
     /// Triangle indices per colour and twist group. One material per entry.
     let materialGroups: [MaruGenjiSurfaceMaterialKey: [UInt32]]
     let vertexSegmentIndices: [Int]
@@ -59,7 +59,7 @@ struct MaruGenjiSurfaceMeshData: Sendable {
     /// change to how the ridge is built comes through here too. Mid-span puts the
     /// crossing weight at zero and the cross-section on its crest.
     var crestRadius: Float {
-        MaruGenjiSurfaceMeshGenerator.strandRadius(
+        RoundTube16SurfaceMesh.strandRadius(
             layer: .over, along: 0.5, across: 0, radius: baseRadius
         )
     }
@@ -111,7 +111,57 @@ struct MaruGenjiSurfaceMeshData: Sendable {
 /// strands: a semi-elliptical ridge along each strand centreline, a shared valley
 /// floor between neighbouring strands, and a crossing depth that sinks the strand
 /// passing underneath.
-enum MaruGenjiSurfaceMeshGenerator {
+enum RoundTube16SurfaceMesh {
+    /// **The family this draws**: sixteen threads, a tube.
+    static let family = BraidFamily.roundTube(threads: 16)
+
+    /// Where every number this drawing rests on came from. **No value here is
+    /// changed by saying so.**
+    static var shape: BraidFamilyShape {
+        BraidFamilyShape(family: family, values: [
+            "crest over nominal radius": BraidMeasurement(
+                Double(crestHeightRatio),
+                basis: .fractionOf("the tube's nominal radius"),
+                source: .observed("Task 005J"),
+                unsettled: "only the product with the pattern's aspect ratio is held by "
+                    + "the photographs, and it is not in thread diameters"
+            ),
+            "one repeat over one turn": BraidMeasurement(
+                Double(RoundTube16SurfacePatternGenerator.patternAspectRatio),
+                source: .observed("photographs, Task 005I: 1.8 to 2.15 chevrons a braid "
+                                  + "width, read two ways"),
+                unsettled: "found by rendering and comparing, and only its product with "
+                    + "the crest height is held"
+            ),
+            "valley below the nominal radius": .declared(
+                Double(valleyDepthRatio), calibratedBy: "how deep the groove looks"
+            ),
+            "extra crest where a thread passes over": .declared(
+                Double(overCrossingLift), calibratedBy: "how far the over thread stands up"
+            ),
+            "crest lost where a thread passes under": .declared(
+                Double(underCrossingDip), calibratedBy: "how far the under thread sinks"
+            ),
+            "how far the over thread laps": .declared(
+                Double(overCrossingLap), calibratedBy: "how far the lap reaches"
+            ),
+            "how far the lap sinks": .declared(
+                Double(overCrossingLapSink), calibratedBy: "how the lap meets the floor"
+            ),
+            "twist angle in degrees": .declared(
+                Double(twistAngleDegrees), calibratedBy: "the slant of the fibre stripes"
+            ),
+            "twist relief": .declared(
+                Double(twistReliefRatio), calibratedBy: "how much the stripes stand out"
+            ),
+            "radius on screen": .declared(
+                Double(defaultRadius),
+                calibratedBy: "how big the braid should be in the view; a display size, "
+                    + "not a shape"
+            ),
+        ])
+    }
+
     static let defaultRadius: Float = 0.48
     static let defaultPatternRepeatCount = 4
 
@@ -121,7 +171,7 @@ enum MaruGenjiSurfaceMeshGenerator {
     /// length picked independently would shear every chevron.
     static func length(
         radius: Float,
-        aspectRatio: Float = MaruGenjiSurfacePatternGenerator.patternAspectRatio,
+        aspectRatio: Float = RoundTube16SurfacePatternGenerator.patternAspectRatio,
         patternRepeatCount: Int = defaultPatternRepeatCount
     ) -> Float {
         2 * .pi * radius * aspectRatio * Float(patternRepeatCount)
@@ -166,19 +216,19 @@ enum MaruGenjiSurfaceMeshGenerator {
     static let twistReliefRatio: Float = 0.005
 
     static func generate(
-        pattern: MaruGenjiSurfacePattern,
+        pattern: RoundTube16SurfacePattern,
         radius: Float = defaultRadius,
         patternRepeatCount: Int = defaultPatternRepeatCount,
         alongStrandSubdivisions: Int = defaultAlongStrandSubdivisions,
         acrossStrandSubdivisions: Int = defaultAcrossStrandSubdivisions
-    ) -> MaruGenjiSurfaceMeshData? {
+    ) -> RoundTube16SurfaceMeshData? {
         let tileLength = length(
             radius: radius,
             aspectRatio: pattern.aspectRatio,
             patternRepeatCount: patternRepeatCount
         )
         guard
-            pattern.patches.count == MaruGenjiSurfacePatternGenerator.patchCount,
+            pattern.patches.count == RoundTube16SurfacePatternGenerator.patchCount,
             radius.isFinite,
             radius > 0,
             pattern.aspectRatio.isFinite,
@@ -230,7 +280,7 @@ enum MaruGenjiSurfaceMeshGenerator {
             }
         }
 
-        let mesh = MaruGenjiSurfaceMeshData(
+        let mesh = RoundTube16SurfaceMeshData(
             positions: builder.positions,
             normals: builder.normals,
             tangents: builder.tangents,
@@ -513,7 +563,7 @@ enum MaruGenjiSurfaceMeshGenerator {
         var textureCoordinate: SIMD2<Float> {
             SIMD2<Float>(
                 min(max(strandCoordinate.x, 0), 1),
-                MaruGenjiSurfaceMeshGenerator.crossSectionSample(forOffset: strandCoordinate.y)
+                RoundTube16SurfaceMesh.crossSectionSample(forOffset: strandCoordinate.y)
             )
         }
     }
@@ -909,15 +959,15 @@ enum MaruGenjiSurfaceMeshGenerator {
 
     // MARK: - Validation
 
-    private static func isValid(_ patch: MaruGenjiSurfacePatch) -> Bool {
+    private static func isValid(_ patch: RoundTube16SurfacePatch) -> Bool {
         patch.corners.count == 4 && patch.corners.allSatisfy { corner in
             corner.x.isFinite && corner.y.isFinite
                 && (0...1).contains(corner.x)
-                && (0...MaruGenjiSurfacePatternGenerator.maximumUnwrappedV).contains(corner.y)
+                && (0...RoundTube16SurfacePatternGenerator.maximumUnwrappedV).contains(corner.y)
         }
     }
 
-    private static func isConsistent(_ mesh: MaruGenjiSurfaceMeshData) -> Bool {
+    private static func isConsistent(_ mesh: RoundTube16SurfaceMeshData) -> Bool {
         let vertexCount = mesh.positions.count
         let indices = mesh.allTriangleIndices
         return !mesh.positions.isEmpty

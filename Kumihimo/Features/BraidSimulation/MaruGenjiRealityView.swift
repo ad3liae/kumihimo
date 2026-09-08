@@ -142,7 +142,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
         private var tileCount = 0
         /// Taken from the generated mesh, which derives it from the radius and the
         /// aspect ratio the pattern declares.
-        private var tileLength = MaruGenjiSurfaceMeshGenerator.defaultLength
+        private var tileLength = RoundTube16SurfaceMesh.defaultLength
 
         init(controller: MaruGenjiViewerController) {
             self.controller = controller
@@ -158,9 +158,9 @@ struct MaruGenjiRealityView: UIViewRepresentable {
             sharedMesh = nil
             sharedMaterials = []
             tileCount = 0
-            tileLength = MaruGenjiSurfaceMeshGenerator.defaultLength
+            tileLength = RoundTube16SurfaceMesh.defaultLength
 
-            guard let pattern = MaruGenjiSurfacePatternGenerator.generate(assignments: assignments) else {
+            guard let pattern = RoundTube16SurfacePatternGenerator.generate(assignments: assignments) else {
                 let positions = assignments.map(\.position).map(String.init).joined(separator: ",")
                 Self.logger.error(
                     "Surface pattern generation failed for \(assignments.count) assignments at \(positions, privacy: .public)"
@@ -168,7 +168,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 controller.reportFailure()
                 return
             }
-            guard let surface = MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern) else {
+            guard let surface = RoundTube16SurfaceMesh.generate(pattern: pattern) else {
                 Self.logger.error("Surface mesh data generation failed")
                 controller.reportFailure()
                 return
@@ -332,7 +332,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
         private func descriptor(
             indices: [UInt32],
             faceMaterialIndices: [UInt32],
-            surface: MaruGenjiSurfaceMeshData
+            surface: RoundTube16SurfaceMeshData
         ) -> MeshDescriptor {
             var descriptor = MeshDescriptor(name: "maru-genji-surface")
             descriptor.positions = MeshBuffer(surface.positions)

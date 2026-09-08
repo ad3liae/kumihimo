@@ -121,7 +121,7 @@ enum HiraGenjiStitchDetailTexture {
     @MainActor private static func makeNormal(
         _ twist: HiraGenjiStitchTwist
     ) -> TextureResource? {
-        let amplitude = MaruGenjiSurfaceMeshGenerator.twistReliefRatio
+        let amplitude = RoundTube16SurfaceMesh.twistReliefRatio
         let gradient = twist.normalizedPhaseGradient
         var bytes = [UInt8](repeating: 255, count: width * height * 4)
         for row in 0..<height {

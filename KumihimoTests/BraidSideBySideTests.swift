@@ -72,8 +72,8 @@ struct BraidSideBySideTests {
         _ = newSeen
 
         // The frozen generator.
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
+        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
         let old = try #require(BraidMeshDrawing.paint(
             BraidMeshDrawing.Mesh(positions: mesh.positions, byColour: mesh.colorGroups),
             looking: SIMD3(0, -1, 0)
@@ -83,7 +83,7 @@ struct BraidSideBySideTests {
         // Recorded, not judged.
         let report = "section width over thickness: measured on the new path "
             + "\(newSection.widthOverThickness); the frozen generator declares "
-            + "\(HiraGenjiSurfaceMeshGenerator.widthToThicknessRatio) and is built to it. "
+            + "\(Flat16SurfaceMesh.widthToThicknessRatio) and is built to it. "
             + "Book A's measured figure is 3.3359. "
             + "Silhouette ripple (procedure 2): unavailable -- the measure returns 0.0% "
             + "for both paths, including the one it was calibrated on, so it is the "
@@ -104,8 +104,8 @@ struct BraidSideBySideTests {
         }
         let newSection = try #require(BraidSectionMeasure.measure(built.lines, tube: true))
 
-        let pattern = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+        let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: assignments))
+        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
         let old = try #require(BraidMeshDrawing.paint(
             BraidMeshDrawing.Mesh(positions: mesh.positions, byColour: mesh.colorGroups),
             looking: SIMD3(0, -1, 0)
@@ -115,7 +115,7 @@ struct BraidSideBySideTests {
 
         let report = "outer diameter: measured on the new path "
             + "\(newSection.outerDiameter ?? 0) d; the frozen generator declares a radius "
-            + "of \(MaruGenjiSurfaceMeshGenerator.defaultRadius), which is not in thread "
+            + "of \(RoundTube16SurfaceMesh.defaultRadius), which is not in thread "
             + "diameters, so the two cannot be compared as they stand."
         try Self.record(report, named: "compare-maru")
         #expect((newSection.outerDiameter ?? 0) > 0)
@@ -148,10 +148,10 @@ struct BraidSideBySideTests {
             let image = try #require(BraidDrawing.image(of: picture, colours: colours))
             try BraidFigureDrawing.write(image, named: "look-hira-new-\(view.name)")
         }
-        let flatPattern = try #require(HiraGenjiSurfacePatternGenerator.generate(
+        let flatPattern = try #require(Flat16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.hiraGenji16Colouring
         ))
-        let flatMesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: flatPattern))
+        let flatMesh = try #require(Flat16SurfaceMesh.generate(pattern: flatPattern))
         for view in Self.views {
             let drawn = try #require(BraidMeshDrawing.paint(
                 BraidMeshDrawing.Mesh(positions: flatMesh.positions,
@@ -176,10 +176,10 @@ struct BraidSideBySideTests {
             let image = try #require(BraidDrawing.image(of: picture, colours: tubeColours))
             try BraidFigureDrawing.write(image, named: "look-maru-new-\(view.name)")
         }
-        let tubePattern = try #require(MaruGenjiSurfacePatternGenerator.generate(
+        let tubePattern = try #require(RoundTube16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.maruGenji16Colouring
         ))
-        let tubeMesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: tubePattern))
+        let tubeMesh = try #require(RoundTube16SurfaceMesh.generate(pattern: tubePattern))
         for view in Self.views {
             let drawn = try #require(BraidMeshDrawing.paint(
                 BraidMeshDrawing.Mesh(positions: tubeMesh.positions,

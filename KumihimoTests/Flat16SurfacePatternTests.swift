@@ -7,10 +7,10 @@ import Testing
 /// there is `HiraGenjiWeavePattern`'s answer, tested in its own file; what is
 /// tested here is that the layout puts the weave's places where they belong on
 /// the cross-section, and that the lane geometry is what the mesh expects.
-struct HiraGenjiSurfacePatternTests {
+struct Flat16SurfacePatternTests {
     @Test func patternHasTwoSixLaneFacesTwoEdgesAndFourStepsToARepeat() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: fixtureA))
-        let rowCount = try #require(HiraGenjiSurfacePatternGenerator.rowCount)
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: fixtureA))
+        let rowCount = try #require(Flat16SurfacePatternGenerator.rowCount)
 
         #expect(rowCount == 4)
         #expect(pattern.patches.count == 64)
@@ -34,9 +34,9 @@ struct HiraGenjiSurfacePatternTests {
     /// front region runs one way round the cross-section and the back runs the
     /// other, so one of the two lane orders has to be reversed.
     @Test func aWeaveColumnComesOutAtTheSamePlaceOnBothFaces() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: fixtureA))
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: fixtureA))
         let weave = try #require(HiraGenjiWeavePatternGenerator.generate(assignments: fixtureA))
-        let rowCount = try #require(HiraGenjiSurfacePatternGenerator.rowCount)
+        let rowCount = try #require(Flat16SurfacePatternGenerator.rowCount)
 
         for row in 0..<rowCount {
             for weaveColumn in 0..<weave.columnCount {
@@ -62,7 +62,7 @@ struct HiraGenjiSurfacePatternTests {
     /// `-x`, so the lanes are put in the order the width itself runs in.
     @Test func theP96ColouringLandsAcrossTheFaceInThePhotographedOrder() throws {
         let pattern = try #require(
-            HiraGenjiSurfacePatternGenerator.generate(assignments: bookAP96Colouring)
+            Flat16SurfacePatternGenerator.generate(assignments: bookAP96Colouring)
         )
         let expected = [salmon, mauve, mauve, vermilion, black, salmon]
 
@@ -79,9 +79,9 @@ struct HiraGenjiSurfacePatternTests {
     /// The four middle lanes of each face are the threads that run along the
     /// braid; the two outermost lanes and both edges are threads carried across.
     @Test func theOutermostLanesAndBothEdgesAreThreadsCarriedAcross() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: fixtureA))
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: fixtureA))
 
-        for region in [HiraGenjiSurfaceRegion.front, .back] {
+        for region in [Flat16SurfaceRegion.front, .back] {
             for row in 0..<4 {
                 let ordered = pattern.patches(in: region)
                     .filter { $0.row == row }
@@ -115,14 +115,14 @@ struct HiraGenjiSurfacePatternTests {
     /// uneven. Task 007H removed the exception, so this test no longer makes one:
     /// **the first and last rows are checked like all the others.**
     @Test func everyStitchJoinRunsStraightAcrossItsLane() throws {
-        let pattern = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: fixtureA))
-        let rowCount = try #require(HiraGenjiSurfacePatternGenerator.rowCount)
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: fixtureA))
+        let rowCount = try #require(Flat16SurfacePatternGenerator.rowCount)
         let front = pattern.patches(in: .front)
-        let columnCount = HiraGenjiSurfacePatternGenerator.columnCount(in: .front)
+        let columnCount = Flat16SurfacePatternGenerator.columnCount(in: .front)
         let step = 1 / Float(rowCount)
         let body = 1..<(columnCount - 1)
 
-        #expect(HiraGenjiSurfacePatternGenerator.faceStitchLean == 0)
+        #expect(Flat16SurfacePatternGenerator.faceStitchLean == 0)
         for patch in front {
             #expect(patch.corners.count == 4)
             #expect(patch.corners.allSatisfy { (0...1).contains($0.x) })
@@ -149,7 +149,7 @@ struct HiraGenjiSurfacePatternTests {
 
         // The outermost lanes: sloping, by the amount the move order gives, and by
         // **the same amount in every row** — including the first and the last.
-        let phases = HiraGenjiSurfacePatternGenerator.longitudinalPhases(
+        let phases = Flat16SurfacePatternGenerator.longitudinalPhases(
             region: .front, columnCount: columnCount
         )
         #expect(phases[0] != 0)
@@ -165,7 +165,7 @@ struct HiraGenjiSurfacePatternTests {
         }
 
         // The lean still reaches the corners, so stage 3 can turn it back on.
-        let leaned = HiraGenjiSurfacePatternGenerator.corners(
+        let leaned = Flat16SurfacePatternGenerator.corners(
             column: 1, row: 1, rowCount: rowCount, columnCount: 6, lean: 0.4
         )
         #expect(leaned[1].y != leaned[2].y)
@@ -173,17 +173,17 @@ struct HiraGenjiSurfacePatternTests {
 
     @Test func fixturesAreDeterministicAndPositionDriven() throws {
         for fixture in [fixtureA, fixtureB, fixtureC] {
-            let first = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: fixture))
+            let first = try #require(Flat16SurfacePatternGenerator.generate(assignments: fixture))
             let second = try #require(
-                HiraGenjiSurfacePatternGenerator.generate(assignments: Array(fixture.reversed()))
+                Flat16SurfacePatternGenerator.generate(assignments: Array(fixture.reversed()))
             )
             #expect(first == second)
         }
 
         var changed = fixtureA
         changed[0].colorID = ThreadColorID(rawValue: "red")
-        let before = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: fixtureA))
-        let after = try #require(HiraGenjiSurfacePatternGenerator.generate(assignments: changed))
+        let before = try #require(Flat16SurfacePatternGenerator.generate(assignments: fixtureA))
+        let after = try #require(Flat16SurfacePatternGenerator.generate(assignments: changed))
         #expect(before != after)
         #expect(after.patches.filter { $0.threadPosition == 1 }.allSatisfy {
             $0.colorID == ThreadColorID(rawValue: "red")
@@ -199,22 +199,22 @@ struct HiraGenjiSurfacePatternTests {
             ThreadAssignment(position: 17, colorID: blue),
         ]
 
-        #expect(HiraGenjiSurfacePatternGenerator.generate(assignments: duplicate) == nil)
-        #expect(HiraGenjiSurfacePatternGenerator.generate(assignments: outOfRange) == nil)
-        #expect(HiraGenjiSurfacePatternGenerator.generate(assignments: Array(fixtureA.dropLast())) == nil)
+        #expect(Flat16SurfacePatternGenerator.generate(assignments: duplicate) == nil)
+        #expect(Flat16SurfacePatternGenerator.generate(assignments: outOfRange) == nil)
+        #expect(Flat16SurfacePatternGenerator.generate(assignments: Array(fixtureA.dropLast())) == nil)
     }
 
     // MARK: - Helpers
 
     /// Where a patch sits across the braid, on the axis the mesh draws it on.
-    private func widthCentre(_ patch: HiraGenjiSurfacePatch) -> Float {
-        let columnCount = HiraGenjiSurfacePatternGenerator.columnCount(in: patch.region)
+    private func widthCentre(_ patch: Flat16SurfacePatch) -> Float {
+        let columnCount = Flat16SurfacePatternGenerator.columnCount(in: patch.region)
         let regionU = (Float(patch.widthColumn) + 0.5) / Float(columnCount)
-        return HiraGenjiSurfaceMeshGenerator.crossSectionPoint(
+        return Flat16SurfaceMesh.crossSectionPoint(
             region: patch.region,
             regionU: regionU,
-            halfWidth: HiraGenjiSurfaceMeshGenerator.defaultHalfWidth,
-            halfThickness: HiraGenjiSurfaceMeshGenerator.defaultHalfThickness
+            halfWidth: Flat16SurfaceMesh.defaultHalfWidth,
+            halfThickness: Flat16SurfaceMesh.defaultHalfThickness
         ).x
     }
 

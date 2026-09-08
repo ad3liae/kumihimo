@@ -76,7 +76,7 @@ struct BraidComparisonSheetTests {
         let oldSpan = oldSolid.triangles.along
         let oldShown = (oldSpan.upperBound - oldSpan.lowerBound)
             * Double(Self.cyclesShown) / Double(Self.repeatCycles)
-            / Double(HiraGenjiSurfaceMeshGenerator.defaultPatternRepeatCount)
+            / Double(Flat16SurfaceMesh.defaultPatternRepeatCount)
         let oldWindow = middle(oldSpan, min(oldShown, oldSpan.upperBound - oldSpan.lowerBound))
 
         var panels = [(label: String, panel: BraidComparisonSheet.Panel)]()
@@ -118,7 +118,7 @@ struct BraidComparisonSheetTests {
     func theFlatBraidSheets() throws {
         // The frozen mesh in thread diameters and the new path's axes. Its width is
         // eight diameters, which is what fixes the scale.
-        let perDiameter = Double(HiraGenjiSurfaceMeshGenerator.defaultHalfWidth) * 2 / 8
+        let perDiameter = Double(Flat16SurfaceMesh.defaultHalfWidth) * 2 / 8
 
         for (name, named, title, photograph, label) in [
             ("side-by-side-hira",
@@ -140,8 +140,8 @@ struct BraidComparisonSheetTests {
         ] {
             let assignments = colouring(named)
             let pattern = try #require(
-                HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
-            let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+                Flat16SurfacePatternGenerator.generate(assignments: assignments))
+            let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
             var byColour = mesh.colorGroups
             for (colour, indices) in mesh.boundaryColorGroups {
                 byColour[colour, default: []] += indices
@@ -162,7 +162,7 @@ struct BraidComparisonSheetTests {
         // matched on the one thing both paths can be measured for: the braid's
         // width. Eight diameters and a bit, from the sixteen-sided figure.
         let newWidth = 8.034024
-        let perDiameter = Double(MaruGenjiSurfaceMeshGenerator.defaultRadius) * 2 / newWidth
+        let perDiameter = Double(RoundTube16SurfaceMesh.defaultRadius) * 2 / newWidth
 
         for (name, named, title, photograph, label) in [
             ("side-by-side-maru",
@@ -184,8 +184,8 @@ struct BraidComparisonSheetTests {
         ] {
             let assignments = colouring(named)
             let pattern = try #require(
-                MaruGenjiSurfacePatternGenerator.generate(assignments: assignments))
-            let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+                RoundTube16SurfacePatternGenerator.generate(assignments: assignments))
+            let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
             let solid = BraidComparisonSheet.solid(
                 positions: mesh.positions, byColour: mesh.colorGroups, perDiameter: perDiameter
             )

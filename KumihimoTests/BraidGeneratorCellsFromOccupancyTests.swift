@@ -12,7 +12,7 @@ import Testing
 struct BraidGeneratorCellsFromOccupancyTests {
     private var threadByCell: [[Int]: Int] {
         get throws {
-            try #require(MaruGenjiSurfacePatternGenerator.threadByCell(
+            try #require(RoundTube16SurfacePatternGenerator.threadByCell(
                 stand: BraidMethodCatalog.stand16,
                 method: BraidMethodCatalog.maruGenji16,
                 crossSection: BraidMethodCatalog.maruGenji16CrossSection
@@ -25,9 +25,9 @@ struct BraidGeneratorCellsFromOccupancyTests {
     @Test func theDerivedThreadsAreTheTranscribedOnes() throws {
         let derived = try threadByCell
         var checked = 0
-        for strand in MaruGenjiSurfacePatternGenerator.sourceStrands {
+        for strand in RoundTube16SurfacePatternGenerator.sourceStrands {
             for diamond in strand.diamonds {
-                let cell = try #require(MaruGenjiSurfacePatternGenerator.cell(for: diamond))
+                let cell = try #require(RoundTube16SurfacePatternGenerator.cell(for: diamond))
                 let mine = try #require(derived[[cell.column, cell.row]])
                 #expect(mine == strand.threadPosition,
                         "cell \(cell.column),\(cell.row)")
@@ -73,9 +73,9 @@ struct BraidGeneratorCellsFromOccupancyTests {
     @Test func theDrawingsShapeIsUnchanged() throws {
         let assignments = BraidMethodCatalog.maruGenji16Colouring
         let pattern = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: assignments))
-        #expect(pattern.patches.count == MaruGenjiSurfacePatternGenerator.patchCount)
-        let mesh = try #require(MaruGenjiSurfaceMeshGenerator.generate(pattern: pattern))
+            RoundTube16SurfacePatternGenerator.generate(assignments: assignments))
+        #expect(pattern.patches.count == RoundTube16SurfacePatternGenerator.patchCount)
+        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
         // Every position finite, and as many as the frozen generator has always made.
         #expect(mesh.positions.allSatisfy { $0.x.isFinite && $0.y.isFinite && $0.z.isFinite })
         #expect(mesh.triangleCount > 0)
@@ -132,8 +132,8 @@ struct BraidFlatGeneratorCellsFromOccupancyTests {
                 HiraGenjiWeavePatternGenerator.generate(assignments: assignments))
             #expect(pattern.columnCount == 6)
             let surface = try #require(
-                HiraGenjiSurfacePatternGenerator.generate(assignments: assignments))
-            let mesh = try #require(HiraGenjiSurfaceMeshGenerator.generate(pattern: surface))
+                Flat16SurfacePatternGenerator.generate(assignments: assignments))
+            let mesh = try #require(Flat16SurfaceMesh.generate(pattern: surface))
             #expect(mesh.triangleCount > 0)
             let wanted = Set(assignments.map(\.colorID))
             #expect(Set(mesh.colorGroups.keys).isSubset(of: wanted))

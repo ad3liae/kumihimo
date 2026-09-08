@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-struct MaruGenjiSurfacePatch: Equatable, Sendable {
+struct RoundTube16SurfacePatch: Equatable, Sendable {
     let threadPosition: Int
     let colorID: ThreadColorID
     /// Which side of a crossing this run of thread takes. See `layer(for:)`.
@@ -11,8 +11,8 @@ struct MaruGenjiSurfacePatch: Equatable, Sendable {
     let corners: [SIMD2<Float>]
 }
 
-struct MaruGenjiSurfacePattern: Equatable, Sendable {
-    let patches: [MaruGenjiSurfacePatch]
+struct RoundTube16SurfacePattern: Equatable, Sendable {
+    let patches: [RoundTube16SurfacePatch]
     /// Length of one repeat along the braid divided by the length around it, both
     /// measured in the unwrapped drawing the patches come from. Wrapping the
     /// pattern onto a braid of any radius has to preserve this ratio, or the
@@ -20,15 +20,15 @@ struct MaruGenjiSurfacePattern: Equatable, Sendable {
     let aspectRatio: Float
 
     init(
-        patches: [MaruGenjiSurfacePatch],
-        aspectRatio: Float = MaruGenjiSurfacePatternGenerator.patternAspectRatio
+        patches: [RoundTube16SurfacePatch],
+        aspectRatio: Float = RoundTube16SurfacePatternGenerator.patternAspectRatio
     ) {
         self.patches = patches
         self.aspectRatio = aspectRatio
     }
 }
 
-enum MaruGenjiSurfacePatternGenerator {
+enum RoundTube16SurfacePatternGenerator {
     static let requiredThreadCount = 16
     static let patchCount = 64
     static let maximumUnwrappedV: Float = 9 / 8
@@ -124,7 +124,7 @@ enum MaruGenjiSurfacePatternGenerator {
         return out
     }
 
-    static func generate(assignments: [ThreadAssignment]) -> MaruGenjiSurfacePattern? {
+    static func generate(assignments: [ThreadAssignment]) -> RoundTube16SurfacePattern? {
         let expectedPositions = Set(1...requiredThreadCount)
         let suppliedPositions = Set(assignments.map(\.position))
         guard
@@ -142,7 +142,7 @@ enum MaruGenjiSurfacePatternGenerator {
             stand: BraidMethodCatalog.stand16, method: BraidMethodCatalog.maruGenji16,
             crossSection: BraidMethodCatalog.maruGenji16CrossSection
         ) else { return nil }
-        let patches = sourceStrands.flatMap { strand -> [MaruGenjiSurfacePatch] in
+        let patches = sourceStrands.flatMap { strand -> [RoundTube16SurfacePatch] in
             strand.diamonds.compactMap { diamond in
                 guard
                     let layer = layer(for: diamond),
@@ -150,7 +150,7 @@ enum MaruGenjiSurfacePatternGenerator {
                     let threadPosition = threadByCell[[cell.column, cell.row]],
                     let colorID = colorsByPosition[threadPosition]
                 else { return nil }
-                return MaruGenjiSurfacePatch(
+                return RoundTube16SurfacePatch(
                     threadPosition: threadPosition,
                     colorID: colorID,
                     layer: layer,
@@ -171,7 +171,7 @@ enum MaruGenjiSurfacePatternGenerator {
         else {
             return nil
         }
-        return MaruGenjiSurfacePattern(patches: patches)
+        return RoundTube16SurfacePattern(patches: patches)
     }
 
     struct SourceStrand {
