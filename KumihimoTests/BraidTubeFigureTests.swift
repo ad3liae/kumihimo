@@ -9,7 +9,7 @@ import Testing
 /// a hand lands on, and it is held against Task 004's transcription cell for cell.
 @MainActor
 struct BraidTubeFigureTests {
-    private struct MaruFixture: Decodable {
+    struct MaruFixture: Decodable {
         let columns: [Int]
         let columnAnglesDegrees: [Double]
         let grid: [[Int]]
