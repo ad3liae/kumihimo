@@ -29,6 +29,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "task021"))
 import braid_geometry as g
+import given_length as gl
 
 D = 1.0
 HANDS = 24          # book C's cycle, both figures
@@ -131,97 +132,153 @@ def join(rests, carried):
     return np.array(out)
 
 
-def cross(p0, p1, q0, q1):
-    """Where two segments cross in plan, if they do: the point and the two
-    parameters along them."""
-    r, s = p1[:2] - p0[:2], q1[:2] - q0[:2]
-    denom = r[0] * s[1] - r[1] * s[0]
-    if abs(denom) < 1e-12:
-        return None
-    gap = q0[:2] - p0[:2]
-    t = (gap[0] * s[1] - gap[1] * s[0]) / denom
-    u = (gap[0] * r[1] - gap[1] * r[0]) / denom
-    if not (0.0 < t < 1.0 and 0.0 < u < 1.0):
-        return None
-    return p0[:2] + t * r, t, u
+def normal_at(place, where, folded):
+    """Which way is out of the braid at this place: the surface's normal. A tube's
+    is radial; a flat braid's is through its thickness on a face, and across its
+    width at an edge."""
+    a = where[place]
+    if not folded:
+        length = float(np.linalg.norm(a))
+        return np.array([a[0] / length, a[1] / length, 0.0]) if length > 1e-9 \
+            else np.array([1.0, 0.0, 0.0])
+    if abs(a[1]) > 1e-9:
+        return np.array([0.0, math.copysign(1.0, a[1]), 0.0])
+    return np.array([math.copysign(1.0, a[0] - 2.5), 0.0, 0.0])
 
 
-def lift_over(way, at, height):
-    """Take a carry over a thread lying across it: the shortest path over a
-    cylinder of diameter d. Two tangents and an arc, and no constant to choose.
+def nearest(way, other):
+    """The closest approach between two polylines: the distance, and how far along
+    each it happens."""
+    best = (float('inf'), 0.0, 0.0)
+    along_a = 0.0
+    for a0, a1 in zip(way[:-1], way[1:]):
+        leg_a = float(np.linalg.norm(a1 - a0))
+        along_b = 0.0
+        for b0, b1 in zip(other[:-1], other[1:]):
+            leg_b = float(np.linalg.norm(b1 - b0))
+            s, t, gap = gl.segment_distance(a0[None, :], a1[None, :],
+                                            b0[None, :], b1[None, :])
+            far = float(np.linalg.norm(gap[0]))
+            if far < best[0]:
+                best = (far, along_a + float(s[0]) * leg_a, along_b + float(t[0]) * leg_b)
+            along_b += leg_b
+        along_a += leg_a
+    return best
 
-    Returns the points to put in place of the straight line, and how far it rose.
+
+def bump(way, at, direction, amount):
+    """Take a line over a thread lying across it.
+
+    **The shape is the shortest path over a cylinder of diameter d** -- two
+    tangents and the arc between them -- so the only length in it is d. `at` is how
+    far along the line the other thread lies, `direction` is the way out, and
+    `amount` is how far it has to go. Returns the new line.
     """
-    a, b = way[0], way[-1]
-    along = b - a
-    span = float(np.linalg.norm(along[:2]))
-    if span < 1e-9:
-        return list(way), 0.0
-    unit = along / np.linalg.norm(along)
-    # the obstacle sits at `at` in plan, with its top `height` up
-    to = np.array([at[0], at[1], 0.0]) - np.array([a[0], a[1], 0.0])
-    reach = float(to[:2] @ unit[:2]) / max(float(np.linalg.norm(unit[:2])), 1e-12)
-    top = height + D                       # a diameter clear of the thread below
-    here = a + unit * reach
-    if here[2] >= top:
-        return list(way), 0.0
-    rise = top - here[2]
-    # the tangents leave the straight line where a circle of radius D/2 sitting on
-    # the obstacle would be touched; the arc over the top is half that circle
-    half = math.sqrt(max((D / 2 + rise) ** 2 - (D / 2) ** 2, 0.0)) if rise < D / 2 \
-        else rise + D / 2
-    out = [a]
-    for step in (-half, 0.0, half):
-        point = a + unit * (reach + step)
-        point = point.copy()
-        point[2] = top if step == 0.0 else point[2]
+    if amount <= 1e-9:
+        return way
+    leg = np.linalg.norm(np.diff(way, axis=0), axis=1)
+    along = np.concatenate([[0.0], np.cumsum(leg)])
+    total = float(along[-1])
+    if total < 1e-9:
+        return way
+    reach = math.sqrt(max((D / 2 + amount) ** 2 - (D / 2) ** 2, 0.0))
+    marks = [max(0.0, at - reach), at, min(total, at + reach)]
+    out, put = [], 0
+    for i, point in enumerate(way):
+        while put < len(marks) and marks[put] <= along[i] + 1e-9:
+            here = np.array([np.interp(marks[put], along, way[:, axis])
+                             for axis in range(3)])
+            if put == 1:
+                here = here + direction * amount
+            out.append(here)
+            put += 1
         out.append(point)
-    out.append(b)
-    return out, rise
+    while put < len(marks):
+        here = np.array([np.interp(marks[put], along, way[:, axis]) for axis in range(3)])
+        if put == 1:
+            here = here + direction * amount
+        out.append(here)
+        put += 1
+    return np.array(out)
 
 
-def build(braid, cycles):
+def build(braid, cycles, rounds=4):
     table = g.FIG32 if braid == "maru" else g.FIG20
     ring = g.RING_MARU if braid == "maru" else g.RING_HIRA
     folded = braid == "hira"
     where = surface(ring, folded)
     threads, k = trajectories(table, ring, folded, cycles)
-
     parts = {t: pieces(steps, where) for t, steps in threads.items()}
-    # every carry, in the order it was laid; a carry is (thread, which one, height)
-    laid = []
-    for thread, (_, carried) in parts.items():
-        for i, way in enumerate(carried):
-            if np.allclose(way[0][:2], way[-1][:2]):
-                continue
-            laid.append((float(way[0][2]), thread, i))
-    laid.sort()
 
-    lifted, most, notes = 0, 0.0, []
-    for order, (z, thread, i) in enumerate(laid):
-        way = parts[thread][1][i]
-        for z_other, other, j in laid[:order]:
-            if other == thread:
+    # when each carry was laid, by book C's order: its layer, then its thread
+    order = {}
+    for thread, steps in threads.items():
+        for i in range(len(steps) - 1):
+            order[(thread, "carry", i)] = (steps[i][2], thread, i)
+
+    # the place each rest stands at, so its way out of the braid is known
+    at_place = {(t, "rest", i): steps[i][0] for t, steps in threads.items()
+                for i in range(len(steps))}
+
+    def all_parts():
+        out = []
+        for thread, (rests, carried) in parts.items():
+            for i, way in enumerate(rests):
+                out.append(((thread, "rest", i), np.array(way)))
+            for i, way in enumerate(carried):
+                out.append(((thread, "carry", i), np.array(way)))
+        return out
+
+    lifts, bulges, stuck, most_lift, most_bulge, left = 0, 0, [], 0.0, 0.0, 0
+    for _ in range(rounds):
+        pieces_now = all_parts()
+        offending = []
+        for a in range(len(pieces_now)):
+            key_a, way_a = pieces_now[a]
+            for b in range(a):
+                key_b, way_b = pieces_now[b]
+                if key_a[0] == key_b[0]:
+                    continue                      # the same thread's own parts
+                far, at_a, at_b = nearest(way_a, way_b)
+                if far < D - 1e-9:
+                    offending.append((far, key_a, at_a, key_b, at_b))
+        left = len(offending)
+        if not offending:
+            break
+        offending.sort()
+        done = set()
+        for far, key_a, at_a, key_b, at_b in offending:
+            if key_a in done or key_b in done:
                 continue
-            below = parts[other][1][j]
-            hit = cross(way[0], way[-1], below[0], below[-1])
-            if hit is None:
-                continue
-            # **the two heights are read where they cross**, not at their ends: a
-            # carry that slopes can be clear of another at both ends and through it
-            # in the middle
-            at, t, u = hit
-            mine = way[0][2] + t * (way[-1][2] - way[0][2])
-            under = below[0][2] + u * (below[-1][2] - below[0][2])
-            if mine >= under + D:
-                continue                       # already a diameter clear of it
-            way, rise = lift_over(way, at, under)
-            parts[thread][1][i] = way
-            lifted += 1
-            most = max(most, rise)
-            notes.append((thread, other, float(hit[0][0]), float(hit[0][1]), rise))
+            want = D - far
+            kinds = {key_a[1], key_b[1]}
+            if kinds == {"carry"}:
+                # both inside the section: they part lengthwise, and the one laid
+                # later goes over, which is book C's order and nothing else
+                late, early = (key_a, key_b) if order[key_a] > order[key_b] \
+                    else (key_b, key_a)
+                where_at = at_a if late is key_a else at_b
+                parts[late[0]][1][late[2]] = bump(
+                    np.array(parts[late[0]][1][late[2]]),
+                    where_at, np.array([0.0, 0.0, 1.0]), want)
+                lifts += 1
+                most_lift = max(most_lift, want)
+                done.add(late)
+            elif kinds == {"rest", "carry"}:
+                # the resting thread is on the surface and the carry runs inside
+                # it, so the rest is what bulges, and it bulges outwards
+                rest, at = (key_a, at_a) if key_a[1] == "rest" else (key_b, at_b)
+                out = normal_at(at_place[rest], where, folded)
+                parts[rest[0]][0][rest[2]] = bump(
+                    np.array(parts[rest[0]][0][rest[2]]), at, out, want)
+                bulges += 1
+                most_bulge = max(most_bulge, want)
+                done.add(rest)
+            else:
+                stuck.append((far, key_a, key_b))
     lines = {t: join(*parts[t]) for t in parts}
-    return lines, threads, k, where, laid, lifted, most, notes
+    return (lines, threads, k, where, order, lifts, bulges, most_lift, most_bulge,
+            stuck, parts, left)
 
 
 def write(path, lines, k, cycles):
@@ -258,15 +315,20 @@ def main():
     ap.add_argument("--braid", choices=("hira", "maru"), default="hira")
     ap.add_argument("--cycles", type=int, default=2)
     ap.add_argument("--out", default="")
+    ap.add_argument("--rounds", type=int, default=4,
+                    help="passes of the separation; each pass parts every pair it can")
     args = ap.parse_args()
-    lines, threads, k, where, laid, lifted, most, notes = build(args.braid, args.cycles)
+    (lines, threads, k, where, order, lifts, bulges, most_lift, most_bulge,
+     stuck, parts, left) = build(args.braid, args.cycles, args.rounds)
     print("%s: %d threads, %d cycles, k = %d layers a cycle (one cycle is %d d)"
           % (args.braid, len(lines), args.cycles, k, k))
-    print("  carries laid: %d;  crossings lifted: %d (most %.2f d)"
-          % (len(laid), lifted, most))
-    for thread, other, x, y, rise in notes[:8]:
-        print("    thread %d lifted over thread %d at (%.2f, %.2f) by %.2f d"
-              % (thread, other, x, y, rise))
+    print("  carries lifted over carries: %d (most %.2f d)" % (lifts, most_lift))
+    print("  rests bulged over carries:   %d (most %.2f d)" % (bulges, most_bulge))
+    print("  rest against rest, left alone: %d" % len(stuck))
+    print("  pairs still closer than d when the passes ran out: %d" % left)
+    for far, a, b in stuck[:6]:
+        print("    thread %d %s %d and thread %d %s %d are %.3f d apart"
+              % (a[0], a[1], a[2], b[0], b[1], b[2], far))
     span = np.concatenate(list(lines.values()))
     print("  lengthwise %.2f .. %.2f d;  section %.2f x %.2f d"
           % (span[:, 2].min(), span[:, 2].max(),
