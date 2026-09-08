@@ -1,6 +1,6 @@
 # Task 025: 初期リリースの描画（レシピのある紐だけを、それらしく）
 
-- 状態: **025-1（棚卸し）完了**（2026-09-08）。**次は 025-2（レシピの型と模様図）。** 結果は末尾「025-1 の結果」
+- 状態: **025-2（レシピの型と模様図）完了**（2026-09-09）。**次は 025-3（立体と z バッファ）。** 結果は末尾「025-2 の結果」。**弦モデルの削除だけ止めて判断を仰いでいる**
 - 優先度: **最高。Task 020 の本体を製品へ載せる段である**
 - 作成日: 2026-09-08
 - 前提: **新しいセッションで始めてよい。** 先に読むもの——`CLAUDE.md`・`AGENTS.md`、
@@ -370,3 +370,146 @@
 - **名前の番人**: `sh Scripts/check-braiding-is-general.sh`。**025-1 の時点で通っている。**
 
 **025-1 では product code を変更していないので、テストは走らせていない。**
+
+---
+
+# 025-2 の結果（レシピの型と模様図）（2026-09-09）
+
+## 作者の判断（2026-09-09）— この段の前提
+
+- **`BraidFold` の導出が正。** Python の `WIDTH_HIRA` / `FACE_HIRA` は**Swift の導出と
+  突き合わせる試験を足す。表を Swift へ持ち込まない。**
+- **面の見えは弦モデルから占有履歴へ。弦モデルは退役**（参照が無くなったことを確認してから
+  削除、コミットは分ける）。**丸源氏の模様図は新規、列は着地する場所の角度、鏡像は一致扱い、
+  E/W 未決を図に明記。**
+- **レシピに持ち込むのは測定値だけ。** 見た目合わせの定数は持ち込まない。
+  **凍結中の2生成器は 025-4 まで触らない。**
+- **pitch は平・丸の両方に当てる。k は数えて出す。**
+  **丸源氏は 3 d ÷ 外径 6.126 d = 0.4897 で観測帯 0.465〜0.556 の内側。積3 はこれで解決。**
+- **名前の番人は 025-3 で `Features/BraidSimulation/` を範囲に入れる。**
+  それまでは今の2ディレクトリのまま。**範囲外のファイル一覧は docs に残す**（下記）。
+
+## コミット（9本。8本の予定に、弦モデルの扱いが1本増えた）
+
+| # | コミット | 通った | 落ちた |
+|---|---|---|---|
+| 1 | fixture が読めることの確認 | 3（この suite のみ） | 0 |
+| 2 | `BraidValueSource` / `BraidMeasurement` | 244 | 1 |
+| 3 | `BraidOccupancy` と `BraidGridAgreement` | 250 | 1 |
+| 4 | `BraidStacking`（k を数える） | 254 | 1 |
+| 5 | レシピの型とカタログ | 259 | 1 |
+| 6 | 平源氏の面の見えを占有履歴へ | 260 | 1 |
+| 7 | 丸源氏の新しい模様図 | 267 | 1 |
+| 8 | 「3つだけで足せる」試験 | 272 | 1 |
+| 9 | 弦モデルに「製品からは退役」と書く（**削除はしていない**） | 272 | 1 |
+
+**落ちた1件はすべて同じもの**——`HiraGenjiSurfaceMeshTests.everyRegionCarriesTheRidgeIncludingBothEdges`
+が**テスト単位の上限 180 秒で打ち切られた**（Task 018、未着手の既知の事象）。
+**「テストは通った」とは書かない。** 着手前の基準値も 236 通過・1 打ち切りで同じである。
+**名前の番人は全コミットで通っている。**
+
+回した条件: `-only-testing:KumihimoTests`、`-parallel-testing-enabled NO`、UDID 指定
+（iPhone 16, iOS 18.5）、`-test-timeouts-enabled YES`、既定 60 秒・上限 180 秒、
+`-resultBundlePath .build/test-results/025-2-*.xcresult`、
+`DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer`。
+
+## 作ったもの
+
+- `Kumihimo/Domain/Braiding/BraidMeasurement.swift` — `BraidValueSource`（`.observed` /
+  `.derived`）と `BraidMeasurement`。**出どころの無い数は作れない。**
+  帯（`spread`）と未決（`unsettled`）を持てる。
+- `Kumihimo/Domain/Braiding/BraidOccupancy.swift` — 周期の境目ごとの「場所→糸」、閉じの対、
+  着地する場所、畳んだ列、行の格子、場所ごとの run。
+  `BraidGridAgreement` は**回転・鏡像・上下・行のずらしだけ**を許す。
+- `Kumihimo/Domain/Braiding/BraidStacking.swift` — 通過を含めた積みと **k**、
+  導出した紐幅（畳めば場所数÷2、管なら正多角形の外接直径＋d）、
+  `pitchPerCycle` / `pitchPerBraidWidth`。
+- `Kumihimo/Domain/Braiding/BraidRecipe.swift` — 手順表・配色・測った値。
+  `BraidShapeValues` は**測定値しか持てない。**
+- `Kumihimo/Domain/BraidMethodCatalog.swift` — 2つのレシピ、配色（bookA p94 / p96 の
+  開始図）、測った値。**組み方の名前が入ってよい唯一の場所。**
+- `Kumihimo/Features/BraidPattern/BraidPatternFigure.swift` — 平源氏の面の見えを占有履歴から
+  取るようにし、**`BraidTubeFigure` と `BraidFigureBuilder.tube` を新設。**
+
+## 結果
+
+- **平源氏の模様図は動いていない。** `BraidPatternFigureTests` の9件（bookA p96 と p97 の
+  3実験を含む）が**手を入れずに通る。** 加えて、図の各升が Python の run と一致することを
+  両面で確かめた。
+- **丸源氏の模様図ができた。** 列は **0, 67.5, 90, 157.5, 180, 247.5, 270, 337.5°**
+  （**45° 等間隔ではない**）。**Task 004 と 32/32、鏡像。** 図は
+  `unsettled` に「鏡像は一致扱い」「E/W の列順は未決」を持つ。
+- **k = 3 が平・丸の両方で数えて出た**（fixture と一致）。
+  平源氏 3/8 = **0.375**（観測 0.3665）、丸源氏 3/6.126 = **0.4897**（観測帯 0.465〜0.556 の内側）。
+- **`BraidFold` の導出は Python の表と一致した**（幅・面ともに16場所すべて）。
+  **表は Python に残し、Swift へ持ち込んでいない。**
+
+## 止めたところ: **弦モデルは削除していない**
+
+**製品コードからの参照は 0 になった**（`BraidChord` / `BraidCrossing` / `BraidPatternCell` /
+`chords` / `crossings` / `cells` を製品側で使っているところは無い）。
+**しかし試験がまだ参照している。**
+
+| 参照 | 何のために |
+|---|---|
+| `KumihimoTests/BraidPatternBridge.swift:45` `.cells` | 一般の導出から `HiraGenjiWeavePattern` を組み直し、**bookA/bookB で確かめた `HiraGenjiWeaveDerivation` と突き合わせる**ため。**上下（layer）の出どころがここしか無い。** |
+| `KumihimoTests/BraidPatternBridge.swift:76` `.crossings` | 同上（渡りを幅に直す） |
+| `KumihimoTests/BraidDerivationTests.swift:127,136,149` `.crossings` | 「渡りは幅を2以上またぐ」「後に動いた糸が上」の主張 |
+| `KumihimoTests/BraidDerivationMaruGenjiGridTests.swift:200,253` `.crossings` | 丸源氏の64升の突き合わせ |
+| `KumihimoTests/BraidDerivationMaruGenjiGridTests.swift:352,353` `.cells` | **弦モデルが管では上下を出せないこと**そのものの記録 |
+
+**占有履歴は上下を答えない。** 面に何が見えるかは答えるが、交差のどちらが上かは別の問いで、
+**それに答えるのは Task 024 の構成（手の順序が決める）であり、移すのは 025-3 である。**
+**いま削除すると、本で確かめた側との突き合わせが、代わりを持たないまま消える。**
+
+**したがって削除していない。** 代わりに `BraidPatternCell` に
+「**製品からは退役。新しい製品コードから触らないこと**」と、残っている理由を書いた。
+**判断を仰ぐ**——(a) 025-3 で構成が上下を出せるようになってから削除する、
+(b) いま削除し、突き合わせの試験も一緒に落とす、(c) 別の道。
+
+## レシピの3つについて（報告）
+
+**管の紐は3つで足りる**（架空の紐1本で確かめた。導出・図・積みのどれにも手を入れていない）。
+**平らな紐は「紐のまわりの並び順」を宣言する。** これは Task 020「判断1」で
+**宣言された入力（既定は台の縁の順）**と決めてあるもので、ここで発明したものではない。
+**しかし 3 つではなく 3 つ＋1 である。** 受け入れ条件の文を
+「**3つ。ただし平らな紐は並び順も宣言する（判断1）**」に直すかどうか、判断を仰ぐ。
+
+## 名前の番人の範囲外にあるファイル（作者の指示により記録、2026-09-09）
+
+`Scripts/check-braiding-is-general.sh` は `Kumihimo/Domain/Braiding/` と
+`Kumihimo/Features/BraidPattern/` だけを見ている。**025-3 で
+`Kumihimo/Features/BraidSimulation/` を範囲に入れる。** そのとき引っかかるものを含め、
+組み方の名前を持つ製品ファイルは次の27である（**違反ではない。番人の定義どおり外にある**）。
+
+    Kumihimo/App/KumihimoApp.swift
+    Kumihimo/Domain/BraidMethodCatalog.swift
+    Kumihimo/Domain/BraidStrandSurface.swift
+    Kumihimo/Domain/HiraGenjiSimulation.swift
+    Kumihimo/Domain/HiraGenjiSurfacePattern.swift
+    Kumihimo/Domain/HiraGenjiWeaveDerivation.swift
+    Kumihimo/Domain/HiraGenjiWeavePattern.swift
+    Kumihimo/Domain/MaruGenjiSimulation.swift
+    Kumihimo/Domain/MaruGenjiSurfacePattern.swift
+    Kumihimo/Features/BraidSimulation/HiraGenji3DPreviewView.swift
+    Kumihimo/Features/BraidSimulation/HiraGenjiRealityView.swift
+    Kumihimo/Features/BraidSimulation/HiraGenjiStitchDetailTexture.swift
+    Kumihimo/Features/BraidSimulation/HiraGenjiStitchTwist.swift
+    Kumihimo/Features/BraidSimulation/HiraGenjiSurfaceMeshGenerator.swift
+    Kumihimo/Features/BraidSimulation/HiraGenjiThumbnailView.swift
+    Kumihimo/Features/BraidSimulation/MaruGenji3DPreviewView.swift
+    Kumihimo/Features/BraidSimulation/MaruGenjiRealityView.swift
+    Kumihimo/Features/BraidSimulation/MaruGenjiStrandDetailTextures.swift
+    Kumihimo/Features/BraidSimulation/MaruGenjiStrandTextureFactory.swift
+    Kumihimo/Features/BraidSimulation/MaruGenjiSurfaceMeshGenerator.swift
+    Kumihimo/Features/BraidSimulation/MaruGenjiThumbnailLayout.swift
+    Kumihimo/Features/BraidSimulation/MaruGenjiThumbnailView.swift
+    Kumihimo/Features/BraidSimulation/MaruGenjiTubeMeshGenerator.swift
+    Kumihimo/Features/BraidSimulation/MaruGenjiViewportCoverage.swift
+    Kumihimo/Features/ProjectEditor/ProjectEditorPreviewData.swift
+    Kumihimo/Features/ProjectEditor/ProjectEditorView.swift
+    Kumihimo/Features/ProjectEditor/SimulationResultsBoundaryView.swift
+
+**このうち `Features/BraidSimulation/` の15件が、範囲を広げた時点で引っかかる。**
+`Kumihimo/Domain/` 直下の6件（`HiraGenjiWeaveDerivation` ほか）と
+`Features/ProjectEditor/` の3件、`App` と `BraidStrandSurface` は範囲の外のままである。
