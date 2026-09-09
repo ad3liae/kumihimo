@@ -56,21 +56,7 @@ struct ProjectEditorView: View {
             }
         }
         .fullScreenCover(item: $compactPreviewPreset) { preset in
-            if preset.id == .hiraGenji16 {
-                Flat16PreviewView(
-                    assignments: store.draft.threadAssignments,
-                    controller: previewController,
-                    isEmbedded: false,
-                    closeAction: closePreview
-                )
-            } else {
-                RoundTube16PreviewView(
-                    assignments: store.draft.threadAssignments,
-                    controller: previewController,
-                    isEmbedded: false,
-                    closeAction: closePreview
-                )
-            }
+            preview(for: preset, isEmbedded: false)
         }
         .alert(
             ProjectEditorStrings.reduceThreadCountTitle,
@@ -154,22 +140,9 @@ struct ProjectEditorView: View {
             Divider()
 
             Group {
-                if previewPreset?.id == .hiraGenji16 {
-                    Flat16PreviewView(
-                        assignments: store.draft.threadAssignments,
-                        controller: previewController,
-                        isEmbedded: true,
-                        closeAction: closePreview
-                    )
-                    .padding(.vertical)
-                } else if previewPreset?.id == .maruGenji16 {
-                    RoundTube16PreviewView(
-                        assignments: store.draft.threadAssignments,
-                        controller: previewController,
-                        isEmbedded: true,
-                        closeAction: closePreview
-                    )
-                    .padding(.vertical)
+                if let previewPreset {
+                    preview(for: previewPreset, isEmbedded: true)
+                        .padding(.vertical)
                 } else {
                     ScrollView {
                         simulationSection
@@ -264,6 +237,23 @@ struct ProjectEditorView: View {
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// **The family decides which drawer shows the braid**, not the braid's name.
+    @ViewBuilder
+    private func preview(for preset: BraidPreset, isEmbedded: Bool) -> some View {
+        if let recipe = BraidMethodCatalog.recipe(for: preset.id) {
+            BraidPreviewForFamily(
+                recipe: recipe,
+                assignments: store.draft.threadAssignments,
+                controller: previewController,
+                isEmbedded: isEmbedded,
+                closeAction: closePreview,
+                nothingDrawsIt: ProjectEditorStrings.nothingDrawsThisBraid
+            )
+        } else {
+            BraidNothingDrawsItView(text: ProjectEditorStrings.nothingDrawsThisBraid)
+        }
     }
 
     private func openPreview(_ preset: BraidPreset) {

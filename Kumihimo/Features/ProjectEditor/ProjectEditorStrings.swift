@@ -23,6 +23,14 @@ enum ProjectEditorStrings {
     static let undecidedBraid = "組み方をまだ決めない"
     static let selectionSelected = "選択中"
     static let selectionNotSelected = "未選択"
+    /// A braid the app cannot draw in three dimensions yet. **Short**, because it
+    /// sits in the space where the braid would be.
+    static let nothingDrawsThisBraid = "この組み方の立体はまだ描けません"
+
+    /// "<name>を3Dで見る". Built from the braid's own name, so a new braid needs no
+    /// new wording.
+    static func thumbnail3DLabel(_ name: String) -> String { "\(name)を3Dで見る" }
+
     static let maruGenjiThumbnail3DLabel = "丸源氏を3Dで見る"
     static let maruGenjiThumbnail3DHint = "3D詳細を開きます"
     static let maruGenjiPreviewTitle = "丸源氏・3D試作"

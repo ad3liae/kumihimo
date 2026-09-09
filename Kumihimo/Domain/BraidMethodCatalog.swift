@@ -233,4 +233,13 @@ enum BraidMethodCatalog {
     )
 
     static let recipes: [BraidRecipe] = [maruGenji16Recipe, hiraGenji16Recipe]
+
+    /// The recipe a preset stands for.
+    ///
+    /// **A preset's own identifier is the recipe's**, which is how the screens and
+    /// the drawing meet without either learning the other's list. `nil` for a
+    /// preset with no recipe, which is a preset this app cannot yet braid.
+    static func recipe(for presetID: BraidPresetID) -> BraidRecipe? {
+        recipes.first { $0.id == presetID.rawValue }
+    }
 }
