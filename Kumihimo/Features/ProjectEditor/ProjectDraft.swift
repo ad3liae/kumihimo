@@ -5,6 +5,12 @@ struct ProjectDraft: Equatable, Sendable {
 
     var name: String
     var selectedBraidPresetID: BraidPresetID?
+
+    /// What to write for the braid this draft has chosen. **Goes through
+    /// `BraidSavedBraid`**, so the saved key is the recipe's identifier.
+    var savedBraidKey: String? {
+        selectedBraidPresetID.flatMap(BraidSavedBraid.savedKey(forPreset:))
+    }
     var braidTypeName: String
     var threadCount: Int
     var threadAssignments: [ThreadAssignment]

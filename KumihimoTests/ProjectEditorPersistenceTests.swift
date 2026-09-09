@@ -27,7 +27,7 @@ struct ProjectEditorPersistenceTests {
         #expect(project.name == "夏の配色")
         #expect(project.createdAt == timestamp)
         #expect(project.updatedAt == timestamp)
-        #expect(project.selectedBraidPresetID == nil)
+        #expect(project.selectedBraidRecipeID == nil)
         #expect(project.threadAssignments.count == 4)
         #expect(store.currentProjectID == identifier)
         #expect(store.isExistingProject)
@@ -125,7 +125,7 @@ struct ProjectEditorPersistenceTests {
         container.mainContext.rollback()
         let reloaded = try #require(try service.load(id: project.id))
 
-        #expect(reloaded.selectedBraidPresetID == nil)
+        #expect(reloaded.selectedBraidRecipeID == nil)
         #expect(reloaded.braidDisplayName == KumihimoProject.undecidedBraidName)
         #expect(reloaded.threadCount == 8)
         #expect(reloaded.threadAssignments.first?.position == 1)
