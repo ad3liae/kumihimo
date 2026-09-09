@@ -1,7 +1,6 @@
 import RealityKit
 import SwiftUI
 import UIKit
-import os
 
 @MainActor
 final class RoundTube16ViewerController: ObservableObject {
@@ -59,14 +58,6 @@ final class RoundTube16ViewerController: ObservableObject {
 }
 
 struct RoundTube16RealityView: UIViewRepresentable {
-    static let cameraDistance: Float = 4.4
-    static let verticalFieldOfView: Float = .pi / 3
-    /// Neutral three-point lighting, exposed low enough that a strand crest keeps
-    /// the catalogue colour instead of washing out to a pale tint.
-    static let keyLightIntensity: Float = 1_500
-    static let fillLightIntensity: Float = 520
-    static let rimLightIntensity: Float = 380
-
     let assignments: [ThreadAssignment]
     let controller: RoundTube16ViewerController
     let viewportSize: CGSize
@@ -112,10 +103,7 @@ struct RoundTube16RealityView: UIViewRepresentable {
     func updateUIView(_ uiView: ARView, context: Context) {
         updateBackground(of: uiView)
         context.coordinator.updateCoverage(for: viewportSize)
-        let signature = assignments
-            .sorted { $0.position < $1.position }
-            .map { "\($0.position):\($0.colorID.rawValue)" }
-            .joined(separator: "|")
+        let signature = BraidSurfaceScene.signature(assignments)
         guard signature != context.coordinator.assignmentSignature else { return }
         context.coordinator.buildScene(in: uiView, assignments: assignments)
     }
@@ -129,155 +117,31 @@ struct RoundTube16RealityView: UIViewRepresentable {
 
     @MainActor
     final class Coordinator: NSObject {
-        private static let logger = Logger(
-            subsystem: "com.example.Kumihimo",
-            category: "RoundTube16RealityView"
-        )
-
         let controller: RoundTube16ViewerController
         var assignmentSignature = ""
-        private var tileRoot: Entity?
-        private var sharedMesh: MeshResource?
-        private var sharedMaterials = [PhysicallyBasedMaterial]()
+        private var installed: BraidSurfaceScene.Installed?
         private var tileCount = 0
-        /// Taken from the generated mesh, which derives it from the radius and the
-        /// aspect ratio the pattern declares.
-        private var tileLength = RoundTube16SurfaceMesh.defaultLength
 
         init(controller: RoundTube16ViewerController) {
             self.controller = controller
         }
 
         func buildScene(in view: ARView, assignments: [ThreadAssignment]) {
-            assignmentSignature = assignments
-                .sorted { $0.position < $1.position }
-                .map { "\($0.position):\($0.colorID.rawValue)" }
-                .joined(separator: "|")
-            view.scene.anchors.removeAll()
-            tileRoot = nil
-            sharedMesh = nil
-            sharedMaterials = []
+            assignmentSignature = BraidSurfaceScene.signature(assignments)
+            installed = nil
             tileCount = 0
-            tileLength = RoundTube16SurfaceMesh.defaultLength
 
-            guard let pattern = RoundTube16SurfacePatternGenerator.generate(assignments: assignments) else {
-                let positions = assignments.map(\.position).map(String.init).joined(separator: ",")
-                Self.logger.error(
-                    "Surface pattern generation failed for \(assignments.count) assignments at \(positions, privacy: .public)"
-                )
+            guard let installed = BraidSurfaceScene.install(
+                in: view,
+                family: RoundTube16SurfaceMesh.family,
+                assignments: assignments
+            ) else {
                 controller.reportFailure()
                 return
             }
-            guard let surface = RoundTube16SurfaceMesh.generate(pattern: pattern) else {
-                Self.logger.error("Surface mesh data generation failed")
-                controller.reportFailure()
-                return
-            }
-
-            do {
-                let anchor = AnchorEntity(world: .zero)
-                let root = Entity()
-                let drawGroups = surface.sortedMaterialGroups
-                guard
-                    !drawGroups.isEmpty,
-                    drawGroups.allSatisfy({ ThreadColorCatalog.color(for: $0.key.colorID) != nil })
-                else {
-                    Self.logger.error("Surface contains an empty or unknown color group")
-                    controller.reportFailure()
-                    return
-                }
-
-                let detail = RoundTube16StrandTextures.shared
-                var combinedIndices = [UInt32]()
-                var faceMaterialIndices = [UInt32]()
-                var materials = [PhysicallyBasedMaterial]()
-                // One material per thread colour and twist group: the colour comes
-                // from the catalogue, the stripe angle from the group's own maps.
-                for (key, indices) in drawGroups where !indices.isEmpty {
-                    guard let threadColor = ThreadColorCatalog.color(for: key.colorID) else {
-                        throw SurfaceRenderError.unknownColor
-                    }
-                    combinedIndices.append(contentsOf: indices)
-                    faceMaterialIndices.append(
-                        contentsOf: repeatElement(
-                            UInt32(materials.count),
-                            count: indices.count / 3
-                        )
-                    )
-                    materials.append(
-                        material(
-                            color: threadColor.uiColor,
-                            maps: detail.maps(forTwistGroup: key.twistGroupIndex)
-                        )
-                    )
-                }
-                guard
-                    !combinedIndices.isEmpty,
-                    combinedIndices.count / 3 == faceMaterialIndices.count,
-                    !materials.isEmpty
-                else {
-                    throw SurfaceRenderError.emptySurface
-                }
-                let mesh = try MeshResource.generate(from: [
-                    descriptor(
-                        indices: combinedIndices,
-                        faceMaterialIndices: faceMaterialIndices,
-                        surface: surface
-                    ),
-                ])
-                let instances = Entity()
-                root.addChild(instances)
-                tileRoot = instances
-                sharedMesh = mesh
-                sharedMaterials = materials
-                tileLength = surface.length
-
-                anchor.addChild(root)
-
-                let camera = PerspectiveCamera()
-                camera.look(
-                    at: .zero,
-                    from: SIMD3<Float>(0, 0, RoundTube16RealityView.cameraDistance),
-                    relativeTo: nil
-                )
-                camera.camera.fieldOfViewInDegrees = RoundTube16RealityView.verticalFieldOfView
-                    * 180 / .pi
-                anchor.addChild(camera)
-
-                let keyLight = DirectionalLight()
-                keyLight.light.intensity = RoundTube16RealityView.keyLightIntensity
-                keyLight.look(
-                    at: .zero,
-                    from: SIMD3<Float>(0.5, 2.2, 3),
-                    relativeTo: nil
-                )
-                anchor.addChild(keyLight)
-
-                let fillLight = DirectionalLight()
-                fillLight.light.intensity = RoundTube16RealityView.fillLightIntensity
-                fillLight.look(
-                    at: .zero,
-                    from: SIMD3<Float>(-1.5, -1, 2),
-                    relativeTo: nil
-                )
-                anchor.addChild(fillLight)
-
-                let rimLight = DirectionalLight()
-                rimLight.light.intensity = RoundTube16RealityView.rimLightIntensity
-                rimLight.look(
-                    at: .zero,
-                    from: SIMD3<Float>(0.2, 1, -3),
-                    relativeTo: nil
-                )
-                anchor.addChild(rimLight)
-
-                view.scene.addAnchor(anchor)
-                updateCoverage(for: view.bounds.size)
-                controller.connect(modelRoot: root)
-            } catch {
-                Self.logger.error("RealityKit surface generation failed: \(String(describing: error), privacy: .public)")
-                controller.reportFailure()
-            }
+            self.installed = installed
+            updateCoverage(for: view.bounds.size)
+            controller.connect(modelRoot: installed.modelRoot)
         }
 
         @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
@@ -296,84 +160,13 @@ struct RoundTube16RealityView: UIViewRepresentable {
         }
 
         func updateCoverage(for viewportSize: CGSize) {
-            guard
-                let tileRoot,
-                let sharedMesh,
-                viewportSize.width > 0,
-                viewportSize.height > 0,
-                let coverage = RoundTube16ViewportCoverageCalculator.calculate(
-                    viewportSize: SIMD2<Float>(
-                        Float(viewportSize.width),
-                        Float(viewportSize.height)
-                    ),
-                    cameraDistance: RoundTube16RealityView.cameraDistance,
-                    verticalFieldOfView: RoundTube16RealityView.verticalFieldOfView,
-                    minimumScale: RoundTube16ViewerController.minimumScale,
-                    tileLength: tileLength
-                ),
-                coverage.tileCount != tileCount,
-                let offsets = RoundTube16ViewportCoverageCalculator.tileOffsets(
-                    tileCount: coverage.tileCount,
-                    tileLength: tileLength
-                )
-            else {
-                return
-            }
-
-            tileRoot.children.removeAll()
-            for offset in offsets {
-                let entity = ModelEntity(mesh: sharedMesh, materials: sharedMaterials)
-                entity.position.x = offset
-                tileRoot.addChild(entity)
-            }
-            tileCount = coverage.tileCount
-        }
-
-        private func descriptor(
-            indices: [UInt32],
-            faceMaterialIndices: [UInt32],
-            surface: RoundTube16SurfaceMeshData
-        ) -> MeshDescriptor {
-            var descriptor = MeshDescriptor(name: "maru-genji-surface")
-            descriptor.positions = MeshBuffer(surface.positions)
-            descriptor.normals = MeshBuffer(surface.normals)
-            descriptor.tangents = MeshBuffer(surface.tangents)
-            descriptor.bitangents = MeshBuffer(surface.bitangents)
-            descriptor.textureCoordinates = MeshBuffer(surface.textureCoordinates)
-            descriptor.primitives = .triangles(indices)
-            descriptor.materials = .perFace(faceMaterialIndices)
-            return descriptor
-        }
-
-        /// The valley shading and the twist come from maps that depend on the
-        /// strand shape alone, so the catalogue value stays the only source of the
-        /// colour itself.
-        private func material(
-            color: UIColor,
-            maps: RoundTube16StrandTextures.Maps?
-        ) -> PhysicallyBasedMaterial {
-            var material = PhysicallyBasedMaterial()
-            if let occlusion = maps?.occlusion {
-                material.baseColor = .init(tint: color, texture: .strandDetail(occlusion))
-                material.ambientOcclusion = .init(texture: .strandDetail(occlusion))
-            } else {
-                material.baseColor = .init(tint: color)
-            }
-            material.metallic = .init(floatLiteral: 0)
-            if let roughness = maps?.roughness {
-                material.roughness = .init(scale: 1, texture: .strandDetail(roughness))
-            } else {
-                material.roughness = .init(floatLiteral: RoundTube16StrandTextureFactory.baseRoughness)
-            }
-            if let normal = maps?.normal {
-                material.normal = .init(texture: .strandDetail(normal))
-            }
-            return material
-        }
-
-        private enum SurfaceRenderError: Error {
-            case unknownColor
-            case emptySurface
+            guard let installed else { return }
+            guard let newCount = BraidSurfaceScene.retile(
+                installed,
+                viewportSize: viewportSize,
+                tileCount: tileCount
+            ) else { return }
+            tileCount = newCount
         }
     }
 }
