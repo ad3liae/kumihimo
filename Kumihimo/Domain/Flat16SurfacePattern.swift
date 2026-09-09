@@ -332,7 +332,10 @@ enum Flat16SurfacePatternGenerator {
     /// How far along a row each join across the width sits, in rows.
     ///
     /// **Derived from the move order, not chosen.** See
-    /// `HiraGenjiWeaveDerivation.arrivalPhase(atWidthPosition:)`.
+    /// `HiraGenjiWeaveDerivation.arrivalPhase(atWidthPosition:)`, on book A's clock.
+    /// **Not moved to book C's** -- see Task 025-4's record: the difference is 0.0385
+    /// of a row, but `centred` wraps at exactly -0.5 and book A's value sits on that
+    /// boundary, so the move turns it into 0.9615 and shifts the braid bodily.
     ///
     /// Carried only where the weft turns. The threads running along the braid
     /// take their new appearance at moves 3 to 6, whose mean is the middle of the
@@ -380,7 +383,7 @@ enum Flat16SurfacePatternGenerator {
 
     /// Where along a row the threads running along the braid take their new
     /// appearance: the mean of moves 3 to 6.
-    static let bodyPhase: Float = {
+    static var bodyPhase: Float {
         var total: Float = 0
         var count: Float = 0
         for width in 1..<(broadFaceColumnCount - 1) {
@@ -390,7 +393,7 @@ enum Flat16SurfacePatternGenerator {
             count += 1
         }
         return count > 0 ? total / count : 0
-    }()
+    }
 
     /// Measured from the body, so the braid as a whole does not move along its
     /// length and only the edges shift.
