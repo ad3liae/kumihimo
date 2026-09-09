@@ -5,22 +5,26 @@ struct Flat16ThumbnailView: View {
 
     var body: some View {
         Canvas { context, size in
-            guard let pattern = Flat16SurfacePatternGenerator.generate(assignments: assignments) else {
+            guard
+                let pattern = Flat16SurfacePatternGenerator.generate(assignments: assignments),
+                let layout = UnrolledPatternThumbnailLayout(
+                    size: size,
+                    aspectRatio: pattern.aspectRatio
+                )
+            else {
                 return
             }
-            // Keep one stitch close to one lane width at the card's usual aspect
-            // ratio. A small repeat count makes the braid look like colored panels.
-            let repeats = 16
-            let frontPatches = pattern.patches(in: .front)
-            for repeatIndex in 0..<repeats {
-                for patch in frontPatches {
+            // **The face's own width down the frame, and one repeat as long as the
+            // pattern says it is.** This used to divide the frame's width by
+            // sixteen repeats and never read the aspect ratio, which squeezed a
+            // repeat to a fifth of its length on an iPad and a tenth on an iPhone.
+            for repeatIndex in layout.repeatIndices {
+                for patch in pattern.patches(in: .front) {
                     var path = Path()
                     for (index, corner) in patch.corners.enumerated() {
-                        let point = CGPoint(
-                            x: size.width * CGFloat(
-                                (Float(repeatIndex) + corner.y) / Float(repeats)
-                            ),
-                            y: size.height * CGFloat(corner.x)
+                        let point = layout.point(
+                            surfaceCoordinate: corner,
+                            repeatIndex: repeatIndex
                         )
                         if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
                     }
@@ -33,14 +37,26 @@ struct Flat16ThumbnailView: View {
                         lineWidth: 0.7
                     )
 
+                    // The fibre's slant is taken from the patch's own corners, not
+                    // from its bounding box: a leaning patch's box has corners the
+                    // patch does not, and a longer repeat makes that plainer.
                     var fiber = Path()
-                    let bounds = path.boundingRect
+                    let along = layout.displacement(
+                        surfaceOffset: patch.corners[2] - patch.corners[1]
+                    )
+                    let across = layout.displacement(
+                        surfaceOffset: patch.corners[1] - patch.corners[0]
+                    )
+                    let base = layout.point(
+                        surfaceCoordinate: patch.corners[0], repeatIndex: repeatIndex
+                    )
                     if patch.threadRole == .outer {
-                        fiber.move(to: CGPoint(x: bounds.minX, y: bounds.maxY))
-                        fiber.addLine(to: CGPoint(x: bounds.maxX, y: bounds.minY))
+                        fiber.move(to: CGPoint(x: base.x, y: base.y + across.dy))
+                        fiber.addLine(to: CGPoint(x: base.x + along.dx, y: base.y))
                     } else {
-                        fiber.move(to: CGPoint(x: bounds.minX, y: bounds.minY))
-                        fiber.addLine(to: CGPoint(x: bounds.maxX, y: bounds.maxY))
+                        fiber.move(to: base)
+                        fiber.addLine(to: CGPoint(x: base.x + along.dx,
+                                                  y: base.y + across.dy))
                     }
                     context.stroke(fiber, with: .color(.white.opacity(0.22)), lineWidth: 1)
                 }

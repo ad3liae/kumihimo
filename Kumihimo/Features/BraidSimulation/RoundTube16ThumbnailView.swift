@@ -7,7 +7,7 @@ struct RoundTube16ThumbnailView: View {
         Canvas { context, size in
             guard
                 let pattern = RoundTube16SurfacePatternGenerator.generate(assignments: assignments),
-                let layout = RoundTube16ThumbnailLayout(
+                let layout = UnrolledPatternThumbnailLayout(
                     size: size,
                     aspectRatio: pattern.aspectRatio
                 )

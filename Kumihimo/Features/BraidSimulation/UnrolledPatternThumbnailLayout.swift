@@ -10,7 +10,7 @@ import simd
 /// be filled by one repeat without shearing every chevron. Instead the height
 /// carries the full circumference and enough repeats are laid along the width to
 /// overhang both ends, which is what the 3D view does with its tiles.
-struct RoundTube16ThumbnailLayout: Equatable, Sendable {
+struct UnrolledPatternThumbnailLayout: Equatable, Sendable {
     /// Cap on the repeats one thumbnail draws, so an extreme frame ratio bounds the
     /// work instead of growing it without limit. A capped layout stops short of the
     /// frame edges rather than stretching to reach them.
