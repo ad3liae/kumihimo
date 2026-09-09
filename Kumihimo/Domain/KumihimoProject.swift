@@ -9,7 +9,12 @@ final class KumihimoProject {
     @Attribute(.unique) var id: UUID
     var name: String
     var braidTypeName: String
-    var selectedBraidPresetID: String?
+    /// **The braid, by its recipe's identifier.**
+    ///
+    /// `originalName` keeps the column the older builds wrote, so existing saves
+    /// open untouched; what changed is what the name says it holds. Read it through
+    /// `BraidSavedBraid`, never directly.
+    @Attribute(originalName: "selectedBraidPresetID") var selectedBraidRecipeID: String?
     var threadCount: Int
     private var threadAssignmentsData: Data = Data()
     var thumbnailData: Data?
@@ -20,7 +25,7 @@ final class KumihimoProject {
         id: UUID = UUID(),
         name: String,
         braidTypeName: String = undecidedBraidName,
-        selectedBraidPresetID: String? = nil,
+        selectedBraidRecipeID: String? = nil,
         threadCount: Int,
         threadAssignments: [ThreadAssignment]? = nil,
         thumbnailData: Data? = nil,
@@ -30,7 +35,7 @@ final class KumihimoProject {
         self.id = id
         self.name = Self.validName(name)
         self.braidTypeName = braidTypeName
-        self.selectedBraidPresetID = selectedBraidPresetID
+        self.selectedBraidRecipeID = selectedBraidRecipeID
         self.threadCount = max(1, threadCount)
         self.threadAssignmentsData = Self.encodeAssignments(
             threadAssignments ?? Self.defaultAssignments(count: max(1, threadCount))
@@ -75,12 +80,18 @@ final class KumihimoProject {
         return sortedAssignments
     }
 
+    /// The recipe this project names, or `nil` when this build has no such recipe.
+    var braidRecipe: BraidRecipe? {
+        selectedBraidRecipeID.flatMap(BraidSavedBraid.recipe(fromSaved:))
+    }
+
+    /// The preset the screens should show as chosen.
     var braidPresetID: BraidPresetID? {
-        selectedBraidPresetID.map(BraidPresetID.init(rawValue:))
+        selectedBraidRecipeID.flatMap(BraidSavedBraid.preset(fromSaved:))
     }
 
     var braidDisplayName: String {
-        selectedBraidPresetID == nil ? Self.undecidedBraidName : braidTypeName
+        selectedBraidRecipeID == nil ? Self.undecidedBraidName : braidTypeName
     }
 
     private static func validName(_ name: String) -> String {

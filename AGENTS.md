@@ -57,10 +57,19 @@ Bash ツールの `timeout` 引数（ミリ秒、最大 600000）を、ビルド
 
     -test-timeouts-enabled YES \
     -default-test-execution-time-allowance 60 \
-    -maximum-test-execution-time-allowance 180
+    -maximum-test-execution-time-allowance 300
 
 Swift Testing 側は `@Suite(.timeLimit(.minutes(1)))` で同じことができる。**60秒を超えるテスト
 は、そもそもテストの作りを疑うこと。**
+
+### 1件だけ上限を上げてあるもの（2026-09-09、Task 018）
+
+`Flat16SurfaceMeshTests.everyRegionCarriesTheRidgeIncludingBothEdges` は
+**`@Test(.timeLimit(.minutes(5)))`** を付けてある。メッシュ全頂点を4回歩くので**2分ほどかかる**。
+既定の60秒では**毎回打ち切られ、打ち切りが平常になって他の異常を隠していた**。
+**遅いだけで壊れていない**（300秒なら通る）。
+そのため `-maximum-test-execution-time-allowance` は **300** にしてある。
+**他の試験の上限は変えていない。** 60秒を超える試験を新しく作るときは、まず作りを疑うこと。
 
 ### 3. 既定はユニットのみ。UIは明示的に頼まれたときだけ
 

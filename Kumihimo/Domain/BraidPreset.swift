@@ -19,6 +19,9 @@ struct BraidPreset: Identifiable, Equatable, Sendable {
     let supportedThreadCounts: Set<Int>
     let crossSectionProfile: BraidCrossSectionProfile
     let verificationLevel: BraidVerificationLevel
+    /// What has and has not been checked about this braid's picture. **Carried by
+    /// the preset** so a view does not have to know which braid it is showing.
+    let prototypeNotice: String
 
     func supports(threadCount: Int) -> Bool {
         supportedThreadCounts.contains(threadCount)
@@ -36,7 +39,8 @@ enum BraidPresetCatalog {
         displayName: "丸源氏",
         supportedThreadCounts: [16],
         crossSectionProfile: .round,
-        verificationLevel: .physicalSamples
+        verificationLevel: .physicalSamples,
+        prototypeNotice: "実物3例で配色傾向を照合した試作です。糸の上下関係と締め具合は未検証です。"
     )
 
     static let hiraGenji = BraidPreset(
@@ -44,7 +48,8 @@ enum BraidPresetCatalog {
         displayName: "平源氏",
         supportedThreadCounts: [16],
         crossSectionProfile: .flat(widthToThicknessRatio: 6),
-        verificationLevel: .referenceSurface
+        verificationLevel: .referenceSurface,
+        prototypeNotice: "反復色を使った複数例で配色傾向を照合した試作です。16位置をすべて異なる色にした対応と、糸の上下関係・締め具合は未検証です。"
     )
 
     static let presets = [maruGenji, hiraGenji]

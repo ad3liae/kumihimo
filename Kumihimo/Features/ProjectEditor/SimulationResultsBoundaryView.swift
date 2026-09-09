@@ -108,26 +108,28 @@ struct SimulationResultsBoundaryView: View {
         }
     }
 
+    /// **The family decides which drawer makes the thumbnail**, not the braid's
+    /// name.
     @ViewBuilder
     private func thumbnail(for preset: BraidPreset) -> some View {
-        switch preset.id {
-        case .hiraGenji16:
-            Flat16ThumbnailView(assignments: assignments)
-        default:
-            RoundTube16ThumbnailView(assignments: assignments)
+        if let recipe = BraidMethodCatalog.recipe(for: preset.id) {
+            BraidThumbnailForFamily(
+                recipe: recipe,
+                assignments: assignments,
+                nothingDrawsIt: ProjectEditorStrings.nothingDrawsThisBraid
+            )
+        } else {
+            BraidNothingDrawsItView(text: ProjectEditorStrings.nothingDrawsThisBraid)
         }
     }
 
     private func thumbnailAccessibilityLabel(for preset: BraidPreset) -> String {
-        preset.id == .hiraGenji16
-            ? ProjectEditorStrings.hiraGenjiThumbnail3DLabel
-            : ProjectEditorStrings.maruGenjiThumbnail3DLabel
+        ProjectEditorStrings.thumbnail3DLabel(preset.displayName)
     }
 
+    /// The preset carries its own notice, so this reads it rather than choosing it.
     private func prototypeNotice(for preset: BraidPreset) -> String {
-        preset.id == .hiraGenji16
-            ? ProjectEditorStrings.hiraGenjiPrototypeNotice
-            : ProjectEditorStrings.maruGenjiPrototypeNotice
+        preset.prototypeNotice
     }
 
     private func selectionRow(

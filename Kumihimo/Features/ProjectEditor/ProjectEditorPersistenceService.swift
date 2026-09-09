@@ -41,7 +41,7 @@ struct ProjectEditorPersistenceService {
             id: makeIdentifier(),
             name: name,
             braidTypeName: draft.braidTypeName,
-            selectedBraidPresetID: draft.selectedBraidPresetID?.rawValue,
+            selectedBraidRecipeID: draft.savedBraidKey,
             threadCount: draft.threadCount,
             threadAssignments: draft.threadAssignments,
             thumbnailData: draft.thumbnailData,
@@ -61,7 +61,7 @@ struct ProjectEditorPersistenceService {
 
         project.name = draft.trimmedName
         project.braidTypeName = draft.braidTypeName
-        project.selectedBraidPresetID = draft.selectedBraidPresetID?.rawValue
+        project.selectedBraidRecipeID = draft.savedBraidKey
         project.threadCount = draft.threadCount
         project.threadAssignments = draft.threadAssignments
         project.thumbnailData = draft.thumbnailData
@@ -74,6 +74,10 @@ struct ProjectEditorPersistenceService {
         guard ProjectDraft.supportedThreadCounts.contains(project.threadCount) else {
             throw ProjectEditorPersistenceError.invalidProjectData
         }
+        // **A braid this build does not carry does not make the project invalid.**
+        // The project opens, and the screen shows that nothing draws it -- the same
+        // road a braid with no drawer takes. Only a braid this build *does* carry
+        // has to agree with what was saved beside it.
         if let presetID = project.braidPresetID {
             guard
                 let preset = BraidPresetCatalog.preset(for: presetID),

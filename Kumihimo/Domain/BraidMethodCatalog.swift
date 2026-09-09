@@ -220,7 +220,13 @@ enum BraidMethodCatalog {
         name: "丸源氏組",
         notation: maruGenjiDisk,
         colouring: maruGenji16Colouring,
-        shape: maruGenji16Shape
+        shape: maruGenji16Shape,
+        // **The same order the stand's rim gives** -- a tube declares nothing about
+        // its order, and this does not either. What it carries is the note: the
+        // transcribed table's columns run in an order no unrolling of a tube can
+        // produce, and that is unsettled. Declared here so the note reaches the
+        // figure and can be shown where the figure is read.
+        orderRoundTheBraid: maruGenji16CrossSection
     )
 
     static let hiraGenji16Recipe = BraidRecipe(
@@ -233,4 +239,13 @@ enum BraidMethodCatalog {
     )
 
     static let recipes: [BraidRecipe] = [maruGenji16Recipe, hiraGenji16Recipe]
+
+    /// The recipe a preset stands for.
+    ///
+    /// **A preset's own identifier is the recipe's**, which is how the screens and
+    /// the drawing meet without either learning the other's list. `nil` for a
+    /// preset with no recipe, which is a preset this app cannot yet braid.
+    static func recipe(for presetID: BraidPresetID) -> BraidRecipe? {
+        recipes.first { $0.id == presetID.rawValue }
+    }
 }

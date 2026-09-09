@@ -168,7 +168,7 @@ enum ProjectEditorPreviewData {
         KumihimoProject(
             name: "丸源氏・青と白",
             braidTypeName: BraidPresetCatalog.maruGenji.displayName,
-            selectedBraidPresetID: BraidPresetID.maruGenji16.rawValue,
+            selectedBraidRecipeID: BraidPresetID.maruGenji16.rawValue,
             threadCount: 16,
             threadAssignments: colorfulAssignments
         )

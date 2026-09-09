@@ -27,6 +27,26 @@ enum BraidFamilyDrawing {
         [Flat16SurfaceMesh.shape, RoundTube16SurfaceMesh.shape]
     }
 
+    /// Which family will draw this recipe, or `nil` when none will.
+    ///
+    /// **Cheaper than asking for the drawing**, because a screen choosing which
+    /// view to show does not need the pattern built. It gives the same answer:
+    /// a drawer that would refuse the recipe is not offered here either.
+    static func drawer(for recipe: BraidRecipe, on stand: BraidStand) -> BraidFamily? {
+        guard let worked = recipe.worked(on: stand) else { return nil }
+        let family = BraidFamily.family(of: worked.derivation)
+        switch family {
+        case Flat16SurfaceMesh.family:
+            guard recipe.id == Flat16SurfacePatternGenerator.drawsOnlyTheRecipe
+            else { return nil }
+            return family
+        case RoundTube16SurfaceMesh.family:
+            return family
+        default:
+            return nil
+        }
+    }
+
     static func shape(of family: BraidFamily) -> BraidFamilyShape? {
         families.first { $0.family.fits(family) }
     }

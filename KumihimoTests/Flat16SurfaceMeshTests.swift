@@ -372,7 +372,15 @@ struct HiraGenjiSurfaceMeshTests {
 
     /// The ridge is given to all four regions. An edge left flat would read as a
     /// cut side rather than as the yarn turning back on itself.
-    @Test func everyRegionCarriesTheRidgeIncludingBothEdges() throws {
+    ///
+    /// **Five minutes rather than the usual one, and only this test** (Task 018,
+    /// ruled on 2026-09-09). It walks every vertex of the whole mesh four times
+    /// over and takes about two minutes; at the suite's own sixty-second allowance
+    /// it was cut off on every run, which made a cut-off the normal state and hid
+    /// anything that went wrong. **It is slow, not broken**: at three hundred
+    /// seconds it passes. **Nothing else's allowance is changed** -- a test over a
+    /// minute is still a test whose making is worth doubting.
+    @Test(.timeLimit(.minutes(5))) func everyRegionCarriesTheRidgeIncludingBothEdges() throws {
         let pattern = try #require(
             Flat16SurfacePatternGenerator.generate(assignments: assignments)
         )
