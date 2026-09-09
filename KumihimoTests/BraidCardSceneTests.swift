@@ -32,7 +32,7 @@ import UIKit
         let card = try #require(install(
             family: family,
             assignments: assignments,
-            framing: .crossing(repeats: 3, in: Self.cardSize)
+            framing: .crossing(widthAsFractionOfHeight: 1.0 / 3.0, in: Self.cardSize)
         ))
 
         let previewVertices = Self.vertexCount(of: preview.model.mesh)
@@ -61,13 +61,16 @@ import UIKit
             || Self.colours(one) != Self.colours(other))
     }
 
-    /// **Three repeats cross the card, corner to corner.** Worked out from the
-    /// family's own tile length and the card's size — not looked at.
+    /// **The braid comes out a third of the card thick, and three or more repeats
+    /// of the pattern still cross it.** The thickness is what the distance is set
+    /// from; the count of repeats is what follows, and is checked here rather than
+    /// chosen. Task 028-1b had it the other way round and the braid came out a
+    /// tenth of the card thick.
     @Test(arguments: [
         RoundTube16SurfaceMesh.family,
         Flat16SurfaceMesh.family,
     ])
-    func threeRepeatsCrossTheCard(family: BraidFamily) throws {
+    func theBraidIsAThirdOfTheCardThickAndRepeatsEnough(family: BraidFamily) throws {
         let assignments = family == Flat16SurfaceMesh.family
             ? BraidReferenceColourings.bookAP97Left
             : BraidReferenceColourings.bookAP94MaruGenji
@@ -75,60 +78,75 @@ import UIKit
             family: family,
             assignments: assignments,
             framing: .crossing(
-                repeats: BraidCardRealityView.repeatsAcrossTheCard,
+                widthAsFractionOfHeight: BraidCardRealityView.widthAsFractionOfHeight,
                 in: Self.cardSize
             )
         ))
 
         let visibleHeight = 2 * installed.placement.cameraDistance
             * tan(BraidSurfaceScene.verticalFieldOfView / 2)
+
+        // How thick the braid is on screen, in points of the card.
+        let thickness = CGFloat(installed.model.braidWidth / visibleHeight)
+            * Self.cardSize.height
+        let wanted = BraidCardRealityView.widthAsFractionOfHeight * Self.cardSize.height
+        #expect(abs(thickness - wanted) < 1e-3)
+
+        // How many repeats of the pattern cross it, corner to corner.
         let diagonal = visibleHeight
             * Float(hypot(Self.cardSize.width, Self.cardSize.height) / Self.cardSize.height)
-        let repeats = diagonal / installed.model.tileLength
+        let patternRepeat = installed.model.tileLength
+            / Float(installed.model.patternRepeatsPerTile)
+        let repeats = diagonal / patternRepeat
+        #expect(repeats >= Float(BraidCardRealityView.leastRepeatsAcrossTheCard))
 
-        #expect(repeats >= Float(BraidCardRealityView.repeatsAcrossTheCard))
-        #expect(abs(repeats - Float(BraidCardRealityView.repeatsAcrossTheCard)) < 1e-4)
-
-        // The distance the rule works out for this card, pinned so a change to a
-        // tile length is seen rather than absorbed. Both are derived; neither was
-        // chosen.
-        let expected: Float = family == Flat16SurfaceMesh.family ? 13.8688 : 8.5859
-        #expect(abs(installed.placement.cameraDistance - expected) < 2e-3)
+        // The two the rule works out for this card, pinned so a change to either
+        // braid's width or repeat length is seen rather than absorbed.
+        // Measured, not calculated by hand: two rounds of pinning a value worked
+        // out from a nominal radius were wrong, because the silhouette is what the
+        // camera sees and a crest and a rounded edge both stand outside the
+        // nominal surface.
+        let expected: (distance: Float, repeats: Float) = family == Flat16SurfaceMesh.family
+            ? (4.211849, 5.4664683)
+            : (2.7665148, 3.8665984)
+        #expect(abs(installed.placement.cameraDistance - expected.distance) < 1e-3)
+        #expect(abs(repeats - expected.repeats) < 1e-3)
     }
 
     /// The braid runs corner to corner, so the slant is the card's own diagonal.
     @Test func theSlantIsTheCardsDiagonal() {
         let placement = BraidSurfaceScene.Framing
-            .crossing(repeats: 3, in: Self.cardSize)
-            .placement(tileLength: 1)
+            .crossing(widthAsFractionOfHeight: 1.0 / 3.0, in: Self.cardSize)
+            .placement(braidWidth: 1)
         #expect(abs(Double(placement.tilt) - atan2(112.0, 241.0)) < 1e-6)
 
-        let preview = BraidSurfaceScene.Framing.preview.placement(tileLength: 1)
+        let preview = BraidSurfaceScene.Framing.preview.placement(braidWidth: 1)
         #expect(preview.tilt == 0)
         #expect(preview.cameraDistance == BraidSurfaceScene.cameraDistance)
     }
 
-    /// A card with no width, or a family whose tile has no length, falls back to
-    /// the preview's distance rather than dividing by nothing.
+    /// A card with no width, or a braid with no width, falls back to the
+    /// preview's distance rather than dividing by nothing.
     @Test func anImpossibleCardFallsBackToThePreviewsDistance() {
         for framing: BraidSurfaceScene.Framing in [
-            .crossing(repeats: 3, in: CGSize(width: 0, height: 112)),
-            .crossing(repeats: 0, in: Self.cardSize),
+            .crossing(widthAsFractionOfHeight: 1.0 / 3.0, in: CGSize(width: 0, height: 112)),
+            .crossing(widthAsFractionOfHeight: 0, in: Self.cardSize),
         ] {
-            let placement = framing.placement(tileLength: 1)
+            let placement = framing.placement(braidWidth: 1)
             #expect(placement.cameraDistance == BraidSurfaceScene.cameraDistance)
             #expect(placement.tilt == 0)
         }
-        let noTile = BraidSurfaceScene.Framing
-            .crossing(repeats: 3, in: Self.cardSize)
-            .placement(tileLength: 0)
-        #expect(noTile.cameraDistance == BraidSurfaceScene.cameraDistance)
+        let noBraid = BraidSurfaceScene.Framing
+            .crossing(widthAsFractionOfHeight: 1.0 / 3.0, in: Self.cardSize)
+            .placement(braidWidth: 0)
+        #expect(noBraid.cameraDistance == BraidSurfaceScene.cameraDistance)
     }
 
     /// The tiles have to fill the diagonal, because that is the way the braid
     /// runs. The preview's braid lies across the view, so its width is enough.
     @Test func theLengthToFillIsTheDiagonal() {
-        let crossing = BraidSurfaceScene.Framing.crossing(repeats: 3, in: Self.cardSize)
+        let crossing = BraidSurfaceScene.Framing
+            .crossing(widthAsFractionOfHeight: 1.0 / 3.0, in: Self.cardSize)
         let covered = crossing.coverageSize(viewportSize: Self.cardSize)
         #expect(abs(covered.width - hypot(241.0, 112.0)) < 1e-9)
         #expect(covered.height == 112)
@@ -164,10 +182,32 @@ import UIKit
         installed.model.materials.map { String(describing: $0.baseColor.tint) }
     }
 
-    /// The tile lengths the two distances rest on, pinned so they can be read
-    /// against each other.
-    @Test func theTileLengthsTheDistancesRestOn() {
-        #expect(abs(RoundTube16SurfaceMesh.defaultLength - 7.8414) < 1e-3)
-        #expect(abs(Flat16SurfaceMesh.defaultLength - 12.6662) < 1e-3)
+    /// The tile lengths and measured widths the two distances rest on, pinned so
+    /// they can be read against each other.
+    @Test(arguments: [
+        RoundTube16SurfaceMesh.family,
+        Flat16SurfaceMesh.family,
+    ])
+    func theNumbersTheDistancesRestOn(family: BraidFamily) throws {
+        let isFlat = family == Flat16SurfaceMesh.family
+        let installed = try #require(install(
+            family: family,
+            assignments: isFlat
+                ? BraidReferenceColourings.bookAP97Left
+                : BraidReferenceColourings.bookAP94MaruGenji,
+            framing: .preview
+        ))
+        // **Measured off the mesh**, not read from a radius or a half-width. The
+        // tube's crest puts it 10.9 per cent over its nominal diameter of 0.96;
+        // the flat braid's rounded edges put it 12.6 per cent over twice its
+        // half-width of 0.72. Neither could be worked out from the constants
+        // without knowing how the drawer shapes an edge, which is why it is read
+        // off the thing the drawer made.
+        let expected: (tile: Float, width: Float, repeatsPerTile: Int) = isFlat
+            ? (12.666241, 1.6211413, 6)
+            : (7.8414145, 1.064832, 4)
+        #expect(abs(installed.model.tileLength - expected.tile) < 1e-4)
+        #expect(abs(installed.model.braidWidth - expected.width) < 1e-4)
+        #expect(installed.model.patternRepeatsPerTile == expected.repeatsPerTile)
     }
 }

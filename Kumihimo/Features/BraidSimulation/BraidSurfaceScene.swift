@@ -38,39 +38,53 @@ enum BraidSurfaceScene {
 
     /// What the picture is for.
     ///
-    /// **The distance follows from this; it is not chosen.** A card that must
-    /// show three repeats of a braid whose repeat is longer needs the camera
-    /// further back, and by exactly how much is arithmetic. Nothing here is a
+    /// **The distance follows from this; it is not chosen.** Nothing here is a
     /// shape: the shape is the mesh's, and this only decides where to stand.
     enum Framing: Equatable {
         /// The preview. The distance the braid has been drawn at since Task 019,
         /// the braid lying across the view, and the viewer free to turn and zoom.
         case preview
-        /// The list's card. Far enough back that `repeats` repeats of the braid
-        /// cross the picture **corner to corner**, and the braid turned to run
-        /// along that diagonal — in at the bottom left, out at the top right.
-        case crossing(repeats: Int, in: CGSize)
+        /// The list's card. Far enough back that **the braid comes out as thick on
+        /// screen as `widthAsFractionOfHeight` of the card's height**, and turned
+        /// to run along the card's diagonal — in at the bottom left, out at the top
+        /// right.
+        ///
+        /// **How thick the braid looks is the thing that decides the distance.**
+        /// Task 028-1b set the distance from a count of repeats instead, and the
+        /// braid came out about a tenth of the card's height — a thin line whose
+        /// pattern could not be read. How many repeats then cross the card follows
+        /// from the distance; it is checked, not chosen.
+        case crossing(widthAsFractionOfHeight: CGFloat, in: CGSize)
 
-        /// The picture is `w` by `h` points. A run corner to corner is
-        /// `hypot(w, h)` points long, and at distance `d` the view is
-        /// `2 d tan(fov/2)` world units tall, so that run covers
+        /// At distance `d` the view is `2 d tan(fov/2)` world units tall, and a
+        /// braid `braidWidth` wide therefore covers
         ///
-        ///     2 d tan(fov/2) * hypot(w, h) / h
+        ///     braidWidth / (2 d tan(fov/2))
         ///
-        /// world units. Setting it to `repeats` tiles and solving for `d` gives
-        /// the distance below. The angle is the picture's own diagonal, which is
-        /// the one angle at which the braid's run across it is longest.
-        func placement(tileLength: Float) -> Placement {
+        /// of the picture's height. Setting that to the fraction asked for and
+        /// solving for `d` gives
+        ///
+        ///     d = braidWidth / (2 tan(fov/2) * fraction)
+        ///
+        /// which **does not depend on the card's size** — the fraction is of the
+        /// height, and so is the braid. The card's size decides only the angle:
+        /// the picture's own diagonal, the one angle at which the braid's run
+        /// across it is longest.
+        func placement(braidWidth: Float) -> Placement {
             switch self {
             case .preview:
                 return Placement(cameraDistance: BraidSurfaceScene.cameraDistance, tilt: 0)
-            case let .crossing(repeats, size):
-                let diagonal = hypot(size.width, size.height)
-                guard size.width > 0, size.height > 0, tileLength > 0, repeats > 0 else {
+            case let .crossing(fraction, size):
+                guard
+                    size.width > 0,
+                    size.height > 0,
+                    braidWidth > 0,
+                    fraction > 0
+                else {
                     return Placement(cameraDistance: BraidSurfaceScene.cameraDistance, tilt: 0)
                 }
-                let distance = Float(repeats) * tileLength * Float(size.height)
-                    / (2 * tan(BraidSurfaceScene.verticalFieldOfView / 2) * Float(diagonal))
+                let distance = braidWidth
+                    / (2 * tan(BraidSurfaceScene.verticalFieldOfView / 2) * Float(fraction))
                 return Placement(
                     cameraDistance: distance,
                     tilt: Float(atan2(Double(size.height), Double(size.width)))
@@ -105,6 +119,14 @@ enum BraidSurfaceScene {
         /// Taken from the generated mesh, which derives it from the radius and the
         /// aspect ratio the pattern declares.
         let tileLength: Float
+        /// How wide the braid is across the view, **measured off the mesh the
+        /// drawer made** rather than read from a radius: a crest stands above the
+        /// nominal surface, and it is the silhouette that decides how thick the
+        /// braid looks.
+        let braidWidth: Float
+        /// Repeats of the surface pattern in one tile. A tile is the mesh's unit;
+        /// **a repeat is what an eye counts.**
+        let patternRepeatsPerTile: Int
     }
 
     /// A scene standing in an `ARView`: the root the viewer turns, and the parent
@@ -151,7 +173,7 @@ enum BraidSurfaceScene {
             return nil
         }
 
-        let placement = framing.placement(tileLength: model.tileLength)
+        let placement = framing.placement(braidWidth: model.braidWidth)
 
         let anchor = AnchorEntity(world: .zero)
         let root = Entity()
@@ -319,7 +341,9 @@ enum BraidSurfaceScene {
         return Model(
             mesh: try MeshResource.generate(from: [descriptor]),
             materials: materials,
-            tileLength: surface.length
+            tileLength: surface.length,
+            braidWidth: widthAcrossTheView(of: surface.positions),
+            patternRepeatsPerTile: RoundTube16SurfaceMesh.defaultPatternRepeatCount
         )
     }
 
@@ -377,8 +401,23 @@ enum BraidSurfaceScene {
         return Model(
             mesh: try MeshResource.generate(from: [descriptor]),
             materials: materials,
-            tileLength: Flat16SurfaceMesh.defaultLength
+            tileLength: Flat16SurfaceMesh.defaultLength,
+            braidWidth: widthAcrossTheView(of: surface.positions),
+            patternRepeatsPerTile: Flat16SurfaceMesh.defaultPatternRepeatCount
         )
+    }
+
+    /// The braid runs along x and is looked at down z, so what decides how thick
+    /// it looks is **its extent along y**. Measured, so a crest counts.
+    static func widthAcrossTheView(of positions: [SIMD3<Float>]) -> Float {
+        guard let first = positions.first else { return 0 }
+        var lowest = first.y
+        var highest = first.y
+        for position in positions.dropFirst() {
+            lowest = min(lowest, position.y)
+            highest = max(highest, position.y)
+        }
+        return highest - lowest
     }
 
     /// The valley shading and the twist come from maps that depend on the strand

@@ -18,7 +18,40 @@ struct BraidTubePatternView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            BraidTubeFigureCanvas(figure: figure, accessibilityLabel: accessibilityLabel)
+            Canvas { context, size in
+                let across = Double(figure.columns.count)
+                let along = Double(figure.rowsDrawn)
+                let unit = min(size.width / across, size.height / along)
+                let inset = CGPoint(
+                    x: (size.width - across * unit) / 2,
+                    y: (size.height - along * unit) / 2
+                )
+                context.fill(
+                    Path(CGRect(x: inset.x, y: inset.y,
+                                width: across * unit, height: along * unit)),
+                    with: .color(Color(white: 0.91))
+                )
+                for shape in figure.shapes where shape.isOnTheFace {
+                    guard let place = shape.place else { continue }
+                    let colour = ThreadColorCatalog.color(for: shape.colorID)?.swiftUIColor
+                        ?? Color.secondary
+                    // Row 0 at the bottom: the braid grows upwards.
+                    let cell = CGRect(
+                        x: inset.x + Double(place.width) * unit + unit * 0.04,
+                        y: inset.y + Double(figure.rowsDrawn - 1 - place.row) * unit
+                            + unit * 0.04,
+                        width: unit * 0.92, height: unit * 0.92
+                    )
+                    context.fill(Path(roundedRect: cell, cornerRadius: unit * 0.12),
+                                 with: .color(colour))
+                    context.stroke(
+                        Path(roundedRect: cell, cornerRadius: unit * 0.12),
+                        with: .color(Color.primary.opacity(0.35)), lineWidth: unit * 0.03
+                    )
+                }
+            }
+            .accessibilityElement()
+            .accessibilityLabel(accessibilityLabel)
 
             Text(columnAngles)
                 .font(.caption2.monospacedDigit())
@@ -37,54 +70,5 @@ struct BraidTubePatternView: View {
         figure.columns
             .map { String(format: "%.1f°", $0.angleInTurns * 360) }
             .joined(separator: "  ")
-    }
-}
-
-/// The cells alone, without the angles under them or the note about what is not
-/// settled.
-///
-/// **Split out of `BraidTubePatternView` unchanged** (Task 028-1b): the list's
-/// card wants the figure and not the two lines of small type, which belong where
-/// the figure is read closely. The drawing is the same drawing — the same figure,
-/// the same cells, in the same order.
-struct BraidTubeFigureCanvas: View {
-    let figure: BraidTubeFigure
-    var accessibilityLabel: String = BraidPatternStrings.figureAccessibilityLabel
-
-    var body: some View {
-        Canvas { context, size in
-            let across = Double(figure.columns.count)
-            let along = Double(figure.rowsDrawn)
-            let unit = min(size.width / across, size.height / along)
-            let inset = CGPoint(
-                x: (size.width - across * unit) / 2,
-                y: (size.height - along * unit) / 2
-            )
-            context.fill(
-                Path(CGRect(x: inset.x, y: inset.y,
-                            width: across * unit, height: along * unit)),
-                with: .color(Color(white: 0.91))
-            )
-            for shape in figure.shapes where shape.isOnTheFace {
-                guard let place = shape.place else { continue }
-                let colour = ThreadColorCatalog.color(for: shape.colorID)?.swiftUIColor
-                    ?? Color.secondary
-                // Row 0 at the bottom: the braid grows upwards.
-                let cell = CGRect(
-                    x: inset.x + Double(place.width) * unit + unit * 0.04,
-                    y: inset.y + Double(figure.rowsDrawn - 1 - place.row) * unit
-                        + unit * 0.04,
-                    width: unit * 0.92, height: unit * 0.92
-                )
-                context.fill(Path(roundedRect: cell, cornerRadius: unit * 0.12),
-                             with: .color(colour))
-                context.stroke(
-                    Path(roundedRect: cell, cornerRadius: unit * 0.12),
-                    with: .color(Color.primary.opacity(0.35)), lineWidth: unit * 0.03
-                )
-            }
-        }
-        .accessibilityElement()
-        .accessibilityLabel(accessibilityLabel)
     }
 }

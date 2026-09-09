@@ -12,10 +12,13 @@ import UIKit
 /// cache: when the colours change the scene is rebuilt, by the same path the
 /// preview rebuilds on.
 struct BraidCardRealityView: UIViewRepresentable {
-    /// How many repeats of the braid have to cross the card. **The camera
-    /// distance follows from this and the card's size**; see
+    /// How thick the braid comes out on screen, as a fraction of the card's
+    /// height. **The camera distance follows from this**; see
     /// `BraidSurfaceScene.Framing.crossing`.
-    static let repeatsAcrossTheCard = 3
+    static let widthAsFractionOfHeight: CGFloat = 1.0 / 3.0
+    /// How many repeats of the pattern have to cross the card even so. **Not an
+    /// input** — it follows from the distance above, and is checked in the tests.
+    static let leastRepeatsAcrossTheCard = 3
 
     let family: BraidFamily
     let assignments: [ThreadAssignment]
@@ -84,7 +87,7 @@ struct BraidCardRealityView: UIViewRepresentable {
                 family: family,
                 assignments: assignments,
                 framing: .crossing(
-                    repeats: BraidCardRealityView.repeatsAcrossTheCard,
+                    widthAsFractionOfHeight: BraidCardRealityView.widthAsFractionOfHeight,
                     in: size
                 )
             ) else { return }

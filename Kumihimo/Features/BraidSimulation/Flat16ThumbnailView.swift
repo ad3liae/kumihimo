@@ -2,6 +2,8 @@ import SwiftUI
 
 struct Flat16ThumbnailView: View {
     let assignments: [ThreadAssignment]
+    /// Which way the braid runs on the frame. The list's card stands it upright.
+    var orientation: UnrolledPatternThumbnailLayout.Orientation = .alongTheWidth
 
     var body: some View {
         Canvas { context, size in
@@ -9,7 +11,8 @@ struct Flat16ThumbnailView: View {
                 let pattern = Flat16SurfacePatternGenerator.generate(assignments: assignments),
                 let layout = UnrolledPatternThumbnailLayout(
                     size: size,
-                    aspectRatio: pattern.aspectRatio
+                    aspectRatio: pattern.aspectRatio,
+                    orientation: orientation
                 )
             else {
                 return
@@ -50,13 +53,18 @@ struct Flat16ThumbnailView: View {
                     let base = layout.point(
                         surfaceCoordinate: patch.corners[0], repeatIndex: repeatIndex
                     )
+                    // Written as whole vectors rather than one component of each,
+                    // so the slant is right whichever way round the braid sits on
+                    // the frame.
+                    func moved(_ offsets: CGVector...) -> CGPoint {
+                        offsets.reduce(base) { CGPoint(x: $0.x + $1.dx, y: $0.y + $1.dy) }
+                    }
                     if patch.threadRole == .outer {
-                        fiber.move(to: CGPoint(x: base.x, y: base.y + across.dy))
-                        fiber.addLine(to: CGPoint(x: base.x + along.dx, y: base.y))
+                        fiber.move(to: moved(across))
+                        fiber.addLine(to: moved(along))
                     } else {
                         fiber.move(to: base)
-                        fiber.addLine(to: CGPoint(x: base.x + along.dx,
-                                                  y: base.y + across.dy))
+                        fiber.addLine(to: moved(across, along))
                     }
                     context.stroke(fiber, with: .color(.white.opacity(0.22)), lineWidth: 1)
                 }
