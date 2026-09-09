@@ -158,7 +158,18 @@ enum Flat16SurfacePatternGenerator {
         guard
             let rowCount,
             let aspectRatio = patternAspectRatio,
-            let weave = HiraGenjiWeavePatternGenerator.generate(assignments: assignments),
+            // **From the general working-out**, not from the per-braid derivation
+            // (Task 025-4 step 4). The two were held against each other object for
+            // object on all four reference colourings before this was switched.
+            let derivation = working,
+            let construction = BraidConstruction.construct(
+                of: derivation.method, on: derivation.stand,
+                crossSection: derivation.crossSection, fold: derivation.fold,
+                cycles: rowCount + 1
+            ),
+            let weave = Flat16WeaveFromWorking.pattern(
+                from: derivation, construction: construction, assignments: assignments
+            ),
             weave.columnCount == broadFaceColumnCount,
             weave.rowCount == rowCount
         else {
