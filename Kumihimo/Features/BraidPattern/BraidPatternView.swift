@@ -78,6 +78,11 @@ enum BraidPatternStrings {
     /// Shown with the figure. It is the whole reason the figure can be trusted for
     /// a braid nobody has made yet.
     static let noEstimateNotice = "この図は手順表から導いた通り道・上下・位相だけで描いています。寸法の推定を含みません。"
+    /// A braid whose figure cannot be worked out. **Short**, because it stands
+    /// where the figure would be.
+    static let nothingToShow = "この組み方の模様図は描けません"
+    static let twoDimensions = "模様図"
+    static let threeDimensions = "立体"
 }
 
 #Preview {

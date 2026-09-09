@@ -42,6 +42,10 @@ struct BraidRecipeIsThreeThingsTests {
     /// Three things went in. **Nothing declared a fourth**: a braid is a tube
     /// unless its own courses fold it, so the order round the braid comes from the
     /// stand's rim.
+    ///
+    /// (The shipped tube recipe *does* pass an order — the same one the rim gives,
+    /// carried only so its unsettled note reaches the figure. Nothing about the
+    /// order itself is declared, and this braid declares neither.)
     @Test func nothingElseHadToBeDeclared() {
         #expect(Self.recipe.orderRoundTheBraid == nil)
         #expect(Self.recipe.crossSection(on: BraidMethodCatalog.stand16).source == .standRim)

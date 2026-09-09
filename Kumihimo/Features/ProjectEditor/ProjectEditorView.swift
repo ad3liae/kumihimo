@@ -6,6 +6,9 @@ struct ProjectEditorView: View {
     @State private var compactPreviewPreset: BraidPreset?
     @State private var currentLayout = ProjectEditorLayout.singleColumn
     @StateObject private var previewController = RoundTube16ViewerController()
+    /// Which of the two the preview is showing. **Not a new screen** — the same
+    /// place, switched.
+    @State private var previewShowsFigure = false
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -240,17 +243,47 @@ struct ProjectEditorView: View {
     }
 
     /// **The family decides which drawer shows the braid**, not the braid's name.
+    ///
+    /// The figure and the solid braid share this one place, switched between rather
+    /// than pushed onto: **a figure needs no drawer**, so a braid nothing draws
+    /// still has something to show.
     @ViewBuilder
     private func preview(for preset: BraidPreset, isEmbedded: Bool) -> some View {
         if let recipe = BraidMethodCatalog.recipe(for: preset.id) {
-            BraidPreviewForFamily(
-                recipe: recipe,
-                assignments: store.draft.threadAssignments,
-                controller: previewController,
-                isEmbedded: isEmbedded,
-                closeAction: closePreview,
-                nothingDrawsIt: ProjectEditorStrings.nothingDrawsThisBraid
-            )
+            VStack(spacing: 8) {
+                Picker("", selection: $previewShowsFigure) {
+                    Text(BraidPatternStrings.threeDimensions).tag(false)
+                    Text(BraidPatternStrings.twoDimensions).tag(true)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(.horizontal)
+
+                if previewShowsFigure {
+                    ScrollView {
+                        BraidPatternForRecipe(
+                            recipe: recipe,
+                            assignments: store.draft.threadAssignments,
+                            nothingToShow: BraidPatternStrings.nothingToShow
+                        )
+                        .frame(minHeight: 320)
+                        .padding(.horizontal)
+                        Text(BraidPatternStrings.noEstimateNotice)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+                    }
+                } else {
+                    BraidPreviewForFamily(
+                        recipe: recipe,
+                        assignments: store.draft.threadAssignments,
+                        controller: previewController,
+                        isEmbedded: isEmbedded,
+                        closeAction: closePreview,
+                        nothingDrawsIt: ProjectEditorStrings.nothingDrawsThisBraid
+                    )
+                }
+            }
         } else {
             BraidNothingDrawsItView(text: ProjectEditorStrings.nothingDrawsThisBraid)
         }

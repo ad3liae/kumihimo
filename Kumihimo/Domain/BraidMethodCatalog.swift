@@ -220,7 +220,13 @@ enum BraidMethodCatalog {
         name: "丸源氏組",
         notation: maruGenjiDisk,
         colouring: maruGenji16Colouring,
-        shape: maruGenji16Shape
+        shape: maruGenji16Shape,
+        // **The same order the stand's rim gives** -- a tube declares nothing about
+        // its order, and this does not either. What it carries is the note: the
+        // transcribed table's columns run in an order no unrolling of a tube can
+        // produce, and that is unsettled. Declared here so the note reaches the
+        // figure and can be shown where the figure is read.
+        orderRoundTheBraid: maruGenji16CrossSection
     )
 
     static let hiraGenji16Recipe = BraidRecipe(
