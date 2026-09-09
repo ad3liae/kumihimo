@@ -58,20 +58,78 @@ struct BraidNothingDrawsItView: View {
     }
 }
 
-/// The same choice, for a thumbnail.
+/// The list's card: the braid's face drawn flat on the left, the braid itself on
+/// the right.
+///
+/// **One third and two thirds.** The flat figure says what the colours repeat
+/// into, which is what the list is being read for; the solid says what it will
+/// look like. **They are the same two drawings the detail screen shows** — the
+/// same `BraidFigure` from `BraidPatternForRecipe`, the same scene from
+/// `BraidSurfaceScene` — so a card cannot show one thing and the screen behind it
+/// another.
+///
+/// The figure drops the column angles and the note about what is not settled.
+/// Both belong where the figure is read closely, and neither is legible at a
+/// third of a card.
 struct BraidThumbnailForFamily: View {
     let recipe: BraidRecipe
     let assignments: [ThreadAssignment]
     let nothingDrawsIt: String
+    let nothingToShow: String
+
+    /// The figure's share of the width. The rest is the braid.
+    static let figureShare: CGFloat = 1.0 / 3.0
+    private static let gap: CGFloat = 8
 
     var body: some View {
-        switch BraidFamilyDrawing.drawer(for: recipe, on: BraidMethodCatalog.stand16) {
-        case Flat16SurfaceMesh.family:
-            Flat16ThumbnailView(assignments: assignments)
-        case RoundTube16SurfaceMesh.family:
-            RoundTube16ThumbnailView(assignments: assignments)
-        default:
+        GeometryReader { geometry in
+            let figureWidth = max((geometry.size.width - Self.gap) * Self.figureShare, 0)
+            let solidSize = CGSize(
+                width: max(geometry.size.width - Self.gap - figureWidth, 0),
+                height: geometry.size.height
+            )
+            HStack(spacing: Self.gap) {
+                figure
+                    .frame(width: figureWidth)
+                solid(size: solidSize)
+                    .frame(width: solidSize.width)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            }
+        }
+    }
+
+    /// **The face, front only.** A card has room for one face, and the front is
+    /// the one the braid is looked at from.
+    @ViewBuilder
+    private var figure: some View {
+        switch BraidPatternForRecipe.figure(for: recipe, assignments: assignments) {
+        case let .faces(faces):
+            if let front = faces.first {
+                BraidPatternView(figure: front.figure)
+            } else {
+                nothing(nothingToShow)
+            }
+        case let .tube(tube):
+            BraidTubeFigureCanvas(figure: tube)
+        case .nothing:
+            nothing(nothingToShow)
+        }
+    }
+
+    @ViewBuilder
+    private func solid(size: CGSize) -> some View {
+        if let family = BraidFamilyDrawing.drawer(for: recipe, on: BraidMethodCatalog.stand16) {
+            BraidCardRealityView(family: family, assignments: assignments, size: size)
+        } else {
             BraidNothingDrawsItView(text: nothingDrawsIt)
         }
+    }
+
+    private func nothing(_ text: String) -> some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

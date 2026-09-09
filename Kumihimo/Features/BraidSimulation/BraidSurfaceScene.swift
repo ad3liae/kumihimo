@@ -28,6 +28,75 @@ enum BraidSurfaceScene {
     static let fillLightIntensity: Float = 520
     static let rimLightIntensity: Float = 380
 
+    /// Where the camera stands, and how far the braid is turned about the
+    /// viewing axis.
+    struct Placement: Equatable {
+        let cameraDistance: Float
+        /// About the viewing axis. Zero leaves the braid lying across the view.
+        let tilt: Float
+    }
+
+    /// What the picture is for.
+    ///
+    /// **The distance follows from this; it is not chosen.** A card that must
+    /// show three repeats of a braid whose repeat is longer needs the camera
+    /// further back, and by exactly how much is arithmetic. Nothing here is a
+    /// shape: the shape is the mesh's, and this only decides where to stand.
+    enum Framing: Equatable {
+        /// The preview. The distance the braid has been drawn at since Task 019,
+        /// the braid lying across the view, and the viewer free to turn and zoom.
+        case preview
+        /// The list's card. Far enough back that `repeats` repeats of the braid
+        /// cross the picture **corner to corner**, and the braid turned to run
+        /// along that diagonal — in at the bottom left, out at the top right.
+        case crossing(repeats: Int, in: CGSize)
+
+        /// The picture is `w` by `h` points. A run corner to corner is
+        /// `hypot(w, h)` points long, and at distance `d` the view is
+        /// `2 d tan(fov/2)` world units tall, so that run covers
+        ///
+        ///     2 d tan(fov/2) * hypot(w, h) / h
+        ///
+        /// world units. Setting it to `repeats` tiles and solving for `d` gives
+        /// the distance below. The angle is the picture's own diagonal, which is
+        /// the one angle at which the braid's run across it is longest.
+        func placement(tileLength: Float) -> Placement {
+            switch self {
+            case .preview:
+                return Placement(cameraDistance: BraidSurfaceScene.cameraDistance, tilt: 0)
+            case let .crossing(repeats, size):
+                let diagonal = hypot(size.width, size.height)
+                guard size.width > 0, size.height > 0, tileLength > 0, repeats > 0 else {
+                    return Placement(cameraDistance: BraidSurfaceScene.cameraDistance, tilt: 0)
+                }
+                let distance = Float(repeats) * tileLength * Float(size.height)
+                    / (2 * tan(BraidSurfaceScene.verticalFieldOfView / 2) * Float(diagonal))
+                return Placement(
+                    cameraDistance: distance,
+                    tilt: Float(atan2(Double(size.height), Double(size.width)))
+                )
+            }
+        }
+
+        /// The length the tiles have to fill. When the braid runs along the
+        /// diagonal, that is the diagonal — the same question the coverage
+        /// calculator always answers, put for the direction the braid is in.
+        func coverageSize(viewportSize: CGSize) -> CGSize {
+            switch self {
+            case .preview:
+                return viewportSize
+            case .crossing:
+                guard viewportSize.width > 0, viewportSize.height > 0 else {
+                    return viewportSize
+                }
+                return CGSize(
+                    width: hypot(viewportSize.width, viewportSize.height),
+                    height: viewportSize.height
+                )
+            }
+        }
+    }
+
     /// One repeat of a braid, ready to be placed: the mesh, one material per
     /// colour-and-twist group, and how long that repeat is along the braid.
     struct Model {
@@ -41,9 +110,12 @@ enum BraidSurfaceScene {
     /// A scene standing in an `ARView`: the root the viewer turns, and the parent
     /// the tiles hang from.
     struct Installed {
+        /// Turned by the viewer, when there is one.
         let modelRoot: Entity
         let tileRoot: Entity
         let model: Model
+        let framing: Framing
+        let placement: Placement
     }
 
     enum SceneError: Error {
@@ -59,7 +131,8 @@ enum BraidSurfaceScene {
     static func install(
         in view: ARView,
         family: BraidFamily,
-        assignments: [ThreadAssignment]
+        assignments: [ThreadAssignment],
+        framing: Framing = .preview
     ) -> Installed? {
         view.scene.anchors.removeAll()
 
@@ -78,16 +151,23 @@ enum BraidSurfaceScene {
             return nil
         }
 
+        let placement = framing.placement(tileLength: model.tileLength)
+
         let anchor = AnchorEntity(world: .zero)
         let root = Entity()
+        // The tilt hangs below the root the viewer turns, so a viewer's roll and
+        // the card's slant do not fight over one orientation.
+        let tilted = Entity()
+        tilted.orientation = simd_quatf(angle: placement.tilt, axis: SIMD3<Float>(0, 0, 1))
         let instances = Entity()
-        root.addChild(instances)
+        tilted.addChild(instances)
+        root.addChild(tilted)
         anchor.addChild(root)
 
         let camera = PerspectiveCamera()
         camera.look(
             at: .zero,
-            from: SIMD3<Float>(0, 0, cameraDistance),
+            from: SIMD3<Float>(0, 0, placement.cameraDistance),
             relativeTo: nil
         )
         camera.camera.fieldOfViewInDegrees = verticalFieldOfView * 180 / .pi
@@ -112,7 +192,13 @@ enum BraidSurfaceScene {
         anchor.addChild(rimLight)
 
         view.scene.addAnchor(anchor)
-        return Installed(modelRoot: root, tileRoot: instances, model: model)
+        return Installed(
+            modelRoot: root,
+            tileRoot: instances,
+            model: model,
+            framing: framing,
+            placement: placement
+        )
     }
 
     /// Lays enough repeats end to end to fill the viewport, and returns the new
@@ -123,15 +209,16 @@ enum BraidSurfaceScene {
         viewportSize: CGSize,
         tileCount: Int
     ) -> Int? {
+        let covered = installed.framing.coverageSize(viewportSize: viewportSize)
         guard
-            viewportSize.width > 0,
-            viewportSize.height > 0,
+            covered.width > 0,
+            covered.height > 0,
             let coverage = RoundTube16ViewportCoverageCalculator.calculate(
                 viewportSize: SIMD2<Float>(
-                    Float(viewportSize.width),
-                    Float(viewportSize.height)
+                    Float(covered.width),
+                    Float(covered.height)
                 ),
-                cameraDistance: cameraDistance,
+                cameraDistance: installed.placement.cameraDistance,
                 verticalFieldOfView: verticalFieldOfView,
                 minimumScale: RoundTube16ViewerController.minimumScale,
                 tileLength: installed.model.tileLength

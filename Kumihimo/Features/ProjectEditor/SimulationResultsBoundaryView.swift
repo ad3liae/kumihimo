@@ -116,7 +116,8 @@ struct SimulationResultsBoundaryView: View {
             BraidThumbnailForFamily(
                 recipe: recipe,
                 assignments: assignments,
-                nothingDrawsIt: ProjectEditorStrings.nothingDrawsThisBraid
+                nothingDrawsIt: ProjectEditorStrings.nothingDrawsThisBraid,
+                nothingToShow: BraidPatternStrings.nothingToShow
             )
         } else {
             BraidNothingDrawsItView(text: ProjectEditorStrings.nothingDrawsThisBraid)
