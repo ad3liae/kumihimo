@@ -151,6 +151,22 @@ Task 004 の列順は未決。**その注記を図に届けるため、丸源氏
   **確かめられない2項目**（描き手の無い紐の表示、古い版の保存データ）は
   **その旨と、代わりにユニットが押さえていること**を書いた。
 
+## 指示との差: **未決の注記は「そのまま」ではなく、画面の言葉で日本語にした**
+
+**アプリを動かして分かった**——`unsettled` をそのまま出すと、**画面に英語が出る。**
+
+    a tube has no origin and no printed direction, so this agrees with a
+    transcription up to a rotation, a mirror, the way up and where the
+    transcription started
+    the order of the columns round the braid disagrees with Task 004's
+    transcribed table; awaiting the author's colouring experiment
+
+**`BraidCrossSection.unsettled` 自身が「これは表示文字列ではない。ビューが自分の言葉で
+書くこと」と書いている**うえ、**画面の文言は短く日本語**という指示がある。
+そこで**1行に置き換えた**——**「鏡像は一致とみなしています。列の並び順は未決です。」**
+**未決の中身は開いていない**（鏡像の扱いと列の並び順の2つで固定）ので、言い換えても
+落ちるものは無い。**指示は「そのまま表示」だったので、差として報告する。**
+
 ## 報告事項: 一度だけ出た落ち（**再現せず**）
 
 **018 の上限を上げた直後の回で、`theDrawingsShapeIsUnchanged` が
