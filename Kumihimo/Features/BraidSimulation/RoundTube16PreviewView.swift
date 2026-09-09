@@ -1,23 +1,23 @@
 import SwiftUI
 
-struct MaruGenji3DPreviewView: View {
+struct RoundTube16PreviewView: View {
     let assignments: [ThreadAssignment]
 
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var controller: MaruGenjiViewerController
+    @StateObject private var controller: RoundTube16ViewerController
     private let isEmbedded: Bool
     private let closeAction: (() -> Void)?
 
     init(assignments: [ThreadAssignment]) {
         self.assignments = assignments
-        _controller = StateObject(wrappedValue: MaruGenjiViewerController())
+        _controller = StateObject(wrappedValue: RoundTube16ViewerController())
         isEmbedded = false
         closeAction = nil
     }
 
     init(
         assignments: [ThreadAssignment],
-        controller: MaruGenjiViewerController,
+        controller: RoundTube16ViewerController,
         isEmbedded: Bool,
         closeAction: (() -> Void)? = nil
     ) {
@@ -83,7 +83,7 @@ struct MaruGenji3DPreviewView: View {
         let content = VStack(spacing: 16) {
             GeometryReader { geometry in
                 ZStack {
-                    MaruGenjiRealityView(
+                    RoundTube16RealityView(
                         assignments: assignments,
                         controller: controller,
                         viewportSize: geometry.size

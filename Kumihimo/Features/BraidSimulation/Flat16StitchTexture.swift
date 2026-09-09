@@ -29,14 +29,14 @@ import os
 /// The drawn crest is a fraction of a yarn's own roundness, so the geometry
 /// cannot shade itself the way real yarn does; the map carries what the yarn
 /// would occlude, exactly as the round braid's does.
-enum HiraGenjiStitchDetailTexture {
+enum Flat16StitchTexture {
     /// A stitch is about twice as long as it is wide, so the map is too.
     static let width = 128
     static let height = 256
 
     private static let logger = Logger(
         subsystem: "com.example.Kumihimo",
-        category: "HiraGenjiStitchDetailTexture"
+        category: "Flat16StitchTexture"
     )
 
     /// The three maps one twist group needs, as the round braid has.
@@ -48,12 +48,12 @@ enum HiraGenjiStitchDetailTexture {
 
     /// Uploading a texture is RealityKit's business and belongs to the main
     /// actor, so everything from the drawn bytes onwards is isolated to it. The
-    /// round braid's `MaruGenjiStrandDetailTextures` is a `@MainActor` class for
+    /// round braid's `RoundTube16StrandTextures` is a `@MainActor` class for
     /// the same reason. What stays free of the actor is the arithmetic — the
     /// shading, the tint and the roughness are pure functions of a place in a
     /// stitch, and the tests read them without a renderer.
     @MainActor static let maps: Maps = {
-        let twist = HiraGenjiStitchTwistGrouping.groups().first
+        let twist = Flat16StitchTwistGrouping.groups().first
         return Maps(
             occlusion: make(semantic: .color) { across, along in
                 linearToSRGB(shading(across: across, along: along) * twistTint(twist, across, along))
@@ -72,19 +72,19 @@ enum HiraGenjiStitchDetailTexture {
     /// Shading at one place in a stitch: 0 to 1 across the lane, 0 to 1 along the
     /// braid. Exposed so a test can read it without a renderer.
     static func shading(across: Float, along: Float) -> Float {
-        let valleyDepth = MaruGenjiStrandTextureFactory.valleyOcclusion
-        let reach = MaruGenjiStrandTextureFactory.valleyOcclusionWidth
+        let valleyDepth = RoundTube16StrandTextureFactory.valleyOcclusion
+        let reach = RoundTube16StrandTextureFactory.valleyOcclusionWidth
         // Distance from the nearest edge, in half-widths, on each axis.
         let fromTheSides = 1 - abs(2 * across - 1)
         let fromTheJoins = 1 - abs(2 * along - 1)
         let sides = mix(valleyDepth, 1, smoothstep(0, reach, fromTheSides))
         let joins = mix(valleyDepth, 1, smoothstep(0, reach, fromTheJoins))
         let underThePick = mix(
-            MaruGenjiStrandTextureFactory.crossingOcclusion,
+            RoundTube16StrandTextureFactory.crossingOcclusion,
             1,
             smoothstep(
                 0,
-                MaruGenjiStrandTextureFactory.crossingOcclusionLength,
+                RoundTube16StrandTextureFactory.crossingOcclusionLength,
                 min(along, 1 - along)
             )
         )
@@ -94,23 +94,23 @@ enum HiraGenjiStitchDetailTexture {
     /// How much the twist darkens the yarn where a stripe turns away. Small: the
     /// stripe is carried by the normal and roughness maps, as on the round braid.
     static func twistTint(
-        _ twist: HiraGenjiStitchTwist?,
+        _ twist: Flat16StitchTwist?,
         _ across: Float,
         _ along: Float
     ) -> Float {
         guard let twist else { return 1 }
-        let tint = MaruGenjiStrandTextureFactory.twistTint
+        let tint = RoundTube16StrandTextureFactory.twistTint
         return 1 - tint * (1 - cos(twist.phase(along: along, across: across))) / 2
     }
 
     static func roughness(
-        _ twist: HiraGenjiStitchTwist?,
+        _ twist: Flat16StitchTwist?,
         _ across: Float,
         _ along: Float
     ) -> Float {
-        let base = MaruGenjiStrandTextureFactory.baseRoughness
+        let base = RoundTube16StrandTextureFactory.baseRoughness
         guard let twist else { return base }
-        let value = base + MaruGenjiStrandTextureFactory.twistRoughnessAmplitude
+        let value = base + RoundTube16StrandTextureFactory.twistRoughnessAmplitude
             * cos(twist.phase(along: along, across: across))
         return min(max(value, 0), 1)
     }
@@ -119,7 +119,7 @@ enum HiraGenjiStitchDetailTexture {
     /// braid's relief ratio describes. `u` runs across the stitch and `v` along
     /// it, matching the mesh's own texture coordinates.
     @MainActor private static func makeNormal(
-        _ twist: HiraGenjiStitchTwist
+        _ twist: Flat16StitchTwist
     ) -> TextureResource? {
         let amplitude = RoundTube16SurfaceMesh.twistReliefRatio
         let gradient = twist.normalizedPhaseGradient

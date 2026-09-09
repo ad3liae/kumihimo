@@ -695,7 +695,7 @@ enum Flat16SurfaceMesh {
     /// it is on the round braid, because a mesh at this subdivision would moire.
     /// What used to be here leaned one way for the threads worked lengthwise and
     /// the other for those worked across, which is two hands of yarn in one
-    /// braid; `HiraGenjiStitchTwistGrouping` gives them one.
+    /// braid; `Flat16StitchTwistGrouping` gives them one.
     private static func reliefOffset(
         localCoordinate: SIMD2<Float>,
         scale: Float

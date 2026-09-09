@@ -1,13 +1,13 @@
 import SwiftUI
 
-struct MaruGenjiThumbnailView: View {
+struct RoundTube16ThumbnailView: View {
     let assignments: [ThreadAssignment]
 
     var body: some View {
         Canvas { context, size in
             guard
                 let pattern = RoundTube16SurfacePatternGenerator.generate(assignments: assignments),
-                let layout = MaruGenjiThumbnailLayout(
+                let layout = RoundTube16ThumbnailLayout(
                     size: size,
                     aspectRatio: pattern.aspectRatio
                 )

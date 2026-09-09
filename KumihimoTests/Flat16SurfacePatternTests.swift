@@ -4,7 +4,7 @@ import Testing
 @testable import Kumihimo
 
 /// The surface layout: where each place on the braid is. Which thread stands
-/// there is `HiraGenjiWeavePattern`'s answer, tested in its own file; what is
+/// there is `Flat16WeavePattern`'s answer, tested in its own file; what is
 /// tested here is that the layout puts the weave's places where they belong on
 /// the cross-section, and that the lane geometry is what the mesh expects.
 struct Flat16SurfacePatternTests {
@@ -35,7 +35,7 @@ struct Flat16SurfacePatternTests {
     /// other, so one of the two lane orders has to be reversed.
     @Test func aWeaveColumnComesOutAtTheSamePlaceOnBothFaces() throws {
         let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: fixtureA))
-        let weave = try #require(HiraGenjiWeavePatternGenerator.generate(assignments: fixtureA))
+        let weave = try #require(Flat16WeavePatternGenerator.generate(assignments: fixtureA))
         let rowCount = try #require(Flat16SurfacePatternGenerator.rowCount)
 
         for row in 0..<rowCount {

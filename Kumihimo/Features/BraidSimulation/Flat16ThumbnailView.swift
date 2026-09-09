@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct HiraGenjiThumbnailView: View {
+struct Flat16ThumbnailView: View {
     let assignments: [ThreadAssignment]
 
     var body: some View {

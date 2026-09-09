@@ -1,15 +1,15 @@
 import Foundation
 
 /// Which side of the flat braid a thread is on at one step along it.
-enum HiraGenjiBraidFace: String, Equatable, Sendable, CaseIterable {
+enum Flat16BraidFace: String, Equatable, Sendable, CaseIterable {
     case front
     case back
 
-    var opposite: HiraGenjiBraidFace { self == .front ? .back : .front }
+    var opposite: Flat16BraidFace { self == .front ? .back : .front }
 }
 
 /// What a thread does over the length of the braid.
-enum HiraGenjiThreadCourseKind: Equatable, Sendable, CaseIterable {
+enum Flat16ThreadCourseKind: Equatable, Sendable, CaseIterable {
     /// Holds one column and turns over from one face to the other. Worked between
     /// the near and far faces of the stand.
     case lengthwise
@@ -20,15 +20,15 @@ enum HiraGenjiThreadCourseKind: Equatable, Sendable, CaseIterable {
 
 /// One place on the braid's surface: one column across the width, one step along
 /// the length, one face.
-struct HiraGenjiWeavePatch: Equatable, Sendable {
+struct Flat16WeavePatch: Equatable, Sendable {
     /// 0 at the left edge of the face, `columnCount - 1` at the right.
     let column: Int
     /// 0..<`rowCount` along the braid. One row is one worked cycle.
     let row: Int
-    let face: HiraGenjiBraidFace
+    let face: Flat16BraidFace
     let threadPosition: Int
     let colorID: ThreadColorID
-    let course: HiraGenjiThreadCourseKind
+    let course: Flat16ThreadCourseKind
     /// Which side of a crossing this thread takes where it meets a thread going
     /// the other way.
     ///
@@ -48,12 +48,12 @@ struct HiraGenjiWeavePatch: Equatable, Sendable {
 /// An edge is not a column: it holds two threads through the thickness, one
 /// keeping to the front half of the braid and one to the back. Neither is on
 /// either face, so they have no patch.
-struct HiraGenjiWeaveEdgePlace: Equatable, Sendable {
-    let edge: HiraGenjiBraidEdge
+struct Flat16WeaveEdgePlace: Equatable, Sendable {
+    let edge: Flat16BraidEdge
     let row: Int
     /// The half of the braid this thread keeps to. Derived: a thread carried
     /// across stays on one side of the braid the whole way round its circuit.
-    let half: HiraGenjiBraidFace
+    let half: Flat16BraidFace
     let threadPosition: Int
     let colorID: ThreadColorID
 }
@@ -65,13 +65,13 @@ struct HiraGenjiWeaveEdgePlace: Equatable, Sendable {
 /// between — and that part is most of the thread. It is recorded here: which
 /// columns it passes, and that it goes under the threads running along the braid
 /// while it does.
-struct HiraGenjiWeftCrossing: Equatable, Sendable {
+struct Flat16WeftCrossing: Equatable, Sendable {
     let threadPosition: Int
     let colorID: ThreadColorID
     /// The step along the braid this crossing is laid at.
     let row: Int
     /// Which half of the braid the thread keeps to.
-    let face: HiraGenjiBraidFace
+    let face: Flat16BraidFace
     /// On the axis that counts the edges as one step outside the columns.
     let fromWidthPosition: Int
     let toWidthPosition: Int
@@ -82,12 +82,12 @@ struct HiraGenjiWeftCrossing: Equatable, Sendable {
     let layer: BraidCrossingLayer
 }
 
-struct HiraGenjiWeavePattern: Equatable, Sendable {
-    let patches: [HiraGenjiWeavePatch]
+struct Flat16WeavePattern: Equatable, Sendable {
+    let patches: [Flat16WeavePatch]
     /// The two threads at each edge, for every row.
-    let edgePlaces: [HiraGenjiWeaveEdgePlace]
+    let edgePlaces: [Flat16WeaveEdgePlace]
     /// Every run of a thread from one edge to the other, in row order.
-    let weftCrossings: [HiraGenjiWeftCrossing]
+    let weftCrossings: [Flat16WeftCrossing]
     let columnCount: Int
     let rowCount: Int
 
@@ -103,20 +103,20 @@ struct HiraGenjiWeavePattern: Equatable, Sendable {
         Set(patches.filter { $0.course == .carriedAcross }.map(\.column))
     }
 
-    func patch(column: Int, row: Int, face: HiraGenjiBraidFace) -> HiraGenjiWeavePatch? {
+    func patch(column: Int, row: Int, face: Flat16BraidFace) -> Flat16WeavePatch? {
         patches.first { $0.column == column && $0.row == row && $0.face == face }
     }
 
     /// One row of one face, left edge to right edge.
-    func row(_ row: Int, face: HiraGenjiBraidFace) -> [HiraGenjiWeavePatch] {
+    func row(_ row: Int, face: Flat16BraidFace) -> [Flat16WeavePatch] {
         patches.filter { $0.row == row && $0.face == face }.sorted { $0.column < $1.column }
     }
 
-    func threadsAtEdge(row: Int, edge: HiraGenjiBraidEdge) -> [HiraGenjiWeaveEdgePlace] {
+    func threadsAtEdge(row: Int, edge: Flat16BraidEdge) -> [Flat16WeaveEdgePlace] {
         edgePlaces.filter { $0.row == row && $0.edge == edge }
     }
 
-    func patches(ofCourse course: HiraGenjiThreadCourseKind) -> [HiraGenjiWeavePatch] {
+    func patches(ofCourse course: Flat16ThreadCourseKind) -> [Flat16WeavePatch] {
         patches.filter { $0.course == course }
     }
 }
@@ -129,7 +129,7 @@ struct HiraGenjiWeavePattern: Equatable, Sendable {
 /// comes from the move rules by way of `HiraGenjiWeaveDerivation`. The crossing
 /// layer comes from book A p97's own controlled sample. The repeat is however
 /// many cycles the stand takes to come back to itself.
-enum HiraGenjiWeavePatternGenerator {
+enum Flat16WeavePatternGenerator {
     static let requiredThreadCount = HiraGenjiWeaveDerivation.threadCount
     static let columnCount = HiraGenjiWeaveDerivation.columnCount
 
@@ -139,17 +139,17 @@ enum HiraGenjiWeavePatternGenerator {
 
     /// Every column, on both faces, for every row of one repeat.
     static var patchCount: Int? {
-        rowCount.map { columnCount * $0 * HiraGenjiBraidFace.allCases.count }
+        rowCount.map { columnCount * $0 * Flat16BraidFace.allCases.count }
     }
 
     /// Both threads at both edges, for every row.
     static var edgePlaceCount: Int? {
         rowCount.map {
-            $0 * HiraGenjiBraidEdge.allCases.count * HiraGenjiWeaveDerivation.edgeThreadCount
+            $0 * Flat16BraidEdge.allCases.count * HiraGenjiWeaveDerivation.edgeThreadCount
         }
     }
 
-    static func generate(assignments: [ThreadAssignment]) -> HiraGenjiWeavePattern? {
+    static func generate(assignments: [ThreadAssignment]) -> Flat16WeavePattern? {
         let expected = Set(1...requiredThreadCount)
         let supplied = Set(assignments.map(\.position))
         guard
@@ -179,13 +179,13 @@ enum HiraGenjiWeavePatternGenerator {
         guard let threadByPlace = threadByPlace(cycleCount: rowCount, courses: courses)
         else { return nil }
 
-        var patches = [HiraGenjiWeavePatch]()
-        var edgePlaces = [HiraGenjiWeaveEdgePlace]()
-        var crossings = [HiraGenjiWeftCrossing]()
+        var patches = [Flat16WeavePatch]()
+        var edgePlaces = [Flat16WeaveEdgePlace]()
+        var crossings = [Flat16WeftCrossing]()
 
         for course in courses {
             guard let half = keptFace(of: course) else { return nil }
-            let kind: HiraGenjiThreadCourseKind = course.runsAlongTheBraid
+            let kind: Flat16ThreadCourseKind = course.runsAlongTheBraid
                 ? .lengthwise
                 : .carriedAcross
 
@@ -210,7 +210,7 @@ enum HiraGenjiWeavePatternGenerator {
                 switch sample.place {
                 case .face(let face, let column):
                     guard (0..<columnCount).contains(column) else { return nil }
-                    patches.append(HiraGenjiWeavePatch(
+                    patches.append(Flat16WeavePatch(
                         column: column,
                         row: row,
                         face: face,
@@ -221,7 +221,7 @@ enum HiraGenjiWeavePatternGenerator {
                         nextWidthPosition: next.widthPosition
                     ))
                 case .edge(let edge):
-                    edgePlaces.append(HiraGenjiWeaveEdgePlace(
+                    edgePlaces.append(Flat16WeaveEdgePlace(
                         edge: edge,
                         row: row,
                         half: half,
@@ -238,7 +238,7 @@ enum HiraGenjiWeavePatternGenerator {
                 let step = to > from ? 1 : -1
                 let passed = stride(from: from + step, to: to, by: step)
                     .filter { (0..<columnCount).contains($0) }
-                crossings.append(HiraGenjiWeftCrossing(
+                crossings.append(Flat16WeftCrossing(
                     threadPosition: threadHere,
                     colorID: colorID,
                     row: row,
@@ -251,7 +251,7 @@ enum HiraGenjiWeavePatternGenerator {
             }
         }
 
-        let pattern = HiraGenjiWeavePattern(
+        let pattern = Flat16WeavePattern(
             patches: patches.sorted {
                 ($0.row, $0.face.rawValue, $0.column) < ($1.row, $1.face.rawValue, $1.column)
             },
@@ -274,7 +274,7 @@ enum HiraGenjiWeavePatternGenerator {
     /// the course actually visits.
     /// A place of this drawing, as a key: a column on a face, or one of the two
     /// threads at an edge, told apart by the half of the braid it keeps to.
-    static func key(of place: HiraGenjiWeaveDerivation.Place, half: HiraGenjiBraidFace) -> [Int] {
+    static func key(of place: HiraGenjiWeaveDerivation.Place, half: Flat16BraidFace) -> [Int] {
         switch place {
         case let .face(face, column): return [0, face == .front ? 0 : 1, column]
         case let .edge(edge): return [1, edge == .left ? 0 : 1, half == .front ? 0 : 1]
@@ -331,11 +331,11 @@ enum HiraGenjiWeavePatternGenerator {
     }
 
     /// For the tests that hold the derived threads against the shipped ones.
-    static func keptFaceForTesting(_ course: HiraGenjiThreadCourse) -> HiraGenjiBraidFace? {
+    static func keptFaceForTesting(_ course: HiraGenjiThreadCourse) -> Flat16BraidFace? {
         keptFace(of: course)
     }
 
-    private static func keptFace(of course: HiraGenjiThreadCourse) -> HiraGenjiBraidFace? {
+    private static func keptFace(of course: HiraGenjiThreadCourse) -> Flat16BraidFace? {
         let faces = Set(course.samples.compactMap(\.face))
         if faces.count == 1 { return faces.first }
         // A thread running along the braid visits both faces; name it by where it
@@ -345,7 +345,7 @@ enum HiraGenjiWeavePatternGenerator {
 
     /// Every place on the surface carries exactly one thread, every edge carries
     /// two, and every thread is somewhere in every row.
-    private static func isComplete(_ pattern: HiraGenjiWeavePattern) -> Bool {
+    private static func isComplete(_ pattern: Flat16WeavePattern) -> Bool {
         guard
             pattern.patches.count == patchCount,
             pattern.edgePlaces.count == edgePlaceCount
@@ -366,9 +366,9 @@ enum HiraGenjiWeavePatternGenerator {
         }
         // Each edge holds one thread from each half, at every row.
         guard (0..<pattern.rowCount).allSatisfy({ row in
-            HiraGenjiBraidEdge.allCases.allSatisfy { edge in
+            Flat16BraidEdge.allCases.allSatisfy { edge in
                 Set(pattern.threadsAtEdge(row: row, edge: edge).map(\.half))
-                    == Set(HiraGenjiBraidFace.allCases)
+                    == Set(Flat16BraidFace.allCases)
             }
         }) else {
             return false

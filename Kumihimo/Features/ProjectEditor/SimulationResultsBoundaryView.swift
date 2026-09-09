@@ -112,9 +112,9 @@ struct SimulationResultsBoundaryView: View {
     private func thumbnail(for preset: BraidPreset) -> some View {
         switch preset.id {
         case .hiraGenji16:
-            HiraGenjiThumbnailView(assignments: assignments)
+            Flat16ThumbnailView(assignments: assignments)
         default:
-            MaruGenjiThumbnailView(assignments: assignments)
+            RoundTube16ThumbnailView(assignments: assignments)
         }
     }
 

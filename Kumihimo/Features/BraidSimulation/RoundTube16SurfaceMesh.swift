@@ -3,7 +3,7 @@ import simd
 
 /// One draw group: the thread colour it is painted in, and the twist group whose
 /// stripe textures it is dressed with.
-struct MaruGenjiSurfaceMaterialKey: Hashable, Sendable {
+struct RoundTube16SurfaceMaterialKey: Hashable, Sendable {
     let colorID: ThreadColorID
     let twistGroupIndex: Int
 }
@@ -25,7 +25,7 @@ struct RoundTube16SurfaceMeshData: Sendable {
     /// The twist groups the strands fall into, and which group each strand uses.
     let twist: RoundTube16SurfaceMesh.TwistGrouping
     /// Triangle indices per colour and twist group. One material per entry.
-    let materialGroups: [MaruGenjiSurfaceMaterialKey: [UInt32]]
+    let materialGroups: [RoundTube16SurfaceMaterialKey: [UInt32]]
     let vertexSegmentIndices: [Int]
     let vertexIsCrossingWall: [Bool]
     let triangleSegmentIndices: [Int]
@@ -98,7 +98,7 @@ struct RoundTube16SurfaceMeshData: Sendable {
     }
 
     /// Draw groups in a fixed order, so every derived grouping is deterministic.
-    var sortedMaterialGroups: [(key: MaruGenjiSurfaceMaterialKey, value: [UInt32])] {
+    var sortedMaterialGroups: [(key: RoundTube16SurfaceMaterialKey, value: [UInt32])] {
         materialGroups.sorted {
             $0.key.colorID.rawValue == $1.key.colorID.rawValue
                 ? $0.key.twistGroupIndex < $1.key.twistGroupIndex
@@ -576,7 +576,7 @@ enum RoundTube16SurfaceMesh {
         var textureCoordinates = [SIMD2<Float>]()
         var strandCoordinates = [SIMD2<Float>]()
         var twistPhases = [Float]()
-        var materialGroups = [MaruGenjiSurfaceMaterialKey: [UInt32]]()
+        var materialGroups = [RoundTube16SurfaceMaterialKey: [UInt32]]()
         var vertexSegmentIndices = [Int]()
         var vertexIsCrossingWall = [Bool]()
         var triangleSegmentIndices = [Int]()
@@ -715,7 +715,7 @@ enum RoundTube16SurfaceMesh {
             }
 
             builder.materialGroups[
-                MaruGenjiSurfaceMaterialKey(
+                RoundTube16SurfaceMaterialKey(
                     colorID: segment.colorID,
                     twistGroupIndex: twistGroupIndex
                 ),

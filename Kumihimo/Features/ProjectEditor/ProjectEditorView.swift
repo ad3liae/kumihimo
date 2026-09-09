@@ -5,7 +5,7 @@ struct ProjectEditorView: View {
     @State private var previewPreset: BraidPreset?
     @State private var compactPreviewPreset: BraidPreset?
     @State private var currentLayout = ProjectEditorLayout.singleColumn
-    @StateObject private var previewController = MaruGenjiViewerController()
+    @StateObject private var previewController = RoundTube16ViewerController()
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -57,14 +57,14 @@ struct ProjectEditorView: View {
         }
         .fullScreenCover(item: $compactPreviewPreset) { preset in
             if preset.id == .hiraGenji16 {
-                HiraGenji3DPreviewView(
+                Flat16PreviewView(
                     assignments: store.draft.threadAssignments,
                     controller: previewController,
                     isEmbedded: false,
                     closeAction: closePreview
                 )
             } else {
-                MaruGenji3DPreviewView(
+                RoundTube16PreviewView(
                     assignments: store.draft.threadAssignments,
                     controller: previewController,
                     isEmbedded: false,
@@ -155,7 +155,7 @@ struct ProjectEditorView: View {
 
             Group {
                 if previewPreset?.id == .hiraGenji16 {
-                    HiraGenji3DPreviewView(
+                    Flat16PreviewView(
                         assignments: store.draft.threadAssignments,
                         controller: previewController,
                         isEmbedded: true,
@@ -163,7 +163,7 @@ struct ProjectEditorView: View {
                     )
                     .padding(.vertical)
                 } else if previewPreset?.id == .maruGenji16 {
-                    MaruGenji3DPreviewView(
+                    RoundTube16PreviewView(
                         assignments: store.draft.threadAssignments,
                         controller: previewController,
                         isEmbedded: true,

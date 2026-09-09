@@ -3,9 +3,9 @@ import Testing
 @testable import Kumihimo
 
 @MainActor
-struct MaruGenjiViewerControllerTests {
+struct RoundTube16ViewerControllerTests {
     @Test func rotationOnlyChangesTheLongAxisRoll() {
-        let controller = MaruGenjiViewerController()
+        let controller = RoundTube16ViewerController()
         let root = Entity()
         controller.connect(modelRoot: root)
 
@@ -17,15 +17,15 @@ struct MaruGenjiViewerControllerTests {
     }
 
     @Test func zoomIsClampedAndResetRestoresRotationAndScale() {
-        let controller = MaruGenjiViewerController()
+        let controller = RoundTube16ViewerController()
         let root = Entity()
         controller.connect(modelRoot: root)
 
         controller.rotate(horizontal: .pi / 3)
         controller.zoom(by: 0.001)
-        #expect(controller.scale == MaruGenjiViewerController.minimumScale)
+        #expect(controller.scale == RoundTube16ViewerController.minimumScale)
         controller.zoom(by: 1_000)
-        #expect(controller.scale == MaruGenjiViewerController.maximumScale)
+        #expect(controller.scale == RoundTube16ViewerController.maximumScale)
 
         controller.reset()
         #expect(controller.roll == 0)

@@ -90,7 +90,7 @@ struct BraidGeneratorCellsFromOccupancyTests {
 struct BraidFlatGeneratorCellsFromOccupancyTests {
     private var courses: [HiraGenjiThreadCourse] {
         get throws {
-            let rows = try #require(HiraGenjiWeavePatternGenerator.rowCount)
+            let rows = try #require(Flat16WeavePatternGenerator.rowCount)
             return try #require(HiraGenjiWeaveDerivation.courses(cycleCount: rows))
         }
     }
@@ -99,18 +99,18 @@ struct BraidFlatGeneratorCellsFromOccupancyTests {
     /// place of the drawing and every row: the six columns of each face and both
     /// threads at both edges.
     @Test func theDerivedThreadsAreTheShippedOnes() throws {
-        let rows = try #require(HiraGenjiWeavePatternGenerator.rowCount)
+        let rows = try #require(Flat16WeavePatternGenerator.rowCount)
         let courses = try courses
-        let byPlace = try #require(HiraGenjiWeavePatternGenerator.threadByPlace(
+        let byPlace = try #require(Flat16WeavePatternGenerator.threadByPlace(
             cycleCount: rows, courses: courses
         ))
         // Six columns a face and two threads at each edge: sixteen places.
         #expect(byPlace.count == 16)
         var checked = 0
         for course in courses {
-            let half = try #require(HiraGenjiWeavePatternGenerator.keptFaceForTesting(course))
+            let half = try #require(Flat16WeavePatternGenerator.keptFaceForTesting(course))
             for row in 0..<rows {
-                let key = HiraGenjiWeavePatternGenerator.key(
+                let key = Flat16WeavePatternGenerator.key(
                     of: course.samples[row].place, half: half
                 )
                 let run = try #require(byPlace[key])
@@ -129,7 +129,7 @@ struct BraidFlatGeneratorCellsFromOccupancyTests {
                             BraidReferenceColourings.bookAP97Right,
                             BraidReferenceColourings.bookAP96] {
             let pattern = try #require(
-                HiraGenjiWeavePatternGenerator.generate(assignments: assignments))
+                Flat16WeavePatternGenerator.generate(assignments: assignments))
             #expect(pattern.columnCount == 6)
             let surface = try #require(
                 Flat16SurfacePatternGenerator.generate(assignments: assignments))

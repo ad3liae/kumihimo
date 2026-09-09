@@ -4,7 +4,7 @@ import Testing
 @testable import Kumihimo
 
 @MainActor
-struct MaruGenjiViewportCoverageTests {
+struct RoundTube16ViewportCoverageTests {
     @Test(arguments: [
         SIMD2<Float>(393, 420),
         SIMD2<Float>(744, 700),
@@ -16,7 +16,7 @@ struct MaruGenjiViewportCoverageTests {
 
         #expect(coverage.tileCount > 0)
         #expect(!coverage.tileCount.isMultiple(of: 2))
-        #expect(coverage.tileCount <= MaruGenjiViewportCoverageCalculator.maximumTileCount)
+        #expect(coverage.tileCount <= RoundTube16ViewportCoverageCalculator.maximumTileCount)
         #expect(coverage.coveredLength >= coverage.requiredLength)
     }
 
@@ -41,7 +41,7 @@ struct MaruGenjiViewportCoverageTests {
 
         // One tile is four repeats, each nearly a turn of braid long, so the tiling
         // has to sit far below the limit instead of pressing against it.
-        #expect(coverage.tileCount <= MaruGenjiViewportCoverageCalculator.maximumTileCount / 3)
+        #expect(coverage.tileCount <= RoundTube16ViewportCoverageCalculator.maximumTileCount / 3)
         #expect(coverage.coveredLength >= coverage.requiredLength)
     }
 
@@ -50,8 +50,8 @@ struct MaruGenjiViewportCoverageTests {
         SIMD2<Float>(1_194, 700),
     ])
     func defaultZoomShowsAFewRepeatsRatherThanAFineThread(_ viewport: SIMD2<Float>) {
-        let visibleHeight = 2 * MaruGenjiRealityView.cameraDistance
-            * tan(MaruGenjiRealityView.verticalFieldOfView / 2)
+        let visibleHeight = 2 * RoundTube16RealityView.cameraDistance
+            * tan(RoundTube16RealityView.verticalFieldOfView / 2)
         let visibleWidth = visibleHeight * viewport.x / viewport.y
         let repeatLength = RoundTube16SurfaceMesh.defaultLength
             / Float(RoundTube16SurfaceMesh.defaultPatternRepeatCount)
@@ -84,14 +84,14 @@ struct MaruGenjiViewportCoverageTests {
     @Test func extremeViewportStopsAtTheSafetyLimit() throws {
         let coverage = try #require(calculate(viewport: SIMD2<Float>(1_000_000, 1)))
 
-        #expect(coverage.tileCount == MaruGenjiViewportCoverageCalculator.maximumTileCount)
+        #expect(coverage.tileCount == RoundTube16ViewportCoverageCalculator.maximumTileCount)
         #expect(!coverage.tileCount.isMultiple(of: 2))
     }
 
     @Test func tileOffsetsAreCenteredAndJoinWithoutGapOrOverlap() throws {
         let tileLength = RoundTube16SurfaceMesh.defaultLength
         let offsets = try #require(
-            MaruGenjiViewportCoverageCalculator.tileOffsets(
+            RoundTube16ViewportCoverageCalculator.tileOffsets(
                 tileCount: 5,
                 tileLength: tileLength
             )
@@ -104,23 +104,23 @@ struct MaruGenjiViewportCoverageTests {
     }
 
     @Test func invalidTileLayoutFailsSafely() {
-        #expect(MaruGenjiViewportCoverageCalculator.tileOffsets(tileCount: 0, tileLength: 1) == nil)
-        #expect(MaruGenjiViewportCoverageCalculator.tileOffsets(tileCount: 2, tileLength: 1) == nil)
-        #expect(MaruGenjiViewportCoverageCalculator.tileOffsets(
-            tileCount: MaruGenjiViewportCoverageCalculator.maximumTileCount + 2,
+        #expect(RoundTube16ViewportCoverageCalculator.tileOffsets(tileCount: 0, tileLength: 1) == nil)
+        #expect(RoundTube16ViewportCoverageCalculator.tileOffsets(tileCount: 2, tileLength: 1) == nil)
+        #expect(RoundTube16ViewportCoverageCalculator.tileOffsets(
+            tileCount: RoundTube16ViewportCoverageCalculator.maximumTileCount + 2,
             tileLength: 1
         ) == nil)
-        #expect(MaruGenjiViewportCoverageCalculator.tileOffsets(tileCount: 1, tileLength: .nan) == nil)
+        #expect(RoundTube16ViewportCoverageCalculator.tileOffsets(tileCount: 1, tileLength: .nan) == nil)
     }
 
     private func calculate(
         viewport: SIMD2<Float>,
-        cameraDistance: Float = MaruGenjiRealityView.cameraDistance,
-        verticalFieldOfView: Float = MaruGenjiRealityView.verticalFieldOfView,
-        minimumScale: Float = MaruGenjiViewerController.minimumScale,
+        cameraDistance: Float = RoundTube16RealityView.cameraDistance,
+        verticalFieldOfView: Float = RoundTube16RealityView.verticalFieldOfView,
+        minimumScale: Float = RoundTube16ViewerController.minimumScale,
         tileLength: Float = RoundTube16SurfaceMesh.defaultLength
-    ) -> MaruGenjiViewportCoverage? {
-        MaruGenjiViewportCoverageCalculator.calculate(
+    ) -> RoundTube16ViewportCoverage? {
+        RoundTube16ViewportCoverageCalculator.calculate(
             viewportSize: viewport,
             cameraDistance: cameraDistance,
             verticalFieldOfView: verticalFieldOfView,

@@ -696,7 +696,7 @@ struct HiraGenjiSurfaceMeshTests {
         _ indices: [Int],
         mesh: Flat16SurfaceMeshData
     ) -> [[Float]] {
-        let twist = HiraGenjiStitchTwistGrouping.groups().first
+        let twist = Flat16StitchTwistGrouping.groups().first
         return indices.map {
             let uv = mesh.textureCoordinates[$0]
             let phase = twist?.phase(along: uv.y, across: uv.x) ?? 0

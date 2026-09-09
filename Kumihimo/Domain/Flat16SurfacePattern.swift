@@ -46,7 +46,7 @@ struct Flat16SurfacePattern: Equatable, Sendable {
 /// along the braid for every worked cycle.
 ///
 /// This file decides **where** each place is. **Which thread stands there** comes
-/// from `HiraGenjiWeavePattern`, which Task 007F derived from the move rules and
+/// from `Flat16WeavePattern`, which Task 007F derived from the move rules and
 /// checked against book A's two controlled samples. The correspondence this file
 /// used to carry — a table hand-written from one cycle's move order — was refuted
 /// there and is gone.
@@ -246,14 +246,14 @@ enum Flat16SurfacePatternGenerator {
     /// across the braid. The left edge is entered from the front and the right
     /// edge from the back, so their two lanes are in opposite orders.
     private static func occupant(
-        of weave: HiraGenjiWeavePattern,
+        of weave: Flat16WeavePattern,
         region: Flat16SurfaceRegion,
         column: Int,
         row: Int
     ) -> Occupant? {
         switch region {
         case .front, .back:
-            let face: HiraGenjiBraidFace = region == .front ? .front : .back
+            let face: Flat16BraidFace = region == .front ? .front : .back
             let weaveColumn = region == .front
                 ? broadFaceColumnCount - 1 - column
                 : column
@@ -266,8 +266,8 @@ enum Flat16SurfacePatternGenerator {
                 role: patch.course == .lengthwise ? .inner : .outer
             )
         case .leftEdge, .rightEdge:
-            let edge: HiraGenjiBraidEdge = region == .leftEdge ? .left : .right
-            let half: HiraGenjiBraidFace
+            let edge: Flat16BraidEdge = region == .leftEdge ? .left : .right
+            let half: Flat16BraidFace
             if region == .leftEdge {
                 half = column == 0 ? .front : .back
             } else {
@@ -408,7 +408,7 @@ enum Flat16SurfacePatternGenerator {
 
     /// Where along a row a thread reaches an edge: move 1 for the left, move 2 for
     /// the right, read off the move rule.
-    private static func edgePhase(_ edge: HiraGenjiBraidEdge) -> Float {
+    private static func edgePhase(_ edge: Flat16BraidEdge) -> Float {
         let width = edge == .left ? -1 : broadFaceColumnCount
         return HiraGenjiWeaveDerivation.arrivalPhase(atWidthPosition: width) ?? bodyPhase
     }

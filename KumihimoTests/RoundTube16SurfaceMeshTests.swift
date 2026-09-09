@@ -425,7 +425,7 @@ struct MaruGenjiSurfaceMeshTests {
 
         // The maps are baked from a fixed reference surface, so their groups have
         // to be numbered the same way the mesh numbers its own.
-        let factoryGroups = MaruGenjiStrandTextureFactory.twistGroups
+        let factoryGroups = RoundTube16StrandTextureFactory.twistGroups
         #expect(factoryGroups.count == mesh.twist.groups.count)
         for (factory, group) in zip(factoryGroups, mesh.twist.groups) {
             #expect(abs(factory.coefficients.phasePerAlong
@@ -440,13 +440,13 @@ struct MaruGenjiSurfaceMeshTests {
         // own `v`, so the maps are drawn mirrored to compensate. Every map before
         // the twist was symmetric across the strand and could not show the
         // mirroring; the stripes can, so the convention is pinned here.
-        #expect(MaruGenjiStrandTextureFactory.crossSectionOffset(forRow: 0) == 1)
-        #expect(MaruGenjiStrandTextureFactory.crossSectionOffset(forRow: 1) == -1)
-        #expect(abs(MaruGenjiStrandTextureFactory.crossSectionOffset(forRow: 0.5)) < 0.000_1)
+        #expect(RoundTube16StrandTextureFactory.crossSectionOffset(forRow: 0) == 1)
+        #expect(RoundTube16StrandTextureFactory.crossSectionOffset(forRow: 1) == -1)
+        #expect(abs(RoundTube16StrandTextureFactory.crossSectionOffset(forRow: 0.5)) < 0.000_1)
         for sample in stride(from: Float(0), through: 1, by: 0.125) {
             let offset = RoundTube16SurfaceMesh.crossSectionOffset(forSample: sample)
             let row = 1 - RoundTube16SurfaceMesh.crossSectionSample(forOffset: offset)
-            #expect(abs(MaruGenjiStrandTextureFactory.crossSectionOffset(forRow: row) - offset)
+            #expect(abs(RoundTube16StrandTextureFactory.crossSectionOffset(forRow: row) - offset)
                 < 0.000_1)
         }
     }
@@ -474,17 +474,17 @@ struct MaruGenjiSurfaceMeshTests {
             == grouping(radius: RoundTube16SurfaceMesh.defaultRadius)
             .groupIndexBySegment)
 
-        for twist in MaruGenjiStrandTextureFactory.twistGroups {
-            #expect(pixels(MaruGenjiStrandTextureFactory.occlusionImage(twist: twist))
-                == pixels(MaruGenjiStrandTextureFactory.occlusionImage(twist: twist)))
-            #expect(pixels(MaruGenjiStrandTextureFactory.roughnessImage(twist: twist))
-                == pixels(MaruGenjiStrandTextureFactory.roughnessImage(twist: twist)))
-            #expect(pixels(MaruGenjiStrandTextureFactory.normalImage(twist: twist))
-                == pixels(MaruGenjiStrandTextureFactory.normalImage(twist: twist)))
+        for twist in RoundTube16StrandTextureFactory.twistGroups {
+            #expect(pixels(RoundTube16StrandTextureFactory.occlusionImage(twist: twist))
+                == pixels(RoundTube16StrandTextureFactory.occlusionImage(twist: twist)))
+            #expect(pixels(RoundTube16StrandTextureFactory.roughnessImage(twist: twist))
+                == pixels(RoundTube16StrandTextureFactory.roughnessImage(twist: twist)))
+            #expect(pixels(RoundTube16StrandTextureFactory.normalImage(twist: twist))
+                == pixels(RoundTube16StrandTextureFactory.normalImage(twist: twist)))
         }
         // Two groups sharing one set of maps would be the bug this task fixes.
-        let normals = MaruGenjiStrandTextureFactory.twistGroups.map {
-            pixels(MaruGenjiStrandTextureFactory.normalImage(twist: $0))
+        let normals = RoundTube16StrandTextureFactory.twistGroups.map {
+            pixels(RoundTube16StrandTextureFactory.normalImage(twist: $0))
         }
         #expect(Set(normals.map { $0?.count ?? 0 }).count == 1)
         #expect(normals[0] != normals[1])

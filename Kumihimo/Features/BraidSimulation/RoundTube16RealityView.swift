@@ -4,7 +4,7 @@ import UIKit
 import os
 
 @MainActor
-final class MaruGenjiViewerController: ObservableObject {
+final class RoundTube16ViewerController: ObservableObject {
     static let minimumScale: Float = 0.65
     static let maximumScale: Float = 1.8
 
@@ -58,7 +58,7 @@ final class MaruGenjiViewerController: ObservableObject {
     }
 }
 
-struct MaruGenjiRealityView: UIViewRepresentable {
+struct RoundTube16RealityView: UIViewRepresentable {
     static let cameraDistance: Float = 4.4
     static let verticalFieldOfView: Float = .pi / 3
     /// Neutral three-point lighting, exposed low enough that a strand crest keeps
@@ -68,7 +68,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
     static let rimLightIntensity: Float = 380
 
     let assignments: [ThreadAssignment]
-    let controller: MaruGenjiViewerController
+    let controller: RoundTube16ViewerController
     let viewportSize: CGSize
 
     @Environment(\.colorScheme) private var colorScheme
@@ -131,10 +131,10 @@ struct MaruGenjiRealityView: UIViewRepresentable {
     final class Coordinator: NSObject {
         private static let logger = Logger(
             subsystem: "com.example.Kumihimo",
-            category: "MaruGenjiRealityView"
+            category: "RoundTube16RealityView"
         )
 
-        let controller: MaruGenjiViewerController
+        let controller: RoundTube16ViewerController
         var assignmentSignature = ""
         private var tileRoot: Entity?
         private var sharedMesh: MeshResource?
@@ -144,7 +144,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
         /// aspect ratio the pattern declares.
         private var tileLength = RoundTube16SurfaceMesh.defaultLength
 
-        init(controller: MaruGenjiViewerController) {
+        init(controller: RoundTube16ViewerController) {
             self.controller = controller
         }
 
@@ -187,7 +187,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                     return
                 }
 
-                let detail = MaruGenjiStrandDetailTextures.shared
+                let detail = RoundTube16StrandTextures.shared
                 var combinedIndices = [UInt32]()
                 var faceMaterialIndices = [UInt32]()
                 var materials = [PhysicallyBasedMaterial]()
@@ -237,15 +237,15 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 let camera = PerspectiveCamera()
                 camera.look(
                     at: .zero,
-                    from: SIMD3<Float>(0, 0, MaruGenjiRealityView.cameraDistance),
+                    from: SIMD3<Float>(0, 0, RoundTube16RealityView.cameraDistance),
                     relativeTo: nil
                 )
-                camera.camera.fieldOfViewInDegrees = MaruGenjiRealityView.verticalFieldOfView
+                camera.camera.fieldOfViewInDegrees = RoundTube16RealityView.verticalFieldOfView
                     * 180 / .pi
                 anchor.addChild(camera)
 
                 let keyLight = DirectionalLight()
-                keyLight.light.intensity = MaruGenjiRealityView.keyLightIntensity
+                keyLight.light.intensity = RoundTube16RealityView.keyLightIntensity
                 keyLight.look(
                     at: .zero,
                     from: SIMD3<Float>(0.5, 2.2, 3),
@@ -254,7 +254,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 anchor.addChild(keyLight)
 
                 let fillLight = DirectionalLight()
-                fillLight.light.intensity = MaruGenjiRealityView.fillLightIntensity
+                fillLight.light.intensity = RoundTube16RealityView.fillLightIntensity
                 fillLight.look(
                     at: .zero,
                     from: SIMD3<Float>(-1.5, -1, 2),
@@ -263,7 +263,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 anchor.addChild(fillLight)
 
                 let rimLight = DirectionalLight()
-                rimLight.light.intensity = MaruGenjiRealityView.rimLightIntensity
+                rimLight.light.intensity = RoundTube16RealityView.rimLightIntensity
                 rimLight.look(
                     at: .zero,
                     from: SIMD3<Float>(0.2, 1, -3),
@@ -301,18 +301,18 @@ struct MaruGenjiRealityView: UIViewRepresentable {
                 let sharedMesh,
                 viewportSize.width > 0,
                 viewportSize.height > 0,
-                let coverage = MaruGenjiViewportCoverageCalculator.calculate(
+                let coverage = RoundTube16ViewportCoverageCalculator.calculate(
                     viewportSize: SIMD2<Float>(
                         Float(viewportSize.width),
                         Float(viewportSize.height)
                     ),
-                    cameraDistance: MaruGenjiRealityView.cameraDistance,
-                    verticalFieldOfView: MaruGenjiRealityView.verticalFieldOfView,
-                    minimumScale: MaruGenjiViewerController.minimumScale,
+                    cameraDistance: RoundTube16RealityView.cameraDistance,
+                    verticalFieldOfView: RoundTube16RealityView.verticalFieldOfView,
+                    minimumScale: RoundTube16ViewerController.minimumScale,
                     tileLength: tileLength
                 ),
                 coverage.tileCount != tileCount,
-                let offsets = MaruGenjiViewportCoverageCalculator.tileOffsets(
+                let offsets = RoundTube16ViewportCoverageCalculator.tileOffsets(
                     tileCount: coverage.tileCount,
                     tileLength: tileLength
                 )
@@ -350,7 +350,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
         /// colour itself.
         private func material(
             color: UIColor,
-            maps: MaruGenjiStrandDetailTextures.Maps?
+            maps: RoundTube16StrandTextures.Maps?
         ) -> PhysicallyBasedMaterial {
             var material = PhysicallyBasedMaterial()
             if let occlusion = maps?.occlusion {
@@ -363,7 +363,7 @@ struct MaruGenjiRealityView: UIViewRepresentable {
             if let roughness = maps?.roughness {
                 material.roughness = .init(scale: 1, texture: .strandDetail(roughness))
             } else {
-                material.roughness = .init(floatLiteral: MaruGenjiStrandTextureFactory.baseRoughness)
+                material.roughness = .init(floatLiteral: RoundTube16StrandTextureFactory.baseRoughness)
             }
             if let normal = maps?.normal {
                 material.normal = .init(texture: .strandDetail(normal))

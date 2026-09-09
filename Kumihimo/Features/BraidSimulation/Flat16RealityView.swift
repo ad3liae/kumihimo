@@ -3,12 +3,12 @@ import SwiftUI
 import UIKit
 import os
 
-struct HiraGenjiRealityView: UIViewRepresentable {
-    static let cameraDistance: Float = MaruGenjiRealityView.cameraDistance
-    static let verticalFieldOfView: Float = MaruGenjiRealityView.verticalFieldOfView
+struct Flat16RealityView: UIViewRepresentable {
+    static let cameraDistance: Float = RoundTube16RealityView.cameraDistance
+    static let verticalFieldOfView: Float = RoundTube16RealityView.verticalFieldOfView
 
     let assignments: [ThreadAssignment]
-    let controller: MaruGenjiViewerController
+    let controller: RoundTube16ViewerController
     let viewportSize: CGSize
 
     @Environment(\.colorScheme) private var colorScheme
@@ -63,22 +63,22 @@ struct HiraGenjiRealityView: UIViewRepresentable {
     final class Coordinator: NSObject {
         private static let logger = Logger(
             subsystem: "com.example.Kumihimo",
-            category: "HiraGenjiRealityView"
+            category: "Flat16RealityView"
         )
 
-        let controller: MaruGenjiViewerController
+        let controller: RoundTube16ViewerController
         var assignmentSignature = ""
         private var tileRoot: Entity?
         private var sharedMesh: MeshResource?
         private var sharedMaterials = [PhysicallyBasedMaterial]()
         private var tileCount = 0
 
-        init(controller: MaruGenjiViewerController) {
+        init(controller: RoundTube16ViewerController) {
             self.controller = controller
         }
 
         func buildScene(in view: ARView, assignments: [ThreadAssignment]) {
-            assignmentSignature = HiraGenjiRealityView.signature(assignments)
+            assignmentSignature = Flat16RealityView.signature(assignments)
             view.scene.anchors.removeAll()
             tileRoot = nil
             sharedMesh = nil
@@ -113,7 +113,7 @@ struct HiraGenjiRealityView: UIViewRepresentable {
                         (surface.colorGroups[colorID] ?? [])
                             + (surface.boundaryColorGroups[colorID] ?? []),
                         color: threadColor.uiColor,
-                        roughness: MaruGenjiStrandTextureFactory.baseRoughness,
+                        roughness: RoundTube16StrandTextureFactory.baseRoughness,
                         combinedIndices: &combinedIndices,
                         faceMaterialIndices: &faceMaterialIndices,
                         materials: &materials
@@ -139,23 +139,23 @@ struct HiraGenjiRealityView: UIViewRepresentable {
                 sharedMaterials = materials
 
                 let camera = PerspectiveCamera()
-                camera.look(at: .zero, from: SIMD3<Float>(0, 0, HiraGenjiRealityView.cameraDistance), relativeTo: nil)
-                camera.camera.fieldOfViewInDegrees = HiraGenjiRealityView.verticalFieldOfView * 180 / .pi
+                camera.look(at: .zero, from: SIMD3<Float>(0, 0, Flat16RealityView.cameraDistance), relativeTo: nil)
+                camera.camera.fieldOfViewInDegrees = Flat16RealityView.verticalFieldOfView * 180 / .pi
                 anchor.addChild(camera)
 
                 // The round braid's three lights, unchanged. The flat braid had a
                 // key of 3,500 against a fill of 1,200; a fill that strong lifts
                 // the valleys back out and leaves the surface without shadows.
                 let keyLight = DirectionalLight()
-                keyLight.light.intensity = MaruGenjiRealityView.keyLightIntensity
+                keyLight.light.intensity = RoundTube16RealityView.keyLightIntensity
                 keyLight.look(at: .zero, from: SIMD3<Float>(0.5, 2.2, 3), relativeTo: nil)
                 anchor.addChild(keyLight)
                 let fillLight = DirectionalLight()
-                fillLight.light.intensity = MaruGenjiRealityView.fillLightIntensity
+                fillLight.light.intensity = RoundTube16RealityView.fillLightIntensity
                 fillLight.look(at: .zero, from: SIMD3<Float>(-1.5, -1, 2), relativeTo: nil)
                 anchor.addChild(fillLight)
                 let rimLight = DirectionalLight()
-                rimLight.light.intensity = MaruGenjiRealityView.rimLightIntensity
+                rimLight.light.intensity = RoundTube16RealityView.rimLightIntensity
                 rimLight.look(at: .zero, from: SIMD3<Float>(0.2, 1, -3), relativeTo: nil)
                 anchor.addChild(rimLight)
 
@@ -183,15 +183,15 @@ struct HiraGenjiRealityView: UIViewRepresentable {
         func updateCoverage(for viewportSize: CGSize) {
             guard let tileRoot, let sharedMesh,
                   viewportSize.width > 0, viewportSize.height > 0,
-                  let coverage = MaruGenjiViewportCoverageCalculator.calculate(
+                  let coverage = RoundTube16ViewportCoverageCalculator.calculate(
                     viewportSize: SIMD2<Float>(Float(viewportSize.width), Float(viewportSize.height)),
-                    cameraDistance: HiraGenjiRealityView.cameraDistance,
-                    verticalFieldOfView: HiraGenjiRealityView.verticalFieldOfView,
-                    minimumScale: MaruGenjiViewerController.minimumScale,
+                    cameraDistance: Flat16RealityView.cameraDistance,
+                    verticalFieldOfView: Flat16RealityView.verticalFieldOfView,
+                    minimumScale: RoundTube16ViewerController.minimumScale,
                     tileLength: Flat16SurfaceMesh.defaultLength
                   ),
                   coverage.tileCount != tileCount,
-                  let offsets = MaruGenjiViewportCoverageCalculator.tileOffsets(
+                  let offsets = RoundTube16ViewportCoverageCalculator.tileOffsets(
                     tileCount: coverage.tileCount,
                     tileLength: Flat16SurfaceMesh.defaultLength
                   ) else { return }
@@ -220,7 +220,7 @@ struct HiraGenjiRealityView: UIViewRepresentable {
                 count: indices.count / 3
             ))
             var material = PhysicallyBasedMaterial()
-            let maps = HiraGenjiStitchDetailTexture.maps
+            let maps = Flat16StitchTexture.maps
             if let occlusion = maps.occlusion {
                 material.baseColor = .init(tint: color, texture: .strandDetail(occlusion))
                 material.ambientOcclusion = .init(texture: .strandDetail(occlusion))

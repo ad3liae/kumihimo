@@ -1,16 +1,16 @@
 import SwiftUI
 
-struct HiraGenji3DPreviewView: View {
+struct Flat16PreviewView: View {
     let assignments: [ThreadAssignment]
 
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var controller: MaruGenjiViewerController
+    @StateObject private var controller: RoundTube16ViewerController
     private let isEmbedded: Bool
     private let closeAction: (() -> Void)?
 
     init(
         assignments: [ThreadAssignment],
-        controller: MaruGenjiViewerController,
+        controller: RoundTube16ViewerController,
         isEmbedded: Bool,
         closeAction: (() -> Void)? = nil
     ) {
@@ -57,7 +57,7 @@ struct HiraGenji3DPreviewView: View {
         VStack(spacing: 16) {
             GeometryReader { geometry in
                 ZStack {
-                    HiraGenjiRealityView(
+                    Flat16RealityView(
                         assignments: assignments,
                         controller: controller,
                         viewportSize: geometry.size

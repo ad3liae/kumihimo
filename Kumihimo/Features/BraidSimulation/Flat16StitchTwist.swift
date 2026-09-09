@@ -5,7 +5,7 @@ import simd
 ///
 /// `along` is 0...1 down the stitch and `across` is 0...1 over its width, so the
 /// phase is affine in both and the stripes never break inside a stitch.
-struct HiraGenjiStitchTwist: Equatable, Sendable {
+struct Flat16StitchTwist: Equatable, Sendable {
     let phasePerAlong: Float
     let phasePerAcross: Float
     /// Phase gradient in the stitch's own frame, in world units and multiplied by
@@ -30,7 +30,7 @@ struct HiraGenjiStitchTwist: Equatable, Sendable {
 /// divides the outline by arc, and one step long, because a step is a worked
 /// cycle. No frame is sheared and they are all alike, so one pair serves them
 /// all. `groups` measures that rather than assuming it.
-enum HiraGenjiStitchTwistGrouping {
+enum Flat16StitchTwistGrouping {
     /// Stripes over one stitch.
     ///
     /// Not chosen. The round braid draws `fiberCount` stripes over a strand
@@ -50,8 +50,8 @@ enum HiraGenjiStitchTwistGrouping {
     }
 
     static var stripesPerStitchBeforeRounding: Float {
-        let roundSegmentInYarns = Float(MaruGenjiStrandTextureFactory.width)
-            / Float(MaruGenjiStrandTextureFactory.height)
+        let roundSegmentInYarns = Float(RoundTube16StrandTextureFactory.width)
+            / Float(RoundTube16StrandTextureFactory.height)
         let perYarn = Float(RoundTube16SurfaceMesh.fiberCount) / roundSegmentInYarns
         return perYarn * stitchLengthInYarns
     }
@@ -75,7 +75,7 @@ enum HiraGenjiStitchTwistGrouping {
         in region: Flat16SurfaceRegion,
         halfWidth: Float = Flat16SurfaceMesh.defaultHalfWidth,
         halfThickness: Float = Flat16SurfaceMesh.defaultHalfThickness
-    ) -> HiraGenjiStitchTwist? {
+    ) -> Flat16StitchTwist? {
         let angle = RoundTube16SurfaceMesh.twistAngleDegrees * .pi / 180
         let sine = sin(angle)
         let cosine = cos(angle)
@@ -96,7 +96,7 @@ enum HiraGenjiStitchTwistGrouping {
         guard phasePerAcross.isFinite, gradient.x.isFinite, gradient.y.isFinite else {
             return nil
         }
-        return HiraGenjiStitchTwist(
+        return Flat16StitchTwist(
             phasePerAlong: phasePerAlong,
             phasePerAcross: phasePerAcross,
             normalizedPhaseGradient: gradient * halfThickness
@@ -108,9 +108,9 @@ enum HiraGenjiStitchTwistGrouping {
     static func groups(
         halfWidth: Float = Flat16SurfaceMesh.defaultHalfWidth,
         halfThickness: Float = Flat16SurfaceMesh.defaultHalfThickness
-    ) -> [HiraGenjiStitchTwist] {
+    ) -> [Flat16StitchTwist] {
         var seen = [Int]()
-        var groups = [HiraGenjiStitchTwist]()
+        var groups = [Flat16StitchTwist]()
         for region in Flat16SurfaceRegion.allCases {
             guard
                 let twist = twist(in: region, halfWidth: halfWidth, halfThickness: halfThickness)
@@ -129,7 +129,7 @@ enum HiraGenjiStitchTwistGrouping {
     /// The angle the stripes actually make with the yarn's own direction, read
     /// back off the coefficients. What the solve is for.
     static func stripeAngleDegrees(
-        of twist: HiraGenjiStitchTwist,
+        of twist: Flat16StitchTwist,
         in region: Flat16SurfaceRegion,
         halfWidth: Float = Flat16SurfaceMesh.defaultHalfWidth,
         halfThickness: Float = Flat16SurfaceMesh.defaultHalfThickness
@@ -144,7 +144,7 @@ enum HiraGenjiStitchTwistGrouping {
 
     /// Which way the stripes lean. Every strand of a braid is the same yarn, so
     /// this has to be the same everywhere.
-    static func hand(of twist: HiraGenjiStitchTwist) -> FloatingPointSign {
+    static func hand(of twist: Flat16StitchTwist) -> FloatingPointSign {
         (twist.phasePerAlong * twist.phasePerAcross).sign
     }
 

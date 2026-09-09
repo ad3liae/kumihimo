@@ -4,7 +4,7 @@ import simd
 import Testing
 @testable import Kumihimo
 
-struct MaruGenjiThumbnailLayoutTests {
+struct RoundTube16ThumbnailLayoutTests {
     private static let frames = [
         CGSize(width: 320, height: 96),
         CGSize(width: 180, height: 72),
@@ -15,7 +15,7 @@ struct MaruGenjiThumbnailLayoutTests {
     @Test(arguments: frames)
     func oneRepeatKeepsTheAspectRatioInsteadOfFillingTheFrame(_ size: CGSize) throws {
         let aspectRatio = RoundTube16SurfacePatternGenerator.patternAspectRatio
-        let layout = try #require(MaruGenjiThumbnailLayout(size: size, aspectRatio: aspectRatio))
+        let layout = try #require(RoundTube16ThumbnailLayout(size: size, aspectRatio: aspectRatio))
 
         // The height carries one full turn around the braid, so one repeat along it
         // is that height times the declared aspect ratio, whatever the frame is.
@@ -26,14 +26,14 @@ struct MaruGenjiThumbnailLayoutTests {
     @Test(arguments: frames)
     func theFrameIsCoveredByRepeatsThatOverhangBothEnds(_ size: CGSize) throws {
         let layout = try #require(
-            MaruGenjiThumbnailLayout(
+            RoundTube16ThumbnailLayout(
                 size: size,
                 aspectRatio: RoundTube16SurfacePatternGenerator.patternAspectRatio
             )
         )
 
         #expect(layout.repeatCount >= 1)
-        #expect(layout.repeatCount <= MaruGenjiThumbnailLayout.maximumRepeatCount)
+        #expect(layout.repeatCount <= RoundTube16ThumbnailLayout.maximumRepeatCount)
         #expect(layout.originX <= 0)
         #expect(layout.originX + CGFloat(layout.repeatCount) * layout.repeatLength >= size.width)
         // Symmetric overhang, so the crop reads as a length of braid rather than as
@@ -46,10 +46,10 @@ struct MaruGenjiThumbnailLayoutTests {
     @Test func repeatCountFollowsTheFrameWidth() throws {
         let aspectRatio = RoundTube16SurfacePatternGenerator.patternAspectRatio
         let narrow = try #require(
-            MaruGenjiThumbnailLayout(size: CGSize(width: 120, height: 96), aspectRatio: aspectRatio)
+            RoundTube16ThumbnailLayout(size: CGSize(width: 120, height: 96), aspectRatio: aspectRatio)
         )
         let wide = try #require(
-            MaruGenjiThumbnailLayout(size: CGSize(width: 480, height: 96), aspectRatio: aspectRatio)
+            RoundTube16ThumbnailLayout(size: CGSize(width: 480, height: 96), aspectRatio: aspectRatio)
         )
 
         #expect(wide.repeatCount > narrow.repeatCount)
@@ -62,7 +62,7 @@ struct MaruGenjiThumbnailLayoutTests {
         )
         let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
         let layout = try #require(
-            MaruGenjiThumbnailLayout(
+            RoundTube16ThumbnailLayout(
                 size: CGSize(width: 320, height: 96),
                 aspectRatio: pattern.aspectRatio
             )
@@ -99,26 +99,26 @@ struct MaruGenjiThumbnailLayoutTests {
         CGSize(width: 320, height: CGFloat.infinity),
     ])
     func invalidFrameFailsSafely(_ size: CGSize) {
-        #expect(MaruGenjiThumbnailLayout(size: size, aspectRatio: 1) == nil)
+        #expect(RoundTube16ThumbnailLayout(size: size, aspectRatio: 1) == nil)
     }
 
     @Test func invalidAspectRatioFailsSafely() {
         let size = CGSize(width: 320, height: 96)
-        #expect(MaruGenjiThumbnailLayout(size: size, aspectRatio: 0) == nil)
-        #expect(MaruGenjiThumbnailLayout(size: size, aspectRatio: -1) == nil)
-        #expect(MaruGenjiThumbnailLayout(size: size, aspectRatio: .nan) == nil)
-        #expect(MaruGenjiThumbnailLayout(size: size, aspectRatio: .infinity) == nil)
+        #expect(RoundTube16ThumbnailLayout(size: size, aspectRatio: 0) == nil)
+        #expect(RoundTube16ThumbnailLayout(size: size, aspectRatio: -1) == nil)
+        #expect(RoundTube16ThumbnailLayout(size: size, aspectRatio: .nan) == nil)
+        #expect(RoundTube16ThumbnailLayout(size: size, aspectRatio: .infinity) == nil)
     }
 
     @Test func anExtremeFrameStaysWithinTheRepeatLimit() throws {
         let layout = try #require(
-            MaruGenjiThumbnailLayout(
+            RoundTube16ThumbnailLayout(
                 size: CGSize(width: 1_000_000, height: 4),
                 aspectRatio: 1
             )
         )
 
-        #expect(layout.repeatCount == MaruGenjiThumbnailLayout.maximumRepeatCount)
+        #expect(layout.repeatCount == RoundTube16ThumbnailLayout.maximumRepeatCount)
         #expect(abs(layout.repeatLength - 4) < 0.000_1)
     }
 

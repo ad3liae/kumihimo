@@ -1,3 +1,20 @@
+// **What is left of the per-braid derivation** (Task 025-4, 2026-09-09).
+//
+// This file is the source of one thing the product still asks for: **the arrival
+// phases, on book A's clock** — the printed steps, two threads at a time. The
+// author's ruling of 2026-09-09 left them here: the general working-out counts book
+// C's instants instead, and moving to it needs the drawing's centring put right
+// first, which is shape work the initial release does not do
+// (`Flat16SurfacePatternGenerator.drawsOnlyTheRecipe`).
+//
+// **The cell assignment has gone.** Which thread stands at which place, and which
+// side of a crossing it takes, come from the general working-out now
+// (`Flat16WeaveFromWorking`), and the two were held against each other object for
+// object on all four reference colourings before the switch.
+//
+// **Everything else here is the record of what book A and book B were checked
+// against.** It is not deleted for that reason.
+
 import Foundation
 
 /// Where each thread of the flat braid goes.
@@ -36,8 +53,8 @@ enum HiraGenjiWeaveDerivation {
 
     /// A place in the braid's cross-section.
     enum Place: Equatable, Sendable {
-        case face(HiraGenjiBraidFace, column: Int)
-        case edge(HiraGenjiBraidEdge)
+        case face(Flat16BraidFace, column: Int)
+        case edge(Flat16BraidEdge)
     }
 
     /// Where each board position sits in the braid's cross-section.
@@ -302,12 +319,12 @@ struct HiraGenjiThreadCourse: Equatable, Sendable {
             return nil
         }
 
-        var face: HiraGenjiBraidFace? {
+        var face: Flat16BraidFace? {
             if case .face(let face, _) = place { return face }
             return nil
         }
 
-        var edge: HiraGenjiBraidEdge? {
+        var edge: Flat16BraidEdge? {
             if case .edge(let edge) = place { return edge }
             return nil
         }
@@ -357,7 +374,7 @@ struct HiraGenjiThreadCourse: Equatable, Sendable {
 
     /// The edge the thread turns at between two samples, if it turns at all: a
     /// step of one that has the thread at an edge at one end of it.
-    func turnEdge(afterCycle cycle: Int) -> HiraGenjiBraidEdge? {
+    func turnEdge(afterCycle cycle: Int) -> Flat16BraidEdge? {
         guard samples.indices.contains(cycle), samples.indices.contains(cycle + 1) else {
             return nil
         }
@@ -368,7 +385,7 @@ struct HiraGenjiThreadCourse: Equatable, Sendable {
     }
 }
 
-enum HiraGenjiBraidEdge: Equatable, Sendable, CaseIterable {
+enum Flat16BraidEdge: Equatable, Sendable, CaseIterable {
     case left
     case right
 }

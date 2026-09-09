@@ -20,7 +20,7 @@ enum Flat16WeaveFromWorking {
         from derivation: BraidDerivation,
         construction: BraidConstruction,
         assignments: [ThreadAssignment]
-    ) -> HiraGenjiWeavePattern? {
+    ) -> Flat16WeavePattern? {
         guard
             let fold = derivation.fold,
             assignments.count == derivation.threadCount,
@@ -31,13 +31,13 @@ enum Flat16WeaveFromWorking {
         let colours = Dictionary(uniqueKeysWithValues: assignments.map { ($0.position, $0.colorID) })
         let rowCount = derivation.repeatCycleCount
 
-        var patches = [HiraGenjiWeavePatch]()
-        var edgePlaces = [HiraGenjiWeaveEdgePlace]()
-        var crossings = [HiraGenjiWeftCrossing]()
+        var patches = [Flat16WeavePatch]()
+        var edgePlaces = [Flat16WeaveEdgePlace]()
+        var crossings = [Flat16WeftCrossing]()
 
         for course in derivation.courses {
             guard let colour = colours[course.threadPosition] else { return nil }
-            let kind: HiraGenjiThreadCourseKind =
+            let kind: Flat16ThreadCourseKind =
                 course.runsAlongTheBraid ? .lengthwise : .carriedAcross
             guard let half = keptFace(of: course, fold: fold) else { return nil }
 
@@ -55,7 +55,7 @@ enum Flat16WeaveFromWorking {
                 ) else { return nil }
 
                 if let face = fold.face(ofSlot: slot), let column = fold.column(ofSlot: slot) {
-                    patches.append(HiraGenjiWeavePatch(
+                    patches.append(Flat16WeavePatch(
                         column: column,
                         row: row,
                         face: face.asHiraFace,
@@ -66,7 +66,7 @@ enum Flat16WeaveFromWorking {
                         nextWidthPosition: nextWidth
                     ))
                 } else {
-                    edgePlaces.append(HiraGenjiWeaveEdgePlace(
+                    edgePlaces.append(Flat16WeaveEdgePlace(
                         edge: width < 0 ? .left : .right,
                         row: row,
                         half: half.asHiraFace,
@@ -93,7 +93,7 @@ enum Flat16WeaveFromWorking {
                     let layer = construction.layer(ofThread: course.threadPosition, atRow: row)
                 else { continue }
                 let step = to > from ? 1 : -1
-                crossings.append(HiraGenjiWeftCrossing(
+                crossings.append(Flat16WeftCrossing(
                     threadPosition: course.threadPosition,
                     colorID: colour,
                     row: row,
@@ -107,7 +107,7 @@ enum Flat16WeaveFromWorking {
             }
         }
 
-        return HiraGenjiWeavePattern(
+        return Flat16WeavePattern(
             patches: patches.sorted {
                 ($0.row, $0.face.rawValue, $0.column) < ($1.row, $1.face.rawValue, $1.column)
             },
@@ -134,5 +134,5 @@ enum Flat16WeaveFromWorking {
 }
 
 private extension BraidFace {
-    var asHiraFace: HiraGenjiBraidFace { self == .front ? .front : .back }
+    var asHiraFace: Flat16BraidFace { self == .front ? .front : .back }
 }

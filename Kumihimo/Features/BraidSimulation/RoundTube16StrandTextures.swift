@@ -11,8 +11,8 @@ import os
 /// depends on how its own frame is sheared; the sets are indexed the way the mesh
 /// numbers its twist groups.
 @MainActor
-final class MaruGenjiStrandDetailTextures {
-    static let shared = MaruGenjiStrandDetailTextures()
+final class RoundTube16StrandTextures {
+    static let shared = RoundTube16StrandTextures()
 
     /// The three maps one twist group needs.
     struct Maps {
@@ -23,26 +23,26 @@ final class MaruGenjiStrandDetailTextures {
 
     private static let logger = Logger(
         subsystem: "com.example.Kumihimo",
-        category: "MaruGenjiStrandDetailTextures"
+        category: "RoundTube16StrandTextures"
     )
 
     let mapsByTwistGroup: [Maps]
 
     private init() {
-        mapsByTwistGroup = MaruGenjiStrandTextureFactory.twistGroups.enumerated().map { index, twist in
+        mapsByTwistGroup = RoundTube16StrandTextureFactory.twistGroups.enumerated().map { index, twist in
             Maps(
                 occlusion: Self.texture(
-                    MaruGenjiStrandTextureFactory.occlusionImage(twist: twist),
+                    RoundTube16StrandTextureFactory.occlusionImage(twist: twist),
                     semantic: .color,
                     name: "occlusion \(index)"
                 ),
                 roughness: Self.texture(
-                    MaruGenjiStrandTextureFactory.roughnessImage(twist: twist),
+                    RoundTube16StrandTextureFactory.roughnessImage(twist: twist),
                     semantic: .scalar,
                     name: "roughness \(index)"
                 ),
                 normal: Self.texture(
-                    MaruGenjiStrandTextureFactory.normalImage(twist: twist),
+                    RoundTube16StrandTextureFactory.normalImage(twist: twist),
                     semantic: .normal,
                     name: "normal \(index)"
                 )

@@ -23,7 +23,7 @@ enum BraidPatternBridge {
     static func hiraStylePattern(
         from derivation: BraidDerivation,
         assignments: [ThreadAssignment]
-    ) -> HiraGenjiWeavePattern? {
+    ) -> Flat16WeavePattern? {
         guard let construction = BraidConstruction.construct(
             of: derivation.method, on: derivation.stand,
             crossSection: derivation.crossSection, fold: derivation.fold,
@@ -38,7 +38,7 @@ enum BraidPatternBridge {
         from derivation: BraidDerivation,
         construction: BraidConstruction,
         assignments: [ThreadAssignment]
-    ) -> HiraGenjiWeavePattern? {
+    ) -> Flat16WeavePattern? {
         Flat16WeaveFromWorking.pattern(
             from: derivation, construction: construction, assignments: assignments
         )

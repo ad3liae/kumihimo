@@ -16,7 +16,7 @@ import simd
 /// two different angles; a set per group is what keeps every strand at the one
 /// twist angle. The maps depend on the strand shape alone, so the groups come
 /// from a fixed reference surface and are shared by every colouring.
-enum MaruGenjiStrandTextureFactory {
+enum RoundTube16StrandTextureFactory {
     /// Wider than tall because a strand segment is roughly four times as long as
     /// it is wide, which keeps the generated detail close to square on screen.
     static let width = 512

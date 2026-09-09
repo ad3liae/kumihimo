@@ -1,13 +1,13 @@
 import Foundation
 import simd
 
-struct MaruGenjiViewportCoverage: Equatable, Sendable {
+struct RoundTube16ViewportCoverage: Equatable, Sendable {
     let tileCount: Int
     let coveredLength: Float
     let requiredLength: Float
 }
 
-enum MaruGenjiViewportCoverageCalculator {
+enum RoundTube16ViewportCoverageCalculator {
     static let maximumTileCount = 31
     static let offscreenMarginInScreenWidths: Float = 1
 
@@ -17,7 +17,7 @@ enum MaruGenjiViewportCoverageCalculator {
         verticalFieldOfView: Float,
         minimumScale: Float,
         tileLength: Float
-    ) -> MaruGenjiViewportCoverage? {
+    ) -> RoundTube16ViewportCoverage? {
         guard
             viewportSize.x.isFinite,
             viewportSize.y.isFinite,
@@ -48,7 +48,7 @@ enum MaruGenjiViewportCoverageCalculator {
         }
         tileCount = min(tileCount, maximumTileCount)
 
-        return MaruGenjiViewportCoverage(
+        return RoundTube16ViewportCoverage(
             tileCount: tileCount,
             coveredLength: Float(tileCount) * tileLength,
             requiredLength: requiredLength
