@@ -13,6 +13,11 @@
 [`docs/architecture.md`](docs/architecture.md) の「初期リリースはレシピのある紐に限る（作者の決定）」、
 作業の指示書は [`docs/tasks/025-initial-release-rendering.md`](docs/tasks/025-initial-release-rendering.md) です。
 
+**紐の形は紐の族ごとの描き手**（丸い筒16本、平ら16本）**が描き、面の模様の色は手順表から
+導いた占有履歴が決めます。** 紐を1つ足す手順は
+[`docs/tasks/025-5-adding-a-recipe.md`](docs/tasks/025-5-adding-a-recipe.md) にあります
+（手順表・配色・測った形の値の3つ、平らな紐はさらに紐のまわりの並び順）。
+
 ## 開発を始める
 
 Codex Workerは、最初に [`AGENTS.md`](AGENTS.md) を読み、対象の仕様書と実装チケットに従って作業します。
