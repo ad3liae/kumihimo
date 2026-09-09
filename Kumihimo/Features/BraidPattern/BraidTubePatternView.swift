@@ -4,8 +4,14 @@ import SwiftUI
 ///
 /// One cell a column a row, in the columns' own order — **the slots a hand lands
 /// on**, which do not stand at even angles round the braid. Under it, each column's
-/// angle, and **whatever the figure says is unsettled about itself**, in small type.
-/// A figure that is not sure of something should say so where it is looked at.
+/// angle, and **that the figure is unsure of something**, in small type: a figure
+/// that is not sure of something should say so where it is looked at.
+///
+/// **The figure's own `unsettled` notes are not shown.** They are written for
+/// whoever reads the code — in English, and `BraidCrossSection.unsettled` says
+/// itself that it is not display text — so the screen says the same thing in its
+/// own words. What is not settled is fixed, not open-ended: the mirror counts as
+/// agreement, and the order of the columns round the braid is undecided.
 struct BraidTubePatternView: View {
     let figure: BraidTubeFigure
     var accessibilityLabel: String = BraidPatternStrings.figureAccessibilityLabel
@@ -50,8 +56,8 @@ struct BraidTubePatternView: View {
             Text(columnAngles)
                 .font(.caption2.monospacedDigit())
                 .foregroundStyle(.secondary)
-            ForEach(figure.unsettled, id: \.self) { note in
-                Text(note)
+            if !figure.unsettled.isEmpty {
+                Text(BraidPatternStrings.tubeUnsettled)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
