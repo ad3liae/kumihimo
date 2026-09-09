@@ -40,6 +40,12 @@ enum BraidFamilyDrawing {
         guard let worked = recipe.worked(on: stand) else { return nil }
         switch BraidFamily.family(of: worked.derivation) {
         case Flat16SurfaceMesh.family:
+            // **The flat drawing is wired to one braid** and says so; a second flat
+            // braid has no drawer until its centring is put right (see
+            // `Flat16SurfacePatternGenerator.drawsOnlyTheRecipe`). No drawer is the
+            // right answer, not a drawing that is wrong.
+            guard recipe.id == Flat16SurfacePatternGenerator.drawsOnlyTheRecipe
+            else { return nil }
             return Flat16SurfacePatternGenerator.generate(assignments: recipe.colouring)
                 .map(Drawing.flat)
         case RoundTube16SurfaceMesh.family:

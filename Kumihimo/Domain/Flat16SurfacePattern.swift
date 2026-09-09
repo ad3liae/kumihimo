@@ -53,6 +53,27 @@ struct Flat16SurfacePattern: Equatable, Sendable {
 enum Flat16SurfacePatternGenerator {
     static let requiredThreadCount = 16
 
+    /// **This drawing is wired to one braid, and may only be given that one.**
+    ///
+    /// It takes its arrival phases on book A's clock — the printed steps, two
+    /// threads at a time — and the left edge's phase, centred on the body's mean,
+    /// lands on exactly −0.5, which is the boundary the centring wraps at. The
+    /// general working-out counts book C's instants instead and gives 0.0385 of a
+    /// row more, which falls past that boundary and comes back nearly a whole row
+    /// the other way: the braid then shifts bodily along its length, up to 12.80
+    /// thread diameters (Task 025-4).
+    ///
+    /// **So before a second flat braid can be drawn**, the centring has to be put
+    /// right first — wrapped symmetrically about the body rather than at a fixed
+    /// boundary, with the vertices' movement measured and reported — and only then
+    /// can book C's clock be handed to it. Until that is done, a flat braid that is
+    /// not this one has no drawer, which is the honest answer.
+    ///
+    /// The author's ruling of 2026-09-09: the centring is the drawing's own
+    /// arithmetic, and putting it right is shape work, which the initial release
+    /// does not do.
+    static let drawsOnlyTheRecipe = "hira-genji-16"
+
     /// The braid this drawing is of, worked out from the moves.
     ///
     /// **The counts below used to come from the per-braid derivation.** They come

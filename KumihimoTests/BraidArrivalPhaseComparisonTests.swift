@@ -44,3 +44,32 @@ struct BraidArrivalPhaseComparisonTests {
         #expect(!lines.isEmpty)
     }
 }
+
+/// Task 025-4, the author's ruling (b): **the phases stay on book A's clock**, and
+/// until the centring is put right a second flat braid has no drawer.
+@MainActor
+struct BraidFlatDrawerIsWiredToOneBraidTests {
+    @Test func theFlatDrawerSaysWhichBraidItIsWiredTo() {
+        #expect(Flat16SurfacePatternGenerator.drawsOnlyTheRecipe
+                == BraidMethodCatalog.hiraGenji16Recipe.id)
+    }
+
+    /// A second flat braid — the same table with a different id — gets no drawer.
+    /// **No drawer is the answer, not a drawing that is wrong.**
+    @Test func aSecondFlatBraidHasNoDrawerYet() throws {
+        let another = BraidRecipe(
+            id: "another-flat-braid", name: "別の平らな紐",
+            notation: BraidMethodCatalog.hiraGenjiDisk,
+            colouring: BraidMethodCatalog.hiraGenji16Colouring,
+            shape: BraidMethodCatalog.hiraGenji16Shape,
+            orderRoundTheBraid: BraidMethodCatalog.hiraGenji16CrossSection
+        )
+        let worked = try #require(another.worked(on: BraidMethodCatalog.stand16))
+        #expect(BraidFamily.family(of: worked.derivation) == Flat16SurfaceMesh.family)
+        #expect(BraidFamilyDrawing.drawing(for: another, on: BraidMethodCatalog.stand16) == nil)
+        // The one it is wired to still draws.
+        #expect(BraidFamilyDrawing.drawing(
+            for: BraidMethodCatalog.hiraGenji16Recipe, on: BraidMethodCatalog.stand16
+        ) != nil)
+    }
+}
