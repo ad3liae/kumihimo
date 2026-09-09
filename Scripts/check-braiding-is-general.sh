@@ -8,17 +8,22 @@
 # data. If a braid's name appears in any of them, that separation has been lost and
 # the third braid will cost what the first two did.
 #
-# Kumihimo/Features/BraidSimulation/ is NOT watched yet. It holds the two frozen
-# per-braid generators and the views around them, which Task 025-4 decides the fate
-# of; adding it here today would fail on fifteen files that this stage is under
-# instruction not to touch. It joins the list when they retire.
+# Kumihimo/Features/BraidSimulation/ joined the list at Task 025-4 step 4. It draws
+# solid braids, and everything in it is now named for the family it draws -- sixteen
+# threads flat, or sixteen in a tube -- rather than for a braid. The shape values it
+# holds stayed exactly as they were; only the names moved.
+#
+# Still outside the list, and why: Kumihimo/Domain/ holds the per-braid data (the
+# move tables, the colourings, the measured values) and that is where a braid's name
+# belongs, plus HiraGenjiWeaveDerivation, which the flat drawing still asks for its
+# arrival phases -- held on book A's clock by the author's ruling of 2026-09-09.
 #
 # Run from the repository root:
 #     sh Scripts/check-braiding-is-general.sh
 
 set -eu
 
-directories="Kumihimo/Domain/Braiding Kumihimo/Features/BraidPattern Kumihimo/Features/BraidView"
+directories="Kumihimo/Domain/Braiding Kumihimo/Features/BraidPattern Kumihimo/Features/BraidView Kumihimo/Features/BraidSimulation"
 names="MaruGenji\|HiraGenji"
 
 for directory in $directories; do
