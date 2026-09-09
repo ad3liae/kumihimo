@@ -1,3 +1,16 @@
+/// **Research, for the version that invents its own braids** (Task 025-4, 2026-09-09).
+///
+/// This is not on the product's drawing path and no screen reaches it. The author's
+/// judgement of 2026-09-09, after putting the two paths side by side: **what this
+/// construction puts on the face is a row of upright bars, and a photograph shows
+/// slanted thread runs.** The construction rests a thread lengthwise at a place and
+/// carries it inside, so no crest and no flattening closes that gap — **it needs a
+/// construction where a thread runs across the face at a slant.**
+///
+/// It is kept because it earned its keep: read by the procedure in
+/// `docs/measurement-procedures.md` section 5, it reproduced book A p97's three
+/// experiments on both faces and Task 004's eight by four cell for cell. Those are
+/// agreements about **which thread is at which cell**, not about how a cell looks.
 import Foundation
 
 /// The finished centrelines: every thread as a polyline, with the crest on.

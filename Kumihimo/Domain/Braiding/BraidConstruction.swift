@@ -1,3 +1,10 @@
+/// **On the product's drawing path, and in the research path too** (Task 025-4).
+///
+/// The flat drawing asks this which side of a crossing a thread takes — a carry that
+/// runs across the braid passes the columns between its ends, and it passes them
+/// inside — so this is not research only. The rest of the construction, and what is
+/// built on top of it (`BraidCentrelines`, `BraidPicture`, `BraidReading`), is
+/// research for the version that invents its own braids.
 import Foundation
 
 /// The braid written down: where every thread runs, in thread diameters.
