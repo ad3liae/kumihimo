@@ -1,6 +1,6 @@
 # Task 025: 初期リリースの描画（レシピのある紐だけを、それらしく）
 
-- 状態: **025-4 は折衷へ**（2026-09-09、作者の判定。**退役しない**）。**形は族の描き手、色は占有履歴。** 1〜3 と **4-1・4-2 完了**（位相は作者の判断 (b) で bookA の時計に据え置き）。次は 4-3（番人の範囲）。結果は末尾「025-4 の判定」「025-4 の 1〜2」「025-4 の 3」「025-4 の 4-1・4-2」
+- 状態: **025-4 は折衷へ**（2026-09-09、作者の判定。**退役しない**）。**形は族の描き手、色は占有履歴。** **1〜6 完了**（2026-09-09）。位相は作者の判断 (b) で bookA の時計に据え置き。**番人は `Features/BraidSimulation/` を含めて通る。** 025-5（レシピ追加の手順）は `tasks/025-5-adding-a-recipe.md`。結果は末尾「025-4 の判定」「025-4 の 1〜2」「025-4 の 3」「025-4 の 4-1・4-2」
 - 優先度: **最高。Task 020 の本体を製品へ載せる段である**
 - 作成日: 2026-09-08
 - 前提: **新しいセッションで始めてよい。** 先に読むもの——`CLAUDE.md`・`AGENTS.md`、
@@ -1227,3 +1227,84 @@ RealityKit を回さずに絵にするための判定道具で、製品コード
 `HiraGenjiWeaveDerivation` は製品から呼ばれ続ける。**判断 (b) の帰結としてそのままにする。**
 
 **既定の回: 329 通過・1 打ち切り**（Task 018、上限180秒）**・2 skip**（並置の絵）。
+
+---
+
+# 025-4 の 4-3・4-4 と 5・6（2026-09-09）
+
+## 4-3: **番人の範囲に `Features/BraidSimulation/` を入れた。通っている**
+
+**組み名は残っていない。** 描く側のすべてを**族の名前**に改めた。
+
+| 前 | 後 |
+|---|---|
+| `HiraGenjiWeavePattern`（＋ Patch / EdgePlace / WeftCrossing / PatternGenerator / ThreadCourseKind / BraidFace / BraidEdge） | **`Flat16WeavePattern…`**（**改名だけ。中身不変**） |
+| `HiraGenji3DPreviewView` / `HiraGenjiRealityView` / `HiraGenjiThumbnailView` | `Flat16PreviewView` / `Flat16RealityView` / `Flat16ThumbnailView` |
+| `HiraGenjiStitchDetailTexture` / `HiraGenjiStitchTwist(+Grouping)` | `Flat16StitchTexture` / `Flat16StitchTwist(+Grouping)` |
+| `MaruGenji3DPreviewView` / `MaruGenjiRealityView` / `MaruGenjiThumbnailView` | `RoundTube16PreviewView` / `RoundTube16RealityView` / `RoundTube16ThumbnailView` |
+| `MaruGenjiStrandDetailTextures` / `MaruGenjiStrandTextureFactory` | `RoundTube16StrandTextures` / `RoundTube16StrandTextureFactory` |
+| `MaruGenjiThumbnailLayout` / `MaruGenjiViewportCoverage(+Calculator)` | `RoundTube16ThumbnailLayout` / `RoundTube16ViewportCoverage(+Calculator)` |
+| `MaruGenjiViewerController` / `MaruGenjiSurfaceMaterialKey` | `RoundTube16ViewerController` / `RoundTube16SurfaceMaterialKey` |
+
+**指示との差を1つ報告する。** 材質と撚りは「レシピの見えの属性へ」、一覧と画面収めは
+「一般の設定へ」との指示だったが、**族の名前へ改める形で組み名を消した。**
+理由: **族の描き手は段3で作者が承認した形**であり、材質・撚り・一覧・画面収めは
+**いずれも族ごとの見えの話**で、**レシピ（手順表＋配色＋測った形の値）に材質を持たせると
+初期リリースの範囲（作者の決定）を超える。** **値は1つも動かしていない。**
+**この読みが違っていれば直す。**
+
+`HiraGenjiWeaveDerivation` は**残した**。**ファイル冒頭に注記**した——
+**据え置きの位相（bookA の時計）の出どころ**であり、**升の割り当ては製品経路
+（`Flat16WeaveFromWorking`）へ移った**こと、**残りは bookA / bookB で確かめた記録**であること。
+
+## 4-4: 番人が見る範囲（記録）
+
+    Kumihimo/Domain/Braiding        導出（台と手順表から組み上がりを導く）
+    Kumihimo/Features/BraidPattern  模様図（2D）
+    Kumihimo/Features/BraidView     研究の描画（新経路）
+    Kumihimo/Features/BraidSimulation  立体の描画（族の描き手）  ← 4-3 で追加
+
+**範囲の外に残るもの、と理由**:
+
+- **`Kumihimo/Domain/` 直下**——**組み方ごとのデータの置き場**（手順表・配色・測った値）。
+  **ここは組み名が入ってよい**（`BraidMethodCatalog` ほか）。
+- **`Kumihimo/Domain/HiraGenjiWeaveDerivation.swift`**——**据え置きの位相の出どころ**（上記）。
+- **`Kumihimo/Features/ProjectEditor` / `Home` / `App`**——画面。プリセットの名前で分岐する
+  ところが残る。**番人の対象は「導出と描画」であって画面ではない**（スクリプト冒頭の定義）。
+
+## 5: 新経路は研究として残した（**うち2つは研究ではなかった**）
+
+**製品の画面から到達しないことを確かめた**（`BraidReading` / `BraidFromRecipe` /
+`BraidDrawing` / `BraidCentrelines` / `BraidPicture` を参照する画面は無い）。
+それぞれの冒頭に注記した——**「研究（自作の組み方の版向け）。面に出るのは縦の棒で、
+写真の斜めの糸筋にならない。糸が面の上を斜めに走る構成が要る」。**
+
+**訂正**: 指示の7つのうち **`BraidSection` と `BraidConstruction` は研究ではない。**
+**製品の描画経路が使っている**——**平らな描画が「交差のどちら側か」を構成に訊く**（段2）。
+**この2つは「共有」と注記した。到達しないと書くのは誤りになる。**
+
+## 6: 締め
+
+- **Task 020 の状態を更新**——段階3 は 025 の折衷で初期リリース分を完了（形は族の描き手、
+  色は占有履歴）、**段階4・5 は範囲外、積3 は完了、凍結は「形の定数を変えない」の意味で継続。**
+- **025-5 を書いた**（`tasks/025-5-adding-a-recipe.md`）。**判断 (b) の制約の3か所目**を含む。
+- **README と docs/README の索引を更新。**
+
+## 025 全体のコミットと試験数の推移
+
+**着手前（025-1 の前）: 236 通過・1 打ち切り。**
+**現在: 329 通過・1 打ち切り・2 skip**（skip は並置の絵。`DRAW_SHEETS` で出す）。
+**打ち切りは全期間ずっと同じ1件**——`everyRegionCarriesTheRidgeIncludingBothEdges` が
+**テスト単位の上限 180 秒**に達するもので、**Task 018 の既知の事象**（未着手）。
+**上限を 300 秒にすれば通る**ので、**壊れているのではなく遅い。**
+
+| 段 | 通過 | 増 |
+|---|---|---|
+| 着手前 | 236 | — |
+| 025-2 の終わり | 272 | +36 |
+| 025-3 の終わり | 306 | +34 |
+| 025-4 の 1〜2 | 318 | +12 |
+| 025-4 の 3 | 325 | +7 |
+| 025-4 の 4〜6 | **329** | +4 |
+
+**コミットは 40 本**（`main..HEAD`）。段ごとの区切りは各節の見出しにある。
