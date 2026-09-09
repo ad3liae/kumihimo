@@ -21,8 +21,8 @@ struct HiraGenjiWeaveDerivationTests {
         #expect(HiraGenjiWeaveDerivation.columnCount == 6)
         #expect(HiraGenjiWeaveDerivation.edgeThreadCount == 2)
 
-        var faceColumns = [HiraGenjiBraidFace: [Int]]()
-        var edgeCounts = [HiraGenjiBraidEdge: Int]()
+        var faceColumns = [Flat16BraidFace: [Int]]()
+        var edgeCounts = [Flat16BraidEdge: Int]()
         for place in places {
             switch place {
             case .face(let face, let column):
@@ -294,7 +294,7 @@ struct HiraGenjiWeaveDerivationTests {
         let across = courses.filter { !$0.runsAlongTheBraid }
 
         for cycle in 0..<4 {
-            for half in HiraGenjiBraidFace.allCases {
+            for half in Flat16BraidFace.allCases {
                 let onThisHalf = across.filter { course in
                     Set(course.samples.compactMap(\.face)) == [half]
                 }
@@ -313,7 +313,7 @@ struct HiraGenjiWeaveDerivationTests {
         let across = courses.filter { !$0.runsAlongTheBraid }
 
         for cycle in 0..<4 {
-            for half in HiraGenjiBraidFace.allCases {
+            for half in Flat16BraidFace.allCases {
                 let steps = across
                     .filter { course in Set(course.samples.compactMap(\.face)) == [half] }
                     .map { $0.widthPositions[cycle + 1] - $0.widthPositions[cycle] }

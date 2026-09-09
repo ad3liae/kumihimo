@@ -63,11 +63,11 @@ enum BraidStrandSurfaceBuilder {
     /// Rewrites the fixed surface pattern as strand segments. Patch corners are
     /// arranged clockwise as leading/top, leading/bottom, trailing/bottom,
     /// trailing/top, so the two leading corners span the width at `along == 0`.
-    static func surface(for pattern: MaruGenjiSurfacePattern) -> BraidStrandSurface {
+    static func surface(for pattern: RoundTube16SurfacePattern) -> BraidStrandSurface {
         BraidStrandSurface(segments: pattern.patches.compactMap(segment(for:)))
     }
 
-    static func segment(for patch: MaruGenjiSurfacePatch) -> BraidStrandSegment? {
+    static func segment(for patch: RoundTube16SurfacePatch) -> BraidStrandSegment? {
         guard
             patch.corners.count == 4,
             patch.corners.allSatisfy({ $0.x.isFinite && $0.y.isFinite })

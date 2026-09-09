@@ -31,73 +31,73 @@ struct KumihimoApp: App {
                 } else if CommandLine.arguments.contains(
                     ProjectEditorPreviewData.surfaceFixture1LaunchArgument
                 ) {
-                    MaruGenji3DPreviewView(
+                    RoundTube16PreviewView(
                         assignments: ProjectEditorPreviewData.maruGenjiSurfaceFixture1
                     )
                 } else if CommandLine.arguments.contains(
                     ProjectEditorPreviewData.surfaceFixture2LaunchArgument
                 ) {
-                    MaruGenji3DPreviewView(
+                    RoundTube16PreviewView(
                         assignments: ProjectEditorPreviewData.maruGenjiSurfaceFixture2
                     )
                 } else if CommandLine.arguments.contains(
                     ProjectEditorPreviewData.surfaceFixture3LaunchArgument
                 ) {
-                    MaruGenji3DPreviewView(
+                    RoundTube16PreviewView(
                         assignments: ProjectEditorPreviewData.maruGenjiSurfaceFixture3
                     )
                 } else if CommandLine.arguments.contains(
                     ProjectEditorPreviewData.maruSurfacePlainLaunchArgument
                 ) {
-                    MaruGenji3DPreviewView(
+                    RoundTube16PreviewView(
                         assignments: ProjectEditorPreviewData.maruGenjiSurfacePlain
                     )
                 } else if CommandLine.arguments.contains(
                     ProjectEditorPreviewData.hiraSurfaceFixtureALaunchArgument
                 ) {
-                    HiraGenji3DPreviewView(
+                    Flat16PreviewView(
                         assignments: ProjectEditorPreviewData.hiraGenjiSurfaceFixtureA,
-                        controller: MaruGenjiViewerController(),
+                        controller: RoundTube16ViewerController(),
                         isEmbedded: false
                     )
                 } else if CommandLine.arguments.contains(
                     ProjectEditorPreviewData.hiraSurfaceFixtureBLaunchArgument
                 ) {
-                    HiraGenji3DPreviewView(
+                    Flat16PreviewView(
                         assignments: ProjectEditorPreviewData.hiraGenjiSurfaceFixtureB,
-                        controller: MaruGenjiViewerController(),
+                        controller: RoundTube16ViewerController(),
                         isEmbedded: false
                     )
                 } else if CommandLine.arguments.contains(
                     ProjectEditorPreviewData.hiraSurfaceFixtureCLaunchArgument
                 ) {
-                    HiraGenji3DPreviewView(
+                    Flat16PreviewView(
                         assignments: ProjectEditorPreviewData.hiraGenjiSurfaceFixtureC,
-                        controller: MaruGenjiViewerController(),
+                        controller: RoundTube16ViewerController(),
                         isEmbedded: false
                     )
                 } else if CommandLine.arguments.contains(
                     ProjectEditorPreviewData.hiraSurfaceArrowFeatherLaunchArgument
                 ) {
-                    HiraGenji3DPreviewView(
+                    Flat16PreviewView(
                         assignments: ProjectEditorPreviewData.hiraGenjiSurfaceArrowFeather,
-                        controller: MaruGenjiViewerController(),
+                        controller: RoundTube16ViewerController(),
                         isEmbedded: false
                     )
                 } else if CommandLine.arguments.contains(
                     ProjectEditorPreviewData.hiraSurfaceLadderLaunchArgument
                 ) {
-                    HiraGenji3DPreviewView(
+                    Flat16PreviewView(
                         assignments: ProjectEditorPreviewData.hiraGenjiSurfaceLadder,
-                        controller: MaruGenjiViewerController(),
+                        controller: RoundTube16ViewerController(),
                         isEmbedded: false
                     )
                 } else if CommandLine.arguments.contains(
                     ProjectEditorPreviewData.hiraSurfacePlainLaunchArgument
                 ) {
-                    HiraGenji3DPreviewView(
+                    Flat16PreviewView(
                         assignments: ProjectEditorPreviewData.hiraGenjiSurfacePlain,
-                        controller: MaruGenjiViewerController(),
+                        controller: RoundTube16ViewerController(),
                         isEmbedded: false
                     )
                 } else {

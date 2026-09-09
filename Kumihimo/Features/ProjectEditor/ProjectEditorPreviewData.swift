@@ -279,37 +279,37 @@ struct ProjectEditorPreview: View {
 }
 
 #Preview("丸源氏表面 Fixture 1・細かな山形") {
-    MaruGenji3DPreviewView(assignments: ProjectEditorPreviewData.maruGenjiSurfaceFixture1)
+    RoundTube16PreviewView(assignments: ProjectEditorPreviewData.maruGenjiSurfaceFixture1)
 }
 
 #Preview("丸源氏表面 Fixture 2・長手方向の色分け") {
-    MaruGenji3DPreviewView(assignments: ProjectEditorPreviewData.maruGenjiSurfaceFixture2)
+    RoundTube16PreviewView(assignments: ProjectEditorPreviewData.maruGenjiSurfaceFixture2)
 }
 
 #Preview("丸源氏表面 Fixture 3・位相のずれた山形") {
-    MaruGenji3DPreviewView(assignments: ProjectEditorPreviewData.maruGenjiSurfaceFixture3)
+    RoundTube16PreviewView(assignments: ProjectEditorPreviewData.maruGenjiSurfaceFixture3)
 }
 
 #Preview("平源氏 Fixture A・水色系と白黒") {
-    HiraGenji3DPreviewView(
+    Flat16PreviewView(
         assignments: ProjectEditorPreviewData.hiraGenjiSurfaceFixtureA,
-        controller: MaruGenjiViewerController(),
+        controller: RoundTube16ViewerController(),
         isEmbedded: false
     )
 }
 
 #Preview("平源氏 Fixture B・矢絣状の縁取り") {
-    HiraGenji3DPreviewView(
+    Flat16PreviewView(
         assignments: ProjectEditorPreviewData.hiraGenjiSurfaceFixtureB,
-        controller: MaruGenjiViewerController(),
+        controller: RoundTube16ViewerController(),
         isEmbedded: false
     )
 }
 
 #Preview("平源氏 Fixture C・表裏反転する梯子状模様") {
-    HiraGenji3DPreviewView(
+    Flat16PreviewView(
         assignments: ProjectEditorPreviewData.hiraGenjiSurfaceFixtureC,
-        controller: MaruGenjiViewerController(),
+        controller: RoundTube16ViewerController(),
         isEmbedded: false
     )
 }

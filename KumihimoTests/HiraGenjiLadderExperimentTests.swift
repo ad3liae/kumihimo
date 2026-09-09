@@ -17,17 +17,17 @@ import Testing
 /// part of the derivation still.
 @MainActor
 struct HiraGenjiLadderExperimentTests {
-    private var pattern: HiraGenjiWeavePattern {
+    private var pattern: Flat16WeavePattern {
         get throws {
-            try #require(HiraGenjiWeavePatternGenerator.generate(
+            try #require(Flat16WeavePatternGenerator.generate(
                 assignments: ProjectEditorPreviewData.hiraGenjiSurfaceLadder
             ))
         }
     }
 
     private func colours(
-        _ pattern: HiraGenjiWeavePattern,
-        _ face: HiraGenjiBraidFace,
+        _ pattern: Flat16WeavePattern,
+        _ face: Flat16BraidFace,
         row: Int
     ) -> [String] {
         (0..<pattern.columnCount).map { column in
@@ -44,7 +44,7 @@ struct HiraGenjiLadderExperimentTests {
         let middle = pattern.lengthwiseColumns.sorted()
 
         #expect(middle == [1, 2, 3, 4])
-        for face in HiraGenjiBraidFace.allCases {
+        for face in Flat16BraidFace.allCases {
             for row in 0..<pattern.rowCount {
                 let line = colours(pattern, face, row: row)
                 let rung = middle.map { line[$0] }
@@ -58,7 +58,7 @@ struct HiraGenjiLadderExperimentTests {
     /// rather than one long band.
     @Test func theRungsAlternateAlongTheBraid() throws {
         let pattern = try pattern
-        for face in HiraGenjiBraidFace.allCases {
+        for face in Flat16BraidFace.allCases {
             let rungs = (0..<pattern.rowCount).map { colours(pattern, face, row: $0)[2] }
             for (earlier, later) in zip(rungs, rungs.dropFirst()) {
                 #expect(earlier != later)
@@ -90,7 +90,7 @@ struct HiraGenjiLadderExperimentTests {
             patch.colorID.rawValue != "white" || !middle.contains(patch.column)
         })
         // And they are the only thing at the two outer columns.
-        for face in HiraGenjiBraidFace.allCases {
+        for face in Flat16BraidFace.allCases {
             for row in 0..<pattern.rowCount {
                 let line = colours(pattern, face, row: row)
                 #expect(line[0] == "white")

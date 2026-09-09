@@ -11,11 +11,11 @@ import Testing
 /// the result, which fixes the order of the columns across the face. Book A p97
 /// colours everything worked lengthwise plain and everything worked sideways in
 /// colour, which fixes which threads reach the face at all.
-struct HiraGenjiWeavePatternTests {
+struct Flat16WeavePatternTests {
     // MARK: - Shape
 
     @Test func theSurfaceIsSixColumnsTwoFacesTwoEdgesAndFourRows() throws {
-        let pattern = try #require(HiraGenjiWeavePatternGenerator.generate(assignments: plain))
+        let pattern = try #require(Flat16WeavePatternGenerator.generate(assignments: plain))
 
         #expect(pattern.columnCount == 6)
         // Rows to a repeat come from the move rules, not from the older pattern's
@@ -26,15 +26,15 @@ struct HiraGenjiWeavePatternTests {
         #expect(pattern.edgePlaces.count == 16)
 
         for row in 0..<pattern.rowCount {
-            for face in HiraGenjiBraidFace.allCases {
+            for face in Flat16BraidFace.allCases {
                 let line = pattern.row(row, face: face)
                 #expect(line.count == 6)
                 #expect(line.map(\.column) == Array(0..<6))
             }
-            for edge in HiraGenjiBraidEdge.allCases {
+            for edge in Flat16BraidEdge.allCases {
                 let atTheEdge = pattern.threadsAtEdge(row: row, edge: edge)
                 #expect(atTheEdge.count == 2)
-                #expect(Set(atTheEdge.map(\.half)) == Set(HiraGenjiBraidFace.allCases))
+                #expect(Set(atTheEdge.map(\.half)) == Set(Flat16BraidFace.allCases))
             }
             // All sixteen threads appear once in each row: twelve on the faces and
             // four at the edges.
@@ -47,13 +47,13 @@ struct HiraGenjiWeavePatternTests {
     }
 
     @Test func generationIsDeterministicAndDrivenByPositionNotColour() throws {
-        let first = try #require(HiraGenjiWeavePatternGenerator.generate(assignments: plain))
+        let first = try #require(Flat16WeavePatternGenerator.generate(assignments: plain))
         let second = try #require(
-            HiraGenjiWeavePatternGenerator.generate(assignments: Array(plain.reversed()))
+            Flat16WeavePatternGenerator.generate(assignments: Array(plain.reversed()))
         )
         #expect(first == second)
 
-        let recoloured = try #require(HiraGenjiWeavePatternGenerator.generate(
+        let recoloured = try #require(Flat16WeavePatternGenerator.generate(
             assignments: (1...16).map { ThreadAssignment(position: $0, colorID: white) }
         ))
         #expect(first.patches.map(\.threadPosition) == recoloured.patches.map(\.threadPosition))
@@ -71,12 +71,12 @@ struct HiraGenjiWeavePatternTests {
     /// This is the reading the whole map rests on, so it is asserted directly.
     @Test func theP96ColouringComesOutAsThePhotographedBraid() throws {
         let pattern = try #require(
-            HiraGenjiWeavePatternGenerator.generate(assignments: bookAP96Colouring)
+            Flat16WeavePatternGenerator.generate(assignments: bookAP96Colouring)
         )
         let expected = [salmon, mauve, mauve, vermilion, black, salmon]
 
         for row in 0..<pattern.rowCount {
-            for face in HiraGenjiBraidFace.allCases {
+            for face in Flat16BraidFace.allCases {
                 #expect(pattern.row(row, face: face).map(\.colorID) == expected)
             }
         }
@@ -90,7 +90,7 @@ struct HiraGenjiWeavePatternTests {
     /// other answer, so this is the assertion that rules that map out.
     @Test func theBlackColumnIsOutboardOfTheVermilionOne() throws {
         let pattern = try #require(
-            HiraGenjiWeavePatternGenerator.generate(assignments: bookAP96Colouring)
+            Flat16WeavePatternGenerator.generate(assignments: bookAP96Colouring)
         )
         let front = pattern.row(0, face: .front)
         let blackColumn = try #require(front.first { $0.colorID == black }?.column)
@@ -106,7 +106,7 @@ struct HiraGenjiWeavePatternTests {
     // MARK: - What the courses put where
 
     @Test func lengthwiseThreadsHoldTheFourMiddleColumnsAndTurnOverEveryRow() throws {
-        let pattern = try #require(HiraGenjiWeavePatternGenerator.generate(assignments: plain))
+        let pattern = try #require(Flat16WeavePatternGenerator.generate(assignments: plain))
         let lengthwise = pattern.patches(ofCourse: .lengthwise)
 
         #expect(Set(lengthwise.map(\.threadPosition)).count == 8)
@@ -123,7 +123,7 @@ struct HiraGenjiWeavePatternTests {
     }
 
     @Test func threadsCarriedAcrossShowOnlyInTheOutermostColumn() throws {
-        let pattern = try #require(HiraGenjiWeavePatternGenerator.generate(assignments: plain))
+        let pattern = try #require(Flat16WeavePatternGenerator.generate(assignments: plain))
         let carried = pattern.patches(ofCourse: .carriedAcross)
         let lastColumn = pattern.columnCount - 1
 
@@ -140,7 +140,7 @@ struct HiraGenjiWeavePatternTests {
 
             let atTheEdges = pattern.edgePlaces.filter { $0.threadPosition == thread }
             #expect(atTheEdges.count == 2)
-            #expect(Set(atTheEdges.map(\.edge)) == Set(HiraGenjiBraidEdge.allCases))
+            #expect(Set(atTheEdges.map(\.edge)) == Set(Flat16BraidEdge.allCases))
             // A thread keeps to one half of the braid the whole way round.
             #expect(Set(atTheEdges.map(\.half)) == Set(onTheFace.map(\.face)))
         }
@@ -150,7 +150,7 @@ struct HiraGenjiWeavePatternTests {
     /// runs the whole width to reach the other side. The grid of visible places
     /// cannot show that, so the crossings are carried separately.
     @Test func everyCrossingRunsTheWholeWidthOfTheBraid() throws {
-        let pattern = try #require(HiraGenjiWeavePatternGenerator.generate(assignments: plain))
+        let pattern = try #require(Flat16WeavePatternGenerator.generate(assignments: plain))
         let lastColumn = pattern.columnCount - 1
 
         // Four threads cross per row, two on each half of the braid, and they cross
@@ -159,7 +159,7 @@ struct HiraGenjiWeavePatternTests {
         for row in 0..<pattern.rowCount {
             let inThisRow = pattern.weftCrossings.filter { $0.row == row }
             #expect(inThisRow.count == 4)
-            for face in HiraGenjiBraidFace.allCases {
+            for face in Flat16BraidFace.allCases {
                 let onThisFace = inThisRow.filter { $0.face == face }
                 #expect(onThisFace.count == 2)
                 #expect(onThisFace.count { $0.toWidthPosition < $0.fromWidthPosition } == 1)
@@ -184,7 +184,7 @@ struct HiraGenjiWeavePatternTests {
     /// braid comes out plain. A crossing running over the face would put colour
     /// across the middle.
     @Test func crossingsPassUnderTheThreadsRunningAlong() throws {
-        let pattern = try #require(HiraGenjiWeavePatternGenerator.generate(assignments: plain))
+        let pattern = try #require(Flat16WeavePatternGenerator.generate(assignments: plain))
 
         #expect(pattern.weftCrossings.allSatisfy { $0.layer == .under })
         #expect(pattern.patches(ofCourse: .carriedAcross).allSatisfy { $0.layer == .under })
@@ -202,7 +202,7 @@ struct HiraGenjiWeavePatternTests {
     /// colour would land in the middle instead.
     @Test func theReferenceColouringPutsThePlainThreadsOnTheFaceAndTheColoursAtBothSides() throws {
         let pattern = try #require(
-            HiraGenjiWeavePatternGenerator.generate(assignments: referenceColourVariant)
+            Flat16WeavePatternGenerator.generate(assignments: referenceColourVariant)
         )
         let lastColumn = pattern.columnCount - 1
 
@@ -218,7 +218,7 @@ struct HiraGenjiWeavePatternTests {
         // Said the other way round: every row of both faces is a coloured edging,
         // four plain columns, and a coloured edging.
         for row in 0..<pattern.rowCount {
-            for face in HiraGenjiBraidFace.allCases {
+            for face in Flat16BraidFace.allCases {
                 let plainness = pattern.row(row, face: face).map { $0.colorID == plainColour }
                 #expect(plainness == [false, true, true, true, true, false])
             }
@@ -245,7 +245,7 @@ struct HiraGenjiWeavePatternTests {
     /// face, the body would come out coloured.
     @Test func theArrowFeatherColouringPatternsOnlyTheEdging() throws {
         let pattern = try #require(
-            HiraGenjiWeavePatternGenerator.generate(assignments: arrowFeatherColouring)
+            Flat16WeavePatternGenerator.generate(assignments: arrowFeatherColouring)
         )
         let lastColumn = pattern.columnCount - 1
 
@@ -263,8 +263,8 @@ struct HiraGenjiWeavePatternTests {
         // the edge itself — and the two carry opposite colours at every row.
         // That alternation down the braid is what draws the arrow-feather.
         for row in 0..<pattern.rowCount {
-            for (edge, column) in [(HiraGenjiBraidEdge.left, 0),
-                                   (HiraGenjiBraidEdge.right, lastColumn)] {
+            for (edge, column) in [(Flat16BraidEdge.left, 0),
+                                   (Flat16BraidEdge.right, lastColumn)] {
                 let onTheFace = try #require(
                     pattern.patch(column: column, row: row, face: .front)?.colorID
                 )
@@ -298,7 +298,7 @@ struct HiraGenjiWeavePatternTests {
     /// same caption describes.
     @Test func theEdgingChangesColourFromRowToRow() throws {
         let pattern = try #require(
-            HiraGenjiWeavePatternGenerator.generate(assignments: referenceColourVariant)
+            Flat16WeavePatternGenerator.generate(assignments: referenceColourVariant)
         )
 
         for column in [0, pattern.columnCount - 1] {
@@ -318,10 +318,10 @@ struct HiraGenjiWeavePatternTests {
             ThreadAssignment(position: 17, colorID: white),
         ]
 
-        #expect(HiraGenjiWeavePatternGenerator.generate(assignments: duplicate) == nil)
-        #expect(HiraGenjiWeavePatternGenerator.generate(assignments: outOfRange) == nil)
-        #expect(HiraGenjiWeavePatternGenerator.generate(assignments: Array(plain.dropLast())) == nil)
-        #expect(HiraGenjiWeavePatternGenerator.generate(assignments: []) == nil)
+        #expect(Flat16WeavePatternGenerator.generate(assignments: duplicate) == nil)
+        #expect(Flat16WeavePatternGenerator.generate(assignments: outOfRange) == nil)
+        #expect(Flat16WeavePatternGenerator.generate(assignments: Array(plain.dropLast())) == nil)
+        #expect(Flat16WeavePatternGenerator.generate(assignments: []) == nil)
     }
 
     // MARK: - Fixtures

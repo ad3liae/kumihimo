@@ -160,7 +160,7 @@ struct BraidDerivationHiraGenjiAgreementTests {
     @Test func theWholeSurfaceMatchesOnEveryReferenceColouring() throws {
         let derivation = try derivation
         for (name, assignments) in HiraGenjiReferenceColourings.all {
-            let old = try #require(HiraGenjiWeavePatternGenerator.generate(assignments: assignments))
+            let old = try #require(Flat16WeavePatternGenerator.generate(assignments: assignments))
             let new = try #require(
                 BraidPatternBridge.hiraStylePattern(from: derivation, assignments: assignments)
             )
@@ -182,7 +182,7 @@ struct BraidDerivationHiraGenjiAgreementTests {
         for patch in pattern.patches where middle.contains(patch.column) {
             #expect(patch.colorID.rawValue == "white")
         }
-        for face in HiraGenjiBraidFace.allCases {
+        for face in Flat16BraidFace.allCases {
             for row in 0..<pattern.rowCount {
                 let line = pattern.row(row, face: face)
                 #expect(line.first?.colorID.rawValue != "white")
@@ -201,7 +201,7 @@ struct BraidDerivationHiraGenjiAgreementTests {
         }
         // The edging is not one flat colour: the outermost column carries a
         // different one of the sideways threads from row to row.
-        for face in HiraGenjiBraidFace.allCases {
+        for face in Flat16BraidFace.allCases {
             let outer = (0..<pattern.rowCount).compactMap {
                 pattern.patch(column: 0, row: $0, face: face)?.colorID.rawValue
             }
@@ -223,7 +223,7 @@ struct BraidDerivationHiraGenjiAgreementTests {
         }
     }
 
-    private func bridged(_ assignments: [ThreadAssignment]) throws -> HiraGenjiWeavePattern {
+    private func bridged(_ assignments: [ThreadAssignment]) throws -> Flat16WeavePattern {
         try #require(BraidPatternBridge.hiraStylePattern(from: derivation, assignments: assignments))
     }
 }

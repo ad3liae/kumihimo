@@ -13,6 +13,13 @@ import Testing
 /// own braids, not here.
 @MainActor
 struct BraidDerivationMaruGenjiGridTests {
+    // Three tests that lived here were records of the chord model's own behaviour
+    // -- that it disagreed with the checkerboard on half of what they both decided,
+    // that it did not alternate along a thread, and that it said nothing at all
+    // about a tube. **The chord model was retired in Task 025-4**, so they went
+    // with it. What they found is written down in `docs/architecture.md`
+    // (弦モデル) and `docs/tasks/020-general-braid-simulator.md`, and the code
+    // itself is in git history.
     private var derivation: BraidDerivation {
         get throws {
             try #require(BraidDerivation.derive(
@@ -36,7 +43,7 @@ struct BraidDerivationMaruGenjiGridTests {
             let plain = (1...16).map {
                 ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: "white"))
             }
-            let pattern = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: plain))
+            let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: plain))
             return pattern.patches.map { patch in
                 let rises = patch.corners[2].y > patch.corners[1].y
                 return TableCell(
@@ -173,113 +180,6 @@ struct BraidDerivationMaruGenjiGridTests {
         }
     }
 
-    /// **The chord model against the shipped checkerboard.** Reported, not
-    /// repaired.
-    ///
-    /// Each pair of neighbouring columns at one step along the braid is two
-    /// threads that the drawing puts side by side, and the checkerboard makes
-    /// their layers opposite. Where the chord model says those two threads have to
-    /// pass each other, it also says which is on top; the two answers are compared
-    /// here.
-    ///
-    /// The counts are the finding. They are pinned so that a change to either side
-    /// shows up rather than passing quietly.
-    @Test func theChordModelAndTheCheckerboardDisagreeOnHalfOfWhatTheyBothDecide() throws {
-        let derivation = try derivation
-        let cells = try tableCells
-        let occupants = try occupants(derivation)
-
-        var layerOfThread = [[Int]: BraidCrossingLayer]()
-        var watched = [Int](repeating: 0, count: 8)
-        for cell in cells {
-            layerOfThread[[cell.threadPosition, cell.row]] = cell.layer
-            if cell.row == 1 { watched[cell.column] = cell.threadPosition }
-        }
-
-        var over = [[Int]: Int]()
-        for crossing in derivation.crossings {
-            for meeting in crossing.meetings where meeting.layer == .over {
-                over[[crossing.row, min(crossing.threadPosition, meeting.otherThread),
-                      max(crossing.threadPosition, meeting.otherThread)]] =
-                    crossing.threadPosition
-            }
-        }
-
-        // Both the order the table was transcribed in and the order the derivation
-        // gives, so the disagreement cannot be blamed on the column order.
-        let ringOrder = [1, 4, 5, 8, 9, 12, 13, 16]
-        for order in [watched, ringOrder] {
-            var agree = 0
-            var disagree = 0
-            var neverMeet = 0
-            for row in 1...8 {
-                let boundary = ((1 - row) % 4 + 4) % 4
-                let cycle = ((boundary - 1) % 4 + 4) % 4
-                for column in 0..<8 {
-                    let next = (column + 1) % 8
-                    guard
-                        let one = occupants[boundary][order[column]],
-                        let other = occupants[boundary][order[next]],
-                        let oneLayer = layerOfThread[[one, row]]
-                    else {
-                        continue
-                    }
-                    let tableSaysOver = oneLayer == .over ? one : other
-                    let key = [cycle, min(one, other), max(one, other)]
-                    guard let modelSaysOver = over[key] else { neverMeet += 1; continue }
-                    if modelSaysOver == tableSaysOver { agree += 1 } else { disagree += 1 }
-                }
-            }
-            #expect(agree == 16)
-            #expect(disagree == 16)
-            #expect(neverMeet == 32)
-        }
-    }
-
-    /// **The check that comes before any photograph.** Followed along its own
-    /// length, does each model give a thread a sequence a braid could have?
-    ///
-    /// The checkerboard does: every thread goes over, then under, then over. The
-    /// chord model does not: it splits the sixteen threads into a group that is on
-    /// top of nine of the ten crossings it makes in a repeat and a group that is
-    /// underneath nine of ten, and the two groups never change places, because the
-    /// east and west threads are moved at the third and fourth steps of every
-    /// cycle and the north and south ones at the first and second.
-    @Test func theCheckerboardAlternatesAlongEachThreadAndTheChordModelDoesNot() throws {
-        let derivation = try derivation
-
-        var overCount = [Int: Int]()
-        var underCount = [Int: Int]()
-        for crossing in derivation.crossings {
-            for meeting in crossing.meetings {
-                if meeting.layer == .over {
-                    overCount[crossing.threadPosition, default: 0] += 1
-                } else {
-                    underCount[crossing.threadPosition, default: 0] += 1
-                }
-            }
-        }
-        for thread in 1...16 {
-            let over = overCount[thread] ?? 0
-            let under = underCount[thread] ?? 0
-            #expect(over + under == 10, "thread \(thread)")
-            #expect(min(over, under) == 1, "thread \(thread) is \(over)/\(under)")
-        }
-        // The lopsided group is exactly the east and west threads.
-        let mostlyOver = Set((1...16).filter { (overCount[$0] ?? 0) > (underCount[$0] ?? 0) })
-        #expect(mostlyOver == [3, 4, 5, 6, 11, 12, 13, 14])
-
-        // The checkerboard, by contrast, turns every thread over and back.
-        let cells = try tableCells
-        for thread in 1...16 {
-            let along = cells.filter { $0.threadPosition == thread }
-                .sorted { $0.row < $1.row }
-                .map(\.layer)
-            #expect(along.count == 4, "thread \(thread)")
-            #expect(zip(along, along.dropFirst()).allSatisfy { $0 != $1 }, "thread \(thread)")
-        }
-    }
-
     // MARK: - What the books can and cannot settle about the column order
 
     /// **Why no photograph in the books settles which way the eight columns run.**
@@ -342,14 +242,5 @@ struct BraidDerivationMaruGenjiGridTests {
             let verdict = sameWay ? "cannot" : (otherEnd ? "needs the end" : "distinguishes")
             #expect(verdict == expected, "\(name): \(verdict)")
         }
-    }
-
-    /// A tube has no thread running along it to measure a face against, so the
-    /// derivation says nothing about how a cell shows. **`nil`, not a default.**
-    @Test func theDerivationDoesNotYetSayHowACellOfATubeShows() throws {
-        let derivation = try derivation
-        #expect(derivation.fold == nil)
-        #expect(!derivation.cells.isEmpty)
-        #expect(derivation.cells.allSatisfy { $0.layer == nil })
     }
 }

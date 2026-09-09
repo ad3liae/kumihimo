@@ -5,16 +5,16 @@ import Testing
 
 struct BraidStrandSurfaceTests {
     @Test func everyPatchCarriesACrossingLayer() throws {
-        let pattern = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: fixture))
+        let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture))
 
-        #expect(pattern.patches.count == MaruGenjiSurfacePatternGenerator.patchCount)
+        #expect(pattern.patches.count == RoundTube16SurfacePatternGenerator.patchCount)
         #expect(pattern.patches.contains { $0.layer == .over })
         #expect(pattern.patches.contains { $0.layer == .under })
         #expect(pattern.patches.count { $0.layer == .over } == pattern.patches.count / 2)
     }
 
     @Test func strandsMeetingAtACrossingTakeOppositeLayers() throws {
-        let pattern = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: fixture))
+        let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture))
         let leadingEdges = Dictionary(
             grouping: pattern.patches.indices,
             by: { edgeKey(of: pattern.patches[$0], leading: true) }
@@ -34,9 +34,9 @@ struct BraidStrandSurfaceTests {
     }
 
     @Test func oneThreadAlternatesOverAndUnderAlongItsLength() throws {
-        let pattern = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: fixture))
+        let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture))
 
-        for position in 1...MaruGenjiSurfacePatternGenerator.requiredThreadCount {
+        for position in 1...RoundTube16SurfacePatternGenerator.requiredThreadCount {
             let layers = pattern.patches
                 .filter { $0.threadPosition == position }
                 .sorted { longitudinalCenter(of: $0) < longitudinalCenter(of: $1) }
@@ -50,12 +50,12 @@ struct BraidStrandSurfaceTests {
     }
 
     @Test func layerAssignmentIsDeterministicAndIndependentOfColour() throws {
-        let first = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: fixture))
+        let first = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture))
         let second = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(assignments: Array(fixture.reversed()))
+            RoundTube16SurfacePatternGenerator.generate(assignments: Array(fixture.reversed()))
         )
         let recoloured = try #require(
-            MaruGenjiSurfacePatternGenerator.generate(
+            RoundTube16SurfacePatternGenerator.generate(
                 assignments: fixture.map {
                     ThreadAssignment(position: $0.position, colorID: natural)
                 }
@@ -67,7 +67,7 @@ struct BraidStrandSurfaceTests {
     }
 
     @Test func strandSegmentsReproduceTheirPatchCorners() throws {
-        let pattern = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: fixture))
+        let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture))
         let surface = BraidStrandSurfaceBuilder.surface(for: pattern)
 
         #expect(surface.segments.count == pattern.patches.count)
@@ -88,7 +88,7 @@ struct BraidStrandSurfaceTests {
     }
 
     @Test func centrelineRunsBetweenTheMidpointsOfTheTwoCrossingEdges() throws {
-        let pattern = try #require(MaruGenjiSurfacePatternGenerator.generate(assignments: fixture))
+        let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture))
         let surface = BraidStrandSurfaceBuilder.surface(for: pattern)
 
         for (segment, patch) in zip(surface.segments, pattern.patches) {
@@ -106,13 +106,13 @@ struct BraidStrandSurfaceTests {
     }
 
     @Test func malformedPatchesProduceNoSegment() {
-        let patch = MaruGenjiSurfacePatch(
+        let patch = RoundTube16SurfacePatch(
             threadPosition: 1,
             colorID: blue,
             layer: .over,
             corners: [SIMD2<Float>(0, 0), SIMD2<Float>(0, 1)]
         )
-        let infinite = MaruGenjiSurfacePatch(
+        let infinite = RoundTube16SurfacePatch(
             threadPosition: 1,
             colorID: blue,
             layer: .over,
@@ -146,7 +146,7 @@ struct BraidStrandSurfaceTests {
     /// Two strands cross where the trailing edge of one is the leading edge of the
     /// other. The braid closes on itself both ways, so wrap the key around the
     /// circumference and along one pattern repeat.
-    private func edgeKey(of patch: MaruGenjiSurfacePatch, leading: Bool) -> String {
+    private func edgeKey(of patch: RoundTube16SurfacePatch, leading: Bool) -> String {
         let corners = leading
             ? [patch.corners[0], patch.corners[1]]
             : [patch.corners[3], patch.corners[2]]
@@ -161,7 +161,7 @@ struct BraidStrandSurfaceTests {
             .joined(separator: "|")
     }
 
-    private func longitudinalCenter(of patch: MaruGenjiSurfacePatch) -> Float {
+    private func longitudinalCenter(of patch: RoundTube16SurfacePatch) -> Float {
         let center = patch.corners.map(\.y).reduce(0, +) / Float(patch.corners.count)
         return center.truncatingRemainder(dividingBy: 1)
     }
