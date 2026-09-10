@@ -7,7 +7,10 @@ be held against the photograph's in numbers:
 * **the shortest step that brings the surface back onto itself** — one unit to
   the next — as a displacement and as an angle from the braid's axis;
 * **how deep the groove between units is**, from the ripple in the braid's own
-  outline (`docs/measurement-procedures.md` 2).
+  outline (`docs/measurement-procedures.md` 2). **Printed, not used**: that
+  procedure is for flat braids, and Task 005J found it cannot be used on a round
+  one (`docs/architecture.md`, シルエット法は丸い紐には使えない). The author kept the
+  derived valley on those grounds (2026-09-11, Task 032).
 
 **The colour's turn is not measured again here** —
 `Scripts/task031/measure_photographs.py` owns that procedure and reports it; two
@@ -154,7 +157,7 @@ def main():
             % (angle, strength)
         )
         print(
-            "   valley     %.3f of the width, at least (silhouette ripple)"
+            "   valley     %.3f of the width (silhouette ripple; not usable on a round braid, Task 005J)"
             % valley(rows, edges)
         )
         print()

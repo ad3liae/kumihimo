@@ -203,9 +203,10 @@ enum BraidSurfaceScene {
         }
     }
 
-    /// The eight-thread tube. **One material a thread colour and no stripe maps**:
-    /// nothing crosses on this braid, so there are no sheared frames to gather
-    /// into twist groups the way the sixteen-thread tube has to.
+    /// The eight-thread tube. **One material a thread colour, and one set of
+    /// stripe maps for every cell**: nothing crosses on this braid, so there are no
+    /// sheared frames to gather into twist groups the way the sixteen-thread tube
+    /// has to (`RoundTube8StrandTexture`).
     @MainActor
     private static func roundTubeOfEightModel(
         assignments: [ThreadAssignment],
@@ -221,6 +222,7 @@ enum BraidSurfaceScene {
         let groups = surface.sortedColorGroups
         guard !groups.isEmpty else { throw SceneError.emptySurface }
 
+        let maps = RoundTube8StrandTexture.maps
         var combinedIndices = [UInt32]()
         var faceMaterialIndices = [UInt32]()
         var materials = [PhysicallyBasedMaterial]()
@@ -232,7 +234,12 @@ enum BraidSurfaceScene {
             faceMaterialIndices.append(
                 contentsOf: repeatElement(UInt32(materials.count), count: indices.count / 3)
             )
-            materials.append(material(color: threadColor.uiColor))
+            materials.append(material(
+                color: threadColor.uiColor,
+                occlusion: maps.occlusion,
+                roughness: maps.roughness,
+                normal: maps.normal
+            ))
         }
         guard
             !combinedIndices.isEmpty,

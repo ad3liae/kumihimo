@@ -55,6 +55,10 @@ struct RoundTube8SurfaceMeshData: Sendable {
 /// is everything about crossings — the lift, the dip, the lap, the walls that
 /// seal a step — because on this braid nothing crosses.
 ///
+/// **The fibre stripes and the valley shading are borrowed too**, from the
+/// sixteen-thread tube's maps (`RoundTube8StrandTexture`), and only they are set
+/// by eye; none of them moves a vertex.
+///
 /// **The sixteen-thread drawers are untouched.** This is an addition beside them.
 enum RoundTube8SurfaceMesh {
     /// **The family this draws**: eight threads, a tube.
@@ -74,14 +78,58 @@ enum RoundTube8SurfaceMesh {
                     + "and Z-a 0.506, and colouring b cannot be read this way at all "
                     + "because its colour turns in eight cycles rather than four. The "
                     + "value shipped is S's, whose signal is the cleanest and whose "
-                    + "braid is the one drawn"
+                    + "braid is the one drawn. On S itself the pitch and the colour band "
+                    + "cannot both hold: a pitch of 0.403 puts the band at 46.5 degrees "
+                    + "from across the braid, the band measured on the same photograph is "
+                    + "54.5, and 54.5 would need a pitch of 0.536. Neither is moved to "
+                    + "meet the other (the author, 2026-09-11)"
             ),
             "half a thread over the braid's radius": BraidMeasurement(
                 Double(crestHeightRatio),
                 basis: .fractionOf("the braid's outer radius"),
                 source: .derived("eight threads round the tube, so one thread is an "
                                  + "eighth of the circumference and a round one stands "
-                                 + "half its own width proud")
+                                 + "half its own width proud"),
+                unsettled: "the photograph's outline ripple gives 0.025 of the braid's "
+                    + "width on S (0.023 on Z-a, 0.038 on Z-b), against 0.141 of the "
+                    + "width here (0.282 of the radius). That ripple is measuring "
+                    + "procedure 2, which reads a floor at best, and Task 005J found it "
+                    + "cannot be used on a round braid at all: the outline of a round "
+                    + "braid is the envelope of its ridges and hides the grooves between "
+                    + "them. So the derived value stays, and nothing measured stands "
+                    + "either for it or against it (the author, 2026-09-11)"
+            ),
+            "fibre stripe angle in degrees": .declared(
+                Double(fibreStripeAngleDegrees),
+                calibratedBy: "calibrated by eye against a photograph, not derived: the "
+                    + "slant of the fibre inside a thread against the thread's own run, "
+                    + "on book A p.8's zoom. Which way it leans is not settled by the "
+                    + "photograph: four of five readable beans lean the way drawn and "
+                    + "one the other"
+            ),
+            "fibre stripes across a thread's width": .declared(
+                Double(fibreStripesAcrossThreadWidth),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how "
+                    + "many fibre stripes lie side by side across one thread, on book A "
+                    + "p.8's zoom"
+            ),
+            "fibre stripe relief": .declared(
+                Double(RoundTube16SurfaceMesh.twistReliefRatio),
+                calibratedBy: "calibrated by eye against a photograph, not derived: the "
+                    + "sixteen-thread tube's own figure, borrowed and held against book A "
+                    + "p.8's zoom for how much the stripes stand out"
+            ),
+            "valley shading at a cell's edge": .declared(
+                Double(RoundTube16StrandTextureFactory.valleyOcclusion),
+                calibratedBy: "calibrated by eye against a photograph, not derived: the "
+                    + "sixteen-thread tube's own figure, borrowed and held against book A "
+                    + "p.8's zoom for how dark the groove between two columns looks"
+            ),
+            "how far across a cell the valley shading reaches": .declared(
+                Double(RoundTube16StrandTextureFactory.valleyOcclusionWidth),
+                calibratedBy: "calibrated by eye against a photograph, not derived: the "
+                    + "sixteen-thread tube's own figure, borrowed and held against book A "
+                    + "p.8's zoom for how wide the groove looks"
             ),
             "radius on screen": .declared(
                 Double(defaultRadius),
@@ -105,6 +153,35 @@ enum RoundTube8SurfaceMesh {
     /// — the circumference is the thread count — rather than a new conversion
     /// (`docs/tasks/025-5-adding-a-recipe.md`).
     static let crestHeightRatio: Float = 1 - 1 / (1 + .pi / 8)
+
+    /// Angle between the fibre stripes and a thread's own run.
+    ///
+    /// **Calibrated by eye against a photograph, not derived** (Task 032 stage 3):
+    /// book A p.8's zoom, where the fibre shows as fine stripes inside every
+    /// thread. It is a look and not a shape -- nothing in how the braid is made
+    /// sets it -- so `shape` carries it as `.declared`. The maps it goes into are
+    /// the sixteen-thread tube's, borrowed (`RoundTube8StrandTexture`).
+    ///
+    /// **Signed, for which way the stripes lean.** Positive leans them falling to
+    /// the right with the braid lying across the view, which is rising to the
+    /// right with it standing up, as it stands in the photograph. **Which way the
+    /// photograph's fibre leans is not settled**: of five beans whose spectrum
+    /// shows a fibre-sized period, four lean this way and one the other, and a
+    /// first look by eye had it the other way (`RoundTube8StrandTexture.twist`).
+    ///
+    /// The fibre runs nearly along the thread, so the angle is small. Those five
+    /// beans lean between 11 and 41 degrees either way, and the median of their
+    /// size is 14.9, which is where the eye had put it.
+    static let fibreStripeAngleDegrees: Float = 15
+    /// How many fibre stripes lie side by side across one thread's width.
+    /// **Calibrated by eye against the same photograph, not derived** — counted
+    /// across a thread, because the stripes run nearly along it and that is the
+    /// way they can be counted.
+    ///
+    /// The same five beans give 6.6 across. The stripes have to come back whole
+    /// at the end of a cell (`RoundTube8StrandTexture.stripesPerCell`), and at 15
+    /// degrees that allows 5.2 across or 7.8; this gives 7.8, which the eye kept.
+    static let fibreStripesAcrossThreadWidth: Float = 8
 
     /// Samples down one cell and across it. Across resolves the round ridge; along
     /// resolves the curve of the cylinder the cell is wrapped onto, which matters

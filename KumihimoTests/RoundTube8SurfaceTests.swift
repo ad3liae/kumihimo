@@ -280,12 +280,114 @@ struct RoundTube8SurfaceTests {
         #expect(!shape.values.isEmpty)
         #expect(shape.values.values.allSatisfy { !$0.source.origin.isEmpty })
         #expect(shape.values.values.allSatisfy { $0.agreesWithItsSpread })
-        // **Nothing here was set by eye against a photograph** except how big the
-        // braid is drawn, which is a display size and not a shape.
-        #expect(shape.calibratedByEye.keys.sorted() == ["radius on screen"])
+        // **What is set by eye is the look, never the shape** (Task 032 stage 3):
+        // the fibre stripes and the valley shading, and how big the braid is
+        // drawn. None of them moves a vertex.
+        #expect(shape.calibratedByEye.keys.sorted() == [
+            "fibre stripe angle in degrees",
+            "fibre stripe relief",
+            "fibre stripes across a thread's width",
+            "how far across a cell the valley shading reaches",
+            "radius on screen",
+            "valley shading at a cell's edge",
+        ])
+        // And each of the looks says, in so many words, what it is.
+        for (name, value) in shape.calibratedByEye where name != "radius on screen" {
+            #expect(value.source.origin.contains("calibrated by eye against a photograph, not derived"),
+                    "\(name)")
+        }
+
         let pitch = try #require(shape.values["one cycle over the braid's diameter"])
         #expect(pitch.isObserved)
-        #expect(pitch.unsettled != nil)
+        // **The pitch and the colour band do not both hold on S**, and both numbers
+        // are kept rather than one moved to meet the other (the author, 2026-09-11).
+        let pitchNote = try #require(pitch.unsettled)
+        #expect(pitchNote.contains("0.403") && pitchNote.contains("54.5"))
+
+        // **The valley stays derived** (the author, 2026-09-11). The photograph's
+        // reading is written beside it, with the reason it cannot replace it.
+        let valley = try #require(shape.values["half a thread over the braid's radius"])
+        #expect(valley.isDerived)
+        let valleyNote = try #require(valley.unsettled)
+        #expect(valleyNote.contains("0.025") && valleyNote.contains("0.282")
+                && valleyNote.contains("Task 005J"))
+    }
+
+    // MARK: - Stage 3 of Task 032: the stripes and the shading
+
+    /// **The shading is the sixteen-thread tube's valley and nothing else.** It
+    /// is 1 on the crest and the borrowed figure at both edges, and it has no
+    /// shadow at a crossing — nothing crosses — and none at the ends of a cell,
+    /// which wait on the arrival phase.
+    @Test func theShadingIsTheSixteenThreadTubesValley() {
+        let valley = RoundTube16StrandTextureFactory.valleyOcclusion
+        #expect(abs(RoundTube8StrandTexture.shading(across: 0.5) - 1) < 0.001)
+        #expect(abs(RoundTube8StrandTexture.shading(across: 0) - valley) < 0.001)
+        #expect(abs(RoundTube8StrandTexture.shading(across: 1) - valley) < 0.001)
+        for row in stride(from: Float(0), through: 1, by: 0.05) {
+            #expect(abs(RoundTube8StrandTexture.shading(across: row)
+                - RoundTube8StrandTexture.shading(across: 1 - row)) < 0.000_1)
+        }
+    }
+
+    /// **The stripes lie at the declared slant to the thread's run, and come back
+    /// to where they started at the end of a cell**, so a column — one ridge from
+    /// end to end — never shows them breaking at a cycle.
+    @Test func theStripesLieAtTheDeclaredSlantAndJoinAtEveryCycle() throws {
+        let twist = try #require(RoundTube8StrandTexture.twist)
+        let stripes = RoundTube8StrandTexture.stripesPerCell
+        #expect(stripes == stripes.rounded() && stripes >= 1)
+        for across in stride(from: Float(-1), through: 1, by: 0.25) {
+            let start = twist.coefficients.phase(along: 0, across: across)
+            let end = twist.coefficients.phase(along: 1, across: across)
+            #expect(abs(cos(start) - cos(end)) < 0.001)
+        }
+
+        // A line of one phase runs `tan(angle)` across for one along, in world
+        // units: a cell is one cycle long and an eighth of the crest wide.
+        let along = 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameter
+        let halfWidth = Float.pi / 8
+        let perAlong = abs(twist.coefficients.phasePerAlong) / along
+        let perAcross = abs(twist.coefficients.phasePerAcross) / halfWidth
+        let slant = atan(perAlong / perAcross) * 180 / .pi
+        #expect(abs(slant - abs(RoundTube8SurfaceMesh.fibreStripeAngleDegrees)) < 0.01)
+
+        // **The lean is the one the render was measured for.** With both terms of
+        // one sign, a line of one phase goes along the braid as it goes back round
+        // it — which on this mesh, read off a render, falls to the right with the
+        // braid lying across the view: the way four of the five photographed beans
+        // with a readable fibre lean. The photograph does not settle it.
+        #expect(RoundTube8SurfaceMesh.fibreStripeAngleDegrees > 0)
+        #expect((twist.coefficients.phasePerAlong > 0) == (twist.coefficients.phasePerAcross > 0))
+    }
+
+    /// **The relief lights the same stripes the tint draws.** The normal map's
+    /// second channel runs along the normal crossed with the tangent; on this mesh
+    /// the bitangent runs the other way, so the gradient counts across against
+    /// the way the coefficients do. Found on a render, where the two had crossed
+    /// into a lattice.
+    @Test func theReliefLightsTheStripesTheTintDraws() throws {
+        let mesh = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
+        // Every vertex of the mesh has its bitangent against normal x tangent.
+        for index in stride(from: 0, to: mesh.positions.count, by: 97) {
+            let turned = cross(mesh.normals[index], mesh.tangents[index])
+            #expect(dot(turned, mesh.bitangents[index]) < 0, "vertex \(index)")
+        }
+        let twist = try #require(RoundTube8StrandTexture.twist)
+        // So the gradient's second channel has the sign opposite to the phase's
+        // own change across, and its first the same sign as the change along.
+        #expect((twist.normalizedPhaseGradient.y > 0) != (twist.coefficients.phasePerAcross > 0))
+        #expect((twist.normalizedPhaseGradient.x > 0) == (twist.coefficients.phasePerAlong > 0))
+    }
+
+    /// **The sixteen-thread factory draws the eight-thread stripes unchanged.**
+    /// Nothing on that side was given a parameter; the eight's coefficients are
+    /// simply handed to it.
+    @Test func theSixteenThreadFactoryDrawsTheStripes() throws {
+        let twist = try #require(RoundTube8StrandTexture.twist)
+        #expect(RoundTube16StrandTextureFactory.roughnessImage(twist: twist) != nil)
+        #expect(RoundTube16StrandTextureFactory.normalImage(twist: twist) != nil)
+        #expect(RoundTube8StrandTexture.occlusionImage(twist: twist) != nil)
     }
 
     /// **What the drawing puts on the face at a slant is the colour**, and how far
