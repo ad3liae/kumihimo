@@ -107,4 +107,21 @@ enum BraidStands {
             BraidGroup(name: "west", positions: [14, 13, 12, 11]),
         ]
     )
+
+    /// The eight-position round stand, with the four groups book A names on its
+    /// eight-bobbin braids: two threads to a group, an upright pair and a flat
+    /// pair.
+    ///
+    /// **Listed the way `round16`'s groups are** — outermost first, which for the
+    /// south and west groups runs against the rim.
+    static let round8 = round(
+        id: "round-8",
+        positionCount: 8,
+        groups: [
+            BraidGroup(name: "north", positions: [8, 1]),
+            BraidGroup(name: "east", positions: [2, 3]),
+            BraidGroup(name: "south", positions: [5, 4]),
+            BraidGroup(name: "west", positions: [7, 6]),
+        ]
+    )
 }

@@ -5,19 +5,24 @@ import Testing
 /// Task 025-2: a recipe is a move table, a colouring and the measured values.
 @MainActor
 struct BraidRecipeTests {
+    /// **The stand comes out of the table**, so this asks the catalogue rather than
+    /// naming one -- a recipe worked on the eight-place stand goes through here the
+    /// same way as one worked on the sixteen.
     @Test(arguments: BraidMethodCatalog.recipes)
     func aRecipeWorksOutOnTheStandItNames(recipe: BraidRecipe) throws {
-        let worked = try #require(recipe.worked(on: BraidMethodCatalog.stand16))
+        let stand = try #require(BraidMethodCatalog.stand(for: recipe))
+        let worked = try #require(recipe.worked(on: stand))
         // One step a braiding move -- the source of record moves one thread at a
         // time -- and the closing is one more instant.
         #expect(worked.method.instantCount == recipe.notation.braidingMoves.count + 1)
-        #expect(worked.derivation.threadCount == 16)
+        #expect(worked.derivation.threadCount == stand.positionCount)
     }
 
     @Test(arguments: BraidMethodCatalog.recipes)
-    func aRecipeColoursEveryPosition(recipe: BraidRecipe) {
-        #expect(recipe.colouring.count == 16)
-        #expect(Set(recipe.colouring.map(\.position)) == Set(1...16))
+    func aRecipeColoursEveryPosition(recipe: BraidRecipe) throws {
+        let stand = try #require(BraidMethodCatalog.stand(for: recipe))
+        #expect(recipe.colouring.count == stand.positionCount)
+        #expect(Set(recipe.colouring.map(\.position)) == Set(stand.positionIDs))
     }
 
     /// **Only measurements live in a recipe.** What the working-out works out for

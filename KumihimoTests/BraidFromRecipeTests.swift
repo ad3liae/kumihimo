@@ -11,8 +11,9 @@ import Testing
 struct BraidFromRecipeTests {
     @Test(arguments: BraidMethodCatalog.recipes)
     func everyShippedRecipeBuildsAndDraws(recipe: BraidRecipe) throws {
-        let built = try #require(BraidFromRecipe.build(recipe, on: BraidMethodCatalog.stand16))
-        let pictures = built.pictures(slotCount: 16)
+        let stand = try #require(BraidMethodCatalog.stand(for: recipe))
+        let built = try #require(BraidFromRecipe.build(recipe, on: stand))
+        let pictures = built.pictures(slotCount: stand.positionCount)
         #expect(!pictures.isEmpty)
         for picture in pictures {
             #expect(picture.image.width > 8)
@@ -89,8 +90,9 @@ struct BraidFromRecipeTests {
     /// Draws the new path for the author to look at. **Decides nothing.**
     @Test func theNewPathIsDrawnForTheAuthorToLookAt() throws {
         for recipe in BraidMethodCatalog.recipes {
-            let built = try #require(BraidFromRecipe.build(recipe, on: BraidMethodCatalog.stand16))
-            for picture in built.pictures(slotCount: 16) {
+            let stand = try #require(BraidMethodCatalog.stand(for: recipe))
+            let built = try #require(BraidFromRecipe.build(recipe, on: stand))
+            for picture in built.pictures(slotCount: stand.positionCount) {
                 let name = "\(recipe.id)-\(picture.name.replacingOccurrences(of: " ", with: "-"))"
                 let url = try BraidFigureDrawing.write(picture.image, named: name)
                 #expect(FileManager.default.fileExists(atPath: url.path))

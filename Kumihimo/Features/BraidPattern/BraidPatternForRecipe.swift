@@ -46,7 +46,8 @@ struct BraidPatternForRecipe: View {
         for recipe: BraidRecipe, assignments: [ThreadAssignment], repeats: Int = 3
     ) -> Drawing {
         guard
-            let worked = recipe.worked(on: BraidMethodCatalog.stand16),
+            let stand = BraidMethodCatalog.stand(for: recipe),
+            let worked = recipe.worked(on: stand),
             assignments.count == worked.derivation.threadCount
         else { return .nothing }
 

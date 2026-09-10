@@ -18,7 +18,7 @@ struct BraidPreviewForFamily: View {
     let nothingDrawsIt: String
 
     var body: some View {
-        switch BraidFamilyDrawing.drawer(for: recipe, on: BraidMethodCatalog.stand16) {
+        switch BraidFamilyDrawing.drawer(for: recipe) {
         case Flat16SurfaceMesh.family:
             Flat16PreviewView(
                 assignments: assignments,
@@ -36,6 +36,22 @@ struct BraidPreviewForFamily: View {
         default:
             BraidNothingDrawsItView(text: nothingDrawsIt)
         }
+    }
+}
+
+extension BraidPreviewForFamily {
+    /// Whether a preview shown on its own has to be given a way out.
+    ///
+    /// **The two solid drawers each put a dismiss button in a navigation bar of
+    /// their own.** The figure has no bar, and neither has the empty space a braid
+    /// nothing draws — so those two have to be given one from outside, or a
+    /// full-screen preview of either cannot be left at all.
+    static func needsItsOwnWayOut(recipe: BraidRecipe, showingFigure: Bool) -> Bool {
+        showingFigure || drawer(for: recipe) == nil
+    }
+
+    private static func drawer(for recipe: BraidRecipe) -> BraidFamily? {
+        BraidFamilyDrawing.drawer(for: recipe)
     }
 }
 
@@ -65,7 +81,7 @@ struct BraidThumbnailForFamily: View {
     let nothingDrawsIt: String
 
     var body: some View {
-        switch BraidFamilyDrawing.drawer(for: recipe, on: BraidMethodCatalog.stand16) {
+        switch BraidFamilyDrawing.drawer(for: recipe) {
         case Flat16SurfaceMesh.family:
             Flat16ThumbnailView(assignments: assignments)
         case RoundTube16SurfaceMesh.family:

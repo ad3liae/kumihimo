@@ -59,6 +59,35 @@ struct BraidDiskNotation: Equatable, Sendable {
     var braidingMoves: [BraidMove] { moves.filter { !isRepositioning($0) } }
     var repositioningMoves: [BraidMove] { moves.filter(isRepositioning) }
 
+    /// The same table reflected across the disk: the braid worked the other way
+    /// round.
+    ///
+    /// A reflection swaps notches in pairs that sum to `axis`, counted round the
+    /// ring. **Only the moves are written out again.** The resting notches have to
+    /// come back onto themselves, or the reflection is not a reflection of this
+    /// stand and `nil` is the answer rather than a table that half fits.
+    ///
+    /// **This is how an S table and its Z partner are kept the same table.** A Z
+    /// transcribed by hand could disagree with its S in a way nothing would catch;
+    /// a Z reflected from its S cannot, and "it is the mirror" becomes something a
+    /// test can say.
+    func reflected(about axis: Int, source: String) -> BraidDiskNotation? {
+        guard notchCount > 0 else { return nil }
+        func across(_ notch: Int) -> Int {
+            let raw = (axis - notch) % notchCount
+            return raw <= 0 ? raw + notchCount : raw
+        }
+        let resting = Set(standPositionByRestingNotch.keys)
+        guard Set(resting.map(across)) == resting else { return nil }
+        return BraidDiskNotation(
+            source: source,
+            notchCount: notchCount,
+            standPositionByRestingNotch: standPositionByRestingNotch,
+            moves: moves.map { BraidMove(from: across($0.from), to: across($0.to)) },
+            threadsPerStep: threadsPerStep
+        )
+    }
+
     /// The stand's own method: where each thread rests at the start of the cycle
     /// and where it rests at the end.
     ///

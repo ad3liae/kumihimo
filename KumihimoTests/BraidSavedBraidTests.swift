@@ -21,7 +21,7 @@ struct BraidSavedBraidTests {
         }
     }
 
-    @Test(arguments: ["maru-genji-16", "hira-genji-16"])
+    @Test(arguments: ["maru-genji-16", "hira-genji-16", "yatsu-kongo-s-8", "yatsu-kongo-z-8"])
     func aSavedKeyNamesARecipeAndAPreset(key: String) throws {
         let recipe = try #require(BraidSavedBraid.recipe(fromSaved: key))
         #expect(recipe.id == key)

@@ -47,6 +47,15 @@ enum BraidFamilyDrawing {
         }
     }
 
+    /// The same question with the stand looked up rather than passed in.
+    ///
+    /// **A recipe's table says which stand it is worked on** — how many places rest
+    /// on the disk — so a screen showing a braid does not have to name one. Still
+    /// no braid names here: the catalogue answers by counting.
+    static func drawer(for recipe: BraidRecipe) -> BraidFamily? {
+        BraidMethodCatalog.stand(for: recipe).flatMap { drawer(for: recipe, on: $0) }
+    }
+
     static func shape(of family: BraidFamily) -> BraidFamilyShape? {
         families.first { $0.family.fits(family) }
     }
