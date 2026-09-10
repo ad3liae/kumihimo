@@ -58,17 +58,17 @@ enum BraidPresetCatalog {
     ///
     /// **The notice is longer than the others because more is open.** The move
     /// table is not a copy of a printed table — it is book A p54–55's picture read
-    /// with the author's ruling on where a carried thread lands — the colouring is
-    /// the reference fixture rather than book A's own, nothing about the braid's
-    /// shape has been measured, and the eight-thread family has no drawer, so there
-    /// is no solid braid to show.
+    /// with the author's ruling on where a carried thread lands — and the solid is
+    /// drawn from rules rather than from a transcribed cell figure (Task 031), with
+    /// the lean of its ridges disagreeing with the photographs by some thirty-five
+    /// degrees. What is settled is the colouring, which is book A p.54 and p.55's a.
     static let yatsuKongoS = BraidPreset(
         id: .yatsuKongoS8,
         displayName: "八つ金剛S",
         supportedThreadCounts: [8],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順表はbookA p54の絵と、運ばれた糸の着地についての判定から起こした試作です。対の中の先後、配色の出どころ、紐の寸法はいずれも未照合で、この組み方の立体はまだ描けません。"
+        prototypeNotice: "手順表はbookA p54の絵と、運ばれた糸の着地についての判定から起こした試作です。立体は転写した升目図ではなく規則から描いており、畝の傾きは実物写真と一致していません。対の中の先後も未照合です。"
     )
 
     static let yatsuKongoZ = BraidPreset(
@@ -77,7 +77,7 @@ enum BraidPresetCatalog {
         supportedThreadCounts: [8],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "八つ金剛Sの手順表を盤の上で鏡に写したものです。対の中の先後、配色の出どころ、紐の寸法はいずれも未照合で、この組み方の立体はまだ描けません。"
+        prototypeNotice: "八つ金剛Sの手順表を盤の上で鏡に写したものです。立体は転写した升目図ではなく規則から描いており、畝の傾きは実物写真と一致していません。対の中の先後も未照合です。"
     )
 
     static let presets = [maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ]

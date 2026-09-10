@@ -27,13 +27,16 @@ struct BraidFamilyDrawingTests {
         guard let drawing = BraidFamilyDrawing.drawing(for: recipe, on: stand) else {
             #expect(BraidFamilyDrawing.shape(of: family) == nil)
             let nothing = BraidFamilyDrawing.mesh(for: recipe, on: stand)
-            #expect(nothing.flat == nil && nothing.tube == nil)
+            #expect(nothing.flat == nil && nothing.tube == nil && nothing.tubeOfEight == nil)
             return
         }
         let shape = try #require(BraidFamilyDrawing.shape(of: drawing.family))
         #expect(!shape.values.isEmpty)
         let mesh = BraidFamilyDrawing.mesh(for: recipe, on: stand)
-        #expect((mesh.flat != nil) != (mesh.tube != nil))
+        // **Exactly one drawer made it.** Three families are drawn now, and a
+        // recipe belongs to one of them.
+        let made = [mesh.flat != nil, mesh.tube != nil, mesh.tubeOfEight != nil]
+        #expect(made.filter { $0 }.count == 1)
     }
 
     /// **A table this code has not seen, drawn by a family it has.** Book C's

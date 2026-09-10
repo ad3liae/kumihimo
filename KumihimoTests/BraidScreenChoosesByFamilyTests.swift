@@ -18,13 +18,17 @@ struct BraidScreenChoosesByFamilyTests {
         #expect(recipe.worked(on: stand) != nil)
     }
 
-    /// **Only the two families with drawers get one.** The screens ask the family,
-    /// so a braid of a family nobody draws reaches the empty space instead.
+    /// **A drawer comes from the family and from nowhere else**, and every shipped
+    /// preset's family now has one: flat sixteen, a tube of sixteen, a tube of
+    /// eight (Task 031). A braid of a family nobody draws still reaches the empty
+    /// space instead, which `aBraidNothingDrawsGetsNoDrawer` holds.
     @Test(arguments: BraidPresetCatalog.presets)
-    func aDrawerComesOnlyFromAFamilyThatHasOne(preset: BraidPreset) throws {
+    func theDrawerAPresetGetsIsItsFamilysOwn(preset: BraidPreset) throws {
         let recipe = try #require(BraidMethodCatalog.recipe(for: preset.id))
-        let drawn: Set<BraidPresetID> = [.maruGenji16, .hiraGenji16]
-        #expect((BraidFamilyDrawing.drawer(for: recipe) != nil) == drawn.contains(preset.id))
+        let stand = try #require(BraidMethodCatalog.stand(for: recipe))
+        let worked = try #require(recipe.worked(on: stand))
+        #expect(BraidFamilyDrawing.drawer(for: recipe)
+                == BraidFamily.family(of: worked.derivation))
     }
 
     @Test func theFamilyChosenIsTheRightOneForEachPreset() throws {
