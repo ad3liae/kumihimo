@@ -6,10 +6,11 @@ import os
 /// lights, and the tiles that carry the braid off both ends of the view.
 ///
 /// **Moved here whole from the two reality views** (Task 028-1a). Both of them
-/// built the same scene from two copies of the same code, and the list's thumbnail
-/// is about to want that scene as well. One copy means the thumbnail cannot drift
-/// away from the preview: **they are the same picture because they are the same
-/// code**, not because two pieces of code happen to agree today.
+/// built the same scene from two copies of the same code — the same camera, the
+/// same three lights, the same tiling — and a third copy would have been a third
+/// thing to keep in step. One copy means whatever draws a braid solid draws the
+/// same braid: **the same picture because it is the same code**, not because two
+/// pieces of code happen to agree today.
 ///
 /// Nothing about the shape lives here. The mesh comes from the family's own
 /// drawer, the colours from the pattern the occupancy history gives it; this only
@@ -220,7 +221,7 @@ enum BraidSurfaceScene {
             !materials.isEmpty
         else { throw SceneError.emptySurface }
 
-        var descriptor = MeshDescriptor(name: "maru-genji-surface")
+        var descriptor = MeshDescriptor(name: "round-tube-16-surface")
         descriptor.positions = MeshBuffer(surface.positions)
         descriptor.normals = MeshBuffer(surface.normals)
         descriptor.tangents = MeshBuffer(surface.tangents)
@@ -280,7 +281,7 @@ enum BraidSurfaceScene {
         }
         guard !combinedIndices.isEmpty else { throw SceneError.emptySurface }
 
-        var descriptor = MeshDescriptor(name: "hira-genji-surface")
+        var descriptor = MeshDescriptor(name: "flat-16-surface")
         descriptor.positions = MeshBuffer(surface.positions)
         descriptor.normals = MeshBuffer(surface.normals)
         descriptor.textureCoordinates = MeshBuffer(surface.textureCoordinates)
