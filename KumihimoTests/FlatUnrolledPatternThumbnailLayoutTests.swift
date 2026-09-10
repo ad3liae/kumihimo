@@ -60,11 +60,11 @@ struct FlatUnrolledPatternThumbnailLayoutTests {
         )
         #expect(layout.repeatCount >= 1)
         #expect(layout.repeatCount <= UnrolledPatternThumbnailLayout.maximumRepeatCount)
-        #expect(layout.originAlongTheBraid <= 0)
-        #expect(layout.originAlongTheBraid + CGFloat(layout.repeatCount) * layout.repeatLength >= size.width)
-        let trailingOverhang = layout.originAlongTheBraid
+        #expect(layout.originX <= 0)
+        #expect(layout.originX + CGFloat(layout.repeatCount) * layout.repeatLength >= size.width)
+        let trailingOverhang = layout.originX
             + CGFloat(layout.repeatCount) * layout.repeatLength - size.width
-        #expect(abs(trailingOverhang + layout.originAlongTheBraid) < 1e-4)
+        #expect(abs(trailingOverhang + layout.originX) < 1e-4)
         // **One repeat spare**: the covering count, and one more.
         let needed = Int((size.width / layout.repeatLength).rounded(.up))
         #expect(layout.repeatCount == min(needed + 1,

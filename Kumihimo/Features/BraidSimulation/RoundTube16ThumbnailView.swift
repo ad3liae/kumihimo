@@ -2,8 +2,6 @@ import SwiftUI
 
 struct RoundTube16ThumbnailView: View {
     let assignments: [ThreadAssignment]
-    /// Which way the braid runs on the frame. The list's card stands it upright.
-    var orientation: UnrolledPatternThumbnailLayout.Orientation = .alongTheWidth
 
     var body: some View {
         Canvas { context, size in
@@ -11,8 +9,7 @@ struct RoundTube16ThumbnailView: View {
                 let pattern = RoundTube16SurfacePatternGenerator.generate(assignments: assignments),
                 let layout = UnrolledPatternThumbnailLayout(
                     size: size,
-                    aspectRatio: pattern.aspectRatio,
-                    orientation: orientation
+                    aspectRatio: pattern.aspectRatio
                 )
             else {
                 return

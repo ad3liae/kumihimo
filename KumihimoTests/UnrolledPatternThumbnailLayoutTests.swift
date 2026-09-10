@@ -34,13 +34,13 @@ struct UnrolledPatternThumbnailLayoutTests {
 
         #expect(layout.repeatCount >= 1)
         #expect(layout.repeatCount <= UnrolledPatternThumbnailLayout.maximumRepeatCount)
-        #expect(layout.originAlongTheBraid <= 0)
-        #expect(layout.originAlongTheBraid + CGFloat(layout.repeatCount) * layout.repeatLength >= size.width)
+        #expect(layout.originX <= 0)
+        #expect(layout.originX + CGFloat(layout.repeatCount) * layout.repeatLength >= size.width)
         // Symmetric overhang, so the crop reads as a length of braid rather than as
         // a pattern pushed against one edge.
-        let trailingOverhang = layout.originAlongTheBraid
+        let trailingOverhang = layout.originX
             + CGFloat(layout.repeatCount) * layout.repeatLength - size.width
-        #expect(abs(trailingOverhang + layout.originAlongTheBraid) < 0.000_1)
+        #expect(abs(trailingOverhang + layout.originX) < 0.000_1)
     }
 
     @Test func repeatCountFollowsTheFrameWidth() throws {
