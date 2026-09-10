@@ -1,6 +1,6 @@
 # Task 028: 一覧のサムネイルを「展開図 + 立体」にする
 
-- 状態: **028-1a・028-1b 完了**（2026-09-09。**1b は左 1/3 とカメラの 2 点を差し戻して直した**）。028-1c は `MeshDescriptor` の名前のみ
+- 状態: **028-1a 完了。028-1b は取り下げ。028-1c は不要**（2026-09-10）
 - 優先度: **高。一覧を見ただけで色の繰り返しが分かるようにする**
 - 前提: `docs/tasks/027-screens-on-recipes.md`（画面は族とレシピに乗った）、
   `docs/architecture.md`「初期リリースはレシピのある紐に限る（作者の決定）」
@@ -8,7 +8,28 @@
 **一覧「組み方別のシミュレーション結果」のカードを、左 1/3 に展開図・右 2/3 に立体の
 描き済み画像にする。** 画面の流れ（丸台で色を選ぶ → 一覧 → 詳細）は変えない。
 
-## カードの構成（作者の指示、2026-09-09）
+## 取り下げ（作者の判断、2026-09-10）
+
+**作者が実際のカードを見て、3D を持ち込む前のほう——展開図だけがカード全面に出ている
+状態（PR #22）——が良いと判断した。** **028-1b のカードは取り下げる。**
+
+**戻したもの**——一覧のサムネイルは `Flat16ThumbnailView` / `RoundTube16ThumbnailView`
+（横長、`UnrolledPatternThumbnailLayout`）。`BraidCardRealityView`、カード用の配置
+（`.crossing` とカメラ距離の逆算）、layout の縦向き、`BraidTubeFigureCanvas` の切り出し、
+それらのテストは消した。**カードが触ったファイルは PR #22 と 1 バイトも違わない**
+（`git diff 1a4a7ee` が空であることで確かめた）。
+
+**残したもの**——**028-1a の `BraidSurfaceScene`。** move だけで、プレビュー 2 つの重複を
+減らしたものであり、**028-2 の詳細画面でも使う。**
+
+**この文書の以下の記録は消していない。** snapshot の切り分け、カメラの式と両族の値、
+2 つの取り違え——**やってみて分かったことは、やめた後も残る。**
+
+**028-1c は不要になった。** 消す予定だった 3 型はカードが使っているので残り、
+`MeshDescriptor` の名前だけがこの取り下げのついでに片づいた
+（`round-tube-16-surface` / `flat-16-surface`）。
+
+## カードの構成（作者の指示、2026-09-09。**取り下げ済み**。記録として残す）
 
 | 区画 | 中身 |
 | --- | --- |
@@ -53,7 +74,7 @@ mesh の作り方（族ごとの drawer）だけが違い、**カメラ・光・
 **確認**——**353 通過・0 落ち・2 skip**（切り出し前の main と同じ）。**打ち切り 0 件**
 （上限 300 秒）。番人 `Scripts/check-braiding-is-general.sh` 通過。ビルドは警告なし。
 
-## 028-1b: カード（完了）
+## 028-1b: カード（**取り下げ**。以下は作ったものと測ったものの記録）
 
 ### 1. 画面外の snapshot は返らない（測定）
 
@@ -184,16 +205,16 @@ mesh を得る**——`install` を `.preview` と `.crossing(repeats: 3, in:)` 
 **描画時間・メモリ増分・色を 5 回替えたときの合計時間は測っていない。**
 **作者の判断で測らない**（2026-09-09。問題になる規模ではない）。simulator の値も取らない。
 
-## 028-1c: 片付け（未着手）
+## 028-1c: 片付け（不要になった）
 
-**旧サムネイル 3 型は消さない**（`Flat16ThumbnailView` /
-`RoundTube16ThumbnailView` / `UnrolledPatternThumbnailLayout`）。**カードの左 1/3 が
-それらである**（上の 5 を参照）。**片付け対象から外した。**
+**不要になった。** 消す予定だった 3 型（`Flat16ThumbnailView` /
+`RoundTube16ThumbnailView` / `UnrolledPatternThumbnailLayout`）は**カードが使っている**ので
+残る。
 
-残っている片付けは 1 件だけである。**申し送り**: `BraidSurfaceScene` の `MeshDescriptor(name:)` に
-`"maru-genji-surface"` / `"hira-genji-surface"` が残っている（**元から移った文字列**。
-番人は `MaruGenji`／`HiraGenji` を見るので大文字小文字の違いで通っている）。
-**1c で族の名前に変える。**
+唯一残っていた片付け——`BraidSurfaceScene` の `MeshDescriptor(name:)` に元から移っていた
+`"maru-genji-surface"` / `"hira-genji-surface"`（番人は `MaruGenji`／`HiraGenji` を見るので
+大文字小文字の違いで通っていた）——は、**取り下げのついでに
+`"round-tube-16-surface"` / `"flat-16-surface"` に変えた。**
 
 ## 触らないもの
 
