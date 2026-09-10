@@ -70,7 +70,13 @@
 - Task 005 丸源氏3Dの境界・繊維感と色整合: `tasks/005-maru-genji-surface-material.md`
 - Task 006 端面のない長尺3D表示とiPad適応レイアウト: `tasks/006-infinite-braid-ipad-layout.md`
 - Task 007 平源氏16本プリセット: `tasks/007-hira-genji-16.md`
-- Task 008 八つ金剛組8玉の完成シミュレーション（未着手）: `tasks/008-yatsu-kongo-8.md`
+- Task 008 八つ金剛組8玉の完成シミュレーション（**完了**。bookA p54–55 の絵と作者の判定から
+  手順表を起こし、Z は S を盤の上で鏡に写して作った。**8本の族に描き手は無いので立体は出ない**——
+  模様図だけが出る。**配色は判定済み**（2026-09-10。S は bookA p.54、Z は p.55 の a。
+  どちらも 105 黄が縦・108 橙が横で、違いは螺旋の向きだけになる）。**立体は Task 031**）: `tasks/008-yatsu-kongo-8.md`
+- **Task 031 筒8本の描き手**（**未着手**。八つ金剛の立体を出す。丸源氏の描き手は升の形を転写で
+  持っているので流用できない。段階1 で bookA p.8–9 から「1サイクルの伸び ＝ 直径の 0.40 倍」を
+  測り直す）: `tasks/031-round-tube-8-drawer.md`
 - Task 009 江戸八つ組8玉の完成シミュレーション（未着手）: `tasks/009-edo-yatsu-8.md`
 - Task 010 八つ瀬組8玉の完成シミュレーション（未着手）: `tasks/010-yatsuse-8.md`
 - Task 011 唐八つ組8玉の完成シミュレーション（未着手）: `tasks/011-kara-yatsu-8.md`
