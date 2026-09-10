@@ -50,8 +50,8 @@ struct RoundTube16ViewportCoverageTests {
         SIMD2<Float>(1_194, 700),
     ])
     func defaultZoomShowsAFewRepeatsRatherThanAFineThread(_ viewport: SIMD2<Float>) {
-        let visibleHeight = 2 * RoundTube16RealityView.cameraDistance
-            * tan(RoundTube16RealityView.verticalFieldOfView / 2)
+        let visibleHeight = 2 * BraidSurfaceScene.cameraDistance
+            * tan(BraidSurfaceScene.verticalFieldOfView / 2)
         let visibleWidth = visibleHeight * viewport.x / viewport.y
         let repeatLength = RoundTube16SurfaceMesh.defaultLength
             / Float(RoundTube16SurfaceMesh.defaultPatternRepeatCount)
@@ -115,8 +115,8 @@ struct RoundTube16ViewportCoverageTests {
 
     private func calculate(
         viewport: SIMD2<Float>,
-        cameraDistance: Float = RoundTube16RealityView.cameraDistance,
-        verticalFieldOfView: Float = RoundTube16RealityView.verticalFieldOfView,
+        cameraDistance: Float = BraidSurfaceScene.cameraDistance,
+        verticalFieldOfView: Float = BraidSurfaceScene.verticalFieldOfView,
         minimumScale: Float = RoundTube16ViewerController.minimumScale,
         tileLength: Float = RoundTube16SurfaceMesh.defaultLength
     ) -> RoundTube16ViewportCoverage? {
