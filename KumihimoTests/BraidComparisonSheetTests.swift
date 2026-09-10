@@ -285,6 +285,85 @@ struct BraidComparisonSheetTests {
                       matchPhotographToPanels: true)
         }
     }
+
+    /// **The drawing's own face, alone, at the photograph's scale** — so the
+    /// shortest step can be measured on it the way it was on the photograph
+    /// (`Scripts/task031/measure_units.py --drawing`; the author's ruling of
+    /// 2026-09-11, Task 032). Straight on, standing, the braid 235 pixels across
+    /// as the S braid is in the photograph, the whole length of the tile.
+    ///
+    /// S is drawn twice more: with the two threads of every printed pair carried
+    /// the other way round, and as Z. The first is what tells whether the
+    /// unsettled order inside a pair shows on the face.
+    @Test(.enabled(if: braidSheetsAreWanted))
+    func theYatsuKongoFacesForMeasuring() throws {
+        let floor = Double(RoundTube8SurfaceMesh.defaultRadius)
+            * Double(1 - RoundTube8SurfaceMesh.crestHeightRatio)
+        let perDiameter = 2 * Double.pi * floor / 8
+        let braidWidth = Double(RoundTube8SurfaceMesh.defaultRadius) * 2 / perDiameter
+        let pixelsPerDiameter = Int((235 / braidWidth).rounded())
+        let stand = BraidMethodCatalog.stand8
+
+        func face(_ method: BraidMethod, _ recipe: BraidRecipe,
+                  section: BraidCrossSection, named: String) throws {
+            let pattern = try #require(RoundTube8SurfacePatternGenerator.generate(
+                stand: stand, method: method, crossSection: section,
+                assignments: recipe.colouring
+            ))
+            let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: pattern))
+            let solid = BraidComparisonSheet.solid(
+                positions: mesh.positions, byColour: mesh.colorGroups, perDiameter: perDiameter
+            )
+            let panel = try #require(BraidComparisonSheet.paint(
+                triangles: solid.triangles, looking: BraidComparisonSheet.camera(turned: false),
+                window: solid.along, acrossWanted: braidWidth,
+                pixelsPerDiameter: pixelsPerDiameter
+            ))
+            let image = try #require(Self.image(of: panel))
+            try BraidFigureDrawing.write(image, named: named)
+        }
+
+        let s = BraidMethodCatalog.yatsuKongoS8Recipe
+        let workedS = try #require(s.worked(on: stand))
+        try face(workedS.method, s, section: workedS.section, named: "face-yatsu-kongo-s")
+        var swapped = workedS.method.steps
+        for index in stride(from: 0, to: swapped.count - 1, by: 2) {
+            swapped.swapAt(index, index + 1)
+        }
+        let otherWay = BraidMethod(
+            id: workedS.method.id + "-pairs-the-other-way-round",
+            standID: workedS.method.standID,
+            steps: swapped,
+            closing: workedS.method.closing
+        )
+        try face(otherWay, s, section: workedS.section, named: "face-yatsu-kongo-s-pairs-swapped")
+        let z = BraidMethodCatalog.yatsuKongoZ8Recipe
+        let workedZ = try #require(z.worked(on: stand))
+        try face(workedZ.method, z, section: workedZ.section, named: "face-yatsu-kongo-z")
+    }
+
+    /// A panel as an image, the ground where nothing was painted.
+    private static func image(of panel: BraidComparisonSheet.Panel) -> CGImage? {
+        var bytes = [UInt8](repeating: 255, count: panel.width * panel.height * 4)
+        let ground = ThreadColorValue(red: 0.99, green: 0.99, blue: 0.98)
+        for row in 0..<panel.height {
+            for column in 0..<panel.width {
+                let colour = panel.pixels[row][column] ?? ground
+                let at = (row * panel.width + column) * 4
+                bytes[at] = UInt8(min(max(colour.red, 0), 1) * 255 + 0.5)
+                bytes[at + 1] = UInt8(min(max(colour.green, 0), 1) * 255 + 0.5)
+                bytes[at + 2] = UInt8(min(max(colour.blue, 0), 1) * 255 + 0.5)
+            }
+        }
+        guard let provider = CGDataProvider(data: Data(bytes) as CFData) else { return nil }
+        return CGImage(
+            width: panel.width, height: panel.height,
+            bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: panel.width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+            provider: provider, decode: nil, shouldInterpolate: false, intent: .defaultIntent
+        )
+    }
 }
 
 /// Off unless the environment asks, so the default run stays inside the

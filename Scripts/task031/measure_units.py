@@ -19,6 +19,14 @@ scripts measuring one thing is two answers waiting to differ.
 Everything is in **braid widths**, so it compares with a drawing of any size.
 
     python3 Scripts/task031/measure_units.py
+    python3 Scripts/task031/measure_units.py --drawing FACE.png [FACE.png ...]
+
+**`--drawing` runs the same shortest-step measurement on the drawing** (the
+author's ruling of 2026-09-11, Task 032): a straight-on face of the shipped
+drawer, standing, painted at the photograph's scale by
+`BraidComparisonSheetTests.theYatsuKongoFacesForMeasuring` so the search window
+means the same share of the braid's width. The strip is the same middle 0.44 of
+the width, the channel the same green, the peak the same nearest local maximum.
 
 **Two things were tried and are not reported, because they do not survive their
 own checks.** The structure tensor of the strip answers "along the braid" at
@@ -134,7 +142,45 @@ def valley(rows, edges):
     return float(np.mean(out)) / width
 
 
+def measure_drawing(path):
+    """The shortest step on a straight-on face of the drawing, read as the
+    photograph's is.
+
+    The face is painted standing, one flat colour a thread on a pale ground, so
+    the braid is found as the columns that are mostly not ground, and its edges
+    are straight."""
+    pixels = np.asarray(Image.open(path).convert("RGB")).astype(float)
+    ground = np.array([0.99, 0.99, 0.98]) * 255
+    body = np.abs(pixels - ground).sum(2) > 12
+    columns = np.flatnonzero(body.mean(0) > 0.5)
+    left, right = columns[0], columns[-1]
+    width = float(right - left + 1)
+    rows = list(range(pixels.shape[0]))
+    edges = {row: (left, right) for row in rows}
+    patch = strip(pixels, rows, edges, width)
+    strength, down, across = unit_step(patch)
+    angle = np.degrees(np.arctan2(across, down))
+    print(f"{path}")
+    print(f"   width {width:.0f} px, rows {len(rows)}")
+    print(
+        "   unit step  (%3d along, %+3d across) px  = (%.3f, %+.3f) of the width"
+        % (down, across, down / width, across / width)
+    )
+    print(
+        "              %+.1f deg from the braid's axis   (correlation %.2f)"
+        % (angle, strength)
+    )
+    print()
+
+
 def main():
+    import sys
+
+    if len(sys.argv) > 2 and sys.argv[1] == "--drawing":
+        for path in sys.argv[2:]:
+            measure_drawing(path)
+        return
+
     image = Image.open(PHOTO).convert("RGB")
     pixels = np.asarray(image).astype(float)
     score = braidness(image)
