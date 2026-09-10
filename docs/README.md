@@ -31,6 +31,15 @@
   模様図を画面に、Task 018 の打ち切りを解消）: `tasks/027-screens-on-recipes.md`
   - **手で確かめる項目**（Task 015 が自動検証を塞いでいるあいだ）: `tasks/027-4-manual-checks.md`
 
+- **Task 028 一覧のサムネイル**（**028-1a 完了。028-1b 取り下げ・028-1c 不要**。カードは
+  展開図だけの横長に戻した。場面の切り出し `BraidSurfaceScene` は残した）: `tasks/028-thumbnails-in-three-dimensions.md`
+- **Task 029 平源氏のサムネイルを一周ぶんの展開図にする**（**完了**。表 6・縁 2・裏 6・縁 2 を
+  枠の高さに載せた。セルの縦横比 2.199 は動いていない。**継ぎ目が右縁の真ん中に落ちる件は
+  判定は「回す」。**029-2 未着手**）: `tasks/029-flat-thumbnail-round-the-braid.md`
+- **Task 030 縁の傾きがリピートの端で消える**（**完了**。`boundary` の端の例外を外し、
+  傾きも位相と同じく全ての継ぎ目に効くようにした。**穴は開かず**、mesh のハッシュ 3 件を
+  理由つきで入れ替えた）: `tasks/030-lean-at-the-tile-ends.md`
+
 - **Task 026 初期リリースまでに残るものの棚卸し**（**読み取り専用・完了**。画面・実機・棚上げの
   Task・レシピの追加候補を「必須／あると良い／後の版」に分けた案）: `tasks/026-initial-release-inventory.md`
 

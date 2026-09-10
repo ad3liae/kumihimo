@@ -22,9 +22,10 @@ struct BraidScreenChoosesByFamilyTests {
                 == RoundTube16SurfaceMesh.family)
     }
 
-    /// **What the screen shows is the same mesh as before the change.** Held against
-    /// the vertex hashes pinned in `BraidMeshHashTests`, by way of the drawer the
-    /// family names.
+    /// **What the screen shows is the same mesh the drawer makes.** Held against the
+    /// vertex hashes pinned in `BraidMeshHashTests`, by way of the drawer the family
+    /// names. The flat braid's value moved once, in Task 030, for the reason given
+    /// there; this is the same number, not a second opinion about it.
     @Test func theMeshTheScreenShowsIsTheSameOne() throws {
         let flat = try #require(BraidMethodCatalog.recipe(for: .hiraGenji16))
         #expect(BraidFamilyDrawing.drawer(for: flat, on: BraidMethodCatalog.stand16)
@@ -32,7 +33,7 @@ struct BraidScreenChoosesByFamilyTests {
         let flatPattern = try #require(Flat16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.hiraGenji16Colouring))
         let flatMesh = try #require(Flat16SurfaceMesh.generate(pattern: flatPattern))
-        #expect(BraidMeshHashTests.hash(flatMesh.positions) == 0x78b4_526d_00e7_4a38)
+        #expect(BraidMeshHashTests.hash(flatMesh.positions) == 0x53c4_4c9b_835a_e598)
 
         let tube = try #require(BraidMethodCatalog.recipe(for: .maruGenji16))
         #expect(BraidFamilyDrawing.drawer(for: tube, on: BraidMethodCatalog.stand16)

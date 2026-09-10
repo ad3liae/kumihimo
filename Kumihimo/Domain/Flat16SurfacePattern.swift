@@ -154,6 +154,27 @@ enum Flat16SurfacePatternGenerator {
         rowCount.map { Float($0) * stitchPitchPerBraidWidth }
     }
 
+    /// Length of one repeat over **one turn round the braid**, which is what a
+    /// drawing of the whole surface unrolled is measured in.
+    ///
+    /// `patternAspectRatio` is over the braid's *width*, which is the six columns
+    /// of one broad face. A turn round the braid is all sixteen places — front
+    /// six, edge two, back six, edge two — so the same repeat is a smaller
+    /// fraction of it, in the ratio of those two counts. Both counts come from the
+    /// working-out, not from here.
+    ///
+    /// This is the same quantity the round braid's pattern declares, which is why
+    /// the two families' thumbnails come out at the same density.
+    ///
+    /// **`patternAspectRatio` itself must not move**: the mesh takes its length
+    /// from it, and the length is over the width.
+    static var patternAspectRatioRoundTheBraid: Float? {
+        guard boardPositionCount > 0, broadFaceColumnCount > 0 else { return nil }
+        return patternAspectRatio.map {
+            $0 * Float(broadFaceColumnCount) / Float(boardPositionCount)
+        }
+    }
+
     static func generate(assignments: [ThreadAssignment]) -> Flat16SurfacePattern? {
         guard
             let rowCount,
@@ -333,32 +354,30 @@ enum Flat16SurfacePatternGenerator {
         ]
     }
 
-    /// Where one stitch join sits along the repeat. The ends of the repeat are
-    /// held straight so independently instanced infinite-length tiles stay exact;
-    /// the joins inside it lean.
     /// Where one stitch join sits along the repeat, given how far the join leans
     /// across its lane and how far along a row that lane's threads change.
     ///
-    /// **The phase applies at every join, the repeat's ends included.** It is a
-    /// constant shift of the whole lane, so the lane stays exactly periodic; what
+    /// **The phase and the lean both apply at every join, the repeat's ends
+    /// included.** Each is a constant added to the whole lane, so the lane stays
+    /// exactly periodic — `boundary(rowCount) == boundary(0) + 1` — and what
     /// reaches past the end of the tile is cut off there and drawn at the other
-    /// end instead (`Flat16SurfaceMesh.clippedToTile`).
+    /// end instead (`Flat16SurfaceMesh.append`'s `insideRange`).
     ///
-    /// Task 007G had to hold the ends straight, because the mesh could not yet
-    /// move that overhang and letting it out left a hole. That made one join in
-    /// every `rowCount` uneven at an edge, which Task 007H removed by making the
-    /// mesh carry it.
-    ///
-    /// The lean is different and still lets go at the ends: it is a shape inside
-    /// the repeat rather than a shift of the whole lane. It is zero today.
+    /// Task 007G held the ends straight, because the mesh could not yet move that
+    /// overhang and letting it out left a hole. Task 007H made the mesh carry it
+    /// and the phase was let out; **the lean was not, and stayed held for another
+    /// two tasks** (Task 030). Since `faceStitchLean` is zero it showed nowhere but
+    /// at an edge, where one join in every `rowCount` ran straight while the rest
+    /// leaned — 4 rows to a repeat, so one join in four. There is nothing in the
+    /// braid that makes one join of four different from the others: it was the
+    /// tile's convenience, not the braid's shape.
     private static func boundary(
         _ index: Int,
         rowCount: Int,
         offset: Float,
         phase: Float
     ) -> Float {
-        let leaning = (index > 0 && index < rowCount) ? offset : 0
-        return (Float(index) + phase + leaning) / Float(rowCount)
+        (Float(index) + phase + offset) / Float(rowCount)
     }
 
     /// How far along a row each join across the width sits, in rows.
