@@ -56,14 +56,15 @@ struct RoundTube8SurfaceTests {
         for row in 0..<drawn.rowCount {
             for column in 0..<8 {
                 let shape = try #require(figure.appearance(atColumn: column, row: row))
-                // The cell of the solid that begins at this place: its centreline
-                // starts an eighth of the turn along from the column's own edge.
-                let start = (Float(column) + 0.5) / 8
+                // The cell standing at this place for this cycle. It does not
+                // lean, so it is at this column for the whole of the row.
+                let middle = (Float(column) + 0.5) / 8
                 let along = Float(row) / Float(drawn.rowCount)
                 let cell = try #require(drawn.surface.segments.first {
-                    abs($0.centerlineStart.x - start) < 1e-4
+                    abs($0.centerlineStart.x - middle) < 1e-4
                         && abs($0.centerlineStart.y - along) < 1e-4
                 })
+                #expect(cell.centerlineEnd.x == cell.centerlineStart.x)
                 #expect(cell.colorID == shape.colorID, "row \(row), column \(column)")
                 #expect(cell.threadPosition == shape.threadPosition)
             }
@@ -94,16 +95,30 @@ struct RoundTube8SurfaceTests {
         func mirrored(_ point: SIMD3<Float>) -> SIMD3<Float> {
             SIMD3(point.x, point.y, -point.z)
         }
-        let reflected = z.positions.map(mirrored)
-
-        // Compared as sets, to a tolerance: the two meshes list their cells in the
-        // order their tables braid them, which the mirror does not preserve.
-        let key = { (point: SIMD3<Float>) -> [Int32] in
+        // **Compared colour by colour**, which is the whole of the claim now. A
+        // cell stands still, so both braids are the same eight straight lanes and
+        // comparing the bare geometry would pass whatever the tables did. What
+        // mirrors is *which colour is standing where*, cycle by cycle.
+        func key(_ point: SIMD3<Float>) -> [Int32] {
             [Int32((point.x * 2048).rounded()),
              Int32((point.y * 2048).rounded()),
              Int32((point.z * 2048).rounded())]
         }
-        #expect(Set(reflected.map(key)) == Set(s.positions.map(key)))
+        func painted(_ mesh: RoundTube8SurfaceMeshData,
+                     _ move: (SIMD3<Float>) -> SIMD3<Float>) -> [ThreadColorID: Set<[Int32]>] {
+            var out = [ThreadColorID: Set<[Int32]>]()
+            for (colour, indices) in mesh.colorGroups {
+                out[colour] = Set(indices.map { key(move(mesh.positions[Int($0)])) })
+            }
+            return out
+        }
+        let mine = painted(s) { $0 }
+        let theirs = painted(z, mirrored)
+        #expect(!mine.isEmpty)
+        #expect(Set(mine.keys) == Set(theirs.keys))
+        for (colour, places) in mine {
+            #expect(theirs[colour] == places, "\(colour.rawValue)")
+        }
     }
 
     // MARK: - 3. One repeat closes
@@ -171,8 +186,12 @@ struct RoundTube8SurfaceTests {
         let s = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
         // Sixty-four cells a repeat, two repeats, and thirteen by eleven samples
         // over each: 128 * 143.
+        // **Changed once, on purpose.** It was `0x03aa_f419_737c_1859` while a cell
+        // was drawn stretched across the three places of the carry; a cell is the
+        // thread standing still, so every cell is now square to the braid. **The
+        // vertex count did not change** — the same surface, straightened.
         #expect(s.positions.count == 18_304)
-        #expect(BraidMeshHashTests.hash(s.positions) == 0x03aa_f419_737c_1859)
+        #expect(BraidMeshHashTests.hash(s.positions) == 0xa2b9_f4b5_1eab_3079)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
@@ -242,9 +261,10 @@ struct RoundTube8SurfaceTests {
 
     // MARK: - What the drawing rests on
 
-    /// **The lean is read off the courses, and it is opposite for S and Z.**
-    /// Neither table is told which way to lean; each says so itself.
-    @Test func theLeanComesFromTheTableAndTurnsWithIt() throws {
+    /// **The carry is read off the courses, and it runs opposite ways for S and
+    /// Z.** Neither table is told which way; each says so itself. It is not the
+    /// cell's shape — the carry is buried — but it is what sends the colour round.
+    @Test func theCarryComesFromTheTableAndTurnsWithIt() throws {
         let s = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
         let z = try pattern(BraidMethodCatalog.yatsuKongoZ8Recipe)
         #expect(s.columnsCarried == -RoundTube8SurfacePatternGenerator.columnsCarriedPerCycle)
@@ -268,22 +288,43 @@ struct RoundTube8SurfaceTests {
         #expect(pitch.unsettled != nil)
     }
 
-    /// **The lean the rules give and the lean the photographs show do not agree,
-    /// and that is written down rather than closed.**
+    /// **What the drawing puts on the face at a slant is the colour**, and how far
+    /// that is from the photographs is written down here rather than closed.
     ///
-    /// Three places round a braid whose circumference is pi diameters is 1.178
-    /// diameters across for 0.403 along, which lays a ridge at about 19 degrees to
-    /// the way across the braid. The photographs measure 54 degrees on the S braid
-    /// and 57 and 61 on the two Z. **The drawing keeps the derived lean** — Task
-    /// 031 said to report the difference, not to fit it.
-    @Test func theDerivedLeanIsRecordedAgainstTheMeasuredOne() throws {
+    /// Nothing in the drawing leans: every cell stands square to the braid. The
+    /// diagonal comes from which thread is standing where — one place round the
+    /// braid a cycle, because these colourings repeat every four places and the
+    /// table carries three, which is one back in four.
+    ///
+    /// Measured against a photograph, near the middle of the braid where the turn
+    /// is least foreshortened, one place is `sin(pi/8)` of the width and one cycle
+    /// is the pitch. **Derived 46.5 degrees; measured 54.5 on S and 51.0 on Z-a**
+    /// (`Scripts/task031/measure_photographs.py`, the colour read with the stitch
+    /// texture blurred away). The gap is four to eight degrees, and **closing it
+    /// would mean moving the measured pitch**, which is `.observed` and not for
+    /// moving.
+    @Test func theColourDiagonalIsRecordedAgainstThePhotographs() throws {
         let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
-        let across = Double(abs(drawn.columnsCarried)) / 8 * .pi
+        // Nothing in the geometry leans.
+        #expect(drawn.surface.segments.allSatisfy {
+            $0.centerlineStart.x == $0.centerlineEnd.x
+        })
+        // The colour walks one place a cycle, which is what makes the diagonal:
+        // three places on is one place back in a colouring that repeats every four.
+        let drift = RoundTube8SurfacePatternGenerator.shortestWayRound(
+            from: 0, to: drawn.columnsCarried, around: 4
+        )
+        #expect(abs(drift) == 1)
+
+        let acrossOnePlace = sin(Double.pi / 8)          // of the braid's width
         let along = Double(RoundTube8SurfacePatternGenerator.pitchOverDiameter)
-        let derived = atan2(along, across) * 180 / .pi
-        #expect(abs(derived - 18.9) < 0.5)
-        // The measured slants, from `Scripts/task031/measure_photographs.py`.
-        let measured = [54.0, -56.7, -61.2]
-        #expect(measured.allSatisfy { abs(abs($0) - derived) > 30 })
+        let derived = atan2(along, acrossOnePlace) * 180 / .pi
+        #expect(abs(derived - 46.5) < 0.5)
+
+        // The colour bands measured on the photographs, S and Z-a.
+        let measured = [54.5, -51.0]
+        #expect(measured.allSatisfy { abs(abs($0) - derived) < 9 })
+        // And they lean opposite ways, as the two tables do.
+        #expect(measured[0] * measured[1] < 0)
     }
 }

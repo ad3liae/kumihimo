@@ -116,6 +116,66 @@ def strip(pixels, rows, edges, width):
     return out
 
 
+def blurred(field, size):
+    """A box blur, so the stitch texture is gone and only the colour is left."""
+    padded = np.pad(field, ((size // 2, size // 2), (size // 2, size // 2)), mode="edge")
+    sums = np.cumsum(np.cumsum(padded, 0), 1)
+    sums = np.pad(sums, ((1, 0), (1, 0)))
+    high, wide = field.shape
+    return (
+        sums[size : size + high, size : size + wide]
+        - sums[0:high, size : size + wide]
+        - sums[size : size + high, 0:wide]
+        + sums[0:high, 0:wide]
+    ) / (size * size)
+
+
+# How far the colour angle is searched, and how much of the stitch texture is
+# blurred away first. **Both matter, and the answer is reported for a range of
+# blurs** — a reading that moves with the blur is a reading of the stitches, not
+# of the colour.
+COLOUR_ANGLE_LIMIT = 75.0
+COLOUR_BLURS = (1, 31, 61, 91)
+
+
+def colour_angle(patch, blur):
+    """The angle the **colour bands** run at, in degrees from across the braid.
+
+    Found the way measuring procedure 6 says: turn the strip until its rows agree
+    with each other best. What is turned is the colour itself -- orange against
+    cream -- with each column's own level taken out, so the light down one side of
+    the braid cannot pass for a band.
+
+    **Not the same question as `band_slope`**, which finds the shortest
+    displacement bringing the *surface* back onto itself and so answers about the
+    stitches. On S the two happen to agree; the colour is what a photograph of a
+    finished braid shows as a diagonal, and it is what a drawing has to be held
+    against.
+    """
+    red, blue = patch[..., 0], patch[..., 2]
+    field = (red - blue) / np.maximum(red + blue, 1)
+    field = field - field.mean(0, keepdims=True)
+    if blur > 1:
+        field = blurred(field, blur)
+
+    wide = field.shape[1]
+    # The same rows for every angle, so a steep turn is not rewarded for using
+    # fewer of them.
+    trim = int(np.tan(np.radians(COLOUR_ANGLE_LIMIT)) * wide / 2) + 5
+    best = (-1.0, 0.0)
+    for degrees in np.arange(-COLOUR_ANGLE_LIMIT, COLOUR_ANGLE_LIMIT + 0.01, 0.5):
+        slope = np.tan(np.radians(degrees))
+        turned = np.stack(
+            [np.roll(field[:, c], -int(round(slope * (c - wide // 2)))) for c in range(wide)],
+            axis=1,
+        )
+        core = turned[trim : len(turned) - trim]
+        coherence = float(np.var(core.mean(1)) / np.var(core))
+        if coherence > best[0]:
+            best = (coherence, float(degrees))
+    return best[1], best[0]
+
+
 def band_slope(patch):
     """How far across the colour bands move for each row down, from the
     two-dimensional autocorrelation of the strip.
@@ -218,8 +278,16 @@ def main():
             % (name, len(rows), width, slant, turn, turn / width, pitch or "        -")
         )
         print(
-            "      rows %d-%d, autocorrelation at the peak %.2f, band step (%d, %+d) px"
+            "      rows %d-%d, autocorrelation at the peak %.2f, surface step (%d, %+d) px"
             % (rows[0], rows[-1], strength, down, across)
+        )
+        readings = [colour_angle(patch, blur) for blur in COLOUR_BLURS]
+        print(
+            "      colour band at blur %s: %s"
+            % (
+                "/".join(str(b) for b in COLOUR_BLURS),
+                "  ".join("%+.1f (coh %.2f)" % reading for reading in readings),
+            )
         )
 
 

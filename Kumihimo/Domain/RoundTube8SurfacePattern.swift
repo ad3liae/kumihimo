@@ -12,22 +12,33 @@ import simd
 ///   places round the ring, each an eighth of the turn. The braid does not fold,
 ///   so it is a tube and the ring is all there is to say.
 /// - **How long a cell is**, from the measured pitch: one cycle's growth.
-/// - **How far a cell leans**, from the move table: a thread ends the cycle at
-///   another place, and the cell carries it there. **Read off the courses**, so an
-///   S table leans one way and its mirror the other without either being told to.
 /// - **Which thread is in a cell**, from the occupancy history, which is the
 ///   settled answer for what shows on a face (`docs/architecture.md`, 組み台の力学).
 ///
-/// **Nothing here decides what passes over what, because on this braid nothing
-/// crosses.** Every cell leans by the same amount, so the cells of one cycle lie
-/// side by side and the cells of the next carry on where they left off: the
-/// surface is a set of parallel helices and there is no crossing for an order to
-/// settle. That is a finding, not an omission — see the note on
-/// `columnsCarriedPerCycle`.
+/// **A cell is a thread standing still, not a thread being carried** (the author,
+/// 2026-09-10). The same premise that says the occupancy history is the face says
+/// what a cell looks like: a thread held at a place by its own weight runs *along*
+/// the braid there, from the height it arrived at to the height it leaves — and
+/// the carry that takes it three places on is pressed into the bundle and buried,
+/// so it never shows. **So a cell is one column wide and one cycle long, and it
+/// does not lean.** It was drawn stretched across the three places of the carry
+/// until this was put right, which laid the ridges some thirty-five degrees away
+/// from where the photographs have them.
+///
+/// **What slants on the finished braid is the colour, not the geometry.** A place
+/// holds a different thread every cycle, and with these colourings the pattern
+/// walks one place round the braid each cycle, which is the diagonal a photograph
+/// shows. Nothing here draws that: it falls out of the occupancy history and the
+/// pitch.
+///
+/// **Nothing here decides what passes over what, because nothing crosses.** Cells
+/// stand side by side round a ring and end to end along the braid; there is no
+/// crossing for an order to settle.
 struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// The cells, as strand segments in unwrapped surface coordinates: `x` runs
     /// round the braid in turns, `y` runs along it in cycles. `x` is allowed past
-    /// 0 and 1 — the surface is a cylinder and wraps.
+    /// 0 and 1 — the surface is a cylinder — though a cell stands still and so
+    /// never reaches past its own column.
     let surface: BraidStrandSurface
     /// Cycles to one repeat: how many rows before the whole thing comes round
     /// again. **Worked out by braiding**, not counted here.
@@ -36,8 +47,12 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// the drawing onto a braid of any radius keeps the cells the shape they were
     /// worked out to be.
     let aspectRatio: Float
-    /// How many places round the braid a cell carries its thread, signed: negative
-    /// runs against the ring. Kept so a drawing can say what it leaned on.
+    /// How many places round the braid one cycle carries a thread, signed:
+    /// negative runs against the ring.
+    ///
+    /// **This is not the cell's shape.** The carry is buried and does not show; it
+    /// is kept because it is what decides which thread is at which place next
+    /// cycle, and so what the colour does.
     let columnsCarried: Int
 }
 
@@ -60,20 +75,16 @@ enum RoundTube8SurfacePatternGenerator {
 
     /// How many places round the braid one cycle carries a thread.
     ///
-    /// **Not a number chosen here: it is read off the courses**, place by place,
-    /// and this only says what to do when the courses disagree with themselves.
-    /// It is stated as a constant so that the one thing the drawing's slant rests
-    /// on has somewhere to be named.
+    /// **A fact about the table, not a number chosen to make a picture.** It is
+    /// read off the courses place by place, and this states what they should agree
+    /// on. **It is not the slant of a cell** — the carry is buried in the bundle
+    /// and never shows on the face (`docs/architecture.md`, 組み台の力学), so what
+    /// it decides is which thread stands where next cycle, and through that what
+    /// the colour does.
     ///
-    /// **The lean this produces does not match the photograph**, and Task 031 said
-    /// to report that rather than to close it: three places is 1.18 diameters
-    /// round for 0.40 along, which lays the ridges at about 19 degrees to the way
-    /// across the braid, where the photographs measure 54 to 61. What does match
-    /// is the drift of the *colour bands*, which is one place a cycle rather than
-    /// three, because these colourings repeat every four places round the stand
-    /// and three places on is one place back in four. **Whether the ridge a
-    /// photograph shows is the thread or the colour is the author's to settle**;
-    /// changing it is changing this one reading of the courses.
+    /// Because these colourings repeat every four places round the stand and three
+    /// places on is one place back in four, **the colour walks one place a cycle**,
+    /// and that is the diagonal the finished braid shows.
     static let columnsCarriedPerCycle = 3
 
     /// The pattern for a braid, from its table and its colouring.
@@ -104,7 +115,10 @@ enum RoundTube8SurfacePatternGenerator {
         let rows = derivation.repeatCycleCount
         guard rows > 0 else { return nil }
 
-        // How far a cell leans: the same for every cell, read off the courses.
+        // How far one cycle carries a thread: the same for every thread, read off
+        // the courses. **Not the cell's shape** -- the carry is buried -- but it is
+        // what sends the colour round, so a table that does not agree with itself
+        // about it is one this cannot draw.
         var carried: Int?
         for course in derivation.courses {
             for row in 0..<rows {
@@ -126,11 +140,11 @@ enum RoundTube8SurfacePatternGenerator {
             for course in derivation.courses {
                 guard let colour = colours[course.threadPosition] else { return nil }
                 let slot = course.slots[row]
-                // The cell spans one column at the row it starts on and the same
-                // column carried round at the row it ends on, so the cells of one
-                // row tile the ring and each row joins the next thread for thread.
-                let start = Float(slot) * columnWidth
-                let end = Float(slot + columnsCarried) * columnWidth
+                // **The thread stands here for this cycle**, so the cell runs
+                // along the braid at this one place: one column wide, one cycle
+                // long, and square to the braid. The cells of a row tile the ring
+                // and the next row stands on top of them.
+                let middle = (Float(slot) + 0.5) * columnWidth
                 segments.append(BraidStrandSegment(
                     threadPosition: course.threadPosition,
                     colorID: colour,
@@ -138,8 +152,8 @@ enum RoundTube8SurfacePatternGenerator {
                     // take. Every cell says the same thing rather than pretending
                     // to an order the surface does not have.
                     layer: .over,
-                    centerlineStart: SIMD2(start + columnWidth / 2, Float(row) * rowHeight),
-                    centerlineEnd: SIMD2(end + columnWidth / 2, Float(row + 1) * rowHeight),
+                    centerlineStart: SIMD2(middle, Float(row) * rowHeight),
+                    centerlineEnd: SIMD2(middle, Float(row + 1) * rowHeight),
                     startHalfWidth: SIMD2(columnWidth / 2, 0),
                     endHalfWidth: SIMD2(columnWidth / 2, 0)
                 ))
