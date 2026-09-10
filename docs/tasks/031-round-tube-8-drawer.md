@@ -134,3 +134,149 @@ UI テストは含めない（Task 015）。番人 `sh Scripts/check-braiding-is
 - 丸源氏・平源氏の見た目が**1 頂点も動いていない**（両者のハッシュが不変）
 - ビルド警告なし、ユニット全通、打ち切り 0 件、番人通過
 - **この文書に状態と結果を追記した**。`git add -A` を使わない
+
+---
+
+## 実装の結果（2026-09-10）
+
+- 状態: **完了**（下の「合わなかったこと」1件を作者の判定に上げる）
+
+### 段階1: 測り直した（暫定値と食い違った）
+
+手順は `docs/measurement-procedures.md`「6. 筒の紐の1サイクルの伸びを写真から読む」へ足した。
+実行するものは `Scripts/task031/measure_photographs.py`。**拡大のほうを使った。**
+
+| 紐 | 幅 | 縞の向き | 色の縦周期 | 周期÷幅 | **1サイクル÷幅** |（暫定値） |
+| --- | --- | --- | --- | --- | --- | --- |
+| Z-b | 229 px | −56.7° | 251.3 px | 1.098 | **読み替え不可** | (0.42) |
+| Z-a | 241 px | −61.2° | 487.6 px | 2.023 | **0.506** | (0.40) |
+| S | 235 px | +54.0° | 379.3 px | 1.614 | **0.403** | (0.395) |
+
+**暫定値との差**
+
+- **S は一致した**（0.403 対 0.395、2%）。
+- **Z-a は一致しなかった**（0.506 対 0.40、26% 大きい）。暫定値は本体の行を狭く取ったときの
+  値で、**紐の本体を全部使い、かつ帯を縞の傾きで剪断してから読むと 487〜511 px に落ち着く**
+  （自己相関の峰 0.65、半周期がはっきり負）。**周期 250 px は否定される。**
+- **Z-b は、この読み替えが使えない。** 配色 b は位置ごとの色の周期が 8 であり
+  （白・黄・黄・橙・橙・黄・黄・白）、しかも白と橙が半周期で入れ替わるので、
+  4サイクルでも8サイクルでも澄んだ峰にならない。**指示書の暫定表は Z-b も 4 で割っていた**
+  が、それは採れない。
+- **手順で足りなかったもの2つ**（測り方6へ書いた）。**彩度は比ではなく絶対量で見ること**
+  ——比 (max−min)/max は暗い影に高い値を返し、紐の脇の影を紐として拾って幅が 1.5 倍になった。
+  **帯は先に縞の傾きで剪断すること**——剪断しないと周期が2割ふらつく。
+- **S と Z の縞の符号は逆**（+54.0° 対 −56.7°／−61.2°）。**鏡であることの、写真からの裏付け。**
+
+**出荷した値は S の 0.403**（`RoundTube8SurfacePatternGenerator.pitchOverDiameter`）。
+`spread` に 0.40…0.51 を、`unsettled` に「3本が一致しない」ことを書いた。
+**S を採った理由**: 信号が最も澄んでおり、描いているのがその紐である。
+
+**山の高さは測っていない。導いた。** 「周長＝糸の本数」から、糸1本の幅は谷の周長の 1/8、
+丸い糸はその半分だけ立つ。外径を1として谷は `1/(1+π/8)`、畝は `1−1/(1+π/8)` ＝ 0.282。
+**新しい換算は作っていない**（`025-5` の 3）。
+
+### 段階2: 描き手（`RoundTube8SurfacePattern` ＋ `RoundTube8SurfaceMesh`）
+
+- **升の形は規則から出る。** 列は断面から（8つ、1/8周ずつ）、縦は測った1サイクルの伸び、
+  斜行は**手順表から**。転写した図は使っていない。
+- **斜行は courses から読む。** 「3コマ」を書き込んではおらず、糸が1周期でどこへ行くかを
+  位置ごとに読んで、全部が同じなら採る（違えば nil）。**S は −3、Z は +3** が自動で出る。
+- **上下は要らなかった。** 全部の升が同じだけ傾くので、1周期の升は横に並び、次の周期の升が
+  その続きから始まる。**交差が1つも無い。** 積み重ね模型の「後に置いた糸が上」は、
+  決めるべき交差が無いという形で効いた。
+- 糸の丸みは **`RoundTube16SurfaceMesh` から借りた**——`crestProfile`（半楕円）と
+  `crossSectionOffset`（弧に沿って等間隔に取る）。doc comment に借り元を書いた。
+  **交差まわり（持ち上げ・沈み・ラップ・壁）は借りていない。**
+
+### 合わなかったこと（**作者の判定を仰ぐ**）
+
+**導出の斜行角と、測った縞の角が合わない。**
+
+- 導出: 3コマ ＝ 周長の 3/8 ＝ 直径の 1.178、伸び 0.403 → **紐を横切る向きから 18.9°**
+- 測定: **S +54.0°、Z-b −56.7°、Z-a −61.2°**（差はおよそ 35〜42°）
+
+**合わせに行っていない**（指示書のとおり）。`theDerivedLeanIsRecordedAgainstTheMeasuredOne`
+がこの差を固定してある。**見つかったこと**を書いておく——
+
+**色の帯の傾きなら、写真とよく合う。** 配色 a・S は位置ごとの色の周期が 4 で、手順表は
+1周期に 3 コマ送る。**3 は 4 の中では −1 である**から、**色の帯は1周期に1コマずつ流れる。**
+1コマ ＝ 周長の 1/8 ＝ 直径の 0.393、伸び 0.403 → **45.7°**。測った 54° との差は 8°。
+
+つまり**写真の畝が「糸」なのか「色の帯」なのかで答えが変わる。** 前者なら 18.9°、
+後者なら 45.7°。**いま描いているのは前者**（指示書が「糸は1サイクルで3列ぶん進む」と
+書いているため）で、その結果**面は平行な螺旋の畝になり、写真より寝ている。**
+`RoundTube8SurfacePatternGenerator.columnsCarriedPerCycle` の1箇所で切り替わる。
+
+### 段階3: 族として登録した
+
+- `BraidFamilyDrawing.Drawing` に `roundTubeOfEight` を足し、`families` に shape を、
+  `drawer(for:on:)` の switch に族を足した。`mesh(for:on:)` は3つ組を返すようにした
+- `BraidSurfaceScene` に **`Table`（台・手順表・断面）** を足した。**升を導出する族だけが要る**
+  ——16本の2つは升の形を転写で持っているので配色だけでよい
+- **立体の view は増やしていない。** `RoundTube16RealityView` / `RoundTube16PreviewView` に
+  **族・表・文言**を渡せるようにして、1つの写しのまま2つ目の筒を描く
+  （**名前の「16」は嘘になった。改名は別の片付け**、と doc comment に書いた）
+- 一覧のサムネイルは `RoundTube8ThumbnailView` を足した（`UnrolledPatternThumbnailLayout` は
+  16本のカードと同じものを使う）。**升は継ぎ目をまたぐ**ので、1周ずつ左右にも描いて枠で切る
+- **8本以外に当たらないこと**は `nothingButATubeOfEightIsDrawnByThisDrawer` で確かめている
+
+### テスト（`KumihimoTests/RoundTube8SurfaceTests.swift`、指示書の7項目）
+
+1. `theSolidsCellsCarryTheSameColoursAsTheFigure` — 同じ配色で、立体の升の色・糸番号と
+   `BraidTubeFigure` の格子が**8列 × 8行すべて一致**。S・Z 両方
+2. `theZBraidIsTheMirrorOfTheSBraid` — 頂点数・三角形数・長さが一致し、**Z の頂点を
+   角度反転で写すと S の頂点集合と一致**する。（写しは「角度の符号を変えるだけ」でよい——
+   場所 p の占める角度域 `[2π(p−1)/8, 2πp/8]` は、符号を変えると場所 9−p の角度域に
+   ちょうど重なる）
+3. `oneRepeatClosesAndMakesNoEndFace` — タイルの両端の頂点の輪が一致し、**端面の三角形は0枚**
+4. `theSurfaceIsOpaqueFromEveryLineOfSight` — 既存の `SurfaceOpacityAudit` で、
+   **背景へ抜ける視線 0**
+5. `theMeshIsTheShapeItWas` — **頂点 18,304・ハッシュ `0x03aaf419737c1859`** を固定。
+   **形が正しいことの証明ではなく、形が動いたら気づくための番人**である旨を書き添えた
+6. `swappingWhichOfAPairGoesFirstDoesNotMoveTheMesh` — **刷った対の中の先後を入れ替えても
+   メッシュのハッシュが1ビットも動かない。** **止まる事態にはならなかった。**
+   理由は許容誤差ではなく**交差が1つも無い**ことで、先後は形へ届く経路そのものが無い
+7. `nothingButATubeOfEightIsDrawnByThisDrawer` — 16本の2つのレシピでは生成器が nil を返し、
+   族も一致しない
+
+ほかに `theLeanComesFromTheTableAndTurnsWithIt`（S −3・Z +3、8行・64升）、
+`everyValueTheDrawingRestsOnSaysWhereItCameFrom`（出どころつき・目で合わせた数は「画面上の
+半径」だけ）、`theDerivedLeanIsRecordedAgainstTheMeasuredOne`（上の食い違いを固定）。
+
+### Task 008 側で直したもの（描き手ができたことの波及）
+
+**3つのテストが「8本の族には描き手が無い」を確かめていた。** それが偽になったので、
+主張のほうを今の姿へ書き換えた（消したのではない）:
+
+- `YatsuKongoTests.nothingDrawsTheEightThreadFamilyAndTheFigureDoesNotCare` →
+  `theFigureIsDrawnWhateverTheFamilyHasForADrawer`。**元々の要点は「模様図に描き手は要らない」**
+  で、それは今も同じである
+- `BraidScreenChoosesByFamilyTests.aDrawerComesOnlyFromAFamilyThatHasOne` →
+  `theDrawerAPresetGetsIsItsFamilysOwn`。**プリセットの一覧を書き写すのをやめ**、
+  「紐から読んだ族と、渡される描き手が一致する」を確かめる形にした（4つ目の紐で壊れない）
+- `BraidFamilyDrawingTests` の `(flat != nil) != (tube != nil)` は、
+  **3つのうちちょうど1つ**を確かめる形にした
+
+プリセットの `prototypeNotice` からも「立体はまだ描けません」を外した。
+
+### 検証
+
+- `xcodebuild test -only-testing:KumihimoTests -parallel-testing-enabled NO
+  -test-timeouts-enabled YES -default-test-execution-time-allowance 60
+  -maximum-test-execution-time-allowance 300`、Bash の timeout 300000。
+  **396件中 394件成功・0件失敗・2件スキップ、打ち切り0件。**
+  スキップの2件は `BraidComparisonSheetTests` の比較シート（もとから環境変数で有効にするもの）
+- **UIテストは含めていない**（Task 015）
+- `sh Scripts/check-braiding-is-general.sh` **通過**
+- **ビルド警告なし**
+- **丸源氏・平源氏のメッシュのハッシュは動いていない**（`BraidMeshHashTests` の2件と
+  `BraidScreenChoosesByFamilyTests.theMeshTheScreenShowsIsTheSameOne` が通っている）
+
+### 確かめられなかったこと
+
+- **手で確かめる項目は未実施**（`027-4-manual-checks.md` への追記も未）——一覧で S・Z の立体が
+  出ること、**螺旋の向きが逆に見えること**、写真と並べた畝の density、回転・拡大、
+  ライト／ダーク、iPhone と iPad。**斜行角が写真と合っていない**ことは分かっているので、
+  density の比較は判定が出てからのほうがよい
+- **実機では見ていない**（シミュレータのみ）
+
