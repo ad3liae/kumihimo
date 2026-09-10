@@ -47,6 +47,29 @@ enum BraidSurfaceScene {
         let model: Model
     }
 
+    /// What a drawer needs beyond a colouring.
+    ///
+    /// **Only a family whose cells are worked out asks for this.** The two
+    /// sixteen-thread drawers keep their cells' shape transcribed and need nothing
+    /// but the colours; the eight-thread tube works its cells out from the table,
+    /// so the table has to reach it.
+    struct Table {
+        let stand: BraidStand
+        let method: BraidMethod
+        let crossSection: BraidCrossSection
+    }
+
+    /// The table a recipe is worked on, for the drawers that need one.
+    /// `nil` when no shipped stand fits the recipe, or when the table is not a
+    /// cycle of it.
+    static func table(for recipe: BraidRecipe) -> Table? {
+        guard
+            let stand = BraidMethodCatalog.stand(for: recipe),
+            let worked = recipe.worked(on: stand)
+        else { return nil }
+        return Table(stand: stand, method: worked.method, crossSection: worked.section)
+    }
+
     enum SceneError: Error {
         case patternGenerationFailed
         case meshDataGenerationFailed
@@ -60,13 +83,14 @@ enum BraidSurfaceScene {
     static func install(
         in view: ARView,
         family: BraidFamily,
-        assignments: [ThreadAssignment]
+        assignments: [ThreadAssignment],
+        table: Table? = nil
     ) -> Installed? {
         view.scene.anchors.removeAll()
 
         let model: Model
         do {
-            model = try self.model(for: family, assignments: assignments)
+            model = try self.model(for: family, assignments: assignments, table: table)
         } catch {
             let positions = assignments.map(\.position).map(String.init).joined(separator: ",")
             logger.error(
@@ -163,16 +187,73 @@ enum BraidSurfaceScene {
     @MainActor
     static func model(
         for family: BraidFamily,
-        assignments: [ThreadAssignment]
+        assignments: [ThreadAssignment],
+        table: Table? = nil
     ) throws -> Model {
         switch family {
         case Flat16SurfaceMesh.family:
             return try flatModel(assignments: assignments)
         case RoundTube16SurfaceMesh.family:
             return try roundTubeModel(assignments: assignments)
+        case RoundTube8SurfaceMesh.family:
+            guard let table else { throw SceneError.patternGenerationFailed }
+            return try roundTubeOfEightModel(assignments: assignments, table: table)
         default:
             throw SceneError.patternGenerationFailed
         }
+    }
+
+    /// The eight-thread tube. **One material a thread colour and no stripe maps**:
+    /// nothing crosses on this braid, so there are no sheared frames to gather
+    /// into twist groups the way the sixteen-thread tube has to.
+    @MainActor
+    private static func roundTubeOfEightModel(
+        assignments: [ThreadAssignment],
+        table: Table
+    ) throws -> Model {
+        guard let pattern = RoundTube8SurfacePatternGenerator.generate(
+            stand: table.stand, method: table.method,
+            crossSection: table.crossSection, assignments: assignments
+        ) else { throw SceneError.patternGenerationFailed }
+        guard let surface = RoundTube8SurfaceMesh.generate(pattern: pattern)
+        else { throw SceneError.meshDataGenerationFailed }
+
+        let groups = surface.sortedColorGroups
+        guard !groups.isEmpty else { throw SceneError.emptySurface }
+
+        var combinedIndices = [UInt32]()
+        var faceMaterialIndices = [UInt32]()
+        var materials = [PhysicallyBasedMaterial]()
+        for (colorID, indices) in groups where !indices.isEmpty {
+            guard let threadColor = ThreadColorCatalog.color(for: colorID) else {
+                throw SceneError.unknownColor
+            }
+            combinedIndices.append(contentsOf: indices)
+            faceMaterialIndices.append(
+                contentsOf: repeatElement(UInt32(materials.count), count: indices.count / 3)
+            )
+            materials.append(material(color: threadColor.uiColor))
+        }
+        guard
+            !combinedIndices.isEmpty,
+            combinedIndices.count / 3 == faceMaterialIndices.count,
+            !materials.isEmpty
+        else { throw SceneError.emptySurface }
+
+        var descriptor = MeshDescriptor(name: "round-tube-8-surface")
+        descriptor.positions = MeshBuffer(surface.positions)
+        descriptor.normals = MeshBuffer(surface.normals)
+        descriptor.tangents = MeshBuffer(surface.tangents)
+        descriptor.bitangents = MeshBuffer(surface.bitangents)
+        descriptor.textureCoordinates = MeshBuffer(surface.textureCoordinates)
+        descriptor.primitives = .triangles(combinedIndices)
+        descriptor.materials = .perFace(faceMaterialIndices)
+
+        return Model(
+            mesh: try MeshResource.generate(from: [descriptor]),
+            materials: materials,
+            tileLength: surface.length
+        )
     }
 
     @MainActor
@@ -304,9 +385,9 @@ enum BraidSurfaceScene {
     @MainActor
     private static func material(
         color: UIColor,
-        occlusion: TextureResource?,
-        roughness: TextureResource?,
-        normal: TextureResource?
+        occlusion: TextureResource? = nil,
+        roughness: TextureResource? = nil,
+        normal: TextureResource? = nil
     ) -> PhysicallyBasedMaterial {
         var material = PhysicallyBasedMaterial()
         if let occlusion {

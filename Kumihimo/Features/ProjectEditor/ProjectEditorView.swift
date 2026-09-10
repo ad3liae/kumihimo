@@ -292,7 +292,8 @@ struct ProjectEditorView: View {
                         controller: previewController,
                         isEmbedded: isEmbedded,
                         closeAction: closePreview,
-                        nothingDrawsIt: ProjectEditorStrings.nothingDrawsThisBraid
+                        nothingDrawsIt: ProjectEditorStrings.nothingDrawsThisBraid,
+                        prototypeNotice: preset.prototypeNotice
                     )
                 }
             }

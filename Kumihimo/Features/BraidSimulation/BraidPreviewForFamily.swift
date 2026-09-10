@@ -16,6 +16,9 @@ struct BraidPreviewForFamily: View {
     /// What to say when nothing draws this braid. **Passed in**, so the wording
     /// lives with the screen's other wording and not in here.
     let nothingDrawsIt: String
+    /// What the braid says about how far it has been checked. **Passed in** for
+    /// the same reason; the preset carries it.
+    var prototypeNotice: String = ""
 
     var body: some View {
         switch BraidFamilyDrawing.drawer(for: recipe) {
@@ -32,6 +35,25 @@ struct BraidPreviewForFamily: View {
                 controller: controller,
                 isEmbedded: isEmbedded,
                 closeAction: closeAction
+            )
+        case RoundTube8SurfaceMesh.family:
+            // **The same view**: a tube is a tube, and what differs is the family,
+            // the table its cells are worked out from, and what the braid is
+            // called.
+            RoundTube16PreviewView(
+                assignments: assignments,
+                controller: controller,
+                isEmbedded: isEmbedded,
+                closeAction: closeAction,
+                family: RoundTube8SurfaceMesh.family,
+                table: BraidSurfaceScene.table(for: recipe),
+                wording: RoundTube16PreviewView.Wording(
+                    title: ProjectEditorStrings.previewTitle(recipe.name),
+                    notice: prototypeNotice,
+                    accessibilityLabel:
+                        ProjectEditorStrings.surfaceAccessibilityLabel(recipe.name),
+                    accessibilityIdentifier: "\(recipe.id)-3d-surface"
+                )
             )
         default:
             BraidNothingDrawsItView(text: nothingDrawsIt)
@@ -86,6 +108,17 @@ struct BraidThumbnailForFamily: View {
             Flat16ThumbnailView(assignments: assignments)
         case RoundTube16SurfaceMesh.family:
             RoundTube16ThumbnailView(assignments: assignments)
+        case RoundTube8SurfaceMesh.family:
+            if let pattern = BraidSurfaceScene.table(for: recipe).flatMap({ table in
+                RoundTube8SurfacePatternGenerator.generate(
+                    stand: table.stand, method: table.method,
+                    crossSection: table.crossSection, assignments: assignments
+                )
+            }) {
+                RoundTube8ThumbnailView(pattern: pattern)
+            } else {
+                BraidNothingDrawsItView(text: nothingDrawsIt)
+            }
         default:
             BraidNothingDrawsItView(text: nothingDrawsIt)
         }

@@ -371,36 +371,36 @@ enum BraidMethodCatalog {
             + "printed step, and book C's figure for this braid is not to hand"
     )
 
-    /// The colouring shipped with yatsu-kongo S: the checkerboard.
+    /// Book A p.54's own colouring for yatsu-kongo S: **the upright pair in
+    /// yellow and the flat pair in orange.**
     ///
-    /// **Not book A p54's.** Book A's own "糸の配色と配置" for this braid could not be
-    /// read — no transcription of that page is in this repository — so this is the
-    /// checkerboard fixture recorded in `docs/tasks/008-yatsu-kongo-8.md`, position
-    /// by position, mapped onto the nearest colours the catalogue has:
-    /// `#ffffff` white, `#4a649f` blue, `#de6473` pink. **The author's ruling is
-    /// wanted here**; the task lists book A p54 as the source it should come from.
+    /// Read off the page's "糸の配色と配置" enlarged (the author, 2026-09-10):
+    /// thread 105 yellow stands in the north and south groups, thread 108 orange
+    /// in the east and west. Two colours, four threads each.
+    ///
+    /// The reference simulator's checkerboard and diagonal, which stood here while
+    /// the page was unread, are **kept in the tests** — they are what holds the
+    /// move table up, and a colouring is a question about where the recipe comes
+    /// from, not about whether the table is right.
     static let yatsuKongoS8Colouring = colouring(on: stand8, [
-        "north": ["pink", "white"],      // 8, 1
-        "east": ["blue", "white"],       // 2, 3
-        "south": ["white", "pink"],      // 5, 4
-        "west": ["white", "blue"],       // 7, 6
+        "north": ["yellow", "yellow"],   // 8, 1
+        "east": ["orange", "orange"],    // 2, 3
+        "south": ["yellow", "yellow"],   // 5, 4
+        "west": ["orange", "orange"],    // 7, 6
     ])
 
-    /// The colouring shipped with yatsu-kongo Z: the diagonal.
+    /// Book A p.55's colouring **a** for yatsu-kongo Z, which is printed the same
+    /// way round as p.54's: yellow upright, orange flat.
     ///
-    /// **Not book A p55's b.** The same gap as for S — book A's five colourings
-    /// a–e could not be read — so this is the diagonal fixture recorded in
-    /// `docs/tasks/008-yatsu-kongo-8.md`: `#52884e` green, `#a5cc6f` the nearest
-    /// catalogue colour to a yellow-green, which is yellow, `#ffffff` white.
-    /// **Shipped on Z rather than on S so that the two braids show the two
-    /// reference patterns between them**, which is what the task asks to be able to
-    /// look at. The author's ruling is wanted here too.
-    static let yatsuKongoZ8Colouring = colouring(on: stand8, [
-        "north": ["white", "green"],     // 8, 1
-        "east": ["yellow", "white"],     // 2, 3
-        "south": ["green", "white"],     // 5, 4
-        "west": ["white", "yellow"],     // 7, 6
-    ])
+    /// **The two braids being coloured alike is the point** (the author,
+    /// 2026-09-10). Given the same threads in the same places, the only thing left
+    /// between S and Z is which way the spiral leans, and that is what putting the
+    /// two side by side is for.
+    ///
+    /// Page 55 prints five, a to e; a is the one taken. The others are b — white
+    /// north, orange south, yellow east and west — c in 114 and 112, d in green,
+    /// white and rose, and e mixing four.
+    static let yatsuKongoZ8Colouring = yatsuKongoS8Colouring
 
     /// Yatsu-kongo S and Z.
     ///

@@ -13,7 +13,10 @@ import Testing
 ///
 /// These tests hold that reading up against the two reference colourings recorded
 /// in `docs/tasks/008-yatsu-kongo-8.md` — a checkerboard and a diagonal — and
-/// against the alternative it displaced.
+/// against the alternative it displaced. **Those two are not what the braids
+/// ship**: the recipes carry book A p.54's own colouring, and the fixtures stay in
+/// `BraidReferenceColourings` because it is the *table* they hold up, not the
+/// braid's appearance.
 @MainActor
 struct YatsuKongoTests {
     private var stand: BraidStand { BraidMethodCatalog.stand8 }
@@ -73,13 +76,21 @@ struct YatsuKongoTests {
     /// one comes out a diagonal — **as the derivation works them out**, not as the
     /// task document worked them out by hand.
     ///
+    /// **The colourings are the reference simulator's, not the braid's own.** What
+    /// the recipes ship is book A p.54's two colours; these two are the fixtures
+    /// the reading of the table was settled against, and they stay here because
+    /// that is the claim they hold up.
+    ///
     /// The rows here run the other way from the grid printed in
     /// `docs/tasks/008-yatsu-kongo-8.md` for S and the same way for Z, which is the
     /// freedom a tube has and nothing more: it has no origin and no printed
     /// direction, so which way up it is held is not fixed
     /// (`docs/architecture.md`, 一致は偶然ではない).
     @Test func theCheckerboardColouringComesOutACheckerboard() throws {
-        let grid = try colourGrid(of: BraidMethodCatalog.yatsuKongoS8Recipe)
+        let grid = try colourGrid(
+            method: BraidMethodCatalog.yatsuKongoS8,
+            colouring: BraidReferenceColourings.yatsuKongoChecker
+        )
         #expect(grid == [
             ["white", "blue", "white", "pink", "white", "blue", "white", "pink"],
             ["pink", "white", "blue", "white", "pink", "white", "blue", "white"],
@@ -93,7 +104,10 @@ struct YatsuKongoTests {
     }
 
     @Test func theDiagonalColouringComesOutADiagonal() throws {
-        let grid = try colourGrid(of: BraidMethodCatalog.yatsuKongoZ8Recipe)
+        let grid = try colourGrid(
+            method: BraidMethodCatalog.yatsuKongoZ8,
+            colouring: BraidReferenceColourings.yatsuKongoDiagonal
+        )
         #expect(grid == [
             ["green", "yellow", "white", "white", "green", "yellow", "white", "white"],
             ["yellow", "white", "white", "green", "yellow", "white", "white", "green"],
@@ -116,8 +130,8 @@ struct YatsuKongoTests {
     /// should ever braid this way.
     @Test func swappingTheDiagonalsInsteadOfTurningStopsThePatternDead() throws {
         let swapped = diagonalSwap
-        for colouring in [BraidMethodCatalog.yatsuKongoS8Colouring,
-                          BraidMethodCatalog.yatsuKongoZ8Colouring] {
+        for colouring in [BraidReferenceColourings.yatsuKongoChecker,
+                          BraidReferenceColourings.yatsuKongoDiagonal] {
             let grid = try colourGrid(method: swapped, colouring: colouring)
             #expect(grid.count == 2)                   // the swap is its own undoing
             #expect(grid.allSatisfy { $0 == grid[0] })
@@ -177,12 +191,13 @@ struct YatsuKongoTests {
                 == [BraidPresetCatalog.yatsuKongoS, BraidPresetCatalog.yatsuKongoZ])
     }
 
-    /// **The eight-thread family has no drawer**, so there is no solid braid — and
-    /// the figure needs none, so there is still a pattern to look at.
+    /// **The figure needs no drawer.** It was the whole of what this braid could
+    /// show while the eight-thread family had none; Task 031 gave the family a
+    /// drawer, and the figure is unchanged by that, which is the point — a figure
+    /// is built from the move table and a colouring and from nothing else.
     @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
-    func nothingDrawsTheEightThreadFamilyAndTheFigureDoesNotCare(recipe: BraidRecipe) throws {
-        #expect(BraidFamilyDrawing.drawer(for: recipe) == nil)
-        #expect(BraidFamilyDrawing.drawing(for: recipe, on: stand) == nil)
+    func theFigureIsDrawnWhateverTheFamilyHasForADrawer(recipe: BraidRecipe) throws {
+        #expect(BraidFamilyDrawing.drawer(for: recipe) == RoundTube8SurfaceMesh.family)
         guard case let .tube(figure) = BraidPatternForRecipe.figure(
             for: recipe, assignments: recipe.colouring
         ) else {
@@ -192,6 +207,29 @@ struct YatsuKongoTests {
         #expect(figure.columns.count == 8)
         #expect(figure.rowCount == 8)
         #expect(!figure.unsettled.isEmpty)
+    }
+
+    /// **What the two braids ship is book A's own colouring, and it is the same
+    /// one for both** (the author, 2026-09-10): p.54 for S, p.55's a for Z, each
+    /// printing thread 105 yellow on the upright pair and 108 orange on the flat
+    /// pair.
+    ///
+    /// **Colouring them alike is the point.** With the same threads in the same
+    /// places, the only difference left between S and Z is which way the spiral
+    /// leans — which is what `theDiagonalsOfSAndZLeanOppositeWays` measures.
+    @Test func bothBraidsShipBookAsOwnColouringAndItIsTheSameOne() {
+        let upright = ["yellow", "yellow", "yellow", "yellow"]      // 1, 5, 8, 4
+        let flat = ["orange", "orange", "orange", "orange"]         // 2, 3, 6, 7
+        for colouring in [BraidMethodCatalog.yatsuKongoS8Recipe.colouring,
+                          BraidMethodCatalog.yatsuKongoZ8Recipe.colouring] {
+            let byPosition = Dictionary(uniqueKeysWithValues: colouring.map {
+                ($0.position, $0.colorID.rawValue)
+            })
+            #expect([1, 5, 8, 4].map { byPosition[$0] ?? "" } == upright)
+            #expect([2, 3, 6, 7].map { byPosition[$0] ?? "" } == flat)
+        }
+        #expect(BraidMethodCatalog.yatsuKongoS8Recipe.colouring
+                == BraidMethodCatalog.yatsuKongoZ8Recipe.colouring)
     }
 
     /// What is open is said, not hidden: which thread of a pair goes first.
@@ -215,11 +253,6 @@ struct YatsuKongoTests {
             for move in step.moves { result[move.from] = move.to }
         }
         return result
-    }
-
-    private func colourGrid(of recipe: BraidRecipe) throws -> [[String]] {
-        let worked = try #require(recipe.worked(on: stand))
-        return try colourGrid(method: worked.method, colouring: recipe.colouring)
     }
 
     /// One row a cycle, one cell a slot round the braid: **the colour resting

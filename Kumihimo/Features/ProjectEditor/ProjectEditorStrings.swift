@@ -43,6 +43,12 @@ enum ProjectEditorStrings {
     static let maruGenjiGestureHelp = "1本指で左右に回転・ピンチで拡大縮小・ダブルタップで正面に戻ります"
     static let maruGenji3DAccessibilityLabel = "丸源氏の立体完成イメージ"
     static let maruGenji3DAccessibilityHint = "横ドラッグで回転、ピンチで拡大縮小できます。下のボタンでも左右に回転できます"
+    /// **The braid's own name, not a second copy of the wording.** The eight-bobbin
+    /// braids come in two, S and Z, so what they are called is built from the name
+    /// the recipe carries rather than written out twice.
+    static func previewTitle(_ name: String) -> String { "\(name)・3D試作" }
+    static func surfaceAccessibilityLabel(_ name: String) -> String { "\(name)の立体完成イメージ" }
+
     static let maruGenji3DRenderComplete = "表示完了"
     static let maruGenji3DRenderPending = "表示準備中"
     static let rotateLeft = "左へ回転"

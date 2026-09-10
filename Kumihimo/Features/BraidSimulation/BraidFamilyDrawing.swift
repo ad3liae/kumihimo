@@ -13,18 +13,20 @@ enum BraidFamilyDrawing {
     enum Drawing {
         case flat(Flat16SurfacePattern)
         case roundTube(RoundTube16SurfacePattern)
+        case roundTubeOfEight(RoundTube8SurfacePattern)
 
         var family: BraidFamily {
             switch self {
             case .flat: return Flat16SurfaceMesh.family
             case .roundTube: return RoundTube16SurfaceMesh.family
+            case .roundTubeOfEight: return RoundTube8SurfaceMesh.family
             }
         }
     }
 
     /// Every family this app can draw, and what each one rests on.
     static var families: [BraidFamilyShape] {
-        [Flat16SurfaceMesh.shape, RoundTube16SurfaceMesh.shape]
+        [Flat16SurfaceMesh.shape, RoundTube16SurfaceMesh.shape, RoundTube8SurfaceMesh.shape]
     }
 
     /// Which family will draw this recipe, or `nil` when none will.
@@ -40,7 +42,7 @@ enum BraidFamilyDrawing {
             guard recipe.id == Flat16SurfacePatternGenerator.drawsOnlyTheRecipe
             else { return nil }
             return family
-        case RoundTube16SurfaceMesh.family:
+        case RoundTube16SurfaceMesh.family, RoundTube8SurfaceMesh.family:
             return family
         default:
             return nil
@@ -80,17 +82,32 @@ enum BraidFamilyDrawing {
         case RoundTube16SurfaceMesh.family:
             return RoundTube16SurfacePatternGenerator.generate(assignments: recipe.colouring)
                 .map(Drawing.roundTube)
+        case RoundTube8SurfaceMesh.family:
+            // **The cells are worked out, not transcribed**, so this drawer is
+            // handed the table itself rather than a colouring alone.
+            return RoundTube8SurfacePatternGenerator.generate(
+                stand: stand, method: worked.method, crossSection: worked.section,
+                assignments: recipe.colouring
+            ).map(Drawing.roundTubeOfEight)
         default:
             return nil
         }
     }
 
     /// The mesh for a recipe, from the drawer its family names.
-    static func mesh(for recipe: BraidRecipe, on stand: BraidStand) -> (flat: Flat16SurfaceMeshData?, tube: RoundTube16SurfaceMeshData?) {
+    static func mesh(
+        for recipe: BraidRecipe, on stand: BraidStand
+    ) -> (flat: Flat16SurfaceMeshData?, tube: RoundTube16SurfaceMeshData?,
+          tubeOfEight: RoundTube8SurfaceMeshData?) {
         switch drawing(for: recipe, on: stand) {
-        case let .flat(pattern): return (Flat16SurfaceMesh.generate(pattern: pattern), nil)
-        case let .roundTube(pattern): return (nil, RoundTube16SurfaceMesh.generate(pattern: pattern))
-        case nil: return (nil, nil)
+        case let .flat(pattern):
+            return (Flat16SurfaceMesh.generate(pattern: pattern), nil, nil)
+        case let .roundTube(pattern):
+            return (nil, RoundTube16SurfaceMesh.generate(pattern: pattern), nil)
+        case let .roundTubeOfEight(pattern):
+            return (nil, nil, RoundTube8SurfaceMesh.generate(pattern: pattern))
+        case nil:
+            return (nil, nil, nil)
         }
     }
 }

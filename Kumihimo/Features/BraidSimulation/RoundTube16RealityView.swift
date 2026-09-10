@@ -57,10 +57,16 @@ final class RoundTube16ViewerController: ObservableObject {
     }
 }
 
+/// The RealityKit plumbing for a braid that is a tube. **One copy, whichever
+/// tube** — the family and, where the family works its cells out rather than
+/// keeping them transcribed, its table, are handed in. The name still says
+/// sixteen; it draws eight as well, and renaming it is a tidy of its own.
 struct RoundTube16RealityView: UIViewRepresentable {
     let assignments: [ThreadAssignment]
     let controller: RoundTube16ViewerController
     let viewportSize: CGSize
+    var family: BraidFamily = RoundTube16SurfaceMesh.family
+    var table: BraidSurfaceScene.Table?
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -96,7 +102,9 @@ struct RoundTube16RealityView: UIViewRepresentable {
         doubleTap.numberOfTapsRequired = 2
         view.addGestureRecognizer(doubleTap)
 
-        context.coordinator.buildScene(in: view, assignments: assignments)
+        context.coordinator.buildScene(
+            in: view, assignments: assignments, family: family, table: table
+        )
         return view
     }
 
@@ -105,7 +113,9 @@ struct RoundTube16RealityView: UIViewRepresentable {
         context.coordinator.updateCoverage(for: viewportSize)
         let signature = BraidSurfaceScene.signature(assignments)
         guard signature != context.coordinator.assignmentSignature else { return }
-        context.coordinator.buildScene(in: uiView, assignments: assignments)
+        context.coordinator.buildScene(
+            in: uiView, assignments: assignments, family: family, table: table
+        )
     }
 
     private func updateBackground(of view: ARView) {
@@ -126,15 +136,21 @@ struct RoundTube16RealityView: UIViewRepresentable {
             self.controller = controller
         }
 
-        func buildScene(in view: ARView, assignments: [ThreadAssignment]) {
+        func buildScene(
+            in view: ARView,
+            assignments: [ThreadAssignment],
+            family: BraidFamily,
+            table: BraidSurfaceScene.Table?
+        ) {
             assignmentSignature = BraidSurfaceScene.signature(assignments)
             installed = nil
             tileCount = 0
 
             guard let installed = BraidSurfaceScene.install(
                 in: view,
-                family: RoundTube16SurfaceMesh.family,
-                assignments: assignments
+                family: family,
+                assignments: assignments,
+                table: table
             ) else {
                 controller.reportFailure()
                 return
