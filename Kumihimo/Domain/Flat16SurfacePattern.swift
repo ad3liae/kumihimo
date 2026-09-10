@@ -154,6 +154,27 @@ enum Flat16SurfacePatternGenerator {
         rowCount.map { Float($0) * stitchPitchPerBraidWidth }
     }
 
+    /// Length of one repeat over **one turn round the braid**, which is what a
+    /// drawing of the whole surface unrolled is measured in.
+    ///
+    /// `patternAspectRatio` is over the braid's *width*, which is the six columns
+    /// of one broad face. A turn round the braid is all sixteen places — front
+    /// six, edge two, back six, edge two — so the same repeat is a smaller
+    /// fraction of it, in the ratio of those two counts. Both counts come from the
+    /// working-out, not from here.
+    ///
+    /// This is the same quantity the round braid's pattern declares, which is why
+    /// the two families' thumbnails come out at the same density.
+    ///
+    /// **`patternAspectRatio` itself must not move**: the mesh takes its length
+    /// from it, and the length is over the width.
+    static var patternAspectRatioRoundTheBraid: Float? {
+        guard boardPositionCount > 0, broadFaceColumnCount > 0 else { return nil }
+        return patternAspectRatio.map {
+            $0 * Float(broadFaceColumnCount) / Float(boardPositionCount)
+        }
+    }
+
     static func generate(assignments: [ThreadAssignment]) -> Flat16SurfacePattern? {
         guard
             let rowCount,
