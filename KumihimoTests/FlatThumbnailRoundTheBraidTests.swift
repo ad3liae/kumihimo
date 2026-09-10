@@ -249,6 +249,41 @@ struct FlatThumbnailRoundTheBraidTests {
         #expect(drawn * 14 == 1008)
     }
 
+    /// **No straight join is mixed in among the leaning ones.**
+    ///
+    /// Down the middle of an edge, the joins used to fall 1.24, 1.00, 1.00, 0.76
+    /// rows apart and repeat: the lean was let go at the two ends of the tile, so
+    /// one join in every four ran straight and the two beside it were pushed out to
+    /// make room. Four rows to a repeat, so on the card it read as a straight line
+    /// every fourth row — which is how it was noticed (Task 030).
+    ///
+    /// **All four gaps are one row now.**
+    @Test func theEdgesJoinsAreEvenlySpacedDownTheCard() throws {
+        let pattern = try #require(
+            Flat16SurfacePatternGenerator.generate(assignments: BraidReferenceColourings.bookAP97Left)
+        )
+        let rowCount = try #require(Flat16SurfacePatternGenerator.rowCount)
+        #expect(rowCount == 4)
+
+        for region in [Flat16SurfaceRegion.leftEdge, .rightEdge] {
+            // The line down the middle of the edge is the boundary between its two
+            // lanes: the trailing side of the first.
+            let middle = pattern.patches(in: region)
+                .filter { $0.widthColumn == 0 }
+                .sorted { $0.row < $1.row }
+            #expect(middle.count == rowCount)
+
+            let gaps = middle.map { Float(rowCount) * ($0.corners[2].y - $0.corners[3].y) }
+            #expect(gaps.count == 4)
+            #expect(gaps.allSatisfy { abs($0 - 1) < 1e-5 }, "\(region) gaps \(gaps)")
+
+            // And the lane's own two ends are one repeat apart, so the tiles meet.
+            let low = try #require(middle.first)
+            let high = try #require(middle.last)
+            #expect(abs((high.corners[2].y - low.corners[3].y) - 1) < 1e-6)
+        }
+    }
+
     /// Carried to the turn's coordinates, a patch sits inside its region's span and
     /// nowhere else — this is the mapping the view does before it asks the layout
     /// anything.

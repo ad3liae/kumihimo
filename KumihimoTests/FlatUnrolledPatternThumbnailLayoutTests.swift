@@ -139,6 +139,13 @@ struct FlatPatternUnchangedByTheThumbnailTests {
     /// Every patch, its colour and its corners, hashed. Taken on the commit before
     /// the thumbnail was changed; the generator was not touched, and this says so
     /// for the next change too.
+    ///
+    /// **It has been touched once since, on purpose** (Task 030): the value was
+    /// `0xa805_6cdc_c7b8_8a21` while an edge's stitch lean was dropped at the two
+    /// ends of the repeat. The corners at rows 0 and 4 of both edges moved by
+    /// `edgeStitchLean`; nothing else did, and no patch was added, removed or
+    /// recoloured. Task 029's own changes did not move it — this test is what said
+    /// so.
     @Test func theFlatPatternIsTheOneItWas() throws {
         let pattern = try #require(Flat16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.hiraGenji16Colouring))
@@ -166,7 +173,7 @@ struct FlatPatternUnchangedByTheThumbnailTests {
         let hash = BraidMeshHashTests.hash(points)
         try Self.record("flat pattern hash \(String(hash, radix: 16))",
                         named: "flat-pattern-hash")
-        #expect(hash == 0xa805_6cdc_c7b8_8a21)
+        #expect(hash == 0x4d72_b9e3_6b75_b461)
     }
 
     private static func record(_ text: String, named name: String) throws {

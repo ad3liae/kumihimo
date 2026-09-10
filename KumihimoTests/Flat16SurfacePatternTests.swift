@@ -171,6 +171,73 @@ struct Flat16SurfacePatternTests {
         #expect(leaned[1].y != leaned[2].y)
     }
 
+    /// **Every join at an edge leans the same way, in every row of the repeat.**
+    ///
+    /// This is `everyStitchJoinRunsStraightAcrossItsLane`'s claim, made for the
+    /// edges. It could not be made until Task 030: the lean was dropped at the two
+    /// ends of the repeat, so one join in every four ran straight while the other
+    /// three leaned. `faceStitchLean` is zero, so nothing showed of it on a face;
+    /// `edgeStitchLean` is not, so it showed at an edge as a straight line every
+    /// fourth row — visible in the list once Task 029 began drawing the edges.
+    ///
+    /// There is nothing in the braid that makes one join of four unlike the rest.
+    @Test func everyJoinAtAnEdgeLeansTheSameInEveryRow() throws {
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: fixtureA))
+        let rowCount = try #require(Flat16SurfacePatternGenerator.rowCount)
+        #expect(Flat16SurfacePatternGenerator.edgeStitchLean != 0)
+
+        for region in [Flat16SurfaceRegion.leftEdge, .rightEdge] {
+            let patches = pattern.patches(in: region)
+            let columnCount = Flat16SurfacePatternGenerator.columnCount(in: region)
+            #expect(patches.count == columnCount * rowCount)
+
+            for column in 0..<columnCount {
+                let rows = patches.filter { $0.widthColumn == column }
+                    .sorted { $0.row < $1.row }
+                #expect(rows.count == rowCount)
+
+                // How far the join tips across its lane, row by row.
+                let leans = rows.map { $0.corners[0].y - $0.corners[3].y }
+                let first = try #require(leans.first)
+                #expect(abs(first) > 0.000_1, "\(region) column \(column) is straight")
+                #expect(
+                    leans.allSatisfy { abs($0 - first) < 1e-6 },
+                    "\(region) column \(column) leans \(leans)"
+                )
+
+                // The far side of the lane tips by the same amount.
+                let far = rows.map { $0.corners[1].y - $0.corners[2].y }
+                #expect(far.allSatisfy { abs($0 - first) < 1e-6 })
+            }
+        }
+    }
+
+    /// **One repeat is exactly one, at an edge too.** Both the phase and the lean
+    /// are constants added to a whole lane, so a lane is periodic however far it
+    /// reaches past the tile's ends; what reaches past is cut off by the mesh and
+    /// drawn at the other end. Without this the tiles would not meet.
+    @Test func anEdgeLaneIsExactlyOneRepeatLong() throws {
+        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: fixtureA))
+        let rowCount = try #require(Flat16SurfacePatternGenerator.rowCount)
+
+        for region in Flat16SurfaceRegion.allCases {
+            let patches = pattern.patches(in: region)
+            for column in 0..<Flat16SurfacePatternGenerator.columnCount(in: region) {
+                let rows = patches.filter { $0.widthColumn == column }
+                    .sorted { $0.row < $1.row }
+                let low = try #require(rows.first)
+                let high = try #require(rows.last)
+                #expect(high.row == rowCount - 1)
+                // The lane's leading side, start of the first row to end of the last.
+                #expect(abs((high.corners[1].y - low.corners[0].y) - 1) < 1e-6,
+                        "\(region) column \(column) leading side")
+                // And its trailing side.
+                #expect(abs((high.corners[2].y - low.corners[3].y) - 1) < 1e-6,
+                        "\(region) column \(column) trailing side")
+            }
+        }
+    }
+
     @Test func fixturesAreDeterministicAndPositionDriven() throws {
         for fixture in [fixtureA, fixtureB, fixtureC] {
             let first = try #require(Flat16SurfacePatternGenerator.generate(assignments: fixture))

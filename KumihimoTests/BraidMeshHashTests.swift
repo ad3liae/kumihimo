@@ -24,12 +24,17 @@ struct BraidMeshHashTests {
         return out
     }
 
+    /// **Changed once, on purpose** (Task 030). It was
+    /// `0x78b4_526d_00e7_4a38` while the stitch lean was dropped at the two ends of
+    /// the tile, which left one join in every four running straight at an edge. The
+    /// lean now applies at every join, so every vertex on an edge join at rows 0 and
+    /// 4 moved. **The vertex count did not change** — the same surface, tipped.
     @Test func theFlatBraidsMeshIsTheShapeItWas() throws {
         let pattern = try #require(Flat16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.hiraGenji16Colouring))
         let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
         #expect(mesh.positions.count == 366_552)
-        #expect(Self.hash(mesh.positions) == 0x78b4_526d_00e7_4a38)
+        #expect(Self.hash(mesh.positions) == 0x53c4_4c9b_835a_e598)
     }
 
     @Test func theRoundBraidsMeshIsTheShapeItWas() throws {
