@@ -232,15 +232,16 @@ struct RoundTube8SurfaceTests {
                 == BraidMeshHashTests.hash(asIs.positions))
     }
 
-    /// The steps of one cycle with the two of each printed pair exchanged. Book A
-    /// prints two threads to a step and book C's order inside the pair is what is
-    /// not known for this braid.
+    /// The steps of one cycle with the two threads of each printed pair listed
+    /// the other way round. Book A prints two threads to a step and book C's order
+    /// inside the pair is what is not known for this braid.
+    ///
+    /// **A printed step is one step now** (the author, 2026-09-11), so the pair is
+    /// turned round inside it. Until then each thread of a pair was a step of its
+    /// own and this swapped neighbouring steps; swapping neighbours now would swap
+    /// two different printed steps, which is not the question this test asks.
     private func swappingPairs(of steps: [BraidStep]) -> [BraidStep] {
-        var out = steps
-        for index in stride(from: 0, to: steps.count - 1, by: 2) {
-            out.swapAt(index, index + 1)
-        }
-        return out
+        steps.map { BraidStep(name: $0.name, moves: $0.moves.reversed()) }
     }
 
     // MARK: - 7. It draws no other family

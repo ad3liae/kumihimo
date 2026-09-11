@@ -23,8 +23,9 @@ struct YatsuKongoTests {
 
     // MARK: - The table runs
 
-    /// **1.** The table is a cycle of the eight-place stand: eight braiding moves,
-    /// each its own instant, and a closing.
+    /// **1.** The table is a cycle of the eight-place stand: eight braiding moves
+    /// read as four instants, one a printed step (the author, 2026-09-11), and a
+    /// closing.
     ///
     /// The closing is empty here, and that is right: every thread is braided every
     /// cycle, so nothing is left over to be tidied back into place. The tidying
@@ -36,8 +37,13 @@ struct YatsuKongoTests {
         #expect(worked.derivation.threadCount == 8)
         #expect(recipe.notation.braidingMoves.count == 8)
         #expect(recipe.notation.repositioningMoves.count == 8)
-        #expect(worked.method.instantCount == 9)
+        #expect(worked.method.instantCount == 5)
+        #expect(worked.method.steps.count == 4)
+        #expect(worked.method.steps.allSatisfy { $0.moves.count == 2 })
         #expect(worked.method.closing.moves.isEmpty)
+        // **Nothing is lost by laying a pair at once**: its two threads never have
+        // to pass each other, so there is no over and under for an order to decide.
+        #expect(worked.derivation.passingsWithinOneInstant.isEmpty)
         // A tube: nothing runs along the braid, so there is no fold.
         #expect(worked.derivation.fold == nil)
         #expect(BraidFamily.family(of: worked.derivation) == .roundTube(threads: 8))

@@ -13,10 +13,14 @@ struct BraidMove: Hashable, Sendable {
 
 /// The moves worked at one instant.
 ///
-/// **A braiding step carries one move.** The source of record (book C's numbered
-/// disk) moves one thread at a time, so two threads always have a first and a
-/// second. Book A's "take the outer two of the east group" is shorthand for two
-/// moves and names the step; it is not the unit.
+/// **A braiding step carries one move** when the table comes from book C. The
+/// source of record (book C's numbered disk) moves one thread at a time, so two
+/// threads always have a first and a second. Book A's "take the outer two of the
+/// east group" is shorthand for two moves and names the step; it is not the unit.
+///
+/// **A braid with no book C figure carries a printed step's threads in one step**
+/// (the author, 2026-09-11): nothing says which goes first, so they are laid at
+/// once rather than put in an order the source does not give.
 ///
 /// A step may still carry several moves, and the closing does: it is one instant
 /// that advances the braid neither round nor along, so nothing inside it is laid

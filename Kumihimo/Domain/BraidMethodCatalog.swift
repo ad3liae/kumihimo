@@ -54,13 +54,18 @@ enum BraidMethodCatalog {
         )
     }
 
+    /// **A printed step is one instant here** (the author, 2026-09-11): the
+    /// eight-bobbin braids have no book C figure, so nothing says which of a
+    /// printed pair goes first, and splitting the pair would be a choice rather
+    /// than a reading.
     private static func diskOfEight(_ source: String, _ moves: [(Int, Int)]) -> BraidDiskNotation {
         BraidDiskNotation(
             source: source,
             notchCount: 32,
             standPositionByRestingNotch: diskRestingNotchesForEight,
             moves: moves.map(BraidMove.init(from:to:)),
-            threadsPerStep: 2
+            threadsPerStep: 2,
+            stepReading: .oneStepAnInstant
         )
     }
 
@@ -368,7 +373,8 @@ enum BraidMethodCatalog {
         source: .standRim,
         unsettled: "which thread of a pair is carried first is not settled; book A "
             + "p54-55 draw the arrows and the hands but not the order inside a "
-            + "printed step, and book C's figure for this braid is not to hand"
+            + "printed step, and book C's figure for this braid is not to hand. "
+            + "Nothing drawn depends on it: a printed step is read as one instant"
     )
 
     /// Book A p.54's own colouring for yatsu-kongo S: **the upright pair in
