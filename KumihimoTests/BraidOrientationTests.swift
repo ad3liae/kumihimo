@@ -197,7 +197,9 @@ struct BraidOrientationTests {
             + "\(edgeOnWalls) edge-on crossing walls, of \(total) triangles"
         #expect(total > 0)
         if drawer == "flat sixteen" {
-            withKnownIssue("the flat braid has triangles wound inward (Task 032, 2026-09-11)") {
+            // The numbers go in the known issue's own title, because that is what
+            // a result bundle keeps of it.
+            withKnownIssue("the flat braid has triangles wound inward (Task 032, 2026-09-11): \(summary)") {
                 #expect(inward + edgeOn == 0, "\(summary)")
             }
         } else {

@@ -12,9 +12,14 @@ struct BraidRecipeTests {
     func aRecipeWorksOutOnTheStandItNames(recipe: BraidRecipe) throws {
         let stand = try #require(BraidMethodCatalog.stand(for: recipe))
         let worked = try #require(recipe.worked(on: stand))
-        // One step a braiding move -- the source of record moves one thread at a
-        // time -- and the closing is one more instant.
-        #expect(worked.method.instantCount == recipe.notation.braidingMoves.count + 1)
+        // One step a braiding move where the table is book C's, which moves one
+        // thread at a time; one step a printed step where book C has no figure
+        // (the author, 2026-09-11, Task 032). The closing is one more instant.
+        let notation = recipe.notation
+        let steps = notation.stepReading == .oneThreadAnInstant
+            ? notation.braidingMoves.count
+            : notation.braidingMoves.count / notation.threadsPerStep
+        #expect(worked.method.instantCount == steps + 1)
         #expect(worked.derivation.threadCount == stand.positionCount)
     }
 

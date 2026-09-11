@@ -295,6 +295,12 @@ struct BraidComparisonSheetTests {
     /// S is drawn twice more: with the two threads of every printed pair carried
     /// the other way round, and as Z. The first is what tells whether the
     /// unsettled order inside a pair shows on the face.
+    ///
+    /// **And S is drawn turned about its own axis, sixteen ways**, a half column
+    /// apart. The middle strip the measurement reads is about one column wide, and
+    /// the drawing's columns run straight, so what it reads depends on which two
+    /// places face the eye (Task 032, 2026-09-11). A photograph is one such turn,
+    /// and which one is not known; the drawing is read at all of them.
     @Test(.enabled(if: braidSheetsAreWanted))
     func theYatsuKongoFacesForMeasuring() throws {
         let floor = Double(RoundTube8SurfaceMesh.defaultRadius)
@@ -305,7 +311,7 @@ struct BraidComparisonSheetTests {
         let stand = BraidMethodCatalog.stand8
 
         func face(_ method: BraidMethod, _ recipe: BraidRecipe,
-                  section: BraidCrossSection, named: String) throws {
+                  section: BraidCrossSection, named: String, turn: Int = 0) throws {
             let pattern = try #require(RoundTube8SurfacePatternGenerator.generate(
                 stand: stand, method: method, crossSection: section,
                 assignments: recipe.colouring
@@ -314,8 +320,10 @@ struct BraidComparisonSheetTests {
             let solid = BraidComparisonSheet.solid(
                 positions: mesh.positions, byColour: mesh.colorGroups, perDiameter: perDiameter
             )
+            // Straight on, turned `turn` sixteenths of a turn round the braid.
+            let angle = 2 * Double.pi * Double(turn) / 16
             let panel = try #require(BraidComparisonSheet.paint(
-                triangles: solid.triangles, looking: BraidComparisonSheet.camera(turned: false),
+                triangles: solid.triangles, looking: SIMD3(sin(angle), -cos(angle), 0),
                 window: solid.along, acrossWanted: braidWidth,
                 pixelsPerDiameter: pixelsPerDiameter
             ))
@@ -326,9 +334,15 @@ struct BraidComparisonSheetTests {
         let s = BraidMethodCatalog.yatsuKongoS8Recipe
         let workedS = try #require(s.worked(on: stand))
         try face(workedS.method, s, section: workedS.section, named: "face-yatsu-kongo-s")
-        var swapped = workedS.method.steps
-        for index in stride(from: 0, to: swapped.count - 1, by: 2) {
-            swapped.swapAt(index, index + 1)
+        for turn in 1..<16 {
+            try face(workedS.method, s, section: workedS.section,
+                     named: "face-yatsu-kongo-s-turn-\(turn)", turn: turn)
+        }
+        // The pair turned round inside its printed step, which is one step now
+        // (the author, 2026-09-11); swapping neighbouring steps would swap two
+        // different printed steps.
+        let swapped = workedS.method.steps.map {
+            BraidStep(name: $0.name, moves: $0.moves.reversed())
         }
         let otherWay = BraidMethod(
             id: workedS.method.id + "-pairs-the-other-way-round",

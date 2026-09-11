@@ -111,11 +111,16 @@ enum RoundTube8StrandTexture {
     /// **The sign of the across term is this mesh's own, and which way it leans on
     /// screen is measured, not reasoned.** Read off a render in the simulator —
     /// the spectrum of a front lane, with everything that runs straight along the
-    /// braid taken out. It was +14.7 degrees, falling to the right with the braid
-    /// lying across the view, before Task 032 found the drawer drawing every
-    /// braid as its own mirror; putting the ring right turned the stripes over
-    /// with everything else, so this sign was turned with it to keep the lean
-    /// that had been measured, and the render was read again.
+    /// braid taken out — it gives +14.9 degrees: falling to the right with the
+    /// braid lying across the view.
+    ///
+    /// **The first reading was of the wrong side of the braid.** Until Task 032
+    /// laid the ring out the stand's way, every triangle faced inward and the near
+    /// side was not drawn, so the render showed the far wall from inside, which is
+    /// a mirror; the +14.7 read then was that inside. Putting the ring right both
+    /// mirrored the braid and showed its outside for the first time, and the two
+    /// turns cancel. A sign turned to "keep" the old reading gave -14.9 on the
+    /// outside and was taken out again.
     ///
     /// **The photograph does not settle which way its fibre leans.** Of ten beans
     /// read the same way, five show a period the size of a fibre stripe; four of
@@ -132,7 +137,7 @@ enum RoundTube8StrandTexture {
         let along = 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameter
         let halfWidth = Float.pi / Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
         let phasePerAlong = -2 * .pi * stripesPerCell
-        let phasePerAcross = -phasePerAlong * halfWidth * cosine / (along * sine)
+        let phasePerAcross = phasePerAlong * halfWidth * cosine / (along * sine)
         // **The normal map's second channel runs along the normal crossed with the
         // tangent**, which is the way the sixteen-thread solve expresses it (its
         // `acrossUnit`, the tangent turned a quarter turn). This mesh's frame is

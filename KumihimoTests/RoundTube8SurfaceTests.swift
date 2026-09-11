@@ -37,8 +37,9 @@ struct RoundTube8SurfaceTests {
     /// guard on Task 025-4's ruling that the face's colour comes from what is
     /// resting at a place.
     ///
-    /// A cell is read where it begins, which is the row boundary the figure's own
-    /// row is taken at; a cell leans away from there as it goes.
+    /// A cell is read at the row boundary the figure's own row is taken at. A
+    /// cell begins where its thread arrives, part way through the cycle before,
+    /// so the cell standing at a place across that boundary is the row's.
     @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
     func theSolidsCellsCarryTheSameColoursAsTheFigure(recipe: BraidRecipe) throws {
         let colouring = BraidReferenceColourings.yatsuKongoChecker
@@ -62,7 +63,8 @@ struct RoundTube8SurfaceTests {
                 let along = Float(row) / Float(drawn.rowCount)
                 let cell = try #require(drawn.surface.segments.first {
                     abs($0.centerlineStart.x - middle) < 1e-4
-                        && abs($0.centerlineStart.y - along) < 1e-4
+                        && $0.centerlineStart.y <= along + 1e-4
+                        && $0.centerlineEnd.y > along + 1e-4
                 })
                 #expect(cell.centerlineEnd.x == cell.centerlineStart.x)
                 #expect(cell.colorID == shape.colorID, "row \(row), column \(column)")
@@ -158,6 +160,38 @@ struct RoundTube8SurfaceTests {
         #expect(capped == 0)
     }
 
+    /// **The stripes run on across the tile's join.** A cell cut at the edge
+    /// keeps its own share of the stripe map in each piece, so a vertex at the
+    /// far end of the tile and the vertex it meets at the near end of the next
+    /// carry the same place in the map — whole stripes to a cell, so a cell that
+    /// ends exactly on the edge meets the next one's start at the same phase.
+    @Test func theStripesRunOnAcrossTheTilesJoin() throws {
+        let mesh = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
+        let ends = mesh.length / 2
+        // Neighbouring cells share the points on the valley floor between them,
+        // so a point is told apart by which side of its cell it is on as well.
+        func key(_ index: Int) -> [Int32] {
+            let point = mesh.positions[index]
+            return [Int32((atan2(point.z, point.y) * 4096).rounded()),
+                    Int32((sqrt(point.y * point.y + point.z * point.z) * 4096).rounded()),
+                    Int32((mesh.textureCoordinates[index].y * 4096).rounded())]
+        }
+        var nearEnd = [[Int32]: Float]()
+        for (index, point) in mesh.positions.enumerated() where abs(point.x + ends) < 1e-4 {
+            nearEnd[key(index)] = mesh.textureCoordinates[index].x
+        }
+        var met = 0
+        for (index, point) in mesh.positions.enumerated() where abs(point.x - ends) < 1e-4 {
+            guard let there = nearEnd[key(index)] else { continue }
+            let here = mesh.textureCoordinates[index].x
+            let apart = abs(here - there)
+            #expect(min(apart, abs(apart - 1)) < 1e-4, "\(here) at the far end, \(there) at the near end")
+            met += 1
+        }
+        // Every sample across every cell at the join: eight cells of eleven.
+        #expect(met == 8 * (RoundTube8SurfaceMesh.defaultAcrossSubdivisions + 1))
+    }
+
     // MARK: - 4. Watertight
 
     /// **No line of sight inside the braid's outline reaches the background** —
@@ -185,17 +219,20 @@ struct RoundTube8SurfaceTests {
     /// explained rather than slipping through.
     @Test func theMeshIsTheShapeItWas() throws {
         let s = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
-        // Sixty-four cells a repeat, two repeats, and thirteen by eleven samples
-        // over each: 128 * 143.
-        // **Changed twice, on purpose.** It was `0x03aa_f419_737c_1859` while a cell
-        // was drawn stretched across the three places of the carry; a cell is the
-        // thread standing still, so every cell is square to the braid. Then
+        // Seventy cells a repeat (sixty-four, six of them cut in two at the edge),
+        // two repeats, and thirteen by eleven samples over each: 140 * 143.
+        // **Changed three times, on purpose.** It was `0x03aa_f419_737c_1859` while
+        // a cell was drawn stretched across the three places of the carry; a cell
+        // is the thread standing still, so every cell is square to the braid. Then
         // `0xa2b9_f4b5_1eab_3079` while the ring was laid out as `(cos, sin)`, the
         // mirror of the stand's own `(sin, cos)` (Task 032, 2026-09-11): every
-        // vertex moved to its reflection. **The vertex count did not change either
-        // time.**
-        #expect(s.positions.count == 18_304)
-        #expect(BraidMeshHashTests.hash(s.positions) == 0x6834_c61f_818c_0af9)
+        // vertex moved to its reflection. Then `0x6834_c61f_818c_0af9` until a cell
+        // began where its thread arrives (the same day): the rows now stand
+        // staggered, and the six first-row cells that began in the repeat before
+        // are cut at the tile's edge, so the count went from 18,304 to 20,020 —
+        // seventy cells a repeat instead of sixty-four.
+        #expect(s.positions.count == 20_020)
+        #expect(BraidMeshHashTests.hash(s.positions) == 0xf338_db23_dcb7_8ab5)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
@@ -204,11 +241,13 @@ struct RoundTube8SurfaceTests {
     /// printed pair is carried first is not settled, so a drawing that depended on
     /// it would be a drawing resting on a guess.
     ///
-    /// It does not, and the reason is stronger than a tolerance: **nothing crosses
-    /// on this braid.** Every cell leans by the same three places, so the cells of
-    /// one cycle lie side by side and the next cycle's carry on where they left
-    /// off. There is no crossing whose order could matter, and the order never
-    /// reaches the geometry at all.
+    /// It does not, and the reason is stronger than a tolerance: **a printed pair
+    /// is one instant** (the author, 2026-09-11), so the two threads of a pair
+    /// arrive together, and nothing the drawing reads — which thread stands where,
+    /// and when it arrived — has a place for their order. Nothing crosses either,
+    /// so there is no over and under for the order to decide. While the pair was
+    /// split into two instants the arrival phase did carry the order onto the
+    /// face, and this test is what stopped it going in.
     @Test func swappingWhichOfAPairGoesFirstDoesNotMoveTheMesh() throws {
         let recipe = BraidMethodCatalog.yatsuKongoS8Recipe
         let worked = try #require(recipe.worked(on: stand))
@@ -275,7 +314,10 @@ struct RoundTube8SurfaceTests {
         #expect(s.columnsCarried == -RoundTube8SurfacePatternGenerator.columnsCarriedPerCycle)
         #expect(z.columnsCarried == RoundTube8SurfacePatternGenerator.columnsCarriedPerCycle)
         #expect(s.rowCount == 8)
-        #expect(s.surface.segments.count == 64)
+        // Sixty-four cells, and the six first-row cells that began in the repeat
+        // before are cut in two at the tile's edge. The two places whose pair
+        // arrives at the last instant begin exactly on the edge and are not cut.
+        #expect(s.surface.segments.count == 70)
     }
 
     /// Every number the drawing rests on says where it came from, and the one that
@@ -357,14 +399,14 @@ struct RoundTube8SurfaceTests {
         let slant = atan(perAlong / perAcross) * 180 / .pi
         #expect(abs(slant - abs(RoundTube8SurfaceMesh.fibreStripeAngleDegrees)) < 0.01)
 
-        // **The lean is the one the render was measured for.** With the two terms
-        // of opposite sign, a line of one phase goes along the braid as it goes on
-        // round it — which on this mesh, read off a render, falls to the right
-        // with the braid lying across the view: the way four of the five
+        // **The lean is the one the render was measured for.** With both terms of
+        // one sign, a line of one phase goes along the braid as it goes back round
+        // it — which on this mesh, read off a render of its outside, falls to the
+        // right with the braid lying across the view: the way four of the five
         // photographed beans with a readable fibre lean. The photograph does not
         // settle it.
         #expect(RoundTube8SurfaceMesh.fibreStripeAngleDegrees > 0)
-        #expect((twist.coefficients.phasePerAlong > 0) != (twist.coefficients.phasePerAcross > 0))
+        #expect((twist.coefficients.phasePerAlong > 0) == (twist.coefficients.phasePerAcross > 0))
     }
 
     /// **The relief lights the same stripes the tint draws.** The normal map's

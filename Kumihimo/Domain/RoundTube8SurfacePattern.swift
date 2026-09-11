@@ -25,6 +25,19 @@ import simd
 /// until this was put right, which laid the ridges some thirty-five degrees away
 /// from where the photographs have them.
 ///
+/// **A cell begins where its thread arrives** (the author, 2026-09-11). The
+/// premise says a thread standing at a place runs from the height it arrived at;
+/// the threads of a cycle arrive a printed pair at a time, at different places,
+/// so the cells of one row do not start level. A cell runs from its own thread's
+/// arrival to the next one's at the same place — one cycle — and the rows stand
+/// staggered, like brickwork. **This is the premise used, not a change to it**:
+/// the arrival is what `BraidDerivation.arrivalInstants(atSlot:)` has always
+/// counted, and the drawing had been leaving it out.
+///
+/// **It rests only on the order of the printed steps**, never on which thread of
+/// a pair goes first: a printed step is one instant (`BraidDiskNotation
+/// .StepReading`), so the two threads of a pair arrive together.
+///
 /// **What slants on the finished braid is the colour, not the geometry.** A place
 /// holds a different thread every cycle, and with these colourings the pattern
 /// walks one place round the braid each cycle, which is the diagonal a photograph
@@ -90,9 +103,10 @@ enum RoundTube8SurfacePatternGenerator {
     /// The pattern for a braid, from its table and its colouring.
     ///
     /// `nil` when the braid is not a tube of eight, when the table is not a cycle
-    /// of the stand, or when the courses do not all carry their threads the same
-    /// distance — the last of which would mean the cells cannot all lean alike and
-    /// is worth stopping over rather than drawing something arbitrary.
+    /// of the stand, when the courses do not all carry their threads the same
+    /// distance, or when a place does not receive exactly one thread a cycle —
+    /// then "where its cell begins" has no single answer, and that is worth
+    /// stopping over rather than drawing something arbitrary.
     static func generate(
         stand: BraidStand,
         method: BraidMethod,
@@ -132,6 +146,22 @@ enum RoundTube8SurfacePatternGenerator {
         }
         guard let columnsCarried = carried, columnsCarried != 0 else { return nil }
 
+        // Where in a cycle each place takes its new thread, as a share of the
+        // cycle. **Counted in braiding instants, the closing left out**: the
+        // stacking model lays the braid one layer a hand and the closing not at
+        // all (`docs/architecture.md`, 積み重ねの模型), and on these braids the
+        // closing carries nothing. One arrival a place, or there is no one place
+        // for a cell to begin.
+        let braidingInstants = method.steps.count
+        guard braidingInstants > 0 else { return nil }
+        var phaseOfSlot = [Int: Float]()
+        for slot in 0..<requiredThreadCount {
+            let arrivals = derivation.arrivalInstants(atSlot: slot)
+            guard arrivals.count == 1, let instant = arrivals.first,
+                  (1...braidingInstants).contains(instant) else { return nil }
+            phaseOfSlot[slot] = Float(instant) / Float(braidingInstants)
+        }
+
         let columnWidth = Float(1) / Float(requiredThreadCount)
         let rowHeight = Float(1) / Float(rows)
 
@@ -140,23 +170,37 @@ enum RoundTube8SurfacePatternGenerator {
             for course in derivation.courses {
                 guard let colour = colours[course.threadPosition] else { return nil }
                 let slot = course.slots[row]
-                // **The thread stands here for this cycle**, so the cell runs
-                // along the braid at this one place: one column wide, one cycle
-                // long, and square to the braid. The cells of a row tile the ring
-                // and the next row stands on top of them.
+                guard let phase = phaseOfSlot[slot] else { return nil }
+                // **The thread stands here for one cycle**, so the cell runs along
+                // the braid at this one place: one column wide, one cycle long,
+                // square to the braid. It is the thread that is here at the start
+                // of cycle `row`, so it arrived during the cycle before, and it
+                // stays until the next thread arrives: from `row - 1 + phase` to
+                // `row + phase`.
                 let middle = (Float(slot) + 0.5) * columnWidth
-                segments.append(BraidStrandSegment(
-                    threadPosition: course.threadPosition,
-                    colorID: colour,
-                    // **Nothing crosses**, so there is no side of a crossing to
-                    // take. Every cell says the same thing rather than pretending
-                    // to an order the surface does not have.
-                    layer: .over,
-                    centerlineStart: SIMD2(middle, Float(row) * rowHeight),
-                    centerlineEnd: SIMD2(middle, Float(row + 1) * rowHeight),
-                    startHalfWidth: SIMD2(columnWidth / 2, 0),
-                    endHalfWidth: SIMD2(columnWidth / 2, 0)
-                ))
+                let start = Float(row) - 1 + phase
+                let end = Float(row) + phase
+                // The first row's cells began in the repeat before this one. They
+                // are cut at the tile's edge and the part below it is laid at the
+                // top, where the next repeat's copy of the same cell would be, so
+                // the tile keeps a flat end and joins itself.
+                let spans = start < 0
+                    ? [(Float(0), end), (start + Float(rows), Float(rows))]
+                    : [(start, end)]
+                for (from, to) in spans {
+                    segments.append(BraidStrandSegment(
+                        threadPosition: course.threadPosition,
+                        colorID: colour,
+                        // **Nothing crosses**, so there is no side of a crossing to
+                        // take. Every cell says the same thing rather than
+                        // pretending to an order the surface does not have.
+                        layer: .over,
+                        centerlineStart: SIMD2(middle, from * rowHeight),
+                        centerlineEnd: SIMD2(middle, to * rowHeight),
+                        startHalfWidth: SIMD2(columnWidth / 2, 0),
+                        endHalfWidth: SIMD2(columnWidth / 2, 0)
+                    ))
+                }
             }
         }
 
