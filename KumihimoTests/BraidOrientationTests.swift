@@ -161,7 +161,9 @@ struct BraidOrientationTests {
     ///
     /// **The flat braid does not pass** (found 2026-09-11, Task 032): some ten
     /// thousand of its triangles face inward. It is recorded here as a known issue
-    /// and not touched; the author has it.
+    /// and not touched (the author's ruling): a camera that discards back faces
+    /// still finds no hole in it (`aCameraThatDiscardsBackFacesFindsNoHole`),
+    /// because every inward triangle lies behind one turned the right way.
     @Test(arguments: ["flat sixteen", "round sixteen", "round eight"])
     func everyTriangleFacesOutward(drawer: String) throws {
         let mesh = try Self.mesh(drawer)
@@ -204,6 +206,216 @@ struct BraidOrientationTests {
             }
         } else {
             #expect(inward + edgeOn == 0, "\(summary)")
+        }
+    }
+
+    // MARK: - The same four places, for maru-genji (recorded; nothing drawn moves)
+
+    /// **Maru-genji at the four places** (the author, 2026-09-11). **Recorded and
+    /// stopped there**: no vertex of its drawing moves because of this.
+    ///
+    /// - **The table** sends its threads both ways round the stand: of the steps
+    ///   the threads take in one repeat, sixteen each are -6, -1, +1 and +6 slots.
+    ///   There is no one way round to compare.
+    /// - **The occupancy history** keeps the stand's rim order. Its columns are the
+    ///   landing slots 0, 3, 4, 7, 8, 11, 12 and 15, in ring order.
+    /// - **The drawer** runs every column's rows against the cycles, all at the same
+    ///   offset, so its braiding point is at `-x`; and drawn column `k` holds column
+    ///   `4 - k` of the history — **a reflection of the ring**, which fits every
+    ///   column, where no turn of it fits. Its ring is `(cos, sin)`, which seen from
+    ///   `-x` goes round clockwise, so the history's columns go round it
+    ///   anticlockwise: **seen from the braiding point, maru-genji is drawn as the
+    ///   mirror of what its table works out.** This is the same mirror as the
+    ///   "agreement through a mirror" with Task 004 (`BraidTubeFigureTests`).
+    /// - **The scene** is the same one as every braid's, and not a mirror (above).
+    ///
+    /// **Which of the two is the real braid needs a source from outside.** Book A
+    /// p94's photograph shows the twist stripes with a direction (Task 005G), and
+    /// that may decide it.
+    @Test func maruGenjiAtTheFourPlaces() throws {
+        let stand = BraidMethodCatalog.stand16
+        let recipe = BraidMethodCatalog.maruGenji16Recipe
+        let worked = try #require(recipe.worked(on: stand))
+
+        var steps = [Int: Int]()
+        for course in worked.derivation.courses {
+            for row in 0..<worked.derivation.repeatCycleCount {
+                let step = RoundTube8SurfacePatternGenerator.shortestWayRound(
+                    from: course.slots[row], to: course.slots[row + 1], around: 16
+                )
+                steps[step, default: 0] += 1
+            }
+        }
+        #expect(steps == [-6: 16, -1: 16, 1: 16, 6: 16])
+
+        #expect(worked.section.order == stand.positionIDs)
+        let occupancy = try #require(BraidOccupancy.history(
+            of: worked.method, on: stand, crossSection: worked.section, cycles: 4
+        ))
+        let columns = try #require(occupancy.columns(.landing))
+        #expect(columns == [0, 3, 4, 7, 8, 11, 12, 15])
+        let grid = try #require(occupancy.grid(atColumns: columns, rows: 4))
+
+        var drawn = [[Int]: Int]()
+        for strand in RoundTube16SurfacePatternGenerator.sourceStrands {
+            for diamond in strand.diamonds {
+                let cell = try #require(RoundTube16SurfacePatternGenerator.cell(for: diamond))
+                drawn[[cell.column, cell.row]] = strand.threadPosition
+            }
+        }
+        func run(ofDrawnColumn column: Int) -> [Int] {
+            (1...4).compactMap { drawn[[column, $0]] }
+        }
+        func history(_ other: Int, shift: Int, upwards: Bool) -> [Int] {
+            (0..<4).map { step in grid[((shift + (upwards ? step : -step)) % 4 + 4) % 4][other] }
+        }
+        func holds(_ column: Int, _ other: Int, upwards: Bool) -> Bool {
+            (0..<4).contains { history(other, shift: $0, upwards: upwards) == run(ofDrawnColumn: column) }
+        }
+
+        for column in 0..<8 {
+            // Every drawn column runs against the cycles, and none with them.
+            #expect(!(0..<8).contains { holds(column, $0, upwards: true) }, "column \(column)")
+            // Drawn column k holds history column 4 - k, two cycles on.
+            #expect(history(((4 - column) % 8 + 8) % 8, shift: 2, upwards: false)
+                    == run(ofDrawnColumn: column), "column \(column)")
+        }
+        // And no turn of the ring fits every column.
+        for turn in 0..<8 {
+            #expect((0..<8).contains { !holds($0, (turn + $0) % 8, upwards: false) }, "turn \(turn)")
+        }
+    }
+
+    // MARK: - A camera that discards back faces
+
+    /// **No braid shows a hole to a camera that discards back faces**, from any of
+    /// four sides (the author, 2026-09-11). RealityKit's materials discard back
+    /// faces by default and nothing here changes that — it is what let the
+    /// eight-thread braid be seen through — so this is the view the app draws.
+    ///
+    /// **The flat braid passes although some ten thousand of its triangles wind
+    /// inward** (`everyTriangleFacesOutward`): every one of them lies behind a face
+    /// turned the right way, on every line of sight. **Not because its material is
+    /// two-sided; it is not.** That is why the inward winding is left as a known
+    /// issue rather than made a task of its own.
+    ///
+    /// **The check can see what it looks for**: the eight-thread braid with its
+    /// winding turned round, as it was until Task 032, shows something behind the
+    /// near surface on nearly every line of sight.
+    @Test func aCameraThatDiscardsBackFacesFindsNoHole() throws {
+        let sides = [SIMD3<Float>(0, 0, -1), SIMD3(0, 0, 1), SIMD3(0, -1, 0), SIMD3(0, 1, 0)]
+        for drawer in ["flat sixteen", "round eight"] {
+            let mesh = try Self.mesh(drawer)
+            let tileEnd = mesh.positions.map { abs($0.x) }.max() ?? 0
+            for look in sides {
+                let view = CulledView(positions: mesh.positions, indices: mesh.indices,
+                                      tileEndX: tileEnd, looking: look)
+                #expect(view.rays > 5_000)
+                #expect(view.background == 0 && view.deeper == 0,
+                        "\(drawer) looking \(look): \(view.background) background, \(view.deeper) behind, of \(view.rays)")
+            }
+        }
+
+        let eight = try Self.mesh("round eight")
+        var turnedRound = eight.indices
+        for corner in stride(from: 0, to: turnedRound.count - 2, by: 3) {
+            turnedRound.swapAt(corner + 1, corner + 2)
+        }
+        let control = CulledView(positions: eight.positions, indices: turnedRound,
+                                 tileEndX: eight.positions.map { abs($0.x) }.max() ?? 0,
+                                 looking: SIMD3(0, 0, -1))
+        #expect(control.background + control.deeper > control.rays * 9 / 10)
+    }
+
+    /// What a camera that discards every face turned away from it sees, line of
+    /// sight by line of sight across the braid.
+    private struct CulledView {
+        let rays: Int
+        /// No face turned towards the eye anywhere along the line: the background shows.
+        let background: Int
+        /// The nearest surface is turned away, so something behind it shows instead.
+        let deeper: Int
+
+        private struct Flat {
+            let a: SIMD2<Float>
+            let b: SIMD2<Float>
+            let c: SIMD2<Float>
+            let depth: SIMD3<Float>
+            let facesTheEye: Bool
+            var lowX: Float { min(a.x, b.x, c.x) }
+            var highX: Float { max(a.x, b.x, c.x) }
+        }
+
+        init(positions: [SIMD3<Float>], indices: [UInt32], tileEndX: Float,
+             looking: SIMD3<Float>, alongSteps: Int = 120, acrossSteps: Int = 48) {
+            let look = simd_normalize(looking)
+            let side = simd_normalize(cross(SIMD3<Float>(1, 0, 0), look))
+            // The two ends of the tile are open by design, so stay clear of them.
+            let low = -tileEndX * 0.85
+            let span = tileEndX * 1.7
+            var bins = [[Flat]](repeating: [], count: alongSteps)
+            for corner in stride(from: 0, to: indices.count - 2, by: 3) {
+                let p = [positions[Int(indices[corner])], positions[Int(indices[corner + 1])],
+                         positions[Int(indices[corner + 2])]]
+                let facing = cross(p[1] - p[0], p[2] - p[0])
+                guard simd_length(facing) > 1e-12 else { continue }
+                let flat = Flat(
+                    a: SIMD2(p[0].x, dot(p[0], side)), b: SIMD2(p[1].x, dot(p[1], side)),
+                    c: SIMD2(p[2].x, dot(p[2], side)),
+                    depth: SIMD3(dot(p[0], look), dot(p[1], look), dot(p[2], look)),
+                    facesTheEye: dot(facing, look) < 0
+                )
+                let first = max(0, Int(((flat.lowX - low) / span * Float(alongSteps)).rounded(.down)))
+                let last = min(alongSteps - 1,
+                               Int(((flat.highX - low) / span * Float(alongSteps)).rounded(.down)))
+                guard first <= last else { continue }
+                for bin in first...last { bins[bin].append(flat) }
+            }
+            var rays = 0
+            var background = 0
+            var deeper = 0
+            for bin in 0..<alongSteps {
+                let x = low + span * (Float(bin) + 0.381_966) / Float(alongSteps)
+                let here = bins[bin].filter { $0.lowX <= x && $0.highX >= x }
+                guard !here.isEmpty else { continue }
+                let sides = here.flatMap { [$0.a.y, $0.b.y, $0.c.y] }
+                guard let bottom = sides.min(), let top = sides.max() else { continue }
+                let margin = (top - bottom) * 0.04
+                guard top - bottom > 2 * margin else { continue }
+                for step in 0..<acrossSteps {
+                    let s = bottom + margin + (top - bottom - 2 * margin)
+                        * (Float(step) + 0.618_034) / Float(acrossSteps)
+                    var nearest = Float.infinity
+                    var nearestFacing = Float.infinity
+                    var nearestIsFacing = false
+                    for flat in here {
+                        let one = flat.b - flat.a
+                        let two = flat.c - flat.a
+                        let point = SIMD2(x, s) - flat.a
+                        let det = one.x * two.y - two.x * one.y
+                        guard abs(det) > 1e-12 else { continue }
+                        let u = (point.x * two.y - two.x * point.y) / det
+                        let v = (one.x * point.y - point.x * one.y) / det
+                        guard u >= 0, v >= 0, u + v <= 1 else { continue }
+                        let depth = flat.depth.x * (1 - u - v) + flat.depth.y * u + flat.depth.z * v
+                        if depth < nearest {
+                            nearest = depth
+                            nearestIsFacing = flat.facesTheEye
+                        }
+                        if flat.facesTheEye { nearestFacing = min(nearestFacing, depth) }
+                    }
+                    guard nearest.isFinite else { continue }
+                    rays += 1
+                    if !nearestFacing.isFinite {
+                        background += 1
+                    } else if !nearestIsFacing && nearest < nearestFacing - 1e-4 {
+                        deeper += 1
+                    }
+                }
+            }
+            self.rays = rays
+            self.background = background
+            self.deeper = deeper
         }
     }
 

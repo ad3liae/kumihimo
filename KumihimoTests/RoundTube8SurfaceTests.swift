@@ -346,10 +346,12 @@ struct RoundTube8SurfaceTests {
 
         let pitch = try #require(shape.values["one cycle over the braid's diameter"])
         #expect(pitch.isObserved)
-        // **The pitch and the colour band do not both hold on S**, and both numbers
-        // are kept rather than one moved to meet the other (the author, 2026-09-11).
+        // **The colour band does not settle the pitch**: what a measurement reads
+        // off the drawn face swings with the turn of the braid, and a photograph is
+        // one turn (the author, 2026-09-11). Every number is kept.
         let pitchNote = try #require(pitch.unsettled)
         #expect(pitchNote.contains("0.403") && pitchNote.contains("54.5"))
+        #expect(pitchNote.contains("17.5") && pitchNote.contains("63.0"))
 
         // **The valley stays derived** (the author, 2026-09-11). The photograph's
         // reading is written beside it, with the reason it cannot replace it.
@@ -448,9 +450,10 @@ struct RoundTube8SurfaceTests {
     /// is least foreshortened, one place is `sin(pi/8)` of the width and one cycle
     /// is the pitch. **Derived 46.5 degrees; measured 54.5 on S and 51.0 on Z-a**
     /// (`Scripts/task031/measure_photographs.py`, the colour read with the stitch
-    /// texture blurred away). The gap is four to eight degrees, and **closing it
-    /// would mean moving the measured pitch**, which is `.observed` and not for
-    /// moving.
+    /// texture blurred away). **This is a record, not a gap to close**: the band a
+    /// measurement reads off the drawn face depends on which way the braid is
+    /// turned about its axis — 17.5 to 63.0 degrees over sixteen turns (Task 032)
+    /// — so a derived figure and one photograph are not the like for like.
     @Test func theColourDiagonalIsRecordedAgainstThePhotographs() throws {
         let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
         // Nothing in the geometry leans.

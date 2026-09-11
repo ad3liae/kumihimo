@@ -150,7 +150,9 @@ enum RoundTube8SurfacePatternGenerator {
         // cycle. **Counted in braiding instants, the closing left out**: the
         // stacking model lays the braid one layer a hand and the closing not at
         // all (`docs/architecture.md`, 積み重ねの模型), and on these braids the
-        // closing carries nothing. One arrival a place, or there is no one place
+        // closing carries nothing. **Not a new rule**: it is the one recorded for
+        // Task 007G, "the denominator is 6, not 7, because the tidying is not
+        // counted", applied here. One arrival a place, or there is no one place
         // for a cell to begin.
         let braidingInstants = method.steps.count
         guard braidingInstants > 0 else { return nil }

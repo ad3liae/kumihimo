@@ -80,11 +80,15 @@ enum RoundTube8SurfaceMesh {
                     + "and Z-a 0.506, and colouring b cannot be read this way at all "
                     + "because its colour turns in eight cycles rather than four. The "
                     + "value shipped is S's, whose signal is the cleanest and whose "
-                    + "braid is the one drawn. On S itself the pitch and the colour band "
-                    + "cannot both hold: a pitch of 0.403 puts the band at 46.5 degrees "
-                    + "from across the braid, the band measured on the same photograph is "
-                    + "54.5, and 54.5 would need a pitch of 0.536. Neither is moved to "
-                    + "meet the other (the author, 2026-09-11)"
+                    + "braid is the one drawn. The colour band does not settle it either "
+                    + "way. Read as one place a cycle across the braid's middle, a pitch of "
+                    + "0.403 puts the band at 46.5 degrees from across the braid; the band "
+                    + "measured on S is 54.5, which would need 0.536. But the same "
+                    + "measurement on the drawn face swings from 17.5 to 63.0 degrees as "
+                    + "the braid is turned about its axis (54.5 and 55.5 at two of sixteen "
+                    + "turns), and a photograph shows one turn only. No turn matches the "
+                    + "photograph's shortest step (+36.0; the nearest drawn is +34.1) and "
+                    + "its band (+54.5) at once (the author, 2026-09-11)"
             ),
             "half a thread over the braid's radius": BraidMeasurement(
                 Double(crestHeightRatio),
