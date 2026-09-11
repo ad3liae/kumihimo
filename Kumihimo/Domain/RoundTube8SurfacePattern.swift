@@ -51,7 +51,8 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// The cells, as strand segments in unwrapped surface coordinates: `x` runs
     /// round the braid in turns, `y` runs along it in cycles. `x` is allowed past
     /// 0 and 1 — the surface is a cylinder — though a cell stands still and so
-    /// never reaches past its own column.
+    /// never reaches past its own column. `y` goes below 0 for the first row's
+    /// cells, which begin in the repeat before.
     let surface: BraidStrandSurface
     /// Cycles to one repeat: how many rows before the whole thing comes round
     /// again. **Worked out by braiding**, not counted here.
@@ -182,27 +183,27 @@ enum RoundTube8SurfacePatternGenerator {
                 let middle = (Float(slot) + 0.5) * columnWidth
                 let start = Float(row) - 1 + phase
                 let end = Float(row) + phase
-                // The first row's cells began in the repeat before this one. They
-                // are cut at the tile's edge and the part below it is laid at the
-                // top, where the next repeat's copy of the same cell would be, so
-                // the tile keeps a flat end and joins itself.
-                let spans = start < 0
-                    ? [(Float(0), end), (start + Float(rows), Float(rows))]
-                    : [(start, end)]
-                for (from, to) in spans {
-                    segments.append(BraidStrandSegment(
-                        threadPosition: course.threadPosition,
-                        colorID: colour,
-                        // **Nothing crosses**, so there is no side of a crossing to
-                        // take. Every cell says the same thing rather than
-                        // pretending to an order the surface does not have.
-                        layer: .over,
-                        centerlineStart: SIMD2(middle, from * rowHeight),
-                        centerlineEnd: SIMD2(middle, to * rowHeight),
-                        startHalfWidth: SIMD2(columnWidth / 2, 0),
-                        endHalfWidth: SIMD2(columnWidth / 2, 0)
-                    ))
-                }
+                // **The first row's cells begin in the repeat before this one, and
+                // are drawn from there** — nothing is cut at the tile's edge. The
+                // phase is one constant added to a whole lane, so the lane stays
+                // exactly one repeat long and its last cell ends where the next
+                // repeat's first begins; what hangs past an end is the frame's to
+                // crop, or the next tile's to meet. Cutting it at the edge instead
+                // put a cell boundary in every lane at the same place, once a
+                // repeat: a line down the card (Task 033), the same mistake Task
+                // 030 found in the flat braid.
+                segments.append(BraidStrandSegment(
+                    threadPosition: course.threadPosition,
+                    colorID: colour,
+                    // **Nothing crosses**, so there is no side of a crossing to
+                    // take. Every cell says the same thing rather than pretending
+                    // to an order the surface does not have.
+                    layer: .over,
+                    centerlineStart: SIMD2(middle, start * rowHeight),
+                    centerlineEnd: SIMD2(middle, end * rowHeight),
+                    startHalfWidth: SIMD2(columnWidth / 2, 0),
+                    endHalfWidth: SIMD2(columnWidth / 2, 0)
+                ))
             }
         }
 

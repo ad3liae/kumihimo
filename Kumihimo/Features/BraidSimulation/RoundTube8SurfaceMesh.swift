@@ -6,9 +6,7 @@ struct RoundTube8SurfaceMeshData: Sendable {
     let normals: [SIMD3<Float>]
     let tangents: [SIMD3<Float>]
     let bitangents: [SIMD3<Float>]
-    /// Cell-local: `x` runs 0...1 along the cell, `y` 0...1 across it. **A cell
-    /// cut at the tile's edge keeps its own share of the `x` range** in each of
-    /// its two pieces, so the stripes run on across the join.
+    /// Cell-local: `x` runs 0...1 along the cell, `y` 0...1 across it.
     let textureCoordinates: [SIMD2<Float>]
     /// Triangle indices per thread colour. One material each.
     let colorGroups: [ThreadColorID: [UInt32]]
@@ -240,12 +238,10 @@ enum RoundTube8SurfaceMesh {
         var colorGroups = [ThreadColorID: [UInt32]]()
         var triangleSegments = [Int]()
 
-        let rowHeight = 1 / Float(pattern.rowCount)
         for repeatIndex in 0..<patternRepeatCount {
             let base = -tileLength / 2 + Float(repeatIndex) * repeatLength
             for (segmentIndex, segment) in pattern.surface.segments.enumerated() {
                 let first = UInt32(positions.count)
-                let stripeRange = Self.stripeRange(of: segment, rowHeight: rowHeight)
                 for alongStep in 0...alongSubdivisions {
                     let along = Float(alongStep) / Float(alongSubdivisions)
                     for acrossStep in 0...acrossSubdivisions {
@@ -260,11 +256,7 @@ enum RoundTube8SurfaceMesh {
                         normals.append(frame.normal)
                         tangents.append(frame.tangent)
                         bitangents.append(frame.bitangent)
-                        textures.append(SIMD2(
-                            stripeRange.lowerBound
-                                + (stripeRange.upperBound - stripeRange.lowerBound) * along,
-                            sample
-                        ))
+                        textures.append(SIMD2(along, sample))
                     }
                 }
 
@@ -299,26 +291,6 @@ enum RoundTube8SurfaceMesh {
             rowCount: pattern.rowCount
         )
         return isConsistent(mesh) ? mesh : nil
-    }
-
-    /// The part of its cell's stripe map a segment carries.
-    ///
-    /// A cell is one cycle long and carries the whole map. **A cell that began in
-    /// the repeat before is cut at the tile's edge** (`RoundTube8SurfacePattern`):
-    /// the piece at the bottom of the tile is the top of that cell, and the piece
-    /// laid at the top of the tile is its start. Each keeps its own share, so the
-    /// top piece of one tile runs on into the bottom piece of the next — which is
-    /// the same cell — and the stripes do not jump at the join. Given the whole
-    /// map instead, both pieces squeezed a full cell's stripes into part of one,
-    /// and the join showed as a seam across every lane.
-    static func stripeRange(of segment: BraidStrandSegment, rowHeight: Float) -> ClosedRange<Float> {
-        let span = segment.centerlineEnd.y - segment.centerlineStart.y
-        let tolerance: Float = 1e-5
-        guard span < rowHeight - tolerance else { return 0...1 }
-        let share = max(0, min(1, span / rowHeight))
-        if segment.centerlineStart.y < tolerance { return (1 - share)...1 }
-        if segment.centerlineEnd.y > 1 - tolerance { return 0...share }
-        return 0...1
     }
 
     // MARK: - The surface

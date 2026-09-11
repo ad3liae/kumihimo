@@ -306,10 +306,12 @@ struct BraidOrientationTests {
         let sides = [SIMD3<Float>(0, 0, -1), SIMD3(0, 0, 1), SIMD3(0, -1, 0), SIMD3(0, 1, 0)]
         for drawer in ["flat sixteen", "round eight"] {
             let mesh = try Self.mesh(drawer)
-            let tileEnd = mesh.positions.map { abs($0.x) }.max() ?? 0
             for look in sides {
+                // Clear of the tile's ends by fifteen per cent of its half-length,
+                // as the opacity audit keeps: more than the one cycle a lane of the
+                // eight-thread braid can stop short of its tile's end.
                 let view = CulledView(positions: mesh.positions, indices: mesh.indices,
-                                      tileEndX: tileEnd, looking: look)
+                                      tileEndX: mesh.tileEnd, looking: look)
                 #expect(view.rays > 5_000)
                 #expect(view.background == 0 && view.deeper == 0,
                         "\(drawer) looking \(look): \(view.background) background, \(view.deeper) behind, of \(view.rays)")
@@ -322,8 +324,7 @@ struct BraidOrientationTests {
             turnedRound.swapAt(corner + 1, corner + 2)
         }
         let control = CulledView(positions: eight.positions, indices: turnedRound,
-                                 tileEndX: eight.positions.map { abs($0.x) }.max() ?? 0,
-                                 looking: SIMD3(0, 0, -1))
+                                 tileEndX: eight.tileEnd, looking: SIMD3(0, 0, -1))
         #expect(control.background + control.deeper > control.rays * 9 / 10)
     }
 
@@ -422,6 +423,10 @@ struct BraidOrientationTests {
     private struct Mesh {
         let positions: [SIMD3<Float>]
         let indices: [UInt32]
+        /// Half the tile's own length. **Not the farthest vertex**: the
+        /// eight-thread braid's lanes each begin where their thread arrived, so a
+        /// single tile's ends are staggered by design and the next tile meets them.
+        let tileEnd: Float
         /// Per triangle: a wall that seals a crossing. Only one drawer has walls.
         let walls: [Bool]?
         /// Per triangle: where on the braid it is, for saying where a fault lies.
@@ -447,7 +452,8 @@ struct BraidOrientationTests {
                     }
                 }
             }
-            return Mesh(positions: mesh.positions, indices: indices, walls: nil, labels: labels)
+            return Mesh(positions: mesh.positions, indices: indices,
+                        tileEnd: Flat16SurfaceMesh.defaultLength / 2, walls: nil, labels: labels)
         case "round sixteen":
             let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(
                 assignments: BraidMethodCatalog.maruGenji16Colouring))
@@ -458,7 +464,8 @@ struct BraidOrientationTests {
             let walls = stride(from: 0, to: indices.count - 2, by: 3).map {
                 mesh.vertexIsCrossingWall[Int(indices[$0])]
             }
-            return Mesh(positions: mesh.positions, indices: indices, walls: walls, labels: nil)
+            return Mesh(positions: mesh.positions, indices: indices,
+                        tileEnd: mesh.length / 2, walls: walls, labels: nil)
         default:
             let stand = BraidMethodCatalog.stand8
             let recipe = BraidMethodCatalog.yatsuKongoS8Recipe
@@ -469,7 +476,7 @@ struct BraidOrientationTests {
             ))
             let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: pattern))
             return Mesh(positions: mesh.positions, indices: mesh.allTriangleIndices,
-                        walls: nil, labels: nil)
+                        tileEnd: mesh.length / 2, walls: nil, labels: nil)
         }
     }
 }

@@ -8,6 +8,11 @@ import SwiftUI
 /// strand segment spans — one column wide and one cycle long, square to the
 /// braid, because a cell is a thread standing still.
 ///
+/// **A first-row cell hangs past the start of its repeat** — its thread arrived
+/// in the cycle before — and the frame crops what hangs past the card, as it
+/// crops every overhanging repeat. Nothing is cut at a repeat's edge, so no cell
+/// boundary lines up across all eight lanes (Task 033).
+///
 /// **The diagonal on the card is the colour and not the shape.** Every cell is
 /// upright; what walks round the braid is which thread is standing where, one
 /// place a cycle.
