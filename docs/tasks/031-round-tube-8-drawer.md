@@ -315,3 +315,13 @@ UI テストは含めない（Task 015）。番人 `sh Scripts/check-braiding-is
   density の比較は判定が出てからのほうがよい
 - **実機では見ていない**（シミュレータのみ）
 
+
+### Task 032 からの追記（2026-09-11）
+
+- **テスト 6（先後を入れ替えてもメッシュが変わらないこと）は、到着の位相を入れると落ちる。**
+  手順表が刷られた1手の2本を別々の瞬間に持つので、対の中の順が各場所の到着を 1/9 サイクル動かす。
+  **止め条件どおり止め**、実装は別ブランチ `task032-arrival-phase-awaiting-ruling` に置いた
+  （`docs/tasks/032-yatsu-kongo-solid-to-the-photograph.md`「(1) 到着の位相: 入れたが、止めた」）
+- **`theColourDiagonalIsRecordedAgainstThePhotographs` は大きさしか見ていなかった。**描いた S の色の帯は
+  写真の S と**逆向き**に傾いている（写真 +54.5°、描いた −52.0°。この task の `colour_angle` を手を加えずに
+  描いた面へ掛けた）。Z も逆。**どこが逆かは判定待ちで、直していない**
