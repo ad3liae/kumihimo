@@ -19,10 +19,11 @@ import os
 ///
 /// - **The shadow at a crossing**, for the reason the mesh borrows nothing about
 ///   crossings: on this braid nothing crosses.
-/// - **Any shading at the ends of a cell.** Where a cell ends along the braid is
-///   where the next thread arrives, and when that is waits on the arrival phase
-///   (Task 032). Shading the ends before then would put a dark ring round the
-///   braid at every cycle, which no photograph shows.
+/// The ends of a cell are shaded as its sides are (Task 033): a cell ends where
+/// the next thread arrives at its place, and that is a trough between two
+/// threads like the one between two lanes. It was held back until the arrival
+/// phase staggered the ends — without it they lined up and would have drawn a
+/// dark ring round the braid at every cycle — and it no longer does.
 ///
 /// **One set of maps serves every cell.** The sixteen-thread tube needs a set per
 /// twist group because its chevrons shear the strand frame two ways; a cell here
@@ -160,17 +161,19 @@ enum RoundTube8StrandTexture {
 
     // MARK: - The shading
 
-    /// The valley shading at one place across a cell, `0...1` over the bitmap's
-    /// rows. **The sixteen-thread tube's figures**, for the trough between two
-    /// ridges. It does not depend on where along the cell the place is: see
-    /// above for why the ends are not shaded.
-    static func shading(across row: Float) -> Float {
+    /// The valley shading at one place in a cell: `across` 0...1 over the
+    /// bitmap's rows, `along` 0...1 down the cell. **The sixteen-thread tube's
+    /// figures, on all four sides** — the trough between two lanes, and the
+    /// trough where one thread's end meets the next thread's at the same place.
+    /// The flat braid shades its stitches the same way
+    /// (`Flat16StitchTexture.shading`), and it adds no figure of its own.
+    static func shading(across row: Float, along: Float) -> Float {
         let offset = RoundTube16StrandTextureFactory.crossSectionOffset(forRow: row)
-        return mix(
-            RoundTube16StrandTextureFactory.valleyOcclusion,
-            1,
-            smoothstep(0, RoundTube16StrandTextureFactory.valleyOcclusionWidth, 1 - abs(offset))
-        )
+        let depth = RoundTube16StrandTextureFactory.valleyOcclusion
+        let reach = RoundTube16StrandTextureFactory.valleyOcclusionWidth
+        let sides = mix(depth, 1, smoothstep(0, reach, 1 - abs(offset)))
+        let ends = mix(depth, 1, smoothstep(0, reach, 1 - abs(2 * along - 1)))
+        return sides * ends
     }
 
     /// The shading, darkened a little where a stripe turns away — the
@@ -181,7 +184,7 @@ enum RoundTube8StrandTexture {
             let offset = RoundTube16StrandTextureFactory.crossSectionOffset(forRow: row)
             let tint = 1 - RoundTube16StrandTextureFactory.twistTint
                 * (1 - cos(twist.coefficients.phase(along: along, across: offset))) / 2
-            return linearToSRGB(shading(across: row) * tint)
+            return linearToSRGB(shading(across: row, along: along) * tint)
         }
     }
 

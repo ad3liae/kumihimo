@@ -317,7 +317,7 @@ struct RoundTube8SurfaceTests {
         let s = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
         // Sixty-four cells a repeat, two repeats, and thirteen by eleven samples
         // over each: 128 * 143.
-        // **Changed four times, on purpose.** It was `0x03aa_f419_737c_1859` while a
+        // **Changed five times, on purpose.** It was `0x03aa_f419_737c_1859` while a
         // cell was drawn stretched across the three places of the carry; a cell is
         // the thread standing still, so every cell is square to the braid. Then
         // `0xa2b9_f4b5_1eab_3079` while the ring was laid out as `(cos, sin)`, the
@@ -327,8 +327,12 @@ struct RoundTube8SurfaceTests {
         // first row's cells were cut at the tile's edge, which put a cell boundary
         // in every lane at the same place once a repeat (Task 033): they now begin
         // in the repeat before and are drawn whole, so the count is back to 18,304.
+        // Then `0x8fd5_91a2_0cdd_bf39` while a lane was one unbroken ridge: every
+        // thread's end now rounds down to the valley floor where the next thread
+        // at the same place begins, and the samples along a cell are packed
+        // towards its ends (Task 033). **The vertex count did not change.**
         #expect(s.positions.count == 18_304)
-        #expect(BraidMeshHashTests.hash(s.positions) == 0x8fd5_91a2_0cdd_bf39)
+        #expect(BraidMeshHashTests.hash(s.positions) == 0x2c96_1f1d_a3f7_dad9)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
@@ -459,19 +463,72 @@ struct RoundTube8SurfaceTests {
 
     // MARK: - Stage 3 of Task 032: the stripes and the shading
 
-    /// **The shading is the sixteen-thread tube's valley and nothing else.** It
-    /// is 1 on the crest and the borrowed figure at both edges, and it has no
-    /// shadow at a crossing — nothing crosses — and none at the ends of a cell,
-    /// which wait on the arrival phase.
+    /// **The shading is the sixteen-thread tube's valley, on all four sides of a
+    /// cell** (Task 033): across it, where two lanes meet, and along it, where one
+    /// thread's end meets the next. No shadow at a crossing — nothing crosses.
     @Test func theShadingIsTheSixteenThreadTubesValley() {
         let valley = RoundTube16StrandTextureFactory.valleyOcclusion
-        #expect(abs(RoundTube8StrandTexture.shading(across: 0.5) - 1) < 0.001)
-        #expect(abs(RoundTube8StrandTexture.shading(across: 0) - valley) < 0.001)
-        #expect(abs(RoundTube8StrandTexture.shading(across: 1) - valley) < 0.001)
-        for row in stride(from: Float(0), through: 1, by: 0.05) {
-            #expect(abs(RoundTube8StrandTexture.shading(across: row)
-                - RoundTube8StrandTexture.shading(across: 1 - row)) < 0.000_1)
+        #expect(abs(RoundTube8StrandTexture.shading(across: 0.5, along: 0.5) - 1) < 0.001)
+        #expect(abs(RoundTube8StrandTexture.shading(across: 0, along: 0.5) - valley) < 0.001)
+        #expect(abs(RoundTube8StrandTexture.shading(across: 1, along: 0.5) - valley) < 0.001)
+        #expect(abs(RoundTube8StrandTexture.shading(across: 0.5, along: 0) - valley) < 0.001)
+        #expect(abs(RoundTube8StrandTexture.shading(across: 0.5, along: 1) - valley) < 0.001)
+        for value in stride(from: Float(0), through: 1, by: 0.05) {
+            #expect(abs(RoundTube8StrandTexture.shading(across: value, along: 0.37)
+                - RoundTube8StrandTexture.shading(across: 1 - value, along: 0.37)) < 0.000_1)
+            #expect(abs(RoundTube8StrandTexture.shading(across: 0.37, along: value)
+                - RoundTube8StrandTexture.shading(across: 0.37, along: 1 - value)) < 0.000_1)
         }
+    }
+
+    /// **A cell ends in a groove, and the thread's end is round** (Task 033). The
+    /// ring at either end of a cell lies on the valley floor, where the next
+    /// thread along the same place begins; the middle of the cell stands at the
+    /// crest; and each cell ends on the ring the next one in its lane starts
+    /// from, so the lane is a run of threads, not one bar.
+    @Test func aCellEndsInAGrooveAndItsEndIsRound() throws {
+        let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
+        let mesh = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
+        let along = RoundTube8SurfaceMesh.defaultAlongSubdivisions
+        let across = RoundTube8SurfaceMesh.defaultAcrossSubdivisions
+        let perCell = (along + 1) * (across + 1)
+        func radius(_ index: Int) -> Float {
+            let point = mesh.positions[index]
+            return (point.y * point.y + point.z * point.z).squareRoot()
+        }
+        for cell in 0..<(mesh.positions.count / perCell) {
+            let first = cell * perCell
+            for sample in 0...across {
+                #expect(abs(radius(first + sample) - mesh.valleyFloorRadius) < 1e-4)
+                #expect(abs(radius(first + along * (across + 1) + sample) - mesh.valleyFloorRadius) < 1e-4)
+            }
+            #expect(abs(radius(first + (along / 2) * (across + 1) + across / 2) - mesh.crestRadius) < 1e-3)
+        }
+
+        // Each cell ends on the ring the next one in its lane begins on.
+        func ring(_ first: Int, row: Int) -> Set<[Int32]> {
+            Set((0...across).map { sample in
+                let point = mesh.positions[first + row * (across + 1) + sample]
+                return [Int32((point.x * 4096).rounded()), Int32((point.y * 4096).rounded()),
+                        Int32((point.z * 4096).rounded())]
+            })
+        }
+        let cells = drawn.surface.segments.count
+        var met = 0
+        for repeatIndex in 0..<mesh.patternRepeatCount {
+            for (index, segment) in drawn.surface.segments.enumerated() {
+                guard let next = drawn.surface.segments.firstIndex(where: {
+                    abs($0.centerlineStart.x - segment.centerlineStart.x) < 1e-5
+                        && abs($0.centerlineStart.y - segment.centerlineEnd.y) < 1e-5
+                }) else { continue }
+                let mine = (repeatIndex * cells + index) * perCell
+                let theirs = (repeatIndex * cells + next) * perCell
+                #expect(ring(mine, row: along) == ring(theirs, row: 0))
+                met += 1
+            }
+        }
+        // Seven joins a lane inside each repeat, eight lanes, two repeats.
+        #expect(met == 7 * 8 * mesh.patternRepeatCount)
     }
 
     /// **The stripes lie at the declared slant to the thread's run, and come back

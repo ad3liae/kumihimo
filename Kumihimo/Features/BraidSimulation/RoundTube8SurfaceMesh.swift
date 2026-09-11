@@ -55,6 +55,15 @@ struct RoundTube8SurfaceMeshData: Sendable {
 /// is everything about crossings — the lift, the dip, the lap, the walls that
 /// seal a step — because on this braid nothing crosses.
 ///
+/// **A cell ends, and a thread's end is round** (Task 033). The places along a
+/// lane are held by one thread after another, so a lane is not one ridge but a
+/// run of them, each falling to the valley floor at its ends and meeting the
+/// next there. The end is the crest's own semi-ellipse turned round the end
+/// (`crestProfile` again, over the thread's own half-width): as round as its
+/// side, and no new number. This is what the model already said — a thread
+/// stands at its place from its arrival to the next thread's — and had not been
+/// drawn, as the arrival phase had not.
+///
 /// **The fibre stripes and the valley shading are borrowed too**, from the
 /// sixteen-thread tube's maps (`RoundTube8StrandTexture`), and only they are set
 /// by eye; none of them moves a vertex.
@@ -188,8 +197,9 @@ enum RoundTube8SurfaceMesh {
     static let fibreStripesAcrossThreadWidth: Float = 8
 
     /// Samples down one cell and across it. Across resolves the round ridge; along
-    /// resolves the curve of the cylinder the cell is wrapped onto, which matters
-    /// here because a cell reaches a long way round.
+    /// resolves the round ends, **packed towards both ends the way the across
+    /// samples are packed towards the edges** (`crossSectionOffset`), because that
+    /// is where the surface turns fastest.
     static let defaultAlongSubdivisions = 12
     static let defaultAcrossSubdivisions = 10
     static let minimumAlongSubdivisions = 4
@@ -243,7 +253,9 @@ enum RoundTube8SurfaceMesh {
             for (segmentIndex, segment) in pattern.surface.segments.enumerated() {
                 let first = UInt32(positions.count)
                 for alongStep in 0...alongSubdivisions {
-                    let along = Float(alongStep) / Float(alongSubdivisions)
+                    let along = (1 + crossSectionOffset(
+                        forSample: Float(alongStep) / Float(alongSubdivisions)
+                    )) / 2
                     for acrossStep in 0...acrossSubdivisions {
                         let sample = Float(acrossStep) / Float(acrossSubdivisions)
                         let across = crossSectionOffset(forSample: sample)
@@ -327,9 +339,17 @@ enum RoundTube8SurfaceMesh {
         repeatLength: Float
     ) -> (position: SIMD3<Float>, normal: SIMD3<Float>,
           tangent: SIMD3<Float>, bitangent: SIMD3<Float>) {
+        // **The thread's end is round**: within one half-width of either end the
+        // crest falls to the floor as it does towards the lane's edge, the
+        // semi-ellipse turned round the end. The half-width is the crest's own.
+        let cellLength = repeatLength * (segment.centerlineEnd.y - segment.centerlineStart.y)
+        let halfWidth = 2 * .pi * radius * segment.startHalfWidth.x
         func at(_ along: Float, _ across: Float) -> SIMD3<Float> {
             let surface = segment.surfacePoint(along: along, across: across)
-            let height = floor + (radius - floor) * crestProfile(across: across)
+            let fromEnd = min(along, 1 - along) * cellLength
+            let end = halfWidth > 0 ? max(0, 1 - fromEnd / halfWidth) : 0
+            let height = floor + (radius - floor)
+                * crestProfile(across: (across * across + end * end).squareRoot())
             let angle = 2 * .pi * surface.x
             // **The stand's own placement, seen from the braiding point**: `(sin,
             // cos)`, as `BraidStands.round` puts a position on the stand seen from
