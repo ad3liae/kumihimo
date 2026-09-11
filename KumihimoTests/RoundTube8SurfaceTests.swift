@@ -91,9 +91,10 @@ struct RoundTube8SurfaceTests {
         // Place p becomes place 9 - p. A place spans the angles from
         // 2*pi*(p-1)/8 to 2*pi*p/8, and negating the angle sends that span to the
         // span of 9 - p exactly — **so the mirror is simply the angle reversed**,
-        // with no turn to line the two numberings up.
+        // with no turn to line the two numberings up. The ring is laid out as
+        // `(sin, cos)` in `y` and `z`, so reversing the angle is `y` to `-y`.
         func mirrored(_ point: SIMD3<Float>) -> SIMD3<Float> {
-            SIMD3(point.x, point.y, -point.z)
+            SIMD3(point.x, -point.y, point.z)
         }
         // **Compared colour by colour**, which is the whole of the claim now. A
         // cell stands still, so both braids are the same eight straight lanes and
@@ -186,12 +187,15 @@ struct RoundTube8SurfaceTests {
         let s = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
         // Sixty-four cells a repeat, two repeats, and thirteen by eleven samples
         // over each: 128 * 143.
-        // **Changed once, on purpose.** It was `0x03aa_f419_737c_1859` while a cell
+        // **Changed twice, on purpose.** It was `0x03aa_f419_737c_1859` while a cell
         // was drawn stretched across the three places of the carry; a cell is the
-        // thread standing still, so every cell is now square to the braid. **The
-        // vertex count did not change** — the same surface, straightened.
+        // thread standing still, so every cell is square to the braid. Then
+        // `0xa2b9_f4b5_1eab_3079` while the ring was laid out as `(cos, sin)`, the
+        // mirror of the stand's own `(sin, cos)` (Task 032, 2026-09-11): every
+        // vertex moved to its reflection. **The vertex count did not change either
+        // time.**
         #expect(s.positions.count == 18_304)
-        #expect(BraidMeshHashTests.hash(s.positions) == 0xa2b9_f4b5_1eab_3079)
+        #expect(BraidMeshHashTests.hash(s.positions) == 0x6834_c61f_818c_0af9)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
@@ -352,31 +356,30 @@ struct RoundTube8SurfaceTests {
         let slant = atan(perAlong / perAcross) * 180 / .pi
         #expect(abs(slant - abs(RoundTube8SurfaceMesh.fibreStripeAngleDegrees)) < 0.01)
 
-        // **The lean is the one the render was measured for.** With both terms of
-        // one sign, a line of one phase goes along the braid as it goes back round
-        // it — which on this mesh, read off a render, falls to the right with the
-        // braid lying across the view: the way four of the five photographed beans
-        // with a readable fibre lean. The photograph does not settle it.
+        // **The lean is the one the render was measured for.** With the two terms
+        // of opposite sign, a line of one phase goes along the braid as it goes on
+        // round it — which on this mesh, read off a render, falls to the right
+        // with the braid lying across the view: the way four of the five
+        // photographed beans with a readable fibre lean. The photograph does not
+        // settle it.
         #expect(RoundTube8SurfaceMesh.fibreStripeAngleDegrees > 0)
-        #expect((twist.coefficients.phasePerAlong > 0) == (twist.coefficients.phasePerAcross > 0))
+        #expect((twist.coefficients.phasePerAlong > 0) != (twist.coefficients.phasePerAcross > 0))
     }
 
     /// **The relief lights the same stripes the tint draws.** The normal map's
-    /// second channel runs along the normal crossed with the tangent; on this mesh
-    /// the bitangent runs the other way, so the gradient counts across against
-    /// the way the coefficients do. Found on a render, where the two had crossed
-    /// into a lattice.
+    /// second channel runs along the normal crossed with the tangent, and this
+    /// mesh's frame is right-handed, so that is its own bitangent and the gradient
+    /// counts across the way the coefficients do. While the ring was strung the
+    /// wrong way round the frame was left-handed, the two disagreed, and on a
+    /// render they crossed into a lattice.
     @Test func theReliefLightsTheStripesTheTintDraws() throws {
         let mesh = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
-        // Every vertex of the mesh has its bitangent against normal x tangent.
         for index in stride(from: 0, to: mesh.positions.count, by: 97) {
             let turned = cross(mesh.normals[index], mesh.tangents[index])
-            #expect(dot(turned, mesh.bitangents[index]) < 0, "vertex \(index)")
+            #expect(dot(turned, mesh.bitangents[index]) > 0, "vertex \(index)")
         }
         let twist = try #require(RoundTube8StrandTexture.twist)
-        // So the gradient's second channel has the sign opposite to the phase's
-        // own change across, and its first the same sign as the change along.
-        #expect((twist.normalizedPhaseGradient.y > 0) != (twist.coefficients.phasePerAcross > 0))
+        #expect((twist.normalizedPhaseGradient.y > 0) == (twist.coefficients.phasePerAcross > 0))
         #expect((twist.normalizedPhaseGradient.x > 0) == (twist.coefficients.phasePerAlong > 0))
     }
 

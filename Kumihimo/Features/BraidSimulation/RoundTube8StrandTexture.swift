@@ -109,11 +109,13 @@ enum RoundTube8StrandTexture {
     /// scaled the way the factory's normal map wants it.
     ///
     /// **The sign of the across term is this mesh's own, and which way it leans on
-    /// screen was measured, not reasoned.** Read off a render in the simulator —
+    /// screen is measured, not reasoned.** Read off a render in the simulator —
     /// the spectrum of a front lane, with everything that runs straight along the
-    /// braid taken out — a positive angle gives stripes at +14.7 degrees, falling
-    /// to the right with the braid lying across the view. An argument about the
-    /// frame had predicted the opposite.
+    /// braid taken out. It was +14.7 degrees, falling to the right with the braid
+    /// lying across the view, before Task 032 found the drawer drawing every
+    /// braid as its own mirror; putting the ring right turned the stripes over
+    /// with everything else, so this sign was turned with it to keep the lean
+    /// that had been measured, and the render was read again.
     ///
     /// **The photograph does not settle which way its fibre leans.** Of ten beans
     /// read the same way, five show a period the size of a fibre stripe; four of
@@ -130,15 +132,15 @@ enum RoundTube8StrandTexture {
         let along = 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameter
         let halfWidth = Float.pi / Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
         let phasePerAlong = -2 * .pi * stripesPerCell
-        let phasePerAcross = phasePerAlong * halfWidth * cosine / (along * sine)
+        let phasePerAcross = -phasePerAlong * halfWidth * cosine / (along * sine)
         // **The normal map's second channel runs along the normal crossed with the
         // tangent**, which is the way the sixteen-thread solve expresses it (its
-        // `acrossUnit`, the tangent turned a quarter turn). On this mesh the
-        // bitangent runs the way the angle round the braid grows, which is
-        // *against* that, so across is counted the other way here. Left as it
-        // was, the relief lit the mirror image of the stripes the tint and the
-        // roughness draw, and the two crossed into a lattice on the render.
-        let gradient = SIMD2<Float>(phasePerAlong / along, -phasePerAcross / halfWidth)
+        // `acrossUnit`, the tangent turned a quarter turn). This mesh's frame is
+        // right-handed, so that is its own bitangent and across is counted the
+        // same way as the coefficients count it. It was not, while the ring was
+        // strung the wrong way round: the relief then lit the mirror image of the
+        // stripes the tint drew until its sign was turned by hand.
+        let gradient = SIMD2<Float>(phasePerAlong / along, phasePerAcross / halfWidth)
         guard phasePerAcross.isFinite, gradient.x.isFinite, gradient.y.isFinite else {
             return nil
         }

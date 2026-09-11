@@ -310,7 +310,9 @@ enum RoundTube8SurfaceMesh {
     ///
     /// The normal is taken from the surface itself rather than assumed radial: a
     /// ridge falls away to the valley on both sides, and a shading that ignored
-    /// that would leave the grooves invisible.
+    /// that would leave the grooves invisible. **The frame is right-handed and its
+    /// normal points out of the braid**, so the triangles built on it wind outward
+    /// and the near side of the braid is drawn.
     static func frame(
         of segment: BraidStrandSegment,
         along: Float,
@@ -325,10 +327,20 @@ enum RoundTube8SurfaceMesh {
             let surface = segment.surfacePoint(along: along, across: across)
             let height = floor + (radius - floor) * crestProfile(across: across)
             let angle = 2 * .pi * surface.x
+            // **The stand's own placement, seen from the braiding point**: `(sin,
+            // cos)`, as `BraidStands.round` puts a position on the stand seen from
+            // above. The braiding point is at `+x` — later cycles are made nearer
+            // it — so looking back down the braid from there, `+y` is to the right
+            // and `+z` is up, which is the stand's east and north.
+            //
+            // It was `(cos, sin)` until Task 032, which is the same formula with
+            // the two turned round: **a mirror.** Every braid this drawer drew came
+            // out as its own reflection, and every triangle was wound facing into
+            // the braid (`BraidOrientationTests`).
             return SIMD3(
                 base + repeatLength * surface.y,
-                height * cos(angle),
-                height * sin(angle)
+                height * sin(angle),
+                height * cos(angle)
             )
         }
         let step: Float = 1e-3
@@ -337,9 +349,12 @@ enum RoundTube8SurfaceMesh {
         var bitangent = at(along, min(across + step, 1)) - at(along, max(across - step, -1))
         tangent = normalised(tangent)
         bitangent = normalised(bitangent)
-        var normal = normalised(cross(tangent, bitangent))
-        // Outward, away from the axis.
-        if dot(normal, SIMD3(0, position.y, position.z)) < 0 { normal = -normal }
+        // **Outward by construction**: along the braid towards the braiding point,
+        // then round it clockwise seen from there, and the right hand points out.
+        // Nothing turns the normal round afterwards. Something did until Task 032,
+        // at every one of the 18,304 vertices, because the ring was strung the
+        // other way round.
+        let normal = normalised(cross(tangent, bitangent))
         return (position, normal, tangent, bitangent)
     }
 
