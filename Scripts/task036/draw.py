@@ -28,6 +28,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "task021"))
 sys.path.insert(0, os.path.join(HERE, "..", "task022"))
 sys.path.insert(0, os.path.join(HERE, "..", "task024"))
+import figures
 import read_dump
 import render
 import stand as st
@@ -84,6 +85,13 @@ def main():
     ap.add_argument("--pixels", type=int, default=8)
     ap.add_argument("--free", action="store_true",
                     help="draw the settling beads too, not only what the bundle holds")
+    ap.add_argument("--sections", type=int, default=3,
+                    help="how many slices to cut across, one diameter apart, from the\n"
+                         "top of what is there downwards. **022's figures.py cuts at\n"
+                         "1 / 3 / 5 d below the braiding point**, which is right while the\n"
+                         "braid is sent back to that datum every hand; under the two\n"
+                         "weights the braid stands where it stands, so the slices are\n"
+                         "taken from it and the depths are printed")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
 
@@ -111,7 +119,15 @@ def main():
     for name, direction in (("face-front", -thin), ("face-back", thin),
                             ("edge-left", -wide), ("edge-right", wide)):
         one(ways, direction, args.out, name, args.pixels)
-    print("  wrote %d views into %s" % (len(seens) + 5, args.out))
+    cfg = {"bundle": stand.bundle_radius}
+    cut = []
+    for k in range(args.sections):
+        at = float(p[:, 2].max()) - 0.5 - k
+        figures.across(p, thread_of, args.out, cfg, at, "hand")
+        cut.append(at)
+    print("  cut across at z = %s (one diameter apart, from the top of what is there)"
+          % ", ".join("%+.2f" % at for at in cut))
+    print("  wrote %d views into %s" % (len(seens) + 5 + len(cut), args.out))
     return 0
 
 

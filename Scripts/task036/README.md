@@ -26,8 +26,9 @@ cone and no two threads touched (022-3). Here that constant is not used at all:
     settle.py   balancing: 022's `taut.tighten` plus the bundle's step and the
                 thread crossing the rim in both directions
     run.py      the harness: seed, carry, balance, take in, record
-    draw.py     paints the braid with `Scripts/task024/render.py` and lays the views
-                out side by side. Reads nothing
+    measure.py  (a), (b) and (d), every figure computed the way 022-3 computed it
+    draw.py     paints the braid with `Scripts/task024/render.py`, lays the views out
+                side by side, and cuts it across. Reads nothing
 
 Borrowed and not rewritten: `Scripts/task022/stand.py` (stand, seed, rim points,
 bundle radius), `Scripts/task022/braid.py` (`carry`, `tops`, `note_crossings`,
@@ -44,10 +45,18 @@ apart), `Scripts/task022/face.py`, `crossings.py`, `figures.py`, `compare_seed.p
     python3 Scripts/task036/run.py --cycles 2 --maru --dumps .build/task036-dumps/maru/c \
             --record .build/task036-dumps/maru/record.tsv
 
+    python3 Scripts/task036/measure.py --dump .build/task036-dumps/hira/c-hand-48.txt \
+            --braid hira --record .build/task036-dumps/hira/record.tsv
     python3 Scripts/task022/figures.py --dumps .build/task036-dumps/hira/c --hands 48 \
             --out .build/task036-figures/hira --across --unrolled
     python3 Scripts/task036/draw.py --dump .build/task036-dumps/hira/c-hand-48.txt \
             --out .build/task036-figures/hira/painted
+
+022's `figures.py` cuts across at 1 / 3 / 5 d **below the braiding point** and opens the
+face out below it, which is where the braid is when every hand sends it back to that
+datum. **Under the two weights the braid stands where the balance puts it**, so those
+two figures can come out empty; `draw.py` cuts across at the braid's own depths and
+prints them, and `--free` draws the settling zone as well as what the bundle holds.
 
 The seed alone is worth running on its own: **it is built at the depth where
 `sum sin(angle) = W / T`, so a sound implementation should barely move it.** It

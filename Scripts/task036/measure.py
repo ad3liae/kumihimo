@@ -125,7 +125,9 @@ def main():
     ways, held, header = paths(args.dump)
     stand = st.Stand()
     braid = np.concatenate([w[h] for w, h in zip(ways, held)])
-    shoulder = float(np.mean([w[h][-1][2] for w, h in zip(ways, held) if h.any()]))
+    # the dump runs rim -> junction -> deepest, so the first held bead of a thread is
+    # where it leaves the bundle (the shoulder) and the last one is the deepest
+    shoulder = float(np.mean([w[h][0][2] for w, h in zip(ways, held) if h.any()]))
     deepest = float(braid[:, 2].min())
     print("%s  %d beads in the braid, %d in all" % (os.path.basename(args.dump),
                                                     len(braid), sum(len(w) for w in ways)))
