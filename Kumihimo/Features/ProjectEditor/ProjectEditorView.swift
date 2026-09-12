@@ -251,12 +251,24 @@ struct ProjectEditorView: View {
     private func preview(for preset: BraidPreset, isEmbedded: Bool) -> some View {
         if let recipe = BraidMethodCatalog.recipe(for: preset.id) {
             VStack(spacing: 8) {
-                Picker("", selection: $previewShowsFigure) {
-                    Text(BraidPatternStrings.threeDimensions).tag(false)
-                    Text(BraidPatternStrings.twoDimensions).tag(true)
+                HStack(spacing: 12) {
+                    Picker("", selection: $previewShowsFigure) {
+                        Text(BraidPatternStrings.threeDimensions).tag(false)
+                        Text(BraidPatternStrings.twoDimensions).tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+
+                    // **The way out, when the drawing does not bring its own.** Shown
+                    // full screen, the figure and the empty space a braid nothing draws
+                    // have no navigation bar to dismiss from.
+                    if !isEmbedded,
+                       BraidPreviewForFamily.needsItsOwnWayOut(
+                        recipe: recipe, showingFigure: previewShowsFigure
+                       ) {
+                        Button(ProjectEditorStrings.dismiss, action: closePreview)
+                    }
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
                 .padding(.horizontal)
 
                 if previewShowsFigure {
@@ -280,7 +292,8 @@ struct ProjectEditorView: View {
                         controller: previewController,
                         isEmbedded: isEmbedded,
                         closeAction: closePreview,
-                        nothingDrawsIt: ProjectEditorStrings.nothingDrawsThisBraid
+                        nothingDrawsIt: ProjectEditorStrings.nothingDrawsThisBraid,
+                        prototypeNotice: preset.prototypeNotice
                     )
                 }
             }

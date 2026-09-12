@@ -6,11 +6,29 @@ import Testing
 /// braid's name.
 @MainActor
 struct BraidScreenChoosesByFamilyTests {
+    /// **Every shipped preset has a recipe and a stand.** A drawer is a separate
+    /// question, and Task 008's eight-thread braids answer it "none" -- so what is
+    /// promised here is that the braid works out, not that anything draws it.
     @Test(arguments: BraidPresetCatalog.presets)
-    func everyShippedPresetHasARecipeAndADrawer(preset: BraidPreset) throws {
+    func everyShippedPresetHasARecipeAndAStand(preset: BraidPreset) throws {
         let recipe = try #require(BraidMethodCatalog.recipe(for: preset.id))
         #expect(recipe.id == preset.id.rawValue)
-        #expect(BraidFamilyDrawing.drawer(for: recipe, on: BraidMethodCatalog.stand16) != nil)
+        let stand = try #require(BraidMethodCatalog.stand(for: recipe))
+        #expect(preset.supportedThreadCounts == [stand.positionCount])
+        #expect(recipe.worked(on: stand) != nil)
+    }
+
+    /// **A drawer comes from the family and from nowhere else**, and every shipped
+    /// preset's family now has one: flat sixteen, a tube of sixteen, a tube of
+    /// eight (Task 031). A braid of a family nobody draws still reaches the empty
+    /// space instead, which `aBraidNothingDrawsGetsNoDrawer` holds.
+    @Test(arguments: BraidPresetCatalog.presets)
+    func theDrawerAPresetGetsIsItsFamilysOwn(preset: BraidPreset) throws {
+        let recipe = try #require(BraidMethodCatalog.recipe(for: preset.id))
+        let stand = try #require(BraidMethodCatalog.stand(for: recipe))
+        let worked = try #require(recipe.worked(on: stand))
+        #expect(BraidFamilyDrawing.drawer(for: recipe)
+                == BraidFamily.family(of: worked.derivation))
     }
 
     @Test func theFamilyChosenIsTheRightOneForEachPreset() throws {
@@ -76,6 +94,21 @@ struct BraidScreenChoosesByFamilyTests {
         #expect(BraidFamilyDrawing.drawer(for: secondFlat, on: BraidMethodCatalog.stand16) == nil)
         // And a preset with no recipe at all.
         #expect(BraidMethodCatalog.recipe(for: BraidPresetID(rawValue: "not-a-braid")) == nil)
+    }
+
+    /// **A full-screen preview always has a way out.** The solid drawers dismiss
+    /// from a navigation bar of their own; the figure has no bar, and neither has
+    /// the empty space a braid nothing draws, so the screen puts a dismiss button
+    /// beside the picker for those two. Task 008's eight-thread braids are the
+    /// first shipped braids that reach the second case.
+    @Test(arguments: BraidPresetCatalog.presets)
+    func aPreviewShownOnItsOwnCanAlwaysBeLeft(preset: BraidPreset) throws {
+        let recipe = try #require(BraidMethodCatalog.recipe(for: preset.id))
+        // The figure never has a bar of its own.
+        #expect(BraidPreviewForFamily.needsItsOwnWayOut(recipe: recipe, showingFigure: true))
+        // Solid: only when a drawer draws it does the drawer's own bar carry one.
+        #expect(BraidPreviewForFamily.needsItsOwnWayOut(recipe: recipe, showingFigure: false)
+                == (BraidFamilyDrawing.drawer(for: recipe) == nil))
     }
 
     /// The notice each braid carries moved from a branch in the view onto the

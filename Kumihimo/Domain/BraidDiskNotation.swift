@@ -33,8 +33,42 @@ struct BraidDiskNotation: Equatable, Sendable {
     /// move to a line, read down the first column and then down the next, and that
     /// order is the order of the hands. So every two threads have a first and a
     /// second, and this number is kept only to name the generated steps after the
-    /// printed step they belong to.
+    /// printed step they belong to — **for a table read off book C**. A braid with
+    /// no book C figure is read the other way (`stepReading`).
     let threadsPerStep: Int
+
+    /// Whether a printed step is one instant, or as many instants as it has
+    /// threads.
+    let stepReading: StepReading
+
+    /// **How a table's steps become instants** (the author, 2026-09-11, Task 032).
+    enum StepReading: Equatable, Sendable {
+        /// **One thread, one instant.** Book C prints one move to a line, so every
+        /// two threads have a first and a second. This is the source of record for
+        /// every braid book C has a figure for (`docs/architecture.md`, 正本の読み方).
+        case oneThreadAnInstant
+        /// **One printed step, one instant.** A braid read off a picture that
+        /// prints its threads two to a step, with no book C figure to say which of
+        /// the two goes first. Splitting the step would be a choice made here, not
+        /// a reading of the source; so the two are laid at once.
+        case oneStepAnInstant
+    }
+
+    init(
+        source: String,
+        notchCount: Int,
+        standPositionByRestingNotch: [Int: Int],
+        moves: [BraidMove],
+        threadsPerStep: Int,
+        stepReading: StepReading = .oneThreadAnInstant
+    ) {
+        self.source = source
+        self.notchCount = notchCount
+        self.standPositionByRestingNotch = standPositionByRestingNotch
+        self.moves = moves
+        self.threadsPerStep = threadsPerStep
+        self.stepReading = stepReading
+    }
 
     /// How far round the disk a move carries a thread, the short way.
     func notches(_ move: BraidMove) -> Int {
@@ -59,10 +93,42 @@ struct BraidDiskNotation: Equatable, Sendable {
     var braidingMoves: [BraidMove] { moves.filter { !isRepositioning($0) } }
     var repositioningMoves: [BraidMove] { moves.filter(isRepositioning) }
 
+    /// The same table reflected across the disk: the braid worked the other way
+    /// round.
+    ///
+    /// A reflection swaps notches in pairs that sum to `axis`, counted round the
+    /// ring. **Only the moves are written out again.** The resting notches have to
+    /// come back onto themselves, or the reflection is not a reflection of this
+    /// stand and `nil` is the answer rather than a table that half fits.
+    ///
+    /// **This is how an S table and its Z partner are kept the same table.** A Z
+    /// transcribed by hand could disagree with its S in a way nothing would catch;
+    /// a Z reflected from its S cannot, and "it is the mirror" becomes something a
+    /// test can say.
+    func reflected(about axis: Int, source: String) -> BraidDiskNotation? {
+        guard notchCount > 0 else { return nil }
+        func across(_ notch: Int) -> Int {
+            let raw = (axis - notch) % notchCount
+            return raw <= 0 ? raw + notchCount : raw
+        }
+        let resting = Set(standPositionByRestingNotch.keys)
+        guard Set(resting.map(across)) == resting else { return nil }
+        return BraidDiskNotation(
+            source: source,
+            notchCount: notchCount,
+            standPositionByRestingNotch: standPositionByRestingNotch,
+            moves: moves.map { BraidMove(from: across($0.from), to: across($0.to)) },
+            threadsPerStep: threadsPerStep,
+            stepReading: stepReading
+        )
+    }
+
     /// The stand's own method: where each thread rests at the start of the cycle
     /// and where it rests at the end.
     ///
-    /// **One braiding move to a step, in book C's order.** The source of record
+    /// **One braiding move to a step, in book C's order** — or, for a braid read
+    /// as `.oneStepAnInstant`, one printed step to a step, its threads in the order
+    /// the picture lists them and all laid at the same instant. The source of record
     /// moves one thread at a time, so every two threads have a first and a second
     /// and there is no such thing as two threads laid at the same instant. Book A's
     /// "take the outer two of the east group" is shorthand for two moves, and its
@@ -113,11 +179,23 @@ struct BraidDiskNotation: Equatable, Sendable {
         }
 
         var steps = [BraidStep]()
-        for (index, thread) in carried.enumerated() {
-            guard let move = move(thread) else { return nil }
-            let printed = stepNames[index / threadsPerStep]
-            let name = threadsPerStep == 1 ? printed : "\(printed)-\(index % threadsPerStep + 1)"
-            steps.append(BraidStep(name: name, moves: [move]))
+        switch stepReading {
+        case .oneThreadAnInstant:
+            for (index, thread) in carried.enumerated() {
+                guard let move = move(thread) else { return nil }
+                let printed = stepNames[index / threadsPerStep]
+                let name = threadsPerStep == 1 ? printed : "\(printed)-\(index % threadsPerStep + 1)"
+                steps.append(BraidStep(name: name, moves: [move]))
+            }
+        case .oneStepAnInstant:
+            for (index, printed) in stepNames.enumerated() {
+                var moves = [BraidMove]()
+                for thread in carried[(index * threadsPerStep)..<((index + 1) * threadsPerStep)] {
+                    guard let move = move(thread) else { return nil }
+                    moves.append(move)
+                }
+                steps.append(BraidStep(name: printed, moves: moves))
+            }
         }
         // A thread only ever shifted one notch was not braided this cycle; it is
         // being put back where the next cycle expects it.

@@ -5,8 +5,11 @@ import Testing
 
 struct MaruGenjiSimulationTests {
     @Test func presetIsAvailableOnlyForSixteenThreads() {
+        for count in [4, 8, 12] {
+            #expect(!BraidPresetCatalog.availablePresets(threadCount: count)
+                .contains(BraidPresetCatalog.maruGenji))
+        }
         #expect(BraidPresetCatalog.availablePresets(threadCount: 4).isEmpty)
-        #expect(BraidPresetCatalog.availablePresets(threadCount: 8).isEmpty)
         #expect(BraidPresetCatalog.availablePresets(threadCount: 12).isEmpty)
         #expect(
             BraidPresetCatalog.availablePresets(threadCount: 16)

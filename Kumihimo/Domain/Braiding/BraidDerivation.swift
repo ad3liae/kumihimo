@@ -99,8 +99,10 @@ struct BraidDerivation: Equatable, Sendable {
     /// order inside the step would have to come from somewhere else.
     ///
     /// **It is empty for a method whose steps carry one move each**, which is what
-    /// a source that moves one thread at a time generates. Both known methods are
-    /// like that. The closing is the one instant that carries several, and its
+    /// a source that moves one thread at a time generates, as both Genji tables
+    /// do. **It is empty for the yatsu-kongo tables too**, whose steps carry a
+    /// printed pair each: the two threads of a pair never pass each other, which
+    /// is why laying them at one instant loses nothing. The closing is the one instant that carries several, and its
     /// shifts never pass each other: each goes one place into a slot just vacated.
     ///
     /// It stays because a method somebody invents on the stand may well declare two

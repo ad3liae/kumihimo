@@ -112,6 +112,35 @@ enum BraidReferenceColourings {
         )
     }
 
+    // MARK: - The eight-bobbin braids
+
+    /// The reference simulator's checkerboard for yatsu-kongo, position by
+    /// position: `#ffffff`, `#4a649f`, `#ffffff`, `#de6473` and again, mapped onto
+    /// the nearest colours the catalogue has.
+    ///
+    /// **Not a book's, and not what the recipe ships.** It is the fixture recorded
+    /// at the head of `docs/tasks/008-yatsu-kongo-8.md`, and it lives here because
+    /// it is what holds the move table up: a table that turns the braid puts this
+    /// out as a checkerboard, and the reading that swaps the diagonals instead
+    /// cannot put out anything but lengthwise stripes. The braid's own colouring is
+    /// book A p.54's, which is a different question.
+    static var yatsuKongoChecker: [ThreadAssignment] {
+        eight(["white", "blue", "white", "pink", "white", "blue", "white", "pink"])
+    }
+
+    /// The reference simulator's diagonal: `#52884e` green, `#a5cc6f` — the
+    /// catalogue has no yellow-green, so yellow — and `#ffffff` white.
+    static var yatsuKongoDiagonal: [ThreadAssignment] {
+        eight(["green", "yellow", "white", "white", "green", "yellow", "white", "white"])
+    }
+
+    /// Positions one to eight in order, which is how the task document lists them.
+    private static func eight(_ names: [String]) -> [ThreadAssignment] {
+        names.enumerated().map {
+            ThreadAssignment(position: $0.offset + 1, colorID: ThreadColorID(rawValue: $0.element))
+        }
+    }
+
     /// The groups are listed the way the books list them — outermost first, which
     /// for the south and west groups runs against the ring.
     private static func colouring(

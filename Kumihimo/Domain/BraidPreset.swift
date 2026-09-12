@@ -31,6 +31,8 @@ struct BraidPreset: Identifiable, Equatable, Sendable {
 extension BraidPresetID {
     static let maruGenji16 = BraidPresetID(rawValue: "maru-genji-16")
     static let hiraGenji16 = BraidPresetID(rawValue: "hira-genji-16")
+    static let yatsuKongoS8 = BraidPresetID(rawValue: "yatsu-kongo-s-8")
+    static let yatsuKongoZ8 = BraidPresetID(rawValue: "yatsu-kongo-z-8")
 }
 
 enum BraidPresetCatalog {
@@ -52,7 +54,33 @@ enum BraidPresetCatalog {
         prototypeNotice: "反復色を使った複数例で配色傾向を照合した試作です。16位置をすべて異なる色にした対応と、糸の上下関係・締め具合は未検証です。"
     )
 
-    static let presets = [maruGenji, hiraGenji]
+    /// The eight-bobbin braids, S and Z.
+    ///
+    /// **The notice is longer than the others because more is open.** The move
+    /// table is not a copy of a printed table — it is book A p54–55's picture read
+    /// with the author's ruling on where a carried thread lands — and the solid is
+    /// drawn from rules rather than from a transcribed cell figure (Task 031), its
+    /// colour diagonal coming out some eight degrees shallower than the
+    /// photographs. What is settled is the colouring, book A p.54 and p.55's a.
+    static let yatsuKongoS = BraidPreset(
+        id: .yatsuKongoS8,
+        displayName: "八つ金剛S",
+        supportedThreadCounts: [8],
+        crossSectionProfile: .round,
+        verificationLevel: .movementRules,
+        prototypeNotice: "手順表はbookA p54の絵と、運ばれた糸の着地についての判定から起こした試作です。立体は転写した升目図ではなく規則から描いており、柄の傾きは実物写真より8度ゆるく出ます。対の中の先後も未照合です。"
+    )
+
+    static let yatsuKongoZ = BraidPreset(
+        id: .yatsuKongoZ8,
+        displayName: "八つ金剛Z",
+        supportedThreadCounts: [8],
+        crossSectionProfile: .round,
+        verificationLevel: .movementRules,
+        prototypeNotice: "八つ金剛Sの手順表を盤の上で鏡に写したものです。立体は転写した升目図ではなく規則から描いており、柄の傾きは実物写真より数度ゆるく出ます。対の中の先後も未照合です。"
+    )
+
+    static let presets = [maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ]
 
     static func availablePresets(threadCount: Int) -> [BraidPreset] {
         presets.filter { $0.supports(threadCount: threadCount) }

@@ -223,20 +223,28 @@ enum BraidComparisonSheet {
 
     // MARK: - The sheet
 
+    /// `photographWidth` draws the reference at a width of its own instead of
+    /// stretching it to the sheet's. **That is what lets a braid be laid beside a
+    /// braid rather than beside a bigger one** (`docs/measurement-procedures.md`
+    /// 3): hand in a reference already cropped and scaled to the panels, and say
+    /// how wide it is. `nil` keeps the old behaviour, which every earlier sheet
+    /// was drawn with.
     static func sheet(
         panels: [(label: String, panel: Panel)],
         photograph: CGImage?,
         photographLabel: String,
         legend: [(thread: Int, colour: ThreadColorValue, name: String)],
-        title: String
+        title: String,
+        photographWidth: Double? = nil
     ) -> CGImage? {
         let margin = 28.0, gap = 18.0, labelRoom = 22.0, legendRoom = 96.0
         // Wide enough for the longest label as well as the widest panel.
         let labelWidth = (panels.map(\.label) + [title, photographLabel])
             .map { Double($0.count) * 8.2 }.max() ?? 0
         let widest = max(panels.map { Double($0.panel.width) }.max() ?? 100, labelWidth)
+        let photographDrawnWidth = photographWidth ?? widest
         let photographHeight = photograph.map {
-            Double($0.height) * (widest / Double($0.width))
+            Double($0.height) * (photographDrawnWidth / Double($0.width))
         } ?? 0
         let bodyHeight = panels.reduce(0.0) { $0 + Double($1.panel.height) + labelRoom + gap }
             + (photograph == nil ? 0 : photographHeight + labelRoom + gap)
@@ -286,7 +294,7 @@ enum BraidComparisonSheet {
             y -= labelRoom
             write(photographLabel, at: CGPoint(x: margin, y: y + 5))
             y -= photographHeight
-            context.draw(photograph, in: CGRect(x: margin, y: y, width: widest,
+            context.draw(photograph, in: CGRect(x: margin, y: y, width: photographDrawnWidth,
                                                 height: photographHeight))
             y -= gap
         }
@@ -304,6 +312,49 @@ enum BraidComparisonSheet {
             write("\(entry.thread) \(entry.name)", at: CGPoint(x: x + 16, y: line + 2), size: 11)
             x += 92
         }
+        return context.makeImage()
+    }
+
+    /// One braid cut out of a photograph of several, turned to lie across the page
+    /// and scaled so that **its width is the width the panels draw a braid at**.
+    ///
+    /// `columns` is the band of the source the braid occupies, `rows` the run of it
+    /// worth showing, both in the source's own pixels; `braidPixels` is how many of
+    /// those pixels the braid itself is across. The result is `acrossWanted` wide
+    /// in panel pixels, of which `braidWidth * pixelsPerDiameter` is braid — the
+    /// same share the panels give it.
+    static func reference(
+        _ image: CGImage,
+        columns: Range<Int>,
+        rows: Range<Int>,
+        braidPixels: Double,
+        braidWidth: Double,
+        pixelsPerDiameter: Int
+    ) -> CGImage? {
+        guard let cut = image.cropping(to: CGRect(
+            x: columns.lowerBound, y: rows.lowerBound,
+            width: columns.count, height: rows.count
+        )) else { return nil }
+
+        // How many panel pixels one source pixel becomes.
+        let scale = braidWidth * Double(pixelsPerDiameter) / braidPixels
+        // Turned a quarter, so the braid runs across the page as the panels do.
+        let wide = Int((Double(cut.height) * scale).rounded())
+        let high = Int((Double(cut.width) * scale).rounded())
+        guard wide > 0, high > 0 else { return nil }
+
+        guard let context = CGContext(
+            data: nil, width: wide, height: high, bitsPerComponent: 8,
+            bytesPerRow: 0, space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.interpolationQuality = .high
+        context.translateBy(x: Double(wide) / 2, y: Double(high) / 2)
+        context.rotate(by: .pi / 2)
+        context.draw(cut, in: CGRect(
+            x: -Double(high) / 2, y: -Double(wide) / 2,
+            width: Double(high), height: Double(wide)
+        ))
         return context.makeImage()
     }
 

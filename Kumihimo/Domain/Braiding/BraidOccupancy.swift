@@ -43,22 +43,32 @@ struct BraidOccupancy: Equatable, Sendable {
         case closing
     }
 
-    /// One slot for each closing pair, in the pairs' own order.
+    /// One slot for each column of the face, in order round the ring.
+    ///
+    /// A closing pair is one column, read at the slot the reading asks for. **A
+    /// slot the closing never touches is a column of its own** — a braid whose
+    /// closing pairs nothing has as many columns as it has threads, and both
+    /// readings then name the same slots, because there is no second slot to
+    /// choose between.
     ///
     /// `nil` when a pair does not hold exactly one slot of the kind asked for,
     /// which would mean the closing is not what this assumes and is worth stopping
     /// over rather than guessing past.
     func columns(_ reading: Reading) -> [Int]? {
-        var result = [Int]()
+        var byLeadingSlot = [(leading: Int, read: Int)]()
         for pair in closingPairs {
             let both = [pair.lead, pair.trail]
             let wanted = both.filter {
                 reading == .landing ? landingSlots.contains($0) : !landingSlots.contains($0)
             }
             guard wanted.count == 1 else { return nil }
-            result.append(wanted[0])
+            byLeadingSlot.append((pair.lead, wanted[0]))
         }
-        return result
+        let paired = Set(closingPairs.flatMap { [$0.lead, $0.trail] })
+        for slot in boundaries.first?.keys.sorted() ?? [] where !paired.contains(slot) {
+            byLeadingSlot.append((slot, slot))
+        }
+        return byLeadingSlot.sorted { $0.leading < $1.leading }.map(\.read)
     }
 
     /// One row a cycle, one cell a column: the thread resting there.

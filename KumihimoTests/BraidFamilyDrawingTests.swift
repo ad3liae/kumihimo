@@ -15,14 +15,28 @@ struct BraidFamilyDrawingTests {
         }
     }
 
+    /// **A drawer is not promised.** A recipe of a family this app draws gets one,
+    /// with the family's own shape values behind it; a recipe of a family it does
+    /// not -- the eight-thread braids of Task 008 -- gets nothing, and nothing is
+    /// the right answer.
     @Test(arguments: BraidMethodCatalog.recipes)
-    func everyShippedRecipeFindsADrawer(recipe: BraidRecipe) throws {
-        let drawing = try #require(
-            BraidFamilyDrawing.drawing(for: recipe, on: BraidMethodCatalog.stand16))
+    func aRecipeFindsADrawerWhenAndOnlyWhenItsFamilyHasOne(recipe: BraidRecipe) throws {
+        let stand = try #require(BraidMethodCatalog.stand(for: recipe))
+        let worked = try #require(recipe.worked(on: stand))
+        let family = BraidFamily.family(of: worked.derivation)
+        guard let drawing = BraidFamilyDrawing.drawing(for: recipe, on: stand) else {
+            #expect(BraidFamilyDrawing.shape(of: family) == nil)
+            let nothing = BraidFamilyDrawing.mesh(for: recipe, on: stand)
+            #expect(nothing.flat == nil && nothing.tube == nil && nothing.tubeOfEight == nil)
+            return
+        }
         let shape = try #require(BraidFamilyDrawing.shape(of: drawing.family))
         #expect(!shape.values.isEmpty)
-        let mesh = BraidFamilyDrawing.mesh(for: recipe, on: BraidMethodCatalog.stand16)
-        #expect((mesh.flat != nil) != (mesh.tube != nil))
+        let mesh = BraidFamilyDrawing.mesh(for: recipe, on: stand)
+        // **Exactly one drawer made it.** Three families are drawn now, and a
+        // recipe belongs to one of them.
+        let made = [mesh.flat != nil, mesh.tube != nil, mesh.tubeOfEight != nil]
+        #expect(made.filter { $0 }.count == 1)
     }
 
     /// **A table this code has not seen, drawn by a family it has.** Book C's

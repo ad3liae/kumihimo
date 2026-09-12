@@ -10,6 +10,21 @@ import Foundation
 /// move names places and the state says which thread is at them.
 enum BraidMethodCatalog {
     static let stand16 = BraidStands.round16
+    static let stand8 = BraidStands.round8
+
+    /// The stands this app ships.
+    static let stands: [BraidStand] = [stand16, stand8]
+
+    /// The stand a recipe is worked on.
+    ///
+    /// **Data, not a branch on the braid.** A table says how many places rest on
+    /// the disk, and that is which stand it is; the screens ask this rather than
+    /// naming a stand of their own. `nil` for a table no shipped stand fits.
+    static func stand(for recipe: BraidRecipe) -> BraidStand? {
+        stands.first {
+            $0.positionCount == recipe.notation.standPositionByRestingNotch.count
+        }
+    }
 
     /// Book C's Fig.20 and Fig.32 number the same disk the same way: sixteen of its
     /// thirty-two notches hold a thread at rest. Read off Fig.20's starting diagram
@@ -19,6 +34,16 @@ enum BraidMethodCatalog {
         17: 7, 18: 8, 21: 9, 22: 10, 25: 11, 26: 12, 29: 13, 30: 14,
     ]
 
+    /// Eight threads on the same thirty-two notch disk rest four notches apart:
+    /// position *p* at notch *4p - 3*, numbered from the mark the way `round8` is.
+    ///
+    /// **Not read off a printed figure.** Book C's figure for the eight-bobbin
+    /// braids is not to hand, so this numbering is this repository's own, chosen so
+    /// that a position's number and its notch run the same way round.
+    static let diskRestingNotchesForEight: [Int: Int] = [
+        1: 1, 5: 2, 9: 3, 13: 4, 17: 5, 21: 6, 25: 7, 29: 8,
+    ]
+
     private static func disk(_ source: String, _ moves: [(Int, Int)]) -> BraidDiskNotation {
         BraidDiskNotation(
             source: source,
@@ -26,6 +51,21 @@ enum BraidMethodCatalog {
             standPositionByRestingNotch: diskRestingNotches,
             moves: moves.map(BraidMove.init(from:to:)),
             threadsPerStep: 2
+        )
+    }
+
+    /// **A printed step is one instant here** (the author, 2026-09-11): the
+    /// eight-bobbin braids have no book C figure, so nothing says which of a
+    /// printed pair goes first, and splitting the pair would be a choice rather
+    /// than a reading.
+    private static func diskOfEight(_ source: String, _ moves: [(Int, Int)]) -> BraidDiskNotation {
+        BraidDiskNotation(
+            source: source,
+            notchCount: 32,
+            standPositionByRestingNotch: diskRestingNotchesForEight,
+            moves: moves.map(BraidMove.init(from:to:)),
+            threadsPerStep: 2,
+            stepReading: .oneStepAnInstant
         )
     }
 
@@ -48,6 +88,85 @@ enum BraidMethodCatalog {
         (10, 9), (11, 10), (13, 14), (12, 13),
         (2, 1), (3, 2), (5, 6), (4, 5),
     ])
+
+    /// Yatsu-kongo S, written for the disk from book A p54.
+    ///
+    /// **This is not a copy of book C.** Book C's figure for this braid is not to
+    /// hand (`docs/tasks/008-yatsu-kongo-8.md`). It is book A p54's picture — four
+    /// printed steps of two threads each, the upright pair and the flat pair
+    /// alternating, every thread ending three places anticlockwise of where it
+    /// began — set down in this repository's disk notation, with the landing places
+    /// settled by the author's ruling of 2026-09-10 (`docs/architecture.md`,
+    /// 詰め直しの入り方): **a carried thread comes in on the outside of the group it
+    /// joins, and the cycle ends with tidying moves that put it on its standard
+    /// notch.**
+    ///
+    /// The first eight moves are the braiding, in book A's printed order: the
+    /// upright pair (8 and 4), the flat pair (2 and 6), the upright pair again
+    /// (1 and 5), the flat pair again (7 and 3). Each is eleven or thirteen notches;
+    /// each of the eight tidies that follow is one notch, which is how
+    /// `isRepositioning` tells the two apart.
+    ///
+    /// **Where a thread waits is free and does not reach the result.** What the
+    /// table carries into the method is the order the threads were braided in and
+    /// where each ends up; the parking notch between the two is only what makes the
+    /// cycle run on a disk that holds one thread to a notch.
+    static let yatsuKongoSDisk = diskOfEight(
+        "book A p54, its picture set down in this repository's disk notation",
+        [
+            (29, 18), (13, 2),          // 8 -> 5, 4 -> 1
+            (5, 26), (21, 10),          // 2 -> 7, 6 -> 3
+            (1, 20), (17, 4),           // 1 -> 6, 5 -> 2
+            (25, 12), (9, 28),          // 7 -> 4, 3 -> 8
+            (18, 17), (2, 1), (26, 25), (10, 9),
+            (20, 21), (4, 5), (12, 13), (28, 29),
+        ]
+    )
+
+    /// Yatsu-kongo Z: **the S table reflected, never transcribed.**
+    ///
+    /// Book A p54 and p55 print the two as mirror images of each other, down to the
+    /// hands in the speech bubbles — S takes the far thread with the left hand, Z
+    /// with the right. So Z is made by reflecting S across the disk rather than
+    /// written out again, and "Z is the mirror of S" is then something a test can
+    /// check instead of something a transcription might quietly break.
+    ///
+    /// The axis is the line through the mark: notch *n* goes to notch *30 - n*,
+    /// which carries position *p* to position *9 - p*. **Book A p55's picture is for
+    /// checking this, not for producing it.**
+    static let yatsuKongoZDisk: BraidDiskNotation = {
+        guard let reflected = yatsuKongoSDisk.reflected(
+            about: 30,
+            source: "book A p55, made by reflecting the p54 table across the disk"
+        ) else {
+            preconditionFailure("the eight-place resting notches are not carried onto themselves")
+        }
+        return reflected
+    }()
+
+    /// Book A prints four steps and does not name them; these say which pair each
+    /// one works. **The derivation never reads them.**
+    static let yatsuKongoStepNames = [
+        "uprightPairOuter", "flatPairOuter", "uprightPairInner", "flatPairInner",
+    ]
+
+    static let yatsuKongoS8: BraidMethod = {
+        guard let method = yatsuKongoSDisk.method(
+            id: "yatsu-kongo-s-8", standID: stand8.id, stepNames: yatsuKongoStepNames
+        ) else {
+            preconditionFailure("the yatsu-kongo S table does not run as a cycle of the eight-place stand")
+        }
+        return method
+    }()
+
+    static let yatsuKongoZ8: BraidMethod = {
+        guard let method = yatsuKongoZDisk.method(
+            id: "yatsu-kongo-z-8", standID: stand8.id, stepNames: yatsuKongoStepNames
+        ) else {
+            preconditionFailure("the yatsu-kongo Z table does not run as a cycle of the eight-place stand")
+        }
+        return method
+    }()
 
     /// Maru-genji on the sixteen-position round stand, generated from book C.
     ///
@@ -238,7 +357,84 @@ enum BraidMethodCatalog {
         orderRoundTheBraid: hiraGenji16CrossSection
     )
 
-    static let recipes: [BraidRecipe] = [maruGenji16Recipe, hiraGenji16Recipe]
+    /// The order the threads come in round a yatsu-kongo braid.
+    ///
+    /// **The stand's own rim order** — every thread travels, nothing pairs the
+    /// slots through a thickness, and a tube is what the derivation returns. It is
+    /// declared here only to carry the note.
+    ///
+    /// What the note says is the one thing book A p54–55 does not: **which of a
+    /// pair goes first.** The pictures give the arrows and the hands, not the order
+    /// inside a printed step. It changes nothing that is drawn today — the figure
+    /// reads the occupancy history, and the eight-thread family has no drawer — so
+    /// it is carried rather than guessed at.
+    static let yatsuKongo8CrossSection = BraidCrossSection(
+        order: stand8.positionIDs,
+        source: .standRim,
+        unsettled: "which thread of a pair is carried first is not settled; book A "
+            + "p54-55 draw the arrows and the hands but not the order inside a "
+            + "printed step, and book C's figure for this braid is not to hand. "
+            + "Nothing drawn depends on it: a printed step is read as one instant"
+    )
+
+    /// Book A p.54's own colouring for yatsu-kongo S: **the upright pair in
+    /// yellow and the flat pair in orange.**
+    ///
+    /// Read off the page's "糸の配色と配置" enlarged (the author, 2026-09-10):
+    /// thread 105 yellow stands in the north and south groups, thread 108 orange
+    /// in the east and west. Two colours, four threads each.
+    ///
+    /// The reference simulator's checkerboard and diagonal, which stood here while
+    /// the page was unread, are **kept in the tests** — they are what holds the
+    /// move table up, and a colouring is a question about where the recipe comes
+    /// from, not about whether the table is right.
+    static let yatsuKongoS8Colouring = colouring(on: stand8, [
+        "north": ["yellow", "yellow"],   // 8, 1
+        "east": ["orange", "orange"],    // 2, 3
+        "south": ["yellow", "yellow"],   // 5, 4
+        "west": ["orange", "orange"],    // 7, 6
+    ])
+
+    /// Book A p.55's colouring **a** for yatsu-kongo Z, which is printed the same
+    /// way round as p.54's: yellow upright, orange flat.
+    ///
+    /// **The two braids being coloured alike is the point** (the author,
+    /// 2026-09-10). Given the same threads in the same places, the only thing left
+    /// between S and Z is which way the spiral leans, and that is what putting the
+    /// two side by side is for.
+    ///
+    /// Page 55 prints five, a to e; a is the one taken. The others are b — white
+    /// north, orange south, yellow east and west — c in 114 and 112, d in green,
+    /// white and rose, and e mixing four.
+    static let yatsuKongoZ8Colouring = yatsuKongoS8Colouring
+
+    /// Yatsu-kongo S and Z.
+    ///
+    /// **The measured values are empty, and that is what has been measured:
+    /// nothing.** The eight-thread family has no drawer, so no drawing wants a
+    /// shape; taking numbers off the photograph on book A p.8 is for a later
+    /// version. Nothing here is set by eye and called measured.
+    static let yatsuKongoS8Recipe = BraidRecipe(
+        id: "yatsu-kongo-s-8",
+        name: "八つ金剛組S",
+        notation: yatsuKongoSDisk,
+        colouring: yatsuKongoS8Colouring,
+        shape: BraidShapeValues(),
+        orderRoundTheBraid: yatsuKongo8CrossSection
+    )
+
+    static let yatsuKongoZ8Recipe = BraidRecipe(
+        id: "yatsu-kongo-z-8",
+        name: "八つ金剛組Z",
+        notation: yatsuKongoZDisk,
+        colouring: yatsuKongoZ8Colouring,
+        shape: BraidShapeValues(),
+        orderRoundTheBraid: yatsuKongo8CrossSection
+    )
+
+    static let recipes: [BraidRecipe] = [
+        maruGenji16Recipe, hiraGenji16Recipe, yatsuKongoS8Recipe, yatsuKongoZ8Recipe,
+    ]
 
     /// The recipe a preset stands for.
     ///

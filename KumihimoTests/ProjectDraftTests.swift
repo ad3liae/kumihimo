@@ -131,7 +131,11 @@ struct ProjectEditorPresentationStateTests {
 
         #expect(store.draft.selectedBraidPresetID == nil)
         #expect(store.draft.braidTypeName == KumihimoProject.undecidedBraidName)
-        #expect(store.availableBraidPresets.isEmpty)
+        // Eight threads offer their own braids, and maru-genji is not among them.
+        #expect(store.availableBraidPresets == [
+            BraidPresetCatalog.yatsuKongoS,
+            BraidPresetCatalog.yatsuKongoZ,
+        ])
     }
 
     @Test func selectingHiraGenjiUsesItsStablePresetIdentity() throws {
