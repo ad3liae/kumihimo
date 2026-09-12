@@ -63,10 +63,19 @@ enum RoundTube16SurfacePatternGenerator {
     /// more than one, this returns `nil` rather than guessing.
     ///
     /// **The order the columns come out in is the transcription's, and that order is
-    /// not reachable from the ring by rotating or mirroring it** — book A's own
-    /// colourings cannot tell the two apart, and the question is open, awaiting the
-    /// author's own braid (`docs/architecture.md`, 丸源氏の64升の表). So the
-    /// correspondence is a permutation and not a rotation, and it says so.
+    /// not reachable from the ring by rotating it** — so the correspondence is held
+    /// as a permutation rather than a rotation, and it says so. In stand positions
+    /// (16, 1, 12, 13, ...) it is not reachable by mirroring either, because one
+    /// column holds two positions; in the history's own columns a mirror does fit
+    /// (Task 032). What is still open there is the east and west blocks swapping,
+    /// which book A's own colourings cannot tell apart and which awaits the author's
+    /// own braid (`docs/architecture.md`, 丸源氏の64升の表).
+    ///
+    /// **That mirror is not a difference in the braid** (Task 034, 2026-09-12):
+    /// reflect the occupancy history's ring and it comes back to itself, so a
+    /// mirrored reading of it is the same braid under other thread names
+    /// (`BraidOrientationTests.maruGenjiIsCarriedOntoItselfByAMirrorOfTheRing`).
+    /// **Nothing was drawn differently because of that; no vertex moved.**
     ///
     /// The **shape** of every cell still comes from the transcribed drawing below.
     /// Only which thread is in it is derived.

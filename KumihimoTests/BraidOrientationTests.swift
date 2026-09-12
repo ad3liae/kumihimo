@@ -229,9 +229,10 @@ struct BraidOrientationTests {
     ///   "agreement through a mirror" with Task 004 (`BraidTubeFigureTests`).
     /// - **The scene** is the same one as every braid's, and not a mirror (above).
     ///
-    /// **Which of the two is the real braid needs a source from outside.** Book A
-    /// p94's photograph shows the twist stripes with a direction (Task 005G), and
-    /// that may decide it.
+    /// **Neither is more real than the other, and no source from outside is needed**
+    /// (Task 034, 2026-09-12). The occupancy history is carried onto itself by a
+    /// mirror of its ring, so the mirror below makes no braid the table does not
+    /// make: `maruGenjiIsCarriedOntoItselfByAMirrorOfTheRing`.
     @Test func maruGenjiAtTheFourPlaces() throws {
         let stand = BraidMethodCatalog.stand16
         let recipe = BraidMethodCatalog.maruGenji16Recipe
@@ -284,6 +285,155 @@ struct BraidOrientationTests {
         for turn in 0..<8 {
             #expect((0..<8).contains { !holds($0, (turn + $0) % 8, upwards: false) }, "turn \(turn)")
         }
+    }
+
+    // MARK: - Maru-genji's mirror, settled by arithmetic and not by a photograph
+
+    /// **A mirror of maru-genji is maru-genji** (Task 034, 2026-09-12). So "which of
+    /// the two the drawer shows" was never a question about the braid, and the
+    /// source from outside that Task 032 stopped for is not needed.
+    ///
+    /// Task 032 found the drawn face holding the occupancy history's columns the
+    /// other way round, recorded it and stopped: **which of the two is the real
+    /// braid wanted a source from outside.** It does not. Reflect the history's
+    /// ring and it comes back to itself.
+    ///
+    /// **The ring is all sixteen slots, not the eight columns of the face.** A
+    /// mirror of a tube carries a slot to a slot; folding the ring into the
+    /// closing's pairs first would have to argue the fold survives the mirror.
+    ///
+    /// **Free: where round the ring the reading starts and which cycle it starts
+    /// on.** A tube has no origin and no mark (`BraidTubeFigure`). **Free too: which
+    /// thread is called which.** A thread is named by the slot it starts at, and
+    /// that is a name; what the braid is made of is which cells hold one thread. So
+    /// a match is a match up to a bijection of the names — one bijection, the same
+    /// for all sixty-four cells.
+    ///
+    /// **Not free: which end the braiding point is.** Rows are cycles in time and a
+    /// braid grows one way. **That the reading turned end for end never fits is what
+    /// shows this check can tell a difference where there is one** — the freedoms
+    /// above do not let everything through.
+    @Test func maruGenjiIsCarriedOntoItselfByAMirrorOfTheRing() throws {
+        let stand = BraidMethodCatalog.stand16
+        let worked = try #require(BraidMethodCatalog.maruGenji16Recipe.worked(on: stand))
+        let ring = stand.positionCount
+        let rows = worked.derivation.repeatCycleCount
+        #expect(rows == 4)
+        #expect(worked.section.order == stand.positionIDs)
+        let occupancy = try #require(BraidOccupancy.history(
+            of: worked.method, on: stand, crossSection: worked.section, cycles: rows
+        ))
+        let grid = try #require(occupancy.grid(atColumns: Array(0..<ring), rows: rows))
+
+        /// The history read from `axis` round the ring — the other way round when
+        /// mirrored — and from cycle `shift` along it.
+        func read(mirrored: Bool, from axis: Int, withTheCycles: Bool, startingAt shift: Int) -> [[Int]] {
+            (0..<rows).map { row in
+                let cycle = ((shift + (withTheCycles ? row : -row)) % rows + rows) % rows
+                return (0..<ring).map { slot in
+                    grid[cycle][((axis + (mirrored ? -slot : slot)) % ring + ring) % ring]
+                }
+            }
+        }
+
+        /// The one bijection of thread names carrying `reading` onto the history,
+        /// or `nil` when no single one does.
+        func names(carrying reading: [[Int]]) -> [Int: Int]? {
+            var forward = [Int: Int]()
+            var backward = [Int: Int]()
+            for row in 0..<rows {
+                for slot in 0..<ring {
+                    let from = reading[row][slot]
+                    let to = grid[row][slot]
+                    if let already = forward[from], already != to { return nil }
+                    if let already = backward[to], already != from { return nil }
+                    forward[from] = to
+                    backward[to] = from
+                }
+            }
+            return forward
+        }
+
+        /// Every axis and offset a reading of this kind fits at, axis by axis.
+        func fits(mirrored: Bool, withTheCycles: Bool) -> [[Int]] {
+            (0..<ring).flatMap { axis in
+                (0..<rows).filter {
+                    names(carrying: read(mirrored: mirrored, from: axis,
+                                         withTheCycles: withTheCycles, startingAt: $0)) != nil
+                }.map { [axis, $0] }
+            }
+        }
+        func every(_ axes: [Int]) -> [[Int]] { axes.flatMap { axis in (0..<rows).map { [axis, $0] } } }
+
+        // **The mirror fits**, on four axes, at every offset along the braid.
+        #expect(fits(mirrored: true, withTheCycles: true) == every([3, 7, 11, 15]))
+        // Without a mirror, the turns that fit are the braid's own four-fold
+        // symmetry — so the axes above are not the ring coming back by a turn.
+        #expect(fits(mirrored: false, withTheCycles: true) == every([0, 4, 8, 12]))
+        // Turned end for end, nothing fits either way round.
+        #expect(fits(mirrored: true, withTheCycles: false).isEmpty)
+        #expect(fits(mirrored: false, withTheCycles: false).isEmpty)
+
+        // **The names the mirror needs are not the search's doing.** On the axis
+        // through the gap between slots 1 and 2, read from the first cycle, the
+        // bijection is that same mirror: the thread starting at a slot goes to the
+        // thread starting at the slot's own reflection.
+        let across = try #require(names(carrying: read(mirrored: true, from: 3,
+                                                       withTheCycles: true, startingAt: 0)))
+        for thread in 1...ring {
+            #expect(across[thread] == ((3 - (thread - 1)) % ring + ring) % ring + 1, "thread \(thread)")
+        }
+        // Each of the four axes runs through a gap between slots and holds none of
+        // them still, which is why 3, 7, 11 and 15 are odd and 1, 5, 9, 13 are not
+        // among them.
+        for axis in [3, 7, 11, 15] {
+            #expect(!(0..<ring).contains { ((axis - $0) % ring + ring) % ring == $0 }, "axis \(axis)")
+        }
+    }
+
+    /// **Book A's own colouring agrees through the mirror too, and that is the
+    /// weaker of the two statements** (Task 034, 2026-09-12).
+    ///
+    /// The one above is about which cells hold one thread. This one is about what
+    /// a particular colouring paints, and **a colouring symmetric enough would
+    /// match through a mirror whether the threads did or not.** It decides nothing
+    /// on its own; it is fixed here because it is what the app draws, and so that
+    /// the two are not taken for the same fact.
+    ///
+    /// It fits on two of the four axes rather than all four, and one of those needs
+    /// an offset of two cycles: **the colouring is less symmetric than the braid**,
+    /// not more.
+    @Test func bookAsColouringOfMaruGenjiAgreesThroughTheMirrorAsWeakerEvidence() throws {
+        let stand = BraidMethodCatalog.stand16
+        let recipe = BraidMethodCatalog.maruGenji16Recipe
+        let worked = try #require(recipe.worked(on: stand))
+        let ring = stand.positionCount
+        let rows = worked.derivation.repeatCycleCount
+        let occupancy = try #require(BraidOccupancy.history(
+            of: worked.method, on: stand, crossSection: worked.section, cycles: rows
+        ))
+        let grid = try #require(occupancy.grid(atColumns: Array(0..<ring), rows: rows))
+
+        var colourOfThread = [Int: ThreadColorID]()
+        for assignment in recipe.colouring { colourOfThread[assignment.position] = assignment.colorID }
+        let painted = try grid.map { row in
+            try row.map { try #require(colourOfThread[$0]) }
+        }
+
+        // Colours are not names to be permuted: a mirror that needed the colours
+        // renamed would be a different braid painted alike.
+        var found = [[Int]]()
+        for axis in 0..<ring {
+            for shift in 0..<rows {
+                let reading = (0..<rows).map { row in
+                    (0..<ring).map { slot in
+                        painted[(shift + row) % rows][((axis - slot) % ring + ring) % ring]
+                    }
+                }
+                if reading == painted { found.append([axis, shift]) }
+            }
+        }
+        #expect(found == [[7, 2], [15, 0]])
     }
 
     // MARK: - A camera that discards back faces
