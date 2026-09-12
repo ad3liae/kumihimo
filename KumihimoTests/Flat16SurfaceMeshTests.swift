@@ -374,12 +374,19 @@ struct HiraGenjiSurfaceMeshTests {
     /// cut side rather than as the yarn turning back on itself.
     ///
     /// **Five minutes rather than the usual one, and only this test** (Task 018,
-    /// ruled on 2026-09-09). It walks every vertex of the whole mesh four times
-    /// over and takes about two minutes; at the suite's own sixty-second allowance
-    /// it was cut off on every run, which made a cut-off the normal state and hid
-    /// anything that went wrong. **It is slow, not broken**: at three hundred
-    /// seconds it passes. **Nothing else's allowance is changed** -- a test over a
+    /// ruled on 2026-09-09). At the suite's own sixty-second allowance it was cut
+    /// off on every run, which made a cut-off the normal state and hid anything
+    /// that went wrong. **Nothing else's allowance is changed** -- a test over a
     /// minute is still a test whose making is worth doubting.
+    ///
+    /// **What made it slow was its own making, not the size of the mesh** (found
+    /// 2026-09-12, Task 018). The note here used to say it "walks every vertex of
+    /// the whole mesh four times over and takes about two minutes". Both halves
+    /// were wrong, and the first hid the second: the cost was never four passes
+    /// over the mesh but 1028 outline points rebuilt for **each** vertex, and by
+    /// the time it was measured it had reached four minutes three seconds, not two
+    /// minutes. **A cost written down in the wrong shape is one nobody can see
+    /// grow.** The outline is now built once (`plainOutline`).
     @Test(.timeLimit(.minutes(5))) func everyRegionCarriesTheRidgeIncludingBothEdges() throws {
         let pattern = try #require(
             Flat16SurfacePatternGenerator.generate(assignments: assignments)
@@ -408,28 +415,45 @@ struct HiraGenjiSurfaceMeshTests {
         }
     }
 
+    /// The plain cross-section's outline, sampled once for the whole suite: every
+    /// region in `allCases` order, 257 steps each.
+    ///
+    /// **It does not depend on the point being measured**, and that is the whole
+    /// reason it is here (Task 018). `reliefFromThePlainOutline` used to build all
+    /// 1028 of these points again for every vertex handed to it, and
+    /// `crossSectionPoint` is not cheap — it walks an arc-length table each call.
+    /// Over a whole mesh that is the four minutes.
+    ///
+    /// **The order is the order the two nested loops had**, so the nearest point is
+    /// the same one down to which of two equally near points wins.
+    private static let plainOutline: [SIMD2<Float>] = {
+        var points = [SIMD2<Float>]()
+        points.reserveCapacity(Flat16SurfaceRegion.allCases.count * 257)
+        for region in Flat16SurfaceRegion.allCases {
+            for step in 0...256 {
+                points.append(Flat16SurfaceMesh.crossSectionPoint(
+                    region: region,
+                    regionU: Float(step) / 256,
+                    halfWidth: Flat16SurfaceMesh.defaultHalfWidth,
+                    halfThickness: Flat16SurfaceMesh.defaultHalfThickness
+                ))
+            }
+        }
+        return points
+    }()
+
     /// How far a point stands out of the plain cross-section the braid would have
     /// with no ridge at all. Measured against the outline the generator draws,
     /// not against a formula for it.
     private func reliefFromThePlainOutline(_ position: SIMD3<Float>) -> Float {
         let point = SIMD2<Float>(position.y, position.z)
-        let halfWidth = Flat16SurfaceMesh.defaultHalfWidth
-        let halfThickness = Flat16SurfaceMesh.defaultHalfThickness
         var nearest = Float.greatestFiniteMagnitude
         var nearestPoint = SIMD2<Float>.zero
-        for region in Flat16SurfaceRegion.allCases {
-            for step in 0...256 {
-                let outline = Flat16SurfaceMesh.crossSectionPoint(
-                    region: region,
-                    regionU: Float(step) / 256,
-                    halfWidth: halfWidth,
-                    halfThickness: halfThickness
-                )
-                let distance = simd_distance(outline, point)
-                if distance < nearest {
-                    nearest = distance
-                    nearestPoint = outline
-                }
+        for outline in Self.plainOutline {
+            let distance = simd_distance(outline, point)
+            if distance < nearest {
+                nearest = distance
+                nearestPoint = outline
             }
         }
         return simd_length(point) >= simd_length(nearestPoint) ? nearest : -nearest
