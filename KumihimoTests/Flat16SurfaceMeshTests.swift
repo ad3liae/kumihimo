@@ -373,21 +373,25 @@ struct HiraGenjiSurfaceMeshTests {
     /// The ridge is given to all four regions. An edge left flat would read as a
     /// cut side rather than as the yarn turning back on itself.
     ///
-    /// **Five minutes rather than the usual one, and only this test** (Task 018,
-    /// ruled on 2026-09-09). At the suite's own sixty-second allowance it was cut
-    /// off on every run, which made a cut-off the normal state and hid anything
-    /// that went wrong. **Nothing else's allowance is changed** -- a test over a
-    /// minute is still a test whose making is worth doubting.
+    /// **This had an allowance of its own from 2026-09-09 to 2026-09-12, and no
+    /// longer does** (Task 018). It ran for four minutes and was cut off at the
+    /// suite's sixty seconds on every run, which made a cut-off the normal state
+    /// and hid anything else that went wrong; five minutes was given to it alone
+    /// so that it could finish.
     ///
-    /// **What made it slow was its own making, not the size of the mesh** (found
-    /// 2026-09-12, Task 018). The note here used to say it "walks every vertex of
-    /// the whole mesh four times over and takes about two minutes". Both halves
-    /// were wrong, and the first hid the second: the cost was never four passes
-    /// over the mesh but 1028 outline points rebuilt for **each** vertex, and by
-    /// the time it was measured it had reached four minutes three seconds, not two
-    /// minutes. **A cost written down in the wrong shape is one nobody can see
-    /// grow.** The outline is now built once (`plainOutline`).
-    @Test(.timeLimit(.minutes(5))) func everyRegionCarriesTheRidgeIncludingBothEdges() throws {
+    /// **What made it slow was its own making, not the size of the mesh.** The
+    /// note here used to say it "walks every vertex of the whole mesh four times
+    /// over and takes about two minutes". Both halves were wrong, and the first
+    /// hid the second: the cost was never four passes over the mesh but 1028
+    /// outline points rebuilt for **each** vertex, and by the time anyone measured
+    /// it, it had reached four minutes three seconds. **A cost written down in the
+    /// wrong shape is one nobody can see grow.**
+    ///
+    /// The outline is built once now (`plainOutline`) and this takes twenty-three
+    /// seconds, so **it is back on the ordinary sixty-second allowance**. That is
+    /// deliberate and not tidying: five minutes around a twenty-three second test
+    /// is room for it to grow tenfold again unseen.
+    @Test func everyRegionCarriesTheRidgeIncludingBothEdges() throws {
         let pattern = try #require(
             Flat16SurfacePatternGenerator.generate(assignments: assignments)
         )
