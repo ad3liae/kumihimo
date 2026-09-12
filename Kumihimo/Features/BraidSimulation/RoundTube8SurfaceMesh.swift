@@ -144,6 +144,20 @@ enum RoundTube8SurfaceMesh {
                     + "sixteen-thread tube's own figure, borrowed and held against book A "
                     + "p.8's zoom for how wide the groove looks"
             ),
+            "the groove between two cells over the braid's radius": .declared(
+                Double(endValleyDepthRatio),
+                basis: .fractionOf("the braid's outer radius"),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how "
+                    + "deep the groove along a lane looks on book A p.8's zoom, held "
+                    + "against the ripple of the braid's outline. It is not the groove "
+                    + "across the braid, which is derived and not this"
+            ),
+            "how far a cell's end is rounded, over a thread's half-width": .declared(
+                Double(endRoundingOverHalfWidth),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how "
+                    + "far a bean's end rounds off before it meets the next one, on book "
+                    + "A p.8's zoom"
+            ),
             "radius on screen": .declared(
                 Double(defaultRadius),
                 calibratedBy: "how big the braid should be in the view; a display size, "
@@ -166,6 +180,46 @@ enum RoundTube8SurfaceMesh {
     /// — the circumference is the thread count — rather than a new conversion
     /// (`docs/tasks/025-5-adding-a-recipe.md`).
     static let crestHeightRatio: Float = 1 - 1 / (1 + .pi / 8)
+
+    /// How deep the groove between two cells of one lane is, as a fraction of the
+    /// braid's outer radius.
+    ///
+    /// **Its own number, calibrated by eye against a photograph, not derived**
+    /// (the author, 2026-09-12). **It is not `crestHeightRatio`.** That is the
+    /// groove *across* the braid, between two lanes, and it is worked out from the
+    /// thread count; carrying it over to the groove *along* a lane was a loan, and
+    /// a loan is neither a derivation nor a measurement. It drew the braid as a
+    /// cob of corn.
+    ///
+    /// **The braid's own weight says the groove along is the shallower one.** Two
+    /// threads that stand at one place one after the other are pressed together:
+    /// the later one is laid on the bundle at the braiding point, and the weight
+    /// hanging below pulls it down onto the one before it, so no gap of half a
+    /// thread opens between them (`docs/architecture.md`, 組み台の力学). Two lanes
+    /// side by side have nothing pressing them together — they are held where they
+    /// are by their own outward tension — so the groove across is the deeper.
+    ///
+    /// Set against the ripple the braid's outline shows, on the comparison sheet
+    /// where photograph and drawing are one width: **0.011 of the width straight
+    /// on and 0.06 turned with this figure**, against 0.05 and 0.10 while the
+    /// ridge's own depth was used here. The photograph's is 0.025 straight on.
+    /// **The outline is a weak guide here** — the ends of neighbouring lanes are
+    /// staggered, so the outline is nearly always at some lane's crest, and the
+    /// silhouette cannot be used on a round braid anyway (Task 005J). The
+    /// judgement was made on the braid's face, beside the photograph: 0.14 left
+    /// the cells reading as flat bricks, and this leaves them rounded and parted
+    /// as the photograph's beans are.
+    static let endValleyDepthRatio: Float = 0.18
+
+    /// How far back from a cell's end the crest starts to fall, as a fraction of a
+    /// thread's half-width.
+    ///
+    /// **Calibrated by eye against a photograph, not derived.** Rounded over the
+    /// whole half-width, which is what a thread's end would be if nothing touched
+    /// it, every cell came out a sphere; the beans on the photograph meet their
+    /// neighbours and overlap a little, which is the same pressing-together the
+    /// depth above comes from.
+    static let endRoundingOverHalfWidth: Float = 0.55
 
     /// Angle between the fibre stripes and a thread's own run.
     ///
@@ -339,17 +393,24 @@ enum RoundTube8SurfaceMesh {
         repeatLength: Float
     ) -> (position: SIMD3<Float>, normal: SIMD3<Float>,
           tangent: SIMD3<Float>, bitangent: SIMD3<Float>) {
-        // **The thread's end is round**: within one half-width of either end the
-        // crest falls to the floor as it does towards the lane's edge, the
-        // semi-ellipse turned round the end. The half-width is the crest's own.
+        // **A cell ends in a groove of its own depth, and its end is round.** The
+        // shape of the end is the crest's own semi-ellipse (`crestProfile`); how
+        // far it reaches and how far it falls are this drawer's two declared
+        // figures, not the ridge's — see them for why the groove along a lane is
+        // the shallower one.
         let cellLength = repeatLength * (segment.centerlineEnd.y - segment.centerlineStart.y)
         let halfWidth = 2 * .pi * radius * segment.startHalfWidth.x
+        let reach = endRoundingOverHalfWidth * halfWidth
+        let ridge = radius - floor
+        let dip = min(endValleyDepthRatio * radius, ridge)
         func at(_ along: Float, _ across: Float) -> SIMD3<Float> {
             let surface = segment.surfacePoint(along: along, across: across)
             let fromEnd = min(along, 1 - along) * cellLength
-            let end = halfWidth > 0 ? max(0, 1 - fromEnd / halfWidth) : 0
-            let height = floor + (radius - floor)
-                * crestProfile(across: (across * across + end * end).squareRoot())
+            let end = reach > 0 ? max(0, 1 - fromEnd / reach) : 0
+            // Across and along multiply, so the lane's edges stay on the valley
+            // floor whatever the ends are doing.
+            let height = floor + crestProfile(across: across)
+                * (ridge - dip * (1 - crestProfile(across: end)))
             let angle = 2 * .pi * surface.x
             // **The stand's own placement, seen from the braiding point**: `(sin,
             // cos)`, as `BraidStands.round` puts a position on the stand seen from

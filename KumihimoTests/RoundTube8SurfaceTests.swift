@@ -317,7 +317,7 @@ struct RoundTube8SurfaceTests {
         let s = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
         // Sixty-four cells a repeat, two repeats, and thirteen by eleven samples
         // over each: 128 * 143.
-        // **Changed five times, on purpose.** It was `0x03aa_f419_737c_1859` while a
+        // **Changed six times, on purpose.** It was `0x03aa_f419_737c_1859` while a
         // cell was drawn stretched across the three places of the carry; a cell is
         // the thread standing still, so every cell is square to the braid. Then
         // `0xa2b9_f4b5_1eab_3079` while the ring was laid out as `(cos, sin)`, the
@@ -330,9 +330,12 @@ struct RoundTube8SurfaceTests {
         // Then `0x8fd5_91a2_0cdd_bf39` while a lane was one unbroken ridge: every
         // thread's end now rounds down to the valley floor where the next thread
         // at the same place begins, and the samples along a cell are packed
-        // towards its ends (Task 033). **The vertex count did not change.**
+        // towards its ends (Task 033). Then `0x2c96_1f1d_a3f7_dad9` while that
+        // groove was the ridge's own depth, borrowed from across the braid: it has
+        // its own figure now, shallower, and the ends round over less of a thread's
+        // half-width (the author, 2026-09-12). **The vertex count did not change.**
         #expect(s.positions.count == 18_304)
-        #expect(BraidMeshHashTests.hash(s.positions) == 0x2c96_1f1d_a3f7_dad9)
+        #expect(BraidMeshHashTests.hash(s.positions) == 0x2873_a90b_e028_6589)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
@@ -433,8 +436,10 @@ struct RoundTube8SurfaceTests {
             "fibre stripe angle in degrees",
             "fibre stripe relief",
             "fibre stripes across a thread's width",
+            "how far a cell's end is rounded, over a thread's half-width",
             "how far across a cell the valley shading reaches",
             "radius on screen",
+            "the groove between two cells over the braid's radius",
             "valley shading at a cell's edge",
         ])
         // And each of the looks says, in so many words, what it is.
@@ -481,11 +486,12 @@ struct RoundTube8SurfaceTests {
         }
     }
 
-    /// **A cell ends in a groove, and the thread's end is round** (Task 033). The
-    /// ring at either end of a cell lies on the valley floor, where the next
-    /// thread along the same place begins; the middle of the cell stands at the
-    /// crest; and each cell ends on the ring the next one in its lane starts
-    /// from, so the lane is a run of threads, not one bar.
+    /// **A cell ends in a groove of its own depth, and the thread's end is
+    /// round** (the author, 2026-09-12). The ring at either end of a cell sits one
+    /// groove below the crest — **not on the valley floor**, which is how deep the
+    /// groove between two lanes goes — and the next thread along the same place
+    /// begins on that same ring, so a lane is a run of threads pressed together
+    /// rather than one bar or a string of beads.
     @Test func aCellEndsInAGrooveAndItsEndIsRound() throws {
         let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
         let mesh = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
@@ -496,13 +502,27 @@ struct RoundTube8SurfaceTests {
             let point = mesh.positions[index]
             return (point.y * point.y + point.z * point.z).squareRoot()
         }
+        let dip = RoundTube8SurfaceMesh.endValleyDepthRatio * mesh.crestRadius
+        let ridge = mesh.crestRadius - mesh.valleyFloorRadius
+        // The groove along a lane is the shallower of the two.
+        #expect(dip < ridge)
+
         for cell in 0..<(mesh.positions.count / perCell) {
             let first = cell * perCell
-            for sample in 0...across {
-                #expect(abs(radius(first + sample) - mesh.valleyFloorRadius) < 1e-4)
-                #expect(abs(radius(first + along * (across + 1) + sample) - mesh.valleyFloorRadius) < 1e-4)
+            let middleAcross = across / 2
+            // Both ends: one groove below the crest, and clear of the floor.
+            for row in [0, along] {
+                let end = radius(first + row * (across + 1) + middleAcross)
+                #expect(abs(end - (mesh.crestRadius - dip)) < 1e-3, "cell \(cell)")
+                #expect(end > mesh.valleyFloorRadius + 1e-3)
             }
-            #expect(abs(radius(first + (along / 2) * (across + 1) + across / 2) - mesh.crestRadius) < 1e-3)
+            // The middle of the cell stands at the crest.
+            #expect(abs(radius(first + (along / 2) * (across + 1) + middleAcross)
+                        - mesh.crestRadius) < 1e-3)
+            // The lane's own edges stay on the valley floor, ends included.
+            for row in [0, along / 2, along] {
+                #expect(abs(radius(first + row * (across + 1)) - mesh.valleyFloorRadius) < 1e-4)
+            }
         }
 
         // Each cell ends on the ring the next one in its lane begins on.
