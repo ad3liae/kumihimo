@@ -1,20 +1,23 @@
 """Draw what `build.py` solved. Read-only; it reads and judges nothing.
 
-    python3 Scripts/task037/draw.py --dump .build/task037-dumps/hira-2.txt \
-        --out .build/task037-figures/hira
+    python3 Scripts/task037/draw.py --dump .build/task037-dumps/hira-4p.txt \
+        --out .build/task037-figures/hira-4p
 
-    section / above / hole   022's `figures.py`, on every bead, free parts included
+    section / above          022's `figures.py`, on every bead
+    hole                     022's close-up of the hole (037-1 only: there is a free part)
     across-*                 022's `across`, three cuts through the braid at its own
-                             heights (printed)
-    unrolled                 022's `unrolled`, the braid's beads only, **with the column's
-                             radius taken from the braid** -- 022 cut at the round
-                             bundle's radius, which would crop a braid that has gone flat
-    painted/                 `Scripts/task024/render.py`: sixteen views round the braid at
-                             the places' own angles (the ring's order, `build.place_angle`),
-                             laid side by side, and the section's two faces and two edges
+                             heights -- **inside the middle cycles** when the run held its
+                             first and last (037-1')
+    unrolled                 022's `unrolled` on the braid's beads (the middle cycles, for
+                             037-1'), **with the column's radius taken from the braid**
+    painted/                 `Scripts/task024/render.py` on the braid's beads (the middle
+                             cycles, for 037-1'): sixteen views round the braid at the
+                             places' own angles, laid side by side, and the section's two
+                             faces and two edges
 """
 import argparse
 import importlib.util
+import json
 import math
 import os
 import sys
@@ -50,6 +53,7 @@ def main():
 
     p, thread_of, index_in, laid_in, header = read_dump.read(args.dump)
     made = np.array([int(l.split()[-1]) for l in open(args.dump) if not l.startswith("#")])
+    info = json.load(open(args.dump + ".json"))
     s = read_dump.settings(header)
     stand = build.st.Stand()
     cfg = {"mirror": s.get("mirror", 62.5), "hole": s.get("hole", 7.5),
@@ -59,23 +63,33 @@ def main():
     name = "braid"
     figures.section(p, thread_of, args.out, cfg, name)
     figures.above(p, thread_of, args.out, cfg, name)
-    figures.hole(p, thread_of, args.out, cfg, name)
+    if not info.get("boundary"):
+        figures.hole(p, thread_of, args.out, cfg, name)
 
-    q, who = p[made == 1], thread_of[made == 1]
+    body = made == 1
+    if info.get("window"):
+        lo, hi = info["window"][0] + info["shift"], info["window"][1] + info["shift"]
+        body &= (p[:, 2] >= lo) & (p[:, 2] < hi)
+    q, who = p[body], thread_of[body]
     lo, hi = float(q[:, 2].min()), float(q[:, 2].max())
     cuts = [lo + (hi - lo) * f for f in (0.25, 0.5, 0.75)]
     for at in cuts:
         figures.across(q, who, args.out, cfg, at, name)
-    wide = dict(cfg, bundle=float(np.hypot(q[:, 0], q[:, 1]).max()))
+    wide = dict(cfg, bundle=float(np.hypot(q[:, 0], q[:, 1]).max()),
+                **({"braid-point": hi + 0.5} if info.get("window") else {}))
     figures.unrolled(q, who, args.out, wide, name)
-    print("cut across at z = %s (stand frame); unrolled with the column radius %.2f d"
-          % (", ".join("%+.2f" % a for a in cuts), wide["bundle"] + 1.5))
+    print("cut across at z = %s (stand frame%s); unrolled with the column radius %.2f d"
+          % (", ".join("%+.2f" % a for a in cuts),
+             ", inside the middle cycles %.2f .. %.2f" % (lo, hi) if info.get("window") else "",
+             wide["bundle"] + 1.5))
 
     ways = {}
     for t in sorted(set(who.tolist())):
-        pick = (thread_of == t) & (made == 1)
-        ways[int(t) + 1] = p[pick][np.argsort(index_in[pick])]
-    ring = __import__("json").load(open(args.dump + ".json")).get("ring")
+        pick = (thread_of == t) & body
+        way = p[pick][np.argsort(index_in[pick])]
+        if len(way) >= 2:
+            ways[int(t) + 1] = way
+    ring = info.get("ring")
     seens = []
     for place in range(len(ring)):
         angle = build.place_angle(stand, ring, place)

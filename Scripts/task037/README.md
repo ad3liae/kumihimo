@@ -23,6 +23,30 @@ Borrowed and not rewritten: `Scripts/task023/construct.py` (`trajectories`, `pie
 `taut.py` (its settings), `figures.py`, `read_dump.py`, `Scripts/task024/render.py`.
 Several tasks have a `build.py` or a `settle.py`, so siblings are loaded by file.
 
+## 037-1' -- four switches (037, 作者の判定 2026-09-13「037-1 を受けて」)
+
+    --posts      a rest is a rigid vertical post: one x and y for all its beads, moved
+                 sideways whole (`settle.rigid`)
+    --boundary   the segments laid in the first cycle and in the last are held at the
+                 seed's x and y, and there is no free part. **"Laid in" is read off the
+                 layers**: a rest at the layer it arrived at, a carry at the layer it left
+                 from, a cycle is k layers. A post decides its own junction beads
+    --no-core    the core's carry-against-carry pairs leave the projection
+    --cycles 4   `measure.py` and `draw.py` read the middle two cycles only (z from k to
+                 3k in the braid's frame; the dump's `.json` carries it as `window`)
+
+With all four off the harness is 037-1's.
+
+    python3 Scripts/task037/build.py --braid hira --cycles 4 --posts --boundary --no-core \
+            --out .build/task037-dumps/hira-4p.txt
+    python3 Scripts/task037/build.py --braid maru --cycles 4 --posts --boundary --no-core \
+            --out .build/task037-dumps/maru-4p.txt
+    python3 Scripts/task037/build.py --braid hira --cycles 4 --posts --boundary --no-core \
+            --seed fold --out .build/task037-dumps/hira-4p-fold.txt
+
+Beside a dump: `.links` (kind, short end, segment), `.segments` (kind, the cycle it was
+laid in, held, place, seed) and `.json` (the construction, the window, the solver's record).
+
 ## Run
 
     python3 Scripts/task037/build.py --braid hira --cycles 2 --out .build/task037-dumps/hira-2.txt
