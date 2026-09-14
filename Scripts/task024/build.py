@@ -120,6 +120,105 @@ def side_step(steps, spot, folded, hands):
     return side
 
 
+# Task 038: what the last build did, for the scripts that measure it. **Read-only record**;
+# `build` fills it and returns the same tuple it always has.
+LAST = {}
+
+
+def landings(table, cycles):
+    """Where each braiding move puts its thread down, cycle by cycle: (thread, cycle) -> the
+    notch it lands on, **before** the closing moves it on. A thread moved only by the closing
+    that cycle has none. Threads are named by the stand position they start at, as
+    `braid_geometry.cycles` names them.
+
+    **The stacking model does not count here.** Its piles are counted at the places the
+    threads stand at the cycle's end, after the closing (`braid_geometry.stacks`), and
+    023's `trajectories` puts both ends of a carry there too; only the notch a thread is put
+    down on, which the closing then walks in, is new."""
+    occupant = dict(g.DISK_TO_STAND)
+    out = {}
+    for c in range(cycles):
+        for move in table:
+            thread = occupant.pop(move[0])
+            occupant[move[1]] = thread
+            if not g.is_repositioning(move):
+                out[(thread, c)] = move[1]
+    return out
+
+
+def at_slot(spot, u):
+    """A point on the ring given in slots, which may lie between two places: that far along
+    the line from one to the next (`braid_geometry.notch_ring_coordinate` gives a landing
+    notch in slots). On a tube that is the sixteen-sided figure's own edge; on a face the
+    places are in a line already."""
+    n = len(spot)
+    base = math.floor(u + 1e-9)
+    f = u - base
+    here = np.asarray(spot[int(base) % n][0], dtype=float)
+    if f < 1e-9:
+        return here
+    there = np.asarray(spot[(int(base) + 1) % n][0], dtype=float)
+    return (1.0 - f) * here + f * there
+
+
+def diagonal_pieces(thread, steps, spot, folded, land, u_of, side=None, w=D):
+    """**Task 038: a rest runs straight from where the thread was put down to where it
+    leaves from.**
+
+    A carried thread is put down on its landing notch, rests there, is walked in by the
+    closing at the end of the cycle, and leaves from where the closing left it. Laid over
+    and held, that stretch of thread is one taut line -- **from the landing slot at the
+    height it arrived at, to the place it leaves from at the height it leaves at** -- and
+    not an upright bar with a step (docs/tasks/038-diagonal-rests-by-construction.md). A
+    cycle in which the closing alone moves the thread is part of the same stay, so it
+    folds into the same line; 023 writes it as a rest of no height and a carry at one
+    height, and that carry goes. **Every height is 024's**: a stay starts at the height its
+    first step starts at and ends at the height its last step leaves at.
+
+    Returns the rests (line, way, face, place), the carries (line, face, other, the step
+    it is), and the stays as records.
+    """
+    last = len(steps) - 1
+    starts = [0] + [i for i in range(1, len(steps)) if (thread, i - 1) in land]
+    rests, carries, stays = [], [], []
+    for n, a in enumerate(starts):
+        b = starts[n + 1] - 1 if n + 1 < len(starts) else last
+        place_a, place_b = steps[a][0], steps[b][0]
+        if a == 0:
+            slot0 = float(place_a)
+            xy0 = np.asarray(spot[place_a][0], dtype=float)
+        else:
+            slot0 = float(u_of[land[(thread, a - 1)]])
+            xy0 = at_slot(spot, slot0)
+        xy1 = np.asarray(spot[place_b][0], dtype=float)
+        z0, z1 = float(steps[a][1]), float(steps[b][2])
+        _, way, face = spot[place_b]
+        if not folded:
+            # a tube's outward way turns along the line; the line's own middle is used
+            mid = xy0 / max(np.linalg.norm(xy0), 1e-12) + xy1 / max(np.linalg.norm(xy1), 1e-12)
+            mid = mid / max(np.linalg.norm(mid), 1e-12)
+            way = np.array([mid[0], mid[1], 0.0])
+        rests.append((np.array([[xy0[0], xy0[1], z0 * D], [xy1[0], xy1[1], z1 * D]]),
+                      way, face, place_b))
+        folded_in = [(j, steps[j][2], steps[j][3]) for j in range(a, b)]
+        stays.append(dict(thread=thread, first=a, last=b, slot0=slot0, place=place_b,
+                          z0=z0, z1=z1, xy0=xy0, xy1=xy1, folded=folded_in))
+        if b < last:
+            here, _, face_here = spot[place_b]
+            _, _, other = spot[steps[b + 1][0]]
+            there = at_slot(spot, float(u_of[land[(thread, b)]]))
+            leave, arrive = steps[b][2], steps[b][3]
+            legs = [np.array([here[0], here[1], leave * D])]
+            if folded and face_here != other and "edge" not in (face_here, other):
+                middle = faces.belly(here, there)        # through the neutral plane
+                across = (side or {}).get((thread, b), 0.0)
+                legs.append(np.array([middle[0] + across * w / 2.0, middle[1],
+                                      (leave + arrive) * D / 2.0]))
+            legs.append(np.array([there[0], there[1], arrive * D]))
+            carries.append((np.array(legs), face_here, other, b))
+    return rests, carries, stays
+
+
 def pieces(thread, steps, spot, folded, side=None, w=D):
     """Rests and carries, with the face each one belongs to."""
     rests, carries = [], []
@@ -188,7 +287,7 @@ def crest(rest, way, others, shape, later_than=None, size=(D, D)):
     return points + rise[:, None] * way, marks
 
 
-def build(braid, cycles, shape="arc", ellipse=False):
+def build(braid, cycles, shape="arc", ellipse=False, rests="vertical"):
     table = g.FIG32 if braid == "maru" else g.FIG20
     ring = g.RING_MARU if braid == "maru" else g.RING_HIRA
     folded = braid == "hira"
@@ -210,29 +309,51 @@ def build(braid, cycles, shape="arc", ellipse=False):
             hands[(thread, turn[thread])] = h + 1
     side = side_step(steps, spot, folded, hands)
     wide, thick = faces.flattened(folded) if ellipse else (D, D)
-    plain = {tt: pieces(tt, steps[tt], spot, folded, side, wide) for tt in steps}
+    stays = []
+    if rests == "diagonal":
+        land = landings(table, cycles)
+        u_of = g.notch_ring_coordinate(ring)
+        plain, rank_of_rest, step_of_carry = {}, {}, {}
+        for tt in steps:
+            r_, c_, s_ = diagonal_pieces(tt, steps[tt], spot, folded, land, u_of, side, wide)
+            plain[tt] = (r_, [(legs, f, o) for legs, f, o, _ in c_])
+            rank_of_rest[tt] = [st["z0"] for st in s_]
+            step_of_carry[tt] = [b for _, _, _, b in c_]
+            stays.extend(s_)
+    elif rests == "vertical":
+        plain = {tt: pieces(tt, steps[tt], spot, folded, side, wide) for tt in steps}
+        rank_of_rest = {tt: [float(steps[tt][i][1]) for i in range(len(plain[tt][0]))]
+                        for tt in steps}
+        step_of_carry = {tt: list(range(len(plain[tt][1]))) for tt in steps}
+    else:
+        raise SystemExit("no such rests: %r" % (rests,))
     everything = []
-    for t, (rests, carries) in plain.items():
-        for i, (line, _, _, _) in enumerate(rests):
-            everything.append((t, line, float(steps[t][i][1])))
+    for t, (rests_, carries) in plain.items():
+        for i, (line, _, _, _) in enumerate(rests_):
+            everything.append((t, line, float(rank_of_rest[t][i])))
         for i, (line, _, _) in enumerate(carries):
-            everything.append((t, line, float(steps[t][i][2])))
+            everything.append((t, line, float(steps[t][step_of_carry[t][i]][2])))
 
     ways, kinds, crests = {}, {}, 0
-    for t, (rests, carries) in plain.items():
+    slanted, falling = {}, {}
+    for t, (rests_, carries) in plain.items():
         others = [(rank, line) for who, line, rank in everything if who != t]
-        points, mark = [], []
-        for i, (line, way, face, place) in enumerate(rests):
-            mine = float(steps[t][i][1])
+        points, mark, slant, fall = [], [], [], []
+        for i, (line, way, face, place) in enumerate(rests_):
+            mine = float(rank_of_rest[t][i])
             drawn, marks = crest(line, way, others, shape,
                                  later_than=lambda rank: mine > rank + 1e-9,
                                  size=(wide, thick))
             crests += len(marks)
             if points and np.linalg.norm(drawn[0] - points[-1]) < 1e-9:
                 drawn = drawn[1:]
+            lean = bool(np.linalg.norm(line[-1, :2] - line[0, :2]) > 1e-9)
             points.extend(drawn); mark.extend([0] * len(drawn))
+            slant.extend([lean] * len(drawn)); fall.extend([False] * len(drawn))
             if i < len(carries):
                 line = carries[i][0]
+                b = step_of_carry[t][i]
+                drops = bool(steps[t][b][3] < steps[t][b][2] - 1e-9)
                 leg = np.linalg.norm(np.diff(line, axis=0), axis=1)
                 along = np.concatenate([[0.0], np.cumsum(leg)])
                 want = np.linspace(0.0, float(along[-1]),
@@ -240,8 +361,16 @@ def build(braid, cycles, shape="arc", ellipse=False):
                 drawn = np.stack([np.interp(want, along, line[:, a]) for a in range(3)],
                                  axis=1)[1:]
                 points.extend(drawn); mark.extend([1] * len(drawn))
+                slant.extend([False] * len(drawn)); fall.extend([drops] * len(drawn))
         ways[t] = np.array(points)
         kinds[t] = np.array(mark)
+        slanted[t] = np.array(slant, dtype=bool)
+        falling[t] = np.array(fall, dtype=bool)
+    LAST.clear()
+    LAST.update(rests=rests, stays=stays, slanted=slanted, falling=falling,
+                falls=[(t, i, w[i][0], w[i + 1][0], w[i][2], w[i][3])
+                       for t, w in steps.items() for i in range(len(w) - 1)
+                       if w[i][3] < w[i][2] - 1e-9])
     return ways, kinds, k, spot, steps, crests, lifted, side
 
 
@@ -306,12 +435,15 @@ def main():
     ap.add_argument("--shape", choices=("arc", "straight"), default="arc")
     ap.add_argument("--ellipse", action="store_true",
                     help="let the threads flatten where they press together")
+    ap.add_argument("--rests", choices=("vertical", "diagonal"), default="vertical",
+                    help="a rest as an upright line at its place (024), or straight from "
+                         "where the thread was put down to where it leaves (Task 038)")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
 
     began = time.time()
     ways, kinds, k, spot, steps, crests, lifted, side = build(
-        args.braid, args.cycles, args.shape, args.ellipse)
+        args.braid, args.cycles, args.shape, args.ellipse, args.rests)
     surface, core, deep_s, deep_c = measure(ways, kinds)
     wrong, worst = outward(ways, kinds, spot, steps)
     took = time.time() - began
