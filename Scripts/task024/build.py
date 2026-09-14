@@ -64,6 +64,67 @@ def hand_over(steps):
     return moved
 
 
+def lift_place(steps, place, low, by):
+    """Every layer at `place` from height `low` up goes up by `by`: a rest's arrival and its
+    departure each, if they are that high, and the carry landing on a lifted arrival with it.
+    Returns how many rests moved."""
+    moved = 0
+    for way in steps.values():
+        for j, (here, start, leave, arrive) in enumerate(way):
+            if here != place:
+                continue
+            up_start = start + by if start >= low - 1e-9 else start
+            up_leave = leave + by if leave >= low - 1e-9 else leave
+            if (up_start, up_leave) == (start, leave):
+                continue
+            tail = j == len(way) - 1                   # 023's last rest: arrive is leave
+            way[j] = (here, up_start, up_leave, up_leave if tail else arrive)
+            if up_start != start and j > 0:
+                p0, s0, l0, _ = way[j - 1]
+                way[j - 1] = (p0, s0, l0, up_start)
+            moved += 1
+    return moved
+
+
+def mend_falls(steps, cap=200):
+    """**Task 038-1': no carry lands below where it left** (the author's ruling 2026-09-14).
+
+    The stacking model lays a later thread above an earlier one (docs/architecture.md,
+    「正本の読み方」). A carry that arrives lower than it left breaks that, and 037-1' found
+    where they come from: `hand_over` lifts a rest of the first cycle and does not lift the
+    landing of that thread's next carry. So a falling carry's landing is raised to its
+    departure, **every layer at its landing place from that height up is raised with it**
+    (`lift_place`), `hand_over` is applied again, and round it goes -- following the threads --
+    until nothing moves. A lifted departure can make the next carry fall; that is the
+    propagation. **k is not held**: it is counted again by whoever measures the result.
+
+    Returns what it did: the falls at the start, the carries mended in all, the rests lifted,
+    the rounds, whether it settled inside `cap`, and every lift (round, thread, step, place,
+    from, by)."""
+    first = sum(1 for w in steps.values() for i in range(len(w) - 1) if w[i][3] < w[i][2] - 1e-9)
+    mended = lifted = handed = 0
+    lifts = []
+    for round_ in range(1, cap + 1):
+        changed = 0
+        for thread in sorted(steps):
+            way = steps[thread]
+            for i in range(len(way) - 1):
+                place, start, leave, arrive = way[i]
+                if arrive < leave - 1e-9:
+                    lifts.append((round_, thread, i, way[i + 1][0], arrive, leave - arrive))
+                    lifted += lift_place(steps, way[i + 1][0], arrive, leave - arrive)
+                    mended += 1
+                    changed += 1
+        again = hand_over(steps)
+        handed += again
+        changed += again
+        if not changed:
+            return dict(first=first, mended=mended, lifted=lifted, handed=handed,
+                        rounds=round_ - 1, settled=True, lifts=lifts)
+    return dict(first=first, mended=mended, lifted=lifted, handed=handed, rounds=cap,
+                settled=False, lifts=lifts)
+
+
 def wefts_apart(steps, spot, folded):
     """**Two wefts never cross the same column at the same height.** The stacking
     model puts one cycle of a column at a landing plus two passings, so two wefts
@@ -146,22 +207,53 @@ def landings(table, cycles):
     return out
 
 
-def at_slot(spot, u):
-    """A point on the ring given in slots, which may lie between two places: that far along
-    the line from one to the next (`braid_geometry.notch_ring_coordinate` gives a landing
-    notch in slots). On a tube that is the sixteen-sided figure's own edge; on a face the
-    places are in a line already."""
+def at_slot(spot, u, folded=False, on="chord"):
+    """A point on the ring given in slots, which may lie between two places
+    (`braid_geometry.notch_ring_coordinate` gives a landing notch in slots).
+
+    on="chord"      that far along the straight line from one place to the next -- 038-1's
+                    reading. Between a flat braid's two edge places that line runs through
+                    the thickness, and a carry landing there passed just under the front face
+    on="perimeter"  **on the section's perimeter between the two places** (Task 038-1', the
+                    author's ruling 2026-09-14): a landing is outside the group, and outside is
+                    outside the perimeter. For a tube, that far round the circumscribed circle;
+                    **between a flat braid's two edge places, round the fold's half circle**,
+                    whose middle is the fold's tip (x_e + d/2 outwards, 0); between two places
+                    on one face, along the face, which is the chord already. A slot between a
+                    face place and an edge place is not in either table, so it stops rather
+                    than choosing
+    """
     n = len(spot)
     base = math.floor(u + 1e-9)
     f = u - base
-    here = np.asarray(spot[int(base) % n][0], dtype=float)
+    a, b = int(base) % n, (int(base) + 1) % n
+    here = np.asarray(spot[a][0], dtype=float)
     if f < 1e-9:
         return here
-    there = np.asarray(spot[(int(base) + 1) % n][0], dtype=float)
+    there = np.asarray(spot[b][0], dtype=float)
+    if on == "chord":
+        return (1.0 - f) * here + f * there
+    if on != "perimeter":
+        raise SystemExit("no such slot reading: %r" % (on,))
+    if not folded:
+        radius = float(np.linalg.norm(here))
+        a0 = math.atan2(here[1], here[0])
+        turn = (math.atan2(there[1], there[0]) - a0 + math.pi) % (2.0 * math.pi) - math.pi
+        return radius * np.array([math.cos(a0 + f * turn), math.sin(a0 + f * turn)])
+    kinds = (spot[a][2], spot[b][2])
+    if kinds == ("edge", "edge"):
+        centre = (here + there) / 2.0
+        half = here - centre
+        out = np.asarray(spot[a][1][:2], dtype=float)          # the edge's own outward way
+        return centre + half * math.cos(math.pi * f) + \
+            out * float(np.linalg.norm(half)) * math.sin(math.pi * f)
+    if "edge" in kinds:
+        raise SystemExit("slot %.3f lies between a face place and an edge place: "
+                         "the perimeter there is not settled" % u)
     return (1.0 - f) * here + f * there
 
 
-def diagonal_pieces(thread, steps, spot, folded, land, u_of, side=None, w=D):
+def diagonal_pieces(thread, steps, spot, folded, land, u_of, side=None, w=D, slots="chord"):
     """**Task 038: a rest runs straight from where the thread was put down to where it
     leaves from.**
 
@@ -189,7 +281,7 @@ def diagonal_pieces(thread, steps, spot, folded, land, u_of, side=None, w=D):
             xy0 = np.asarray(spot[place_a][0], dtype=float)
         else:
             slot0 = float(u_of[land[(thread, a - 1)]])
-            xy0 = at_slot(spot, slot0)
+            xy0 = at_slot(spot, slot0, folded, slots)
         xy1 = np.asarray(spot[place_b][0], dtype=float)
         z0, z1 = float(steps[a][1]), float(steps[b][2])
         _, way, face = spot[place_b]
@@ -206,7 +298,7 @@ def diagonal_pieces(thread, steps, spot, folded, land, u_of, side=None, w=D):
         if b < last:
             here, _, face_here = spot[place_b]
             _, _, other = spot[steps[b + 1][0]]
-            there = at_slot(spot, float(u_of[land[(thread, b)]]))
+            there = at_slot(spot, float(u_of[land[(thread, b)]]), folded, slots)
             leave, arrive = steps[b][2], steps[b][3]
             legs = [np.array([here[0], here[1], leave * D])]
             if folded and face_here != other and "edge" not in (face_here, other):
@@ -239,7 +331,7 @@ def pieces(thread, steps, spot, folded, side=None, w=D):
     return rests, carries
 
 
-def crest(rest, way, others, shape, later_than=None, size=(D, D)):
+def crest(rest, way, others, shape, later_than=None, size=(D, D), names=None):
     """Where another thread passes under this resting one, it rides over it.
 
     **The crest is the arc round the thread underneath**, brought back to the line
@@ -262,7 +354,7 @@ def crest(rest, way, others, shape, later_than=None, size=(D, D)):
     points = line[0] + (line[-1] - line[0])[None, :] * (along / total)[:, None]
     rise = np.zeros(count)
     marks = []
-    for who, other in others:
+    for number, (who, other) in enumerate(others):
         later = later_than(who) if later_than else False
         for a, b in zip(other[:-1], other[1:]):
             u, v, gap = c.gl.segment_distance(line[:1], line[-1:], a[None, :], b[None, :])
@@ -283,11 +375,12 @@ def crest(rest, way, others, shape, later_than=None, size=(D, D)):
             shape_of = (t - s) * (1 - x) if shape == "straight" \
                 else np.maximum(t * np.sqrt(np.maximum(1 - x * x, 0.0)) - s, 0.0)
             rise = np.maximum(rise, shape_of)             # the highest wins
-            marks.append(at)
+            marks.append(at if names is None else (at, names[number]))
     return points + rise[:, None] * way, marks
 
 
-def build(braid, cycles, shape="arc", ellipse=False, rests="vertical"):
+def build(braid, cycles, shape="arc", ellipse=False, rests="vertical", slots="chord",
+          mend=False):
     table = g.FIG32 if braid == "maru" else g.FIG20
     ring = g.RING_MARU if braid == "maru" else g.RING_HIRA
     folded = braid == "hira"
@@ -295,6 +388,8 @@ def build(braid, cycles, shape="arc", ellipse=False, rests="vertical"):
     steps, k = c.trajectories(table, ring, folded, cycles)
     steps = {t: list(way) for t, way in steps.items()}
     lifted = hand_over(steps)
+    before = {t: list(way) for t, way in steps.items()}
+    mended = mend_falls(steps) if mend else None
 
     hands = {}
     who = c.g.DISK_TO_STAND.copy()
@@ -310,46 +405,76 @@ def build(braid, cycles, shape="arc", ellipse=False, rests="vertical"):
     side = side_step(steps, spot, folded, hands)
     wide, thick = faces.flattened(folded) if ellipse else (D, D)
     stays = []
+    land = landings(table, cycles)
+    u_of = g.notch_ring_coordinate(ring)
+    rest_of, carry_of = {}, {}                     # records for the measuring scripts
     if rests == "diagonal":
-        land = landings(table, cycles)
-        u_of = g.notch_ring_coordinate(ring)
         plain, rank_of_rest, step_of_carry = {}, {}, {}
         for tt in steps:
-            r_, c_, s_ = diagonal_pieces(tt, steps[tt], spot, folded, land, u_of, side, wide)
+            r_, c_, s_ = diagonal_pieces(tt, steps[tt], spot, folded, land, u_of, side, wide,
+                                         slots)
             plain[tt] = (r_, [(legs, f, o) for legs, f, o, _ in c_])
             rank_of_rest[tt] = [st["z0"] for st in s_]
             step_of_carry[tt] = [b for _, _, _, b in c_]
             stays.extend(s_)
+            for i, st in enumerate(s_):
+                rest_of[(tt, i)] = dict(place=st["place"], slot=st["slot0"], z0=st["z0"],
+                                        z1=st["z1"], steps=(st["first"], st["last"]),
+                                        lean=bool(np.linalg.norm(st["xy1"] - st["xy0"]) > 1e-9))
+            for i, (_, _, _, b) in enumerate(c_):
+                carry_of[(tt, i)] = dict(step=b, source=steps[tt][b][0],
+                                         target=steps[tt][b + 1][0],
+                                         slot=float(u_of[land[(tt, b)]]),
+                                         leave=steps[tt][b][2], arrive=steps[tt][b][3])
     elif rests == "vertical":
         plain = {tt: pieces(tt, steps[tt], spot, folded, side, wide) for tt in steps}
         rank_of_rest = {tt: [float(steps[tt][i][1]) for i in range(len(plain[tt][0]))]
                         for tt in steps}
         step_of_carry = {tt: list(range(len(plain[tt][1]))) for tt in steps}
+        for tt in steps:
+            for i in range(len(plain[tt][0])):
+                rest_of[(tt, i)] = dict(place=steps[tt][i][0], slot=float(steps[tt][i][0]),
+                                        z0=steps[tt][i][1], z1=steps[tt][i][2], steps=(i, i),
+                                        lean=False)
+            for i in range(len(plain[tt][1])):
+                carry_of[(tt, i)] = dict(step=i, source=steps[tt][i][0],
+                                         target=steps[tt][i + 1][0],
+                                         slot=float(steps[tt][i + 1][0]),
+                                         leave=steps[tt][i][2], arrive=steps[tt][i][3])
     else:
         raise SystemExit("no such rests: %r" % (rests,))
+    for (tt, i), meta in carry_of.items():
+        b = meta["step"]
+        meta["mended"] = bool(abs(before[tt][b][3] - steps[tt][b][3]) > 1e-9
+                              or abs(before[tt][b][2] - steps[tt][b][2]) > 1e-9)
+        meta["fell"] = bool(before[tt][b][3] < before[tt][b][2] - 1e-9)
     everything = []
     for t, (rests_, carries) in plain.items():
         for i, (line, _, _, _) in enumerate(rests_):
-            everything.append((t, line, float(rank_of_rest[t][i])))
+            everything.append((t, line, float(rank_of_rest[t][i]), ("rest", i)))
         for i, (line, _, _) in enumerate(carries):
-            everything.append((t, line, float(steps[t][step_of_carry[t][i]][2])))
+            everything.append((t, line, float(steps[t][step_of_carry[t][i]][2]), ("carry", i)))
 
     ways, kinds, crests = {}, {}, 0
-    slanted, falling = {}, {}
+    slanted, falling, spans, marks_of = {}, {}, {}, []
     for t, (rests_, carries) in plain.items():
-        others = [(rank, line) for who, line, rank in everything if who != t]
-        points, mark, slant, fall = [], [], [], []
+        others = [(rank, line) for who, line, rank, _ in everything if who != t]
+        names = [(who, what) for who, line, rank, what in everything if who != t]
+        points, mark, slant, fall, span = [], [], [], [], []
         for i, (line, way, face, place) in enumerate(rests_):
             mine = float(rank_of_rest[t][i])
             drawn, marks = crest(line, way, others, shape,
                                  later_than=lambda rank: mine > rank + 1e-9,
-                                 size=(wide, thick))
+                                 size=(wide, thick), names=names)
             crests += len(marks)
+            marks_of.extend((t, i, name) for _, name in marks)
             if points and np.linalg.norm(drawn[0] - points[-1]) < 1e-9:
                 drawn = drawn[1:]
             lean = bool(np.linalg.norm(line[-1, :2] - line[0, :2]) > 1e-9)
+            first = len(points)
             points.extend(drawn); mark.extend([0] * len(drawn))
             slant.extend([lean] * len(drawn)); fall.extend([False] * len(drawn))
+            span.append((first, len(points), "rest", i))
             if i < len(carries):
                 line = carries[i][0]
                 b = step_of_carry[t][i]
@@ -360,14 +485,19 @@ def build(braid, cycles, shape="arc", ellipse=False, rests="vertical"):
                                    max(2, int(np.ceil(along[-1] / FINE)) + 1))
                 drawn = np.stack([np.interp(want, along, line[:, a]) for a in range(3)],
                                  axis=1)[1:]
+                first = len(points)
                 points.extend(drawn); mark.extend([1] * len(drawn))
                 slant.extend([False] * len(drawn)); fall.extend([drops] * len(drawn))
+                span.append((first, len(points), "carry", i))
         ways[t] = np.array(points)
         kinds[t] = np.array(mark)
         slanted[t] = np.array(slant, dtype=bool)
         falling[t] = np.array(fall, dtype=bool)
+        spans[t] = span
     LAST.clear()
-    LAST.update(rests=rests, stays=stays, slanted=slanted, falling=falling,
+    LAST.update(rests=rests, slots=slots, mend=mend, stays=stays, slanted=slanted,
+                falling=falling, spans=spans, rest_of=rest_of, carry_of=carry_of,
+                crest_marks=marks_of, mended=mended, before=before,
                 falls=[(t, i, w[i][0], w[i + 1][0], w[i][2], w[i][3])
                        for t, w in steps.items() for i in range(len(w) - 1)
                        if w[i][3] < w[i][2] - 1e-9])
@@ -438,12 +568,17 @@ def main():
     ap.add_argument("--rests", choices=("vertical", "diagonal"), default="vertical",
                     help="a rest as an upright line at its place (024), or straight from "
                          "where the thread was put down to where it leaves (Task 038)")
+    ap.add_argument("--slots", choices=("chord", "perimeter"), default="chord",
+                    help="where a landing slot between two places goes: on the straight "
+                         "line (038-1) or on the section's perimeter (038-1')")
+    ap.add_argument("--mend", action="store_true",
+                    help="038-1': no carry lands below where it left (layers above it lifted)")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
 
     began = time.time()
     ways, kinds, k, spot, steps, crests, lifted, side = build(
-        args.braid, args.cycles, args.shape, args.ellipse, args.rests)
+        args.braid, args.cycles, args.shape, args.ellipse, args.rests, args.slots, args.mend)
     surface, core, deep_s, deep_c = measure(ways, kinds)
     wrong, worst = outward(ways, kinds, spot, steps)
     took = time.time() - began
