@@ -1,11 +1,9 @@
 """Braid by holding the last crossing (Task 039).
 
-    python3 Scripts/task039/run.py --cycles 2 --dumps .build/task039-dumps/hira/c \
-        --record .build/task039-dumps/hira/record.tsv
-    python3 Scripts/task039/run.py --cycles 2 --maru --dumps .build/task039-dumps/maru/c \
-        --record .build/task039-dumps/maru/record.tsv
-    python3 Scripts/task039/run.py --cycles 2 --core --dumps .build/task039-1p-dumps/hira/c \
-        --record .build/task039-1p-dumps/hira/record.tsv                      (039-1')
+    python3 Scripts/task039/run.py --cycles 2 --core --dumps .build/task039-1pp-dumps/hira/c \
+        --record .build/task039-1pp-dumps/hira/record.tsv                     (039-1'')
+    python3 Scripts/task039/run.py --cycles 2 --threshold 1.05 --dumps .build/task039-dumps/hira/c \
+        --record .build/task039-dumps/hira/record.tsv                         (039-1)
 
 A hand is 022's hand with one thing changed -- **what is fixed**
 (docs/tasks/039-hold-the-last-crossing.md, 1.-2.):
@@ -28,17 +26,25 @@ point (radius hole + fillet, the notch's angle, half a thread above the mirror):
 thread lies on the mirror and does nothing to the braid. The seed is 022's knot, laid round the
 braid **in the cross-section ring's order** (037's `build.place_angle`; the author's ruling 2).
 
-`--core` (039-1', the author's ruling after 039-1): **the knot is filled.** Inside the ring, a
-bead at the centre and six a diameter round it, at the braiding point. Not a thread: the
-tightening never moves it, its hand is 0, and **it counts as fixed part** -- it holds a covered
-bead down (`cover.py`), a carry rides over it, and a send lowers it with the rest of the fixed
-part. Each bead is a capsule of no length, which is a sphere. It is written to the dump as
-thread 16 and left out of (a), (b), (d), the column top, the outer diameter, the sections and
-the pairs within 1.02 d; how far any thread reaches into it is printed as a check.
+`--threshold` (1.25 d since 039-1''; 1.05 d is the variant): **one distance for three things** --
+a bead is covered, a bead touches the fixed part, and `note_crossings` / `crossings.judge` count
+a crossing. Two chains of diameter d whose centre lines touch have bead pairs up to 1.22 d apart.
+
+`--core` (039-1'', the author's ruling after 039-1''s nine hands): **the knot is filled.** A
+hexagonal lattice of spacing d cut at the bundle's radius -- 19 beads, the outermost at r 2 d --
+`--core-lift` (d/2) above the braiding point. Not a thread: the tightening never moves it, its
+hand is 0, and **it counts as fixed part** -- it holds a covered bead down (`cover.py`), a carry
+rides over it, and a send lowers it with the rest of the fixed part. Each bead is a capsule of
+no length, which is a ball. Its beads may overlap the knot's (both held): **the tightening's
+residual leaves out the contacts with the core that no projection can act on** (every end that
+could take a share of the correction is held), which otherwise would stand in the residual for
+good. It is written to the dump as thread 16 and left out of (a), (b), (d), the column top, the
+outer diameter, the sections and the pairs within 1.02 d; how far a thread reaches into it where
+it could be pushed out is printed as a check.
 
 Stops, as the sheet's 7. says: a crossing the other way up, a fixed bead inside the mirror,
 (a) over 0.01 d two hands running, a cycle's pitch over 6 d, a cycle in which nothing at all
-was fixed.
+was fixed; and (039-1'') nothing fixed in the first three hands.
 """
 import argparse
 import importlib.util
@@ -117,26 +123,86 @@ def seed(stand, ring, arc=0.0):
     return threads, notches
 
 
-def core(stand, ring):
-    """039-1''s filled knot: a bead at the centre and six a diameter round it, at the braiding
-    point. **The ruling does not say which way the six face**; the first stands at the angle of
-    the ring's first place (037's `place_angle`, as the knot's own beads do), the rest every 60
-    degrees. A diameter apart from each other, at least 1.56 d inside the ring's beads."""
+def core(stand, ring, lift=0.5 * D):
+    """039-1'''s filled knot: a hexagonal lattice of spacing d, cut at the bundle's radius (19
+    beads, the outermost at r 2 d), `lift` above the braiding point -- the top of the knot's lump.
+    **The ruling does not say which way the lattice faces**; one of its rows runs at the angle of
+    the ring's first place (037's `place_angle`), as 039-1''s six did. Its beads may overlap the
+    knot's own: both are held."""
     build037 = sibling("build037", "..", "task037", "build.py")
-    depth = stand.braiding_point_depth()
+    z = stand.braiding_point_depth() + lift
     first = build037.place_angle(stand, ring, 0)
-    out = [np.array([0.0, 0.0, depth])]
-    for k in range(6):
-        a = first + k * math.pi / 3.0
-        out.append(np.array([D * math.cos(a), D * math.sin(a), depth]))
+    a1 = np.array([math.cos(first), math.sin(first)])
+    a2 = np.array([math.cos(first + math.pi / 3.0), math.sin(first + math.pi / 3.0)])
+    out = []
+    for i in range(-3, 4):
+        for j in range(-3, 4):
+            x, y = D * (i * a1 + j * a2)
+            if math.hypot(x, y) <= stand.bundle_radius + 1e-9:
+                out.append(np.array([x, y, z]))
+    out.sort(key=lambda c: (round(math.hypot(c[0], c[1]), 6), math.atan2(c[1], c[0])))
     return out
+
+
+def immovable(p, links, pairs, held):
+    """Which contact pairs no projection can act on -- every end that could take a share of the
+    correction is held (`taut.push_apart`'s own weights) -- and the pairs' gaps."""
+    i0, i1 = links[pairs[:, 0], 0], links[pairs[:, 0], 1]
+    j0, j1 = links[pairs[:, 1], 0], links[pairs[:, 1], 1]
+    s, t, gap = gl.segment_distance(p[i0], p[i1], p[j0], p[j1])
+    wa0, wa1 = (1 - s) * ~held[i0], s * ~held[i1]
+    wb0, wb1 = (1 - t) * ~held[j0], t * ~held[j1]
+    return (wa0 ** 2 + wa1 ** 2 + wb0 ** 2 + wb1 ** 2) <= 1e-9, gap
+
+
+def settle_beside_the_core(count):
+    """022's `taut.settle`, word for word, except for its residual: **the contacts with the core
+    (the last `count` links) that no projection can act on are left out** -- the core may overlap
+    the knot's held beads, and a knot bead's first link starts inside it. Everything else, the
+    projections included, is 022's."""
+    def settle(p, links, rim, held, anchored, stand, cap=None):
+        cap = taut.INNER if cap is None else cap
+        link = overlap = float('inf')
+        for round_ in range(cap):
+            for _ in range(taut.PROJECTIONS):
+                taut.space_out(p, links, rim, held)
+                taut.push_apart(p, links, gl.contact_pairs(p, links, "capsule"), held)
+                stand.push_out(p)
+                p[held] = anchored
+            a, b = links[:, 0], links[:, 1]
+            length = np.linalg.norm(p[b] - p[a], axis=1)
+            link = float(np.max(np.abs(length[~rim] - D))) if (~rim).any() else 0.0
+            overlap = 0.0
+            pairs = gl.contact_pairs(p, links, "capsule")
+            if pairs is not None and len(pairs):
+                of_core = np.zeros(len(links), dtype=bool)
+                of_core[len(links) - count:] = True
+                stuck, gap = immovable(p, links, pairs, held)
+                keep = ~((of_core[pairs[:, 0]] | of_core[pairs[:, 1]]) & stuck)
+                if keep.any():
+                    overlap = max(0.0, float(np.max(D - np.linalg.norm(gap[keep], axis=1))))
+            if max(link, overlap) < taut.SETTLED:
+                return round_ + 1, link, overlap
+        return cap, link, overlap
+    return settle
+
+
+def solver_held(threads, masks):
+    """What `taut.tighten` holds: the frozen beads and both ends of every polyline."""
+    held = np.concatenate(masks).copy()
+    first = 0
+    for t in threads:
+        held[first] = True
+        held[first + len(t) - 1] = True
+        first += len(t)
+    return held
 
 
 class Braid(bd.Braid):
     """022's braid, fixed by covering instead of by depth."""
 
     def __init__(self, stand, ring, threshold, braid_z, seed_arc=0.0, sweeps=taut.SWEEPS,
-                 filled=False):
+                 filled=False, lift=0.5 * D):
         super().__init__(stand, sweeps=sweeps, freeze_depth=0.0)
         threads, notches = seed(stand, ring, seed_arc)
         self.free = [t[:-1].copy() for t in threads]
@@ -144,7 +210,7 @@ class Braid(bd.Braid):
         self.notch = list(notches)
         self.threshold = threshold
         self.braid_z = braid_z
-        self.core = core(stand, ring) if filled else []
+        self.core = core(stand, ring, lift) if filled else []
 
     # --- the core is in everything the tightening and the carry see ----------------------
 
@@ -162,6 +228,16 @@ class Braid(bd.Braid):
     def strands(self):
         """The sixteen threads alone, bead 0 at the rim: what (a) is measured on."""
         return bd.Braid.threads(self)
+
+    def tighten(self, every=1000, log=None):
+        if not self.core:
+            return super().tighten(every, log)
+        kept = taut.settle
+        taut.settle = settle_beside_the_core(len(self.core))
+        try:
+            return super().tighten(every, log)
+        finally:
+            taut.settle = kept
 
     def write(self, path, hand):
         """022's dump, and the core after it as thread 16: fixed, laid in at hand 0."""
@@ -184,6 +260,10 @@ class Braid(bd.Braid):
 
     def cover(self):
         return cover.advance(self, self.threshold)
+
+    def note_crossings(self):
+        """022's guard, counting a crossing within the threshold (039-1'')."""
+        return super().note_crossings(within=self.threshold)
 
     def column_top(self):
         """The fixed part's column top: the threads' fixed beads only (not the core), within the
@@ -224,8 +304,8 @@ class Braid(bd.Braid):
     def free_over(self):
         """Crossings with a free bead on top (the author's ruling after 039-1, 2.): a bead the
         covering fixed (not the seed's knot, not the core) and a free bead of another thread
-        carried at a later hand, by `note_crossings`' own test -- within d + SETTLED, less than
-        d across. Returns how many, and how many have the free bead not higher. **Recorded
+        carried at a later hand, by the guard's own test -- within the threshold, less than d
+        across. Returns how many, and how many have the free bead not higher. **Recorded
         only**: the guard stays on fixed-fixed pairs."""
         from scipy.spatial import cKDTree
         under, under_who, under_hand = [], [], []
@@ -240,7 +320,7 @@ class Braid(bd.Braid):
             return 0, 0
         under, over = np.array(under), np.array(over)
         found = turned = 0
-        for i, near in enumerate(cKDTree(over).query_ball_point(under, taut.D + taut.SETTLED)):
+        for i, near in enumerate(cKDTree(over).query_ball_point(under, self.threshold)):
             for j in near:
                 if over_who[j] == under_who[i] or over_hand[j] <= under_hand[i]:
                     continue
@@ -273,23 +353,26 @@ def into_each_other(threads, held, over=0.01 * D):
             for k in np.argsort(-deep) if deep[k] > over]
 
 
-def core_overlap(braid):
-    """How far any thread reaches into the core -- a check that it stands in the way. Not (a)."""
+def core_contacts(braid):
+    """The threads against the core: the deepest overlap a projection could push out (a check
+    that the core stands in the way; not (a)), and how many overlaps nothing can move -- the
+    knot's beads and their first links inside the core, allowed -- and the deepest of those."""
     if not braid.core:
-        return 0.0
-    p, thread_of, links, rim = taut.flatten(braid.threads())
+        return 0.0, 0, 0.0
+    threads = braid.threads()
+    p, thread_of, links, rim = taut.flatten(threads)
     pairs = gl.contact_pairs(p, links, "capsule")
     if pairs is None or not len(pairs):
-        return 0.0
-    a = thread_of[links[pairs[:, 0], 0]] >= CORE
-    b = thread_of[links[pairs[:, 1], 0]] >= CORE
-    pick = pairs[a != b]
+        return 0.0, 0, 0.0
+    of_core = thread_of[links[:, 0]] >= CORE
+    pick = pairs[of_core[pairs[:, 0]] != of_core[pairs[:, 1]]]
     if not len(pick):
-        return 0.0
-    i0, i1 = links[pick[:, 0], 0], links[pick[:, 0], 1]
-    j0, j1 = links[pick[:, 1], 0], links[pick[:, 1], 1]
-    _, _, gap = gl.segment_distance(p[i0], p[i1], p[j0], p[j1])
-    return max(0.0, float((D - np.linalg.norm(gap, axis=1)).max()))
+        return 0.0, 0, 0.0
+    stuck, gap = immovable(p, links, pick, solver_held(threads, braid.masks()))
+    deep = D - np.linalg.norm(gap, axis=1)
+    movable = max(0.0, float(deep[~stuck].max())) if (~stuck).any() else 0.0
+    allowed = stuck & (deep > taut.SETTLED)
+    return movable, int(allowed.sum()), (float(deep[allowed].max()) if allowed.any() else 0.0)
 
 
 def kind_of(move, folded):
@@ -297,7 +380,7 @@ def kind_of(move, folded):
     return run022.kind_of(move, folded)
 
 
-def report(dump, braid_name, ring, stand):
+def report(dump, braid_name, ring, stand, threshold):
     """(a), (b), (d) and the cone test, off the last dump, with 036's and 037's measures. The
     core (thread 16) is left out of all of them."""
     m036 = sibling("measure036", "..", "task036", "measure.py")
@@ -311,7 +394,8 @@ def report(dump, braid_name, ring, stand):
     print("\n(a) non-penetration, the threads%s: neighbours %.2e d, deepest overlap %.2e d; "
           "pairs more than 0.01 d into each other %d; links more than 0.01 d off d %d"
           % (" (the core left out)" if filled else "", link, overlap, over, spacing))
-    print("\n(b) reversals (Scripts/task022/crossings.py, by the hand that carried)")
+    print("\n(b) reversals (Scripts/task022/crossings.py, by the hand that carried; a crossing within %.2f d)"
+          % threshold)
     judged = dump
     if filled:
         judged = dump[:-len(".txt")] + "-threads.txt" if dump.endswith(".txt") else dump + "-threads"
@@ -319,7 +403,7 @@ def report(dump, braid_name, ring, stand):
             for line in source:
                 if line.startswith("#") or not line.strip() or int(line.split()[1]) < CORE:
                     out.write(line)
-    crossings.judge(judged, table)
+    crossings.judge(judged, table, tolerance=threshold - D)
     counts, n = m036.census(ways, held)
     every, n_all = m036.census(ways, held, everything=True)
     braid = np.concatenate([w[h] for w, h in zip(ways, held)])
@@ -362,10 +446,16 @@ def main():
     ap.add_argument("--cycles", type=int, default=2)
     ap.add_argument("--hands", type=int, default=0)
     ap.add_argument("--maru", action="store_true", help="Fig.32 instead of Fig.20")
-    ap.add_argument("--core", action="store_true", help="039-1': fill the knot (seven fixed beads)")
+    ap.add_argument("--core", action="store_true",
+                    help="039-1'': fill the knot (a hexagonal lattice of 19 fixed beads)")
+    ap.add_argument("--core-lift", type=float, default=0.5 * D,
+                    help="how far above the braiding point the core stands (d/2 main, 0)")
+    ap.add_argument("--first-hands", type=int, default=3,
+                    help="stop if nothing is fixed in this many first hands (0: never)")
     ap.add_argument("--dumps", default="", help="write every hand under this prefix")
     ap.add_argument("--record", default="", help="per-hand numbers (tsv)")
-    ap.add_argument("--threshold", type=float, default=1.05, help="covered within this (1.05 d main, 1.2 d)")
+    ap.add_argument("--threshold", type=float, default=1.25,
+                    help="covered, touching and a crossing, within this (1.25 d main, 1.05 d)")
     ap.add_argument("--braid-point", type=float, default=None,
                     help="where the column top is sent to (default: the stand's -1.658 d)")
     ap.add_argument("--seed-arc", type=float, default=0.0)
@@ -385,18 +475,25 @@ def main():
     m036 = sibling("measure036", "..", "task036", "measure.py")
     print("%s-genji (%s), %d hands; braiding point %.3f d; rim ends on the hole's rim (r %.1f d, z +0.5 d)"
           % (name, "Fig.32" if args.maru else "Fig.20", hands, braid_z, stand.hole + stand.fillet))
-    print("settings: covered within %.2f d, seed arc %.1f, projections %d, settled %.3f, still %.0e, outer %d, inner %d"
+    print("settings: covered, touching and a crossing within %.2f d, seed arc %.1f, projections %d, "
+          "settled %.3f, still %.0e, outer %d, inner %d"
           % (args.threshold, args.seed_arc, taut.PROJECTIONS, taut.SETTLED, taut.STILL, args.sweeps, taut.INNER))
 
-    braid = Braid(stand, ring, args.threshold, braid_z, args.seed_arc, args.sweeps, filled=args.core)
+    braid = Braid(stand, ring, args.threshold, braid_z, args.seed_arc, args.sweeps,
+                  filled=args.core, lift=args.core_lift)
     if braid.core:
-        print("core (039-1'): %d fixed beads at z %.3f d -- %s" % (
-            len(braid.core), braid_z, ", ".join("(%+.2f, %+.2f)" % (c[0], c[1]) for c in braid.core)))
+        movable, allowed, deepest = core_contacts(braid)
+        print("core (039-1''): %d fixed beads, a hexagonal lattice of spacing d to r %.2f d, at z %.3f d "
+              "(braiding point %+.2f d); allowed overlaps with the knot %d (deepest %.3f d)"
+              % (len(braid.core), max(math.hypot(c[0], c[1]) for c in braid.core), braid_z + args.core_lift,
+                 args.core_lift, allowed, deepest))
     began = time.time()
     series = braid.tighten()
-    print("seed tightened in %.1f s: %d outer steps, residual %.2e / %.2e, free beads %d; into the core %.2e d"
+    movable, allowed, deepest = core_contacts(braid)
+    print("seed tightened in %.1f s: %d outer steps, residual %.2e / %.2e, free beads %d; into the core %.2e d "
+          "(allowed %d, deepest %.3f d)"
           % (time.time() - began, series[-1][0] + 1, series[-1][1], series[-1][2],
-             sum(len(f) for f in braid.free), core_overlap(braid)))
+             sum(len(f) for f in braid.free), movable, allowed, deepest))
     if args.dumps:
         braid.write("%s-hand-00.txt" % args.dumps, 0)
     note = left_log = None
@@ -434,7 +531,7 @@ def main():
         turned = braid.reversals()
         inside, deepest = braid.in_mirror()
         _, a_deepest, a_pairs, _ = m036.penetration(braid.strands())
-        into_core = core_overlap(braid)
+        into_core = core_contacts(braid)[0]
         last_over = braid.free_over()
         fixed = sum(got["fixed"])
         left = got["left"]
@@ -489,6 +586,9 @@ def main():
             for entry in into_each_other(braid.strands(), bd.Braid.masks(braid)):
                 print("    %.3f d: [%s]-[%s]  into  [%s]-[%s]" % entry)
             break
+        if args.first_hands and h + 1 == args.first_hands and totals["fixed"] == 0:
+            stop = "nothing was fixed in the first %d hands" % args.first_hands
+            break
         if cycle_sent > 6.0:
             stop = "the pitch of cycle %d has passed 6 d: %.3f d by hand %d" % (h // len(table) + 1, cycle_sent, h + 1)
             break
@@ -523,11 +623,14 @@ def main():
     if args.dumps and totals["sent"]:
         last = "%s-hand-%02d.txt" % (args.dumps, len(totals["sent"]))
         with open(last + ".json", "w") as f:
-            json.dump(dict(braid=name, ring=list(ring), boundary=False, window=None, core=bool(braid.core),
-                           braid_point=braid_z, threshold=args.threshold, hands=len(totals["sent"])), f)
-        report(last, name, ring, stand)
+            json.dump(dict(braid=name, ring=list(ring), boundary=False, window=None, core=len(braid.core),
+                           core_lift=args.core_lift, braid_point=braid_z, threshold=args.threshold,
+                           hands=len(totals["sent"])), f)
+        report(last, name, ring, stand, args.threshold)
         if braid.core:
-            print("    (check) deepest any thread reaches into the core: %.2e d" % core_overlap(braid))
+            movable, allowed, deepest = core_contacts(braid)
+            print("    (check) the threads against the core: deepest overlap that could be pushed out %.2e d; "
+                  "allowed overlaps nothing can move %d (deepest %.3f d)" % (movable, allowed, deepest))
     return 1 if stop else 0
 
 

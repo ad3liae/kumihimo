@@ -1,13 +1,13 @@
-"""Draw a Task 039 dump: 037's pictures, with 039-1''s core in grey. Read-only; judges nothing.
+"""Draw a Task 039 dump: 037's pictures, with 039's core in grey. Read-only; judges nothing.
 
     python3 Scripts/task039/draw.py --dump .build/task039-1p-dumps/hira/c-hand-48.txt \
         --out .build/task039-1p-figures/hira
 
 The same views as `Scripts/task037/draw.py` (022's section, above, hole, three cuts across and
 the face opened out; `Scripts/task024/render.py`'s paintings round the braid and of the two faces
-and edges), drawn the same way. **One thing is added**: the core (thread 16 in the dump, 039-1')
-is drawn grey (022's `figures.colour`) and painted as seven balls, not as a thread. The cuts
-across and the column's radius are taken from the threads' fixed beads alone.
+and edges), drawn the same way. **One thing is added**: the core (thread 16 in the dump, 039-1'
+and 039-1'') is drawn grey (022's `figures.colour`) and painted as balls, not as a thread. The
+cuts across and the column's radius are taken from the threads' fixed beads alone.
 """
 import argparse
 import importlib.util
@@ -32,7 +32,7 @@ def load(name, *path):
 draw037 = load("draw037", "..", "task037", "draw.py")
 read_dump, render, figures, build = draw037.read_dump, draw037.render, draw037.figures, draw037.build
 CORE = 16
-PALETTE = list(figures.PALETTE) + [figures.GREY] * 7
+PALETTE = list(figures.PALETTE) + [figures.GREY] * 64     # the core's balls, however many
 
 
 def main():
