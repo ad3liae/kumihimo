@@ -19,6 +19,12 @@ docs/tasks/040-lay-on-the-top.md can be repeated one by one:
                          from its outermost bead to the new rim point
           all            022's carry from the fixed end -- a thread whose last crossing lies
                          deep is re-laid as a vertical shaft through the pile and jams
+  ROUTE   how the carry's route is built (experiment 1, second review, 2026-09-15)
+          over           022: a diameter above whatever is under each plan point, from the start
+                         up -- a start lying beneath another thread climbs straight through it
+          under-then-over  while some bead within a diameter in plan stands above the route's
+                         level, the route stays at that level (passing beneath), then climbs;
+                         a start buried in the pile still tunnels through it (hand 25)
   SWEEPS  outer steps of the tightening (200 here; 022's 1000 is slow and changes little)
   PICKLE  a path pattern with %02d: the whole braid is pickled after every hand
   RESUME / RESUME_HAND  continue from such a pickle
@@ -93,6 +99,9 @@ def core_solid(stand, ring, lift=0.0, layers=3, top_spacing=0.5 * D):
 
 # --- 022's tightening with one addition: beads that rest ----------------------------------
 
+TRACE = [None]   # optional callback trace(stage, threads) used by the experiments
+
+
 def tighten(threads, stand, frozen=None, sweeps=taut.SWEEPS, every=25, log=None, resting=None):
     """`taut.tighten` word for word, plus `resting`: one count a thread of beads next to the
     frozen part that are neither shrunk nor re-spaced (spacing and push-apart still act)."""
@@ -132,6 +141,8 @@ def tighten(threads, stand, frozen=None, sweeps=taut.SWEEPS, every=25, log=None,
         p[held] = anchored
 
         threads = taut.unflatten(p, threads)
+        if TRACE[0] and step_no == 0:
+            TRACE[0]("after shrink", threads)
         if resting is not None and frozen is not None:
             tails = []
             for i, t in enumerate(threads):
@@ -149,6 +160,8 @@ def tighten(threads, stand, frozen=None, sweeps=taut.SWEEPS, every=25, log=None,
                                       np.ones(int(f.sum()), dtype=bool)])
                       for t, f in zip(threads, frozen)]
 
+        if TRACE[0] and step_no == 0:
+            TRACE[0]("after respace", threads)
         p, links, rim, held, still = masks(threads, frozen)
         anchored = p[held].copy()
         STILL_MASK[0] = still
@@ -156,6 +169,8 @@ def tighten(threads, stand, frozen=None, sweeps=taut.SWEEPS, every=25, log=None,
         rounds += inner
         capped += 1 if inner >= taut.INNER else 0
         threads = taut.unflatten(p, threads)
+        if TRACE[0] and (step_no in (0, 1, 4, 19, 49) or step_no == sweeps - 1):
+            TRACE[0]("after sweep %d" % (step_no + 1), threads)
 
         if all(len(a) == len(b) for a, b in zip(previous, threads)):
             step = max(float(np.max(np.linalg.norm(b - a, axis=1))) for a, b in zip(previous, threads))
@@ -254,10 +269,26 @@ class Braid040(r39.Braid):
         base = np.interp(radius, [float(np.hypot(*leaves[:2])), surface + 0.5 * D], [leaves[2], 0.5 * D])
         base = np.where(radius >= surface + 0.5 * D, 0.5 * D, base)
         height = base.copy()
-        for i, under in enumerate(tree.query_ball_point(plan, D)):
+        near = tree.query_ball_point(plan, D)
+        for i, under in enumerate(near):
             if under:
                 height[i] = max(height[i], float(others[under, 2].max()) + D)
         height[0] = leaves[2]
+        if os.environ.get("ROUTE", "over") == "under-then-over":
+            # (experiment 1c, 2026-09-15) a thread that starts beneath another does not climb
+            # straight up through it: while some bead within a diameter in plan stands above the
+            # route's current level, the route stays at that level (passing beneath), and it
+            # climbs "a diameter above whatever it crosses" only once it is clear.
+            h = float(leaves[2])
+            for i in range(1, len(plan)):
+                above = [j for j in near[i] if others[j, 2] > h + 0.5 * D]
+                if above:
+                    below = [j for j in near[i] if others[j, 2] <= h + 0.5 * D]
+                    h = max(h, (float(others[below, 2].max()) + D) if below else h)
+                    h = min(h, float(others[above, 2].min()) - D)     # stay beneath what is above
+                else:
+                    h = max(height[i], h - D)                          # climb, but not more than a diameter a step
+                height[i] = h
         laid = taut.respace(np.concatenate([plan, height[:, None]], axis=1)[::-1])
         self.free[thread] = np.concatenate([laid[:-1], keep]) if k > 0 else laid[:-1]
         self.free[thread][0] = rim

@@ -10,6 +10,7 @@ refers to it.
     ONTOP    rest (main) | held | none      how beads lying on the top are treated in the tightening
     SUPPORT  others (main) | any            what a covered bead must touch to be fixed
     CARRY    keep (main) | all              whether a carry re-lays the on-top run or only the fan
+    ROUTE    over (022) | under-then-over     how the carry's route is built
     SWEEPS   outer steps of the tightening (200)
     PICKLE   path pattern with %02d: the whole braid pickled after every hand
     RESUME / RESUME_HAND                    continue from such a pickle
@@ -33,3 +34,10 @@ See `docs/tasks/040-lay-on-the-top.md`, 「審査側の probe（2026-09-15）」
 on-top run not tightened, the chords lie on the knot from the first hand and are fixed when
 covered — everything 039 never did — but the pile grows a diameter at every crossing, threads
 whose bases are not covered fall behind, and re-laying such a thread jams against the pile.
+
+## Experiment (1), after the colleague's reviews
+
+    python3 Scripts/task040/exp1.py A|B|C     first version (flawed: the pair did not cross; see the task document)
+    python3 Scripts/task040/exp1b.py          shared saved state, one thread's treatment changed, a crossing tracked through the stages
+    python3 Scripts/task040/exp1d.py          finds a second move that really lays a chord over thread 2's chord
+    ROUTE=under-then-over python3 Scripts/task040/exp1e.py   the tracked crossing (thread 4 -> notch 31 over thread 2), cases A/B/C
