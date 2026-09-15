@@ -60,3 +60,5 @@ whose bases are not covered fall behind, and re-laying such a thread jams agains
     python3 Scripts/task040/left.py <pickle>                    the covered beads left free, and why
 
 The pickles come from a run with PICKLE set. See the task document, 「同僚の 3 回目の指摘と実験②」.
+    python3 Scripts/task040/audit.py <pickle> ...               crossings the wrong way up (an earlier hand's bead on top)
+    python3 Scripts/task040/replay_audit.py <ck dir> <hand>     one hand stage by stage with that count (Task 041's start)
