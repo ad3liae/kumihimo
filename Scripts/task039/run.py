@@ -4,6 +4,8 @@
         --record .build/task039-dumps/hira/record.tsv
     python3 Scripts/task039/run.py --cycles 2 --maru --dumps .build/task039-dumps/maru/c \
         --record .build/task039-dumps/maru/record.tsv
+    python3 Scripts/task039/run.py --cycles 2 --core --dumps .build/task039-1p-dumps/hira/c \
+        --record .build/task039-1p-dumps/hira/record.tsv                      (039-1')
 
 A hand is 022's hand with one thing changed -- **what is fixed**
 (docs/tasks/039-hold-the-last-crossing.md, 1.-2.):
@@ -17,16 +19,26 @@ A hand is 022's hand with one thing changed -- **what is fixed**
     send      the fixed part's column top (fixed beads only) back to the braiding point: the
               fixed part lowered -- never raised -- and the free parts tightened again. **The
               hole's rim points do not move.** The sends of a cycle add up to the pitch
-    record    022's dump, and per hand what was fixed, sent, covered and left free, and any
-              fixed bead inside the mirror
+    record    022's dump, and per hand what was fixed, sent, covered and left free, any fixed
+              bead inside the mirror, (a) on the threads, and the crossings in which a free
+              bead lies over a bead the covering fixed
 
 **No force, no mass, no inertia, no time step. z is free.** A thread's rim end is the hole's rim
 point (radius hole + fillet, the notch's angle, half a thread above the mirror): beyond it the
 thread lies on the mirror and does nothing to the braid. The seed is 022's knot, laid round the
 braid **in the cross-section ring's order** (037's `build.place_angle`; the author's ruling 2).
 
-Stops, as the sheet's 7. says: a crossing the other way up, a fixed bead inside the mirror, a
-cycle's pitch over 6 d, a cycle in which nothing at all was fixed.
+`--core` (039-1', the author's ruling after 039-1): **the knot is filled.** Inside the ring, a
+bead at the centre and six a diameter round it, at the braiding point. Not a thread: the
+tightening never moves it, its hand is 0, and **it counts as fixed part** -- it holds a covered
+bead down (`cover.py`), a carry rides over it, and a send lowers it with the rest of the fixed
+part. Each bead is a capsule of no length, which is a sphere. It is written to the dump as
+thread 16 and left out of (a), (b), (d), the column top, the outer diameter, the sections and
+the pairs within 1.02 d; how far any thread reaches into it is printed as a check.
+
+Stops, as the sheet's 7. says: a crossing the other way up, a fixed bead inside the mirror,
+(a) over 0.01 d two hands running, a cycle's pitch over 6 d, a cycle in which nothing at all
+was fixed.
 """
 import argparse
 import importlib.util
@@ -60,11 +72,17 @@ def load(name, *path):
     return module
 
 
+def sibling(name, *path):
+    return sys.modules.get(name) or load(name, *path)
+
+
 cover = load("cover039", "cover.py")
 D = taut.D
 HANDS = 24
-COLUMNS = ("hand move kind thread secs fixed free top sent below left left_r left_z rim mirror "
-           "mirror_depth cross rev link overlap outer inner capped").split()
+CORE = 16                           # the thread number the core is written under
+COLUMNS = ("hand move kind thread secs leaves fixed free top sent below left left_in_below "
+           "left_out_above left_r left_z rim mirror mirror_depth cross rev a_pairs a_deepest "
+           "core_overlap free_over free_over_rev link overlap outer inner capped").split()
 
 
 class HoleStand(st.Stand):
@@ -82,7 +100,7 @@ def seed(stand, ring, arc=0.0):
     """022's seed -- the knot at the braiding point, a straight line from each knot bead to its
     rim end -- with the knot laid round the braid in the ring's order (037's `place_angle`).
     Threads are numbered by stand position, as 022 numbers them."""
-    build037 = load("build037", "..", "task037", "build.py")
+    build037 = sibling("build037", "..", "task037", "build.py")
     depth = stand.braiding_point_depth()
     threads, notches = [], []
     for notch, position in sorted(st.RESTING.items(), key=lambda kv: kv[1]):
@@ -99,10 +117,26 @@ def seed(stand, ring, arc=0.0):
     return threads, notches
 
 
+def core(stand, ring):
+    """039-1''s filled knot: a bead at the centre and six a diameter round it, at the braiding
+    point. **The ruling does not say which way the six face**; the first stands at the angle of
+    the ring's first place (037's `place_angle`, as the knot's own beads do), the rest every 60
+    degrees. A diameter apart from each other, at least 1.56 d inside the ring's beads."""
+    build037 = sibling("build037", "..", "task037", "build.py")
+    depth = stand.braiding_point_depth()
+    first = build037.place_angle(stand, ring, 0)
+    out = [np.array([0.0, 0.0, depth])]
+    for k in range(6):
+        a = first + k * math.pi / 3.0
+        out.append(np.array([D * math.cos(a), D * math.sin(a), depth]))
+    return out
+
+
 class Braid(bd.Braid):
     """022's braid, fixed by covering instead of by depth."""
 
-    def __init__(self, stand, ring, threshold, braid_z, seed_arc=0.0, sweeps=taut.SWEEPS):
+    def __init__(self, stand, ring, threshold, braid_z, seed_arc=0.0, sweeps=taut.SWEEPS,
+                 filled=False):
         super().__init__(stand, sweeps=sweeps, freeze_depth=0.0)
         threads, notches = seed(stand, ring, seed_arc)
         self.free = [t[:-1].copy() for t in threads]
@@ -110,6 +144,34 @@ class Braid(bd.Braid):
         self.notch = list(notches)
         self.threshold = threshold
         self.braid_z = braid_z
+        self.core = core(stand, ring) if filled else []
+
+    # --- the core is in everything the tightening and the carry see ----------------------
+
+    def threads(self):
+        """022's polylines, and after the sixteen threads each core bead as a capsule of no
+        length, held at both ends (so the solver and `carry` see it and nothing moves it)."""
+        return super().threads() + [np.array([c, c]) for c in self.core]
+
+    def masks(self):
+        return super().masks() + [np.ones(2, dtype=bool) for _ in self.core]
+
+    def _absorb(self, threads):
+        super()._absorb(threads[:len(self.made)])
+
+    def strands(self):
+        """The sixteen threads alone, bead 0 at the rim: what (a) is measured on."""
+        return bd.Braid.threads(self)
+
+    def write(self, path, hand):
+        """022's dump, and the core after it as thread 16: fixed, laid in at hand 0."""
+        super().write(path, hand)
+        if self.core:
+            with open(path, "a") as f:
+                for k, c in enumerate(self.core):
+                    f.write("%d %d %d %.5f %.5f %.5f %d\n" % (0, CORE, k, c[0], c[1], c[2], 1))
+
+    # --- a hand ----------------------------------------------------------------------------
 
     def carry(self, thread, to_notch):
         """022's carry. Its route ends at the rim point's plan position at whatever height the
@@ -124,20 +186,23 @@ class Braid(bd.Braid):
         return cover.advance(self, self.threshold)
 
     def column_top(self):
-        """The fixed part's column top: fixed beads only, within the bundle's radius + d/2."""
+        """The fixed part's column top: the threads' fixed beads only (not the core), within the
+        bundle's radius + d/2."""
         p = np.array([bead for made in self.made for bead, _ in made])
         near = np.hypot(p[:, 0], p[:, 1]) <= self.stand.bundle_radius + 0.5 * D
         return float(p[near, 2].max()) if near.any() else float("nan")
 
     def send(self):
-        """Lower the fixed part until its column top is at the braiding point, never raise it,
-        and tighten again."""
+        """Lower the fixed part -- the core with it -- until its column top is at the braiding
+        point, never raise it, and tighten again."""
         top = self.column_top()
         sent = max(0.0, top - self.braid_z) if np.isfinite(top) else 0.0
         if sent > 0.0:
+            down = np.array([0.0, 0.0, sent])
             for made in self.made:
                 for entry in made:
-                    entry[0] = entry[0] - np.array([0.0, 0.0, sent])
+                    entry[0] = entry[0] - down
+            self.core = [c - down for c in self.core]
         series = self.tighten()
         return top, sent, series
 
@@ -154,25 +219,107 @@ class Braid(bd.Braid):
         inside = into > taut.SETTLED
         return int(inside.sum()), float(into.max())
 
+    # --- records ---------------------------------------------------------------------------
+
+    def free_over(self):
+        """Crossings with a free bead on top (the author's ruling after 039-1, 2.): a bead the
+        covering fixed (not the seed's knot, not the core) and a free bead of another thread
+        carried at a later hand, by `note_crossings`' own test -- within d + SETTLED, less than
+        d across. Returns how many, and how many have the free bead not higher. **Recorded
+        only**: the guard stays on fixed-fixed pairs."""
+        from scipy.spatial import cKDTree
+        under, under_who, under_hand = [], [], []
+        for t, made in enumerate(self.made):
+            for bead, h in made[1:]:
+                under.append(bead); under_who.append(t); under_hand.append(h)
+        over, over_who, over_hand = [], [], []
+        for t, part in enumerate(self.free):
+            for bead in part:
+                over.append(bead); over_who.append(t); over_hand.append(self.carried[t])
+        if not under or not over:
+            return 0, 0
+        under, over = np.array(under), np.array(over)
+        found = turned = 0
+        for i, near in enumerate(cKDTree(over).query_ball_point(under, taut.D + taut.SETTLED)):
+            for j in near:
+                if over_who[j] == under_who[i] or over_hand[j] <= under_hand[i]:
+                    continue
+                if np.hypot(*(over[j, :2] - under[i, :2])) >= taut.D:
+                    continue
+                found += 1
+                turned += int(over[j, 2] <= under[i, 2])
+        return found, turned
+
+
+def into_each_other(threads, held, over=0.01 * D):
+    """The pairs of links more than `over` into each other, deepest first, each end named:
+    thread, bead counted from the rim, fixed or free, r and z."""
+    p, thread_of, links, rim = taut.flatten(threads)
+    start = np.cumsum([0] + [len(t) for t in threads])
+    fixed = np.concatenate(held)
+    pairs = gl.contact_pairs(p, links, "capsule")
+    if pairs is None or not len(pairs):
+        return []
+    i0, i1 = links[pairs[:, 0], 0], links[pairs[:, 0], 1]
+    j0, j1 = links[pairs[:, 1], 0], links[pairs[:, 1], 1]
+    _, _, gap = gl.segment_distance(p[i0], p[i1], p[j0], p[j1])
+    deep = D - np.linalg.norm(gap, axis=1)
+
+    def name(i):
+        t = int(thread_of[i])
+        return "thread %d bead %d (%s, r %.2f z %+.2f)" % (
+            t, i - start[t], "fixed" if fixed[i] else "free", math.hypot(p[i, 0], p[i, 1]), p[i, 2])
+    return [(float(deep[k]), name(i0[k]), name(i1[k]), name(j0[k]), name(j1[k]))
+            for k in np.argsort(-deep) if deep[k] > over]
+
+
+def core_overlap(braid):
+    """How far any thread reaches into the core -- a check that it stands in the way. Not (a)."""
+    if not braid.core:
+        return 0.0
+    p, thread_of, links, rim = taut.flatten(braid.threads())
+    pairs = gl.contact_pairs(p, links, "capsule")
+    if pairs is None or not len(pairs):
+        return 0.0
+    a = thread_of[links[pairs[:, 0], 0]] >= CORE
+    b = thread_of[links[pairs[:, 1], 0]] >= CORE
+    pick = pairs[a != b]
+    if not len(pick):
+        return 0.0
+    i0, i1 = links[pick[:, 0], 0], links[pick[:, 0], 1]
+    j0, j1 = links[pick[:, 1], 0], links[pick[:, 1], 1]
+    _, _, gap = gl.segment_distance(p[i0], p[i1], p[j0], p[j1])
+    return max(0.0, float((D - np.linalg.norm(gap, axis=1)).max()))
+
 
 def kind_of(move, folded):
-    run022 = load("run022", "..", "task022", "run.py")
+    run022 = sibling("run022", "..", "task022", "run.py")
     return run022.kind_of(move, folded)
 
 
 def report(dump, braid_name, ring, stand):
-    """(a), (b), (d) and the cone test, off the last dump, with 036's and 037's measures."""
-    m036 = load("measure036", "..", "task036", "measure.py")
-    m037 = load("measure037", "..", "task037", "measure.py")
-    build037 = sys.modules.get("build037") or load("build037", "..", "task037", "build.py")
+    """(a), (b), (d) and the cone test, off the last dump, with 036's and 037's measures. The
+    core (thread 16) is left out of all of them."""
+    m036 = sibling("measure036", "..", "task036", "measure.py")
+    m037 = sibling("measure037", "..", "task037", "measure.py")
+    build037 = sibling("build037", "..", "task037", "build.py")
     table = bd.FIG32 if braid_name == "maru" else bd.FIG20
     ways, held, header = m036.paths(dump)
+    filled = len(ways) > CORE
+    ways, held = ways[:CORE], held[:CORE]
     link, overlap, over, spacing = m036.penetration(ways)
-    print("\n(a) non-penetration, the whole state: neighbours %.2e d, deepest overlap %.2e d; "
+    print("\n(a) non-penetration, the threads%s: neighbours %.2e d, deepest overlap %.2e d; "
           "pairs more than 0.01 d into each other %d; links more than 0.01 d off d %d"
-          % (link, overlap, over, spacing))
+          % (" (the core left out)" if filled else "", link, overlap, over, spacing))
     print("\n(b) reversals (Scripts/task022/crossings.py, by the hand that carried)")
-    crossings.judge(dump, table)
+    judged = dump
+    if filled:
+        judged = dump[:-len(".txt")] + "-threads.txt" if dump.endswith(".txt") else dump + "-threads"
+        with open(dump) as source, open(judged, "w") as out:
+            for line in source:
+                if line.startswith("#") or not line.strip() or int(line.split()[1]) < CORE:
+                    out.write(line)
+    crossings.judge(judged, table)
     counts, n = m036.census(ways, held)
     every, n_all = m036.census(ways, held, everything=True)
     braid = np.concatenate([w[h] for w, h in zip(ways, held)])
@@ -215,6 +362,7 @@ def main():
     ap.add_argument("--cycles", type=int, default=2)
     ap.add_argument("--hands", type=int, default=0)
     ap.add_argument("--maru", action="store_true", help="Fig.32 instead of Fig.20")
+    ap.add_argument("--core", action="store_true", help="039-1': fill the knot (seven fixed beads)")
     ap.add_argument("--dumps", default="", help="write every hand under this prefix")
     ap.add_argument("--record", default="", help="per-hand numbers (tsv)")
     ap.add_argument("--threshold", type=float, default=1.05, help="covered within this (1.05 d main, 1.2 d)")
@@ -234,31 +382,41 @@ def main():
     ring = g.RING_MARU if args.maru else g.RING_HIRA
     braid_z = stand.braiding_point_depth() if args.braid_point is None else args.braid_point
     hands = args.hands or args.cycles * len(table)
+    m036 = sibling("measure036", "..", "task036", "measure.py")
     print("%s-genji (%s), %d hands; braiding point %.3f d; rim ends on the hole's rim (r %.1f d, z +0.5 d)"
           % (name, "Fig.32" if args.maru else "Fig.20", hands, braid_z, stand.hole + stand.fillet))
     print("settings: covered within %.2f d, seed arc %.1f, projections %d, settled %.3f, still %.0e, outer %d, inner %d"
           % (args.threshold, args.seed_arc, taut.PROJECTIONS, taut.SETTLED, taut.STILL, args.sweeps, taut.INNER))
 
-    braid = Braid(stand, ring, args.threshold, braid_z, args.seed_arc, args.sweeps)
+    braid = Braid(stand, ring, args.threshold, braid_z, args.seed_arc, args.sweeps, filled=args.core)
+    if braid.core:
+        print("core (039-1'): %d fixed beads at z %.3f d -- %s" % (
+            len(braid.core), braid_z, ", ".join("(%+.2f, %+.2f)" % (c[0], c[1]) for c in braid.core)))
     began = time.time()
     series = braid.tighten()
-    print("seed tightened in %.1f s: %d outer steps, residual %.2e / %.2e, free beads %d"
+    print("seed tightened in %.1f s: %d outer steps, residual %.2e / %.2e, free beads %d; into the core %.2e d"
           % (time.time() - began, series[-1][0] + 1, series[-1][1], series[-1][2],
-             sum(len(f) for f in braid.free)))
+             sum(len(f) for f in braid.free), core_overlap(braid)))
     if args.dumps:
         braid.write("%s-hand-00.txt" % args.dumps, 0)
-    note = open(args.record, "w") if args.record else None
-    if note:
+    note = left_log = None
+    if args.record:
         os.makedirs(os.path.dirname(os.path.abspath(args.record)), exist_ok=True)
+        note = open(args.record, "w")
         note.write("\t".join(COLUMNS) + "\n")
-    left_log = open(args.record + ".left", "w") if args.record else None
-    if left_log:
+        left_log = open(args.record + ".left", "w")
         left_log.write("hand\tthread\tplace_in_free_part\tr\tz\n")
+    column = stand.bundle_radius + 0.5 * D
 
-    print("\nhand  move    kind      thread  secs   fixed  free  top     sent   below  left(r, z)             rim  mirror  cross rev  link      overlap")
-    cycle_sent, cycle_fixed, clock, cycle_began = 0.0, 0, time.time(), time.time()
+    print("\nhand  move    kind      thread  secs  leaves  fixed  free  top     sent   below  left in/out (r, z)"
+          "                  rim  mirror  cross rev  (a)  core     free-over rev  link      overlap")
+    cycle_sent, cycle_fixed, cycle_began = 0.0, 0, time.time()
+    cycle_left = [0, 0, 0]
+    clock = time.time()
     stop = None
-    totals = dict(sent=[], below=0, left=0, fixed=0)
+    streak = 0
+    totals = dict(sent=[], below=0, left=0, in_below=0, out_above=0, fixed=0)
+    last_over = (0, 0)
     for h in range(hands):
         move = table[h % len(table)]
         thread = bd.thread_at(braid, move[0])
@@ -266,6 +424,7 @@ def main():
             stop = "no thread stands at notch %d" % move[0]
             break
         started = time.time()
+        leaves = float(braid.made[thread][-1][0][2]) - braid_z
         braid.hand = h + 1
         braid.carry(thread, move[1])
         first = braid.tighten()
@@ -274,29 +433,40 @@ def main():
         found = braid.note_crossings()
         turned = braid.reversals()
         inside, deepest = braid.in_mirror()
+        _, a_deepest, a_pairs, _ = m036.penetration(braid.strands())
+        into_core = core_overlap(braid)
+        last_over = braid.free_over()
         fixed = sum(got["fixed"])
         left = got["left"]
+        in_below = sum(1 for _, _, r, z in left if r <= column and z < braid_z)
+        out_above = sum(1 for _, _, r, z in left if r > column and z >= braid_z)
         below = int(np.isfinite(top) and top < braid_z)
         cycle_sent += sent
         cycle_fixed += fixed
-        totals["sent"].append(sent); totals["below"] += below; totals["left"] += len(left); totals["fixed"] += fixed
+        cycle_left = [cycle_left[0] + len(left), cycle_left[1] + in_below, cycle_left[2] + out_above]
+        totals["sent"].append(sent); totals["below"] += below; totals["left"] += len(left)
+        totals["in_below"] += in_below; totals["out_above"] += out_above; totals["fixed"] += fixed
         secs = time.time() - started
         lr = (min(r for _, _, r, _ in left), max(r for _, _, r, _ in left)) if left else (float("nan"),) * 2
         lz = (min(z for _, _, _, z in left), max(z for _, _, _, z in left)) if left else (float("nan"),) * 2
         outer = first[-1][0] + after[-1][0] + 2
         inner = first[-1][5] + after[-1][5]
         capped = first[-1][6] + after[-1][6]
-        print("%4d  %5s  %-8s  %4d  %6.1f  %5d  %4d  %+6.2f  %5.2f  %3d   %3d (%s)  %3d  %3d    %3d  %3d  %.2e  %.2e"
-              % (h + 1, "%d->%d" % move, kind_of(move, not args.maru), thread, secs, fixed,
-                 sum(len(f) for f in braid.free), top, sent, below, len(left),
+        print("%4d  %5s  %-8s  %4d  %6.1f  %+5.2f  %5d  %4d  %+6.2f  %5.2f  %3d   %3d %2d/%-2d (%s)  %3d  %3d    %3d  %3d  %3d  %.2e  %4d %3d  %.2e  %.2e"
+              % (h + 1, "%d->%d" % move, kind_of(move, not args.maru), thread, secs, leaves, fixed,
+                 sum(len(f) for f in braid.free), top, sent, below, len(left), in_below, out_above,
                  ("r %.1f-%.1f z %+.1f-%+.1f" % (lr + lz)) if left else "-", got["rim"], inside,
-                 found, len(turned), after[-1][1], after[-1][2]))
+                 found, len(turned), a_pairs, into_core, last_over[0], last_over[1],
+                 after[-1][1], after[-1][2]))
         sys.stdout.flush()
         if note:
             row = dict(hand=h + 1, move="%d->%d" % move, kind=kind_of(move, not args.maru), thread=thread,
-                       secs=secs, fixed=fixed, free=sum(len(f) for f in braid.free), top=top, sent=sent,
-                       below=below, left=len(left), left_r="%.2f-%.2f" % lr, left_z="%.2f-%.2f" % lz,
+                       secs=secs, leaves=leaves, fixed=fixed, free=sum(len(f) for f in braid.free), top=top,
+                       sent=sent, below=below, left=len(left), left_in_below=in_below,
+                       left_out_above=out_above, left_r="%.2f-%.2f" % lr, left_z="%.2f-%.2f" % lz,
                        rim=got["rim"], mirror=inside, mirror_depth=deepest, cross=found, rev=len(turned),
+                       a_pairs=a_pairs, a_deepest=a_deepest, core_overlap=into_core,
+                       free_over=last_over[0], free_over_rev=last_over[1],
                        link=after[-1][1], overlap=after[-1][2], outer=outer, inner=inner, capped=capped)
             note.write("\t".join(("%.4f" % row[c]) if isinstance(row[c], float) else str(row[c])
                                  for c in COLUMNS) + "\n")
@@ -307,41 +477,57 @@ def main():
             left_log.flush()
         if args.dumps:
             braid.write("%s-hand-%02d.txt" % (args.dumps, h + 1), h + 1)
+        streak = streak + 1 if a_pairs else 0
         if turned:
             stop = "a crossing came out the other way up (%d): %s" % (len(turned), turned[:4])
             break
         if inside:
             stop = "%d fixed beads inside the mirror (deepest %.3f d)" % (inside, deepest)
             break
+        if streak >= 2:
+            stop = "(a) over 0.01 d two hands running (hands %d and %d)" % (h, h + 1)
+            for entry in into_each_other(braid.strands(), bd.Braid.masks(braid)):
+                print("    %.3f d: [%s]-[%s]  into  [%s]-[%s]" % entry)
+            break
+        if cycle_sent > 6.0:
+            stop = "the pitch of cycle %d has passed 6 d: %.3f d by hand %d" % (h // len(table) + 1, cycle_sent, h + 1)
+            break
         if (h + 1) % len(table) == 0:
             cycle = (h + 1) // len(table)
             took = time.time() - cycle_began
+            knots = [t for t, made in enumerate(braid.made) if len(made) == 1]
             print("cycle %d done: pitch (sent in the cycle) %.3f d, fixed %d beads, %.0f s%s"
                   % (cycle, cycle_sent, cycle_fixed, took, "  ** OVER 30 MINUTES **" if took > 1800 else ""))
+            print("    threads with only the knot fixed: %d %s; covered beads left free %d (in the column "
+                  "below the braiding point %d, out of it above %d); free over fixed %d, not higher %d"
+                  % (len(knots), knots, cycle_left[0], cycle_left[1], cycle_left[2], last_over[0], last_over[1]))
             sys.stdout.flush()
-            if cycle_sent > 6.0:
-                stop = "the pitch of cycle %d is %.3f d, over 6 d" % (cycle, cycle_sent)
-                break
             if cycle_fixed == 0:
                 stop = "nothing was fixed in cycle %d" % cycle
                 break
             cycle_sent, cycle_fixed, cycle_began = 0.0, 0, time.time()
+            cycle_left = [0, 0, 0]
     if note:
         note.close()
     if left_log:
         left_log.close()
     print("\n%d hands in %.0f s; sent %.3f d in all; hands whose column top stood below the braiding point %d; "
-          "covered beads left free %d; fixed %d"
+          "covered beads left free %d (in the column below the braiding point %d, out of it above %d); fixed %d"
           % (len(totals["sent"]), time.time() - clock, sum(totals["sent"]), totals["below"],
-             totals["left"], totals["fixed"]))
+             totals["left"], totals["in_below"], totals["out_above"], totals["fixed"]))
+    print("threads with only the knot fixed: %s; crossings with a free bead over a covered-and-fixed one: %d, "
+          "the free bead not higher in %d"
+          % ([t for t, made in enumerate(braid.made) if len(made) == 1], last_over[0], last_over[1]))
     if stop:
         print("STOPPED: %s" % stop)
     if args.dumps and totals["sent"]:
         last = "%s-hand-%02d.txt" % (args.dumps, len(totals["sent"]))
         with open(last + ".json", "w") as f:
-            json.dump(dict(braid=name, ring=list(ring), boundary=False, window=None,
+            json.dump(dict(braid=name, ring=list(ring), boundary=False, window=None, core=bool(braid.core),
                            braid_point=braid_z, threshold=args.threshold, hands=len(totals["sent"])), f)
         report(last, name, ring, stand)
+        if braid.core:
+            print("    (check) deepest any thread reaches into the core: %.2e d" % core_overlap(braid))
     return 1 if stop else 0
 
 

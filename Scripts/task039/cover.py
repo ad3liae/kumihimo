@@ -34,6 +34,10 @@ def beads(braid):
         for bead, h in braid.made[t]:
             p.append(bead); who.append(t); where.append(-1)
             hand.append(h); fixed.append(True)
+    # 039-1''s filled knot: fixed part, of no thread, laid at hand 0 (holds a covered bead down)
+    for bead in getattr(braid, "core", ()):
+        p.append(bead); who.append(len(braid.made)); where.append(-1)
+        hand.append(0); fixed.append(True)
     return (np.array(p, dtype=float), np.array(who), np.array(where), np.array(hand),
             np.array(fixed, dtype=bool))
 
