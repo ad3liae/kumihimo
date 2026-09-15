@@ -22,20 +22,23 @@ the Kumihimo app and no Xcode target refers to it.
                        circle between a flat braid's two edge places (its middle is the
                        fold's tip), along the face between two places on a face. `chord`,
                        the default, is 038-1's straight line
-    --mend             no carry lands below where it left: the landing goes up to the
-                       departure, every layer at that place from there up goes with it,
-                       hand_over again, round until nothing moves (`mend_falls`)
+    --mend             no carry lands below where it left: **its landing alone** goes up
+                       to its departure, nothing else at that place moves, hand_over again
+                       (`mend_falls`, 038-1''). 038-1' lifted every layer above as well; that
+                       reading broke k and is gone
 
-    prime.py    builds five ways -- 024, 024 mended, 038-1, perimeter, 038-1' (both) --
+    prime.py    builds five ways -- 024, 024 mended, 038-1, perimeter, 038-1'' (both) --
                 and reports (a)-(e) with run.py's functions, (f) k cycle by cycle (with
-                longer builds of the heights alone), (g) the front's stray pixels traced
-                to the pieces that painted them and the crests by what made them, and (h)
-                the vertical build's reads before and after the mend
+                longer builds of the heights alone), (g) every coloured pixel in the body
+                split into a gap (no rest of the face being looked at over it) or depth (such
+                a rest over it, the carry nearer), (h) the vertical build's reads before and
+                after the mend, and (i) maru-genji's missed cells traced to the pieces in the
+                reader's window, at five and seven cycles
 
 ## Run
 
     python3 Scripts/task038/run.py --out .build/task038-figures
-    python3 Scripts/task038/prime.py --out .build/task038-prime
+    python3 Scripts/task038/prime.py --out .build/task038-prime2
     python3 Scripts/task024/build.py --braid hira --cycles 3 --ellipse --rests diagonal
 
 Hira-genji is built elliptical and maru-genji round, three cycles, as 024-1 was.

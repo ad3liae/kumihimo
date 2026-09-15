@@ -64,45 +64,28 @@ def hand_over(steps):
     return moved
 
 
-def lift_place(steps, place, low, by):
-    """Every layer at `place` from height `low` up goes up by `by`: a rest's arrival and its
-    departure each, if they are that high, and the carry landing on a lifted arrival with it.
-    Returns how many rests moved."""
-    moved = 0
-    for way in steps.values():
-        for j, (here, start, leave, arrive) in enumerate(way):
-            if here != place:
-                continue
-            up_start = start + by if start >= low - 1e-9 else start
-            up_leave = leave + by if leave >= low - 1e-9 else leave
-            if (up_start, up_leave) == (start, leave):
-                continue
-            tail = j == len(way) - 1                   # 023's last rest: arrive is leave
-            way[j] = (here, up_start, up_leave, up_leave if tail else arrive)
-            if up_start != start and j > 0:
-                p0, s0, l0, _ = way[j - 1]
-                way[j - 1] = (p0, s0, l0, up_start)
-            moved += 1
-    return moved
-
-
 def mend_falls(steps, cap=200):
-    """**Task 038-1': no carry lands below where it left** (the author's ruling 2026-09-14).
+    """**No carry lands below where it left** -- the narrowest reading (Task 038-1'', the
+    author's ruling 2026-09-15).
 
     The stacking model lays a later thread above an earlier one (docs/architecture.md,
-    「正本の読み方」). A carry that arrives lower than it left breaks that, and 037-1' found
-    where they come from: `hand_over` lifts a rest of the first cycle and does not lift the
-    landing of that thread's next carry. So a falling carry's landing is raised to its
-    departure, **every layer at its landing place from that height up is raised with it**
-    (`lift_place`), `hand_over` is applied again, and round it goes -- following the threads --
-    until nothing moves. A lifted departure can make the next carry fall; that is the
-    propagation. **k is not held**: it is counted again by whoever measures the result.
+    「正本の読み方」). A carry that arrives lower than it left breaks that; 037-1' found where
+    they come from: `hand_over` lifts a rest of the first cycle and not the landing of that
+    thread's next carry. **So the falling carry's landing alone is raised to its departure**
+    -- the rest it lands on starts there, and leaves no lower -- and nothing else at that place
+    is moved. Where that makes two threads meet at a place, `hand_over` is applied again, and
+    round it goes until nothing moves.
 
-    Returns what it did: the falls at the start, the carries mended in all, the rests lifted,
-    the rounds, whether it settled inside `cap`, and every lift (round, thread, step, place,
-    from, by)."""
+    038-1' read the ruling wider -- every layer at the landing place from that height up went
+    up with it -- and each lifted column sent its carries down onto columns not yet lifted, so
+    one mend called the next and maru-genji's spacing had not settled after twelve cycles. That
+    reading is not kept.
+
+    Returns what it did: the falls at the start, the carries mended, the extra `hand_over`
+    lifts, the rounds, whether it settled inside `cap`, and every mend (round, thread, step,
+    place, from, by)."""
     first = sum(1 for w in steps.values() for i in range(len(w) - 1) if w[i][3] < w[i][2] - 1e-9)
-    mended = lifted = handed = 0
+    mended = handed = 0
     lifts = []
     for round_ in range(1, cap + 1):
         changed = 0
@@ -111,17 +94,21 @@ def mend_falls(steps, cap=200):
             for i in range(len(way) - 1):
                 place, start, leave, arrive = way[i]
                 if arrive < leave - 1e-9:
-                    lifts.append((round_, thread, i, way[i + 1][0], arrive, leave - arrive))
-                    lifted += lift_place(steps, way[i + 1][0], arrive, leave - arrive)
+                    here, s1, l1, a1 = way[i + 1]
+                    tail = i + 1 == len(way) - 1           # 023's last rest: arrive is leave
+                    up = max(l1, leave)
+                    way[i + 1] = (here, leave, up, up if tail else a1)
+                    way[i] = (place, start, leave, leave)
+                    lifts.append((round_, thread, i, here, arrive, leave - arrive))
                     mended += 1
                     changed += 1
         again = hand_over(steps)
         handed += again
         changed += again
         if not changed:
-            return dict(first=first, mended=mended, lifted=lifted, handed=handed,
+            return dict(first=first, mended=mended, lifted=mended, handed=handed,
                         rounds=round_ - 1, settled=True, lifts=lifts)
-    return dict(first=first, mended=mended, lifted=lifted, handed=handed, rounds=cap,
+    return dict(first=first, mended=mended, lifted=mended, handed=handed, rounds=cap,
                 settled=False, lifts=lifts)
 
 
@@ -420,7 +407,8 @@ def build(braid, cycles, shape="arc", ellipse=False, rests="vertical", slots="ch
             for i, st in enumerate(s_):
                 rest_of[(tt, i)] = dict(place=st["place"], slot=st["slot0"], z0=st["z0"],
                                         z1=st["z1"], steps=(st["first"], st["last"]),
-                                        lean=bool(np.linalg.norm(st["xy1"] - st["xy0"]) > 1e-9))
+                                        lean=bool(np.linalg.norm(st["xy1"] - st["xy0"]) > 1e-9),
+                                        xy0=st["xy0"], xy1=st["xy1"])
             for i, (_, _, _, b) in enumerate(c_):
                 carry_of[(tt, i)] = dict(step=b, source=steps[tt][b][0],
                                          target=steps[tt][b + 1][0],
@@ -435,7 +423,8 @@ def build(braid, cycles, shape="arc", ellipse=False, rests="vertical", slots="ch
             for i in range(len(plain[tt][0])):
                 rest_of[(tt, i)] = dict(place=steps[tt][i][0], slot=float(steps[tt][i][0]),
                                         z0=steps[tt][i][1], z1=steps[tt][i][2], steps=(i, i),
-                                        lean=False)
+                                        lean=False, xy0=np.asarray(spot[steps[tt][i][0]][0]),
+                                        xy1=np.asarray(spot[steps[tt][i][0]][0]))
             for i in range(len(plain[tt][1])):
                 carry_of[(tt, i)] = dict(step=i, source=steps[tt][i][0],
                                          target=steps[tt][i + 1][0],
@@ -572,7 +561,8 @@ def main():
                     help="where a landing slot between two places goes: on the straight "
                          "line (038-1) or on the section's perimeter (038-1')")
     ap.add_argument("--mend", action="store_true",
-                    help="038-1': no carry lands below where it left (layers above it lifted)")
+                    help="no carry lands below where it left: its landing alone is raised "
+                         "(038-1'')")
     ap.add_argument("--out", default="")
     args = ap.parse_args()
 
