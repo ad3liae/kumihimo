@@ -19,6 +19,14 @@ docs/tasks/040-lay-on-the-top.md can be repeated one by one:
                          from its outermost bead to the new rim point
           all            022's carry from the fixed end -- a thread whose last crossing lies
                          deep is re-laid as a vertical shaft through the pile and jams
+          sweep          (colleague's design, 2026-09-15) nothing is re-laid: the rim end alone is
+                         moved -- lifted, carried straight in plan over the top to the new rim
+                         point, lowered -- in small steps, the rest of the free part following
+                         under the chain, non-penetration and the on-top run's rest; each step is
+                         checked (settled, no bead jumped, no penetration) and undone with a
+                         halved step if not. Thread is paid out or taken in at the rim only.
+          SWEEP_STEP     the step in d (0.25); SWEEP_LIFT how far above the highest bead the
+                         end travels (2 d)
   ROUTE   how the carry's route is built (experiment 1, second review, 2026-09-15)
           over           022: a diameter above whatever is under each plan point, from the start
                          up -- a start lying beneath another thread climbs straight through it
@@ -70,6 +78,26 @@ import given_length as gl             # noqa: E402
 
 D = 1.0
 STILL_MASK = [None]
+
+
+def shrink_by(p, links, held, factor):
+    """`taut.shrink` with a step per bead (`factor`, shape (n,))."""
+    middle = np.zeros_like(p); count = np.zeros(len(p))
+    a, b = links[:, 0], links[:, 1]
+    np.add.at(middle, a, p[b]); np.add.at(count, a, 1)
+    np.add.at(middle, b, p[a]); np.add.at(count, b, 1)
+    within = count == 2
+    move = np.zeros_like(p)
+    move[within] = factor[within, None] * (middle[within] / 2.0 - p[within])
+    move[held] = 0.0
+    p += move
+
+
+def REST_HELD():
+    """REST=held (2026-09-15, after the fresh sweep run): the on-top run is held in the settle
+    too -- it neither shrinks, re-spaces, nor slides. REST=still is the probe's first meaning
+    (exempt from shrink and re-spacing only; spacing and push-apart still move it)."""
+    return os.environ.get("REST", "held") == "held"
 
 
 # --- the seed's core: a solid knot ---------------------------------------------------------
@@ -163,6 +191,8 @@ def tighten(threads, stand, frozen=None, sweeps=taut.SWEEPS, every=25, log=None,
         if TRACE[0] and step_no == 0:
             TRACE[0]("after respace", threads)
         p, links, rim, held, still = masks(threads, frozen)
+        if REST_HELD():
+            held = still                        # REST=held: the on-top run does not slide either
         anchored = p[held].copy()
         STILL_MASK[0] = still
         inner, link, overlap = taut.settle(p, links, rim, held, anchored, stand)
@@ -252,7 +282,11 @@ class Braid040(r39.Braid):
     def carry(self, thread, to_notch):
         """CARRY=keep: the on-top run stays; the route runs from its outermost bead to the new
         rim point, straight in plan, a diameter above whatever it crosses (022's placement)."""
-        if os.environ.get("CARRY", "keep") != "keep":
+        mode = os.environ.get("CARRY", "keep")
+        if mode == "sweep":
+            self.last_sweep = self.sweep_carry(thread, to_notch)
+            return
+        if mode != "keep":
             return super().carry(thread, to_notch)
         n = len(self.free[thread])
         k = max(0, min(int(self.resting[thread]), n))
@@ -295,6 +329,150 @@ class Braid040(r39.Braid):
         self.notch[thread] = to_notch
         self.carried[thread] = self.hand
 
+    # --- CARRY=sweep: move the rim end, let the thread follow ------------------------------
+
+    def _relax(self, sweeps=2, by=None, tol=None, fast=None):
+        """Sweeps of the tightening with NO re-spacing: shrink (the on-top runs excepted), then
+        settle. The thread being carried (`fast`) shrinks by SWEEP_SHRINK (0.5: 022's 0.1
+        flattens a lifted thread far too slowly for a carry); every other thread by 022's 0.1
+        -- the strong step applied inside the pile kicks settled beads a quarter diameter into
+        their neighbours and the projections run away (hand 30 of the second run). With `tol`
+        the sweeps stop early once no bead moves more than that. Returns the settle's (rounds,
+        link, overlap) of the last sweep; the number of sweeps taken is left in self.relaxed."""
+        by = float(os.environ.get("SWEEP_SHRINK", 0.5)) if by is None else by
+        threads = self.threads(); frozen = self.masks()
+        factor = np.full(sum(len(t) for t in threads), taut.SHRINK)
+        if fast is not None:
+            # the strong step for the carried thread's beads that touch nothing (in the air);
+            # its beads in contact with another thread or the core keep 022's step
+            first = int(sum(len(t) for t in threads[:fast])); n = len(threads[fast])
+            others = np.concatenate([t for i, t in enumerate(threads) if i != fast])
+            far, _ = cKDTree(others).query(threads[fast], k=1, distance_upper_bound=self.threshold)
+            factor[first:first + n] = np.where(np.isfinite(far), taut.SHRINK, by)
+        resting = self.resting + [0] * len(self.core)
+        kept = taut.settle; taut.settle = settle040(len(self.core))
+        self.relaxed = 0
+        try:
+            last = (0, 0.0, 0.0)
+            for _ in range(sweeps):
+                self.relaxed += 1
+                p, thread_of, links, rim = taut.flatten(threads)
+                held = np.zeros(len(p), dtype=bool); still = np.zeros(len(p), dtype=bool); first = 0
+                for i, t in enumerate(threads):
+                    held[first] = True; held[first + len(t) - 1] = True
+                    held[first:first + len(t)] |= frozen[i]
+                    k = int(resting[i]); kp = int(frozen[i].sum())
+                    if k > 0:
+                        still[first + len(t) - kp - k:first + len(t) - kp] = True
+                    first += len(t)
+                still |= held
+                if REST_HELD():
+                    held = still
+                anchored = p[held].copy(); STILL_MASK[0] = still
+                began = p.copy(); shrink_by(p, links, still, factor); p[held] = anchored
+                moved = p - began; far = np.linalg.norm(moved, axis=1, keepdims=True)
+                p = began + np.where(far > taut.MOST, moved * (taut.MOST / np.maximum(far, 1e-12)), moved)
+                p[held] = anchored
+                last = taut.settle(p, links, rim, held, anchored, self.stand)
+                threads = taut.unflatten(p, threads)
+                if tol is not None and float(np.max(np.linalg.norm(p - began, axis=1))) < tol:
+                    break
+        finally:
+            taut.settle = kept
+        self._absorb(threads)
+        return last
+
+    def _rim_link(self, thread):
+        """Pay thread out or take it in at the rim: keep the rim link between 0.7 d and 1.5 d."""
+        part = self.free[thread]
+        while len(part) >= 2:
+            gap = float(np.linalg.norm(part[1] - part[0]))
+            if gap > 1.5 * D:
+                # a bead at d from bead 1, or at the middle when that would leave less than 0.75 d
+                # at the rim (which the take-in below would remove again: an endless loop)
+                new = part[1] + (part[0] - part[1]) * (D / gap if gap > 2.0 * D else 0.5)
+                part = np.concatenate([part[:1], new[None], part[1:]])
+            elif gap < 0.7 * D and len(part) > 2:
+                part = np.concatenate([part[:1], part[2:]])
+            else:
+                break
+        self.free[thread] = part
+
+    def _snapshot(self):
+        return [f.copy() for f in self.free]
+
+    def _restore(self, snap):
+        self.free = [f.copy() for f in snap]
+
+    def sweep_carry(self, thread, to_notch, step=None, lift=None, log=None):
+        """The colleague's design: the rim end is moved along a lifted straight path over the top
+        to the new rim point; the thread follows. Each small step is relaxed and checked; a step
+        that does not settle, that makes a bead jump, or that leaves a penetration is undone and
+        retried with half the step. Nothing is fixed or sent meanwhile."""
+        from scipy.spatial import cKDTree
+        step = float(os.environ.get("SWEEP_STEP", 0.25)) if step is None else step
+        lift = float(os.environ.get("SWEEP_LIFT", 2.0)) if lift is None else lift
+        old = self.free[thread][0].copy()
+        new = self.stand.rim_point(to_notch)
+        allp = np.concatenate(self.threads())
+        top = float(allp[:, 2].max()) + lift * D
+        # the path of the rim end: up, across (straight in plan, at height `top`), down
+        up = np.array([old[0], old[1], top]); down = np.array([new[0], new[1], top])
+        legs = [(old, up), (up, down), (down, new)]
+        per_step = int(os.environ.get("SWEEP_RELAX", 3))        # sweeps of relaxation a step (the thread need not
+        tol = float(os.environ.get("SWEEP_TOL", 0.05)) * D       # be taut while it travels; it is made taut before it
+                                                                  # is lowered, and the sweeps stop early once no bead moves more than `tol`)
+        jump_limit = float(os.environ.get("SWEEP_JUMP", 1.0)) * D
+        report = dict(steps=0, retries=0, failed=None, max_jump=0.0, worst_pen=0.0, sweeps=0)
+        for leg_no, (a, b) in enumerate(legs):
+            if leg_no == 2:
+                self._relax(int(os.environ.get("SWEEP_SETTLE", 200)), tol=tol, fast=thread)   # let the lifted thread go taut before it is lowered
+                self._rim_link(thread)
+            length = float(np.linalg.norm(b - a)); done = 0.0; h = step
+            while done < length - 1e-9:
+                h = min(h, length - done)
+                snap = self._snapshot()
+                target = a + (b - a) * ((done + h) / length)
+                self.free[thread][0] = target
+                self._rim_link(thread)
+                before = self._snapshot()
+                rounds, link, overlap = self._relax(per_step, tol=tol, fast=thread); report["sweeps"] += self.relaxed
+                # the check: settled, no bead of any free part jumped more than d/2, no penetration
+                # (measured before the rim link is adjusted: taking a bead in is not a jump)
+                jump = max((float(np.max(np.linalg.norm(f1 - f0, axis=1))) if len(f1) == len(f0) else float("inf"))
+                           for f0, f1 in zip(before, self.free))
+                jump = max(jump, 0.0)
+                if log and jump > jump_limit:
+                    who = max(((float(np.max(np.linalg.norm(f1 - f0, axis=1))) if len(f1) == len(f0) else float("inf"), t)
+                               for t, (f0, f1) in enumerate(zip(before, self.free))))[1]
+                    f0, f1 = before[who], self.free[who]
+                    k = int(np.argmax(np.linalg.norm(f1 - f0, axis=1))) if len(f1) == len(f0) else -1
+                    jumped = "thread %d bead %d/%d %s -> %s" % (who, k, len(f0), np.round(f0[k], 2) if k >= 0 else "?",
+                                                                np.round(f1[k], 2) if k >= 0 else "?")
+                else:
+                    jumped = ""
+                self._rim_link(thread)
+                ok = rounds < taut.INNER and overlap < 0.02 and jump <= jump_limit
+                if ok:
+                    done += h; report["steps"] += 1
+                    report["max_jump"] = max(report["max_jump"], jump); report["worst_pen"] = max(report["worst_pen"], overlap)
+                    if log: log("  step %3d  %5.2f/%5.2f  jump %.2f  overlap %.3f  rounds %d  sweeps %d" % (report["steps"], done, length, jump, overlap, rounds, self.relaxed))
+                    h = min(step, h * 2)
+                else:
+                    self._restore(snap); report["retries"] += 1; h *= 0.5
+                    if log: log("  retry: step %.3f (rounds %d, overlap %.3f, jump %.2f %s)" % (h, rounds, overlap, jump, jumped))
+                    if h < 0.02 * D:
+                        report["failed"] = "leg %d: step below 0.02 d at %.2f/%.2f" % (leg_no, done, length)
+                        # do not leave the end in the air: put it on the rim point and let the tightening cope
+                        self.free[thread][0] = new
+                        self._rim_link(thread)
+                        self.notch[thread] = to_notch; self.carried[thread] = self.hand
+                        return report
+        self.free[thread][0] = new
+        self.notch[thread] = to_notch
+        self.carried[thread] = self.hand
+        return report
+
     def cover(self):
         """SUPPORT=others: a covered bead is fixed only if it touches a fixed bead of another
         thread or the core; SUPPORT=any is 039's `cover.advance`."""
@@ -322,6 +500,31 @@ class Braid040(r39.Braid):
             report["fixed"][t] = len(self.free[t]) - cut
             self.free[t] = self.free[t][:cut].copy()
         return report
+
+    def send(self):
+        """039's send, and with REST=held the whole braid goes down together: the fixed part, the
+        core, and every free bead but the rim ends -- what lies on the pile, what lies on that,
+        and the fans -- so nothing is left hanging over the place the pile was; the rim links
+        stretch by the descent and the tightening's re-spacing pays that thread out from the
+        tama. (Moving the on-top runs alone left the beads stacked on them, and the fans, a
+        descent above their support, and the settle could not close the stretched links:
+        hand 29 of the first REST=held run.)"""
+        if not REST_HELD():
+            return super().send()
+        top = self.column_top()
+        sent = max(0.0, top - self.braid_z) if np.isfinite(top) else 0.0
+        if sent > 0.0:
+            down = np.array([0.0, 0.0, sent])
+            for made in self.made:
+                for entry in made:
+                    entry[0] = entry[0] - down
+            self.core = [c - down for c in self.core]
+            for t in range(len(self.free)):
+                if len(self.free[t]) > 1:
+                    self.free[t][1:] -= down
+                    self._rim_link(t)
+        series = self.tighten()
+        return top, sent, series
 
     def solver_masks(self):
         masks = self.masks()
@@ -363,9 +566,9 @@ def main():
     table, ring = bd.FIG20, g.RING_HIRA
     braid_z = stand.braiding_point_depth()
     sweeps = int(os.environ.get("SWEEPS", 200))
-    print("040 probe: ONTOP=%s SUPPORT=%s CARRY=%s sweeps %d; core: dense top r<=%.2f d + %d layers, lift %.2f d"
-          % (os.environ.get("ONTOP", "rest"), os.environ.get("SUPPORT", "others"), os.environ.get("CARRY", "keep"),
-             sweeps, stand.bundle_radius - D, layers, lift), flush=True)
+    print("040 probe: ONTOP=%s REST=%s SUPPORT=%s CARRY=%s ROUTE=%s sweeps %d; core: dense top r<=%.2f d + %d layers, lift %.2f d"
+          % (os.environ.get("ONTOP", "rest"), os.environ.get("REST", "held"), os.environ.get("SUPPORT", "others"),
+             os.environ.get("CARRY", "keep"), os.environ.get("ROUTE", "over"), sweeps, stand.bundle_radius - D, layers, lift), flush=True)
     braid = Braid040(stand, ring, 1.25, braid_z, 0.0, sweeps, layers=layers, lift=lift)
     h0 = 0
     if os.environ.get("RESUME"):
@@ -393,17 +596,19 @@ def main():
         s1 = braid.tighten()
         got = braid.cover()
         braid.on_top()
-        top, sent, _ = braid.send()
+        top, sent, s2 = braid.send()
         _, a_deep, a_pairs, _ = m036.penetration(braid.strands())
         fixed = sum(got["fixed"])
         knot_only = sum(1 for m in braid.made if len(m) == 1)
         c = h // len(table)
         per_cycle.setdefault(c, [0.0, 0])
         per_cycle[c][0] += sent; per_cycle[c][1] += fixed
+        sw = getattr(braid, "last_sweep", None)
         print("hand %2d thread %2d %2d->%2d %5.0fs  on-top %2d  fixed %2d  left %2d  top %+.2f  sent %.2f  knot-only %2d"
-              "  residual %.1e/%.1e rounds %5d capped %3d  (a) %d pairs, deepest %.3f"
+              "  residual %.1e/%.1e rounds %5d capped %3d  send %.1e/%.1e capped %d  (a) %d pairs, deepest %.3f%s"
               % (h + 1, thread, move[0], move[1], time.time() - t0, ks[thread], fixed, len(got["left"]), top, sent,
-                 knot_only, s1[-1][1], s1[-1][2], s1[-1][5], s1[-1][6], a_pairs, a_deep), flush=True)
+                 knot_only, s1[-1][1], s1[-1][2], s1[-1][5], s1[-1][6], s2[-1][1], s2[-1][2], s2[-1][6], a_pairs, a_deep,
+                 ("  sweep %d steps %d retries %d sweeps jump %.2f%s" % (sw["steps"], sw["retries"], sw["sweeps"], sw["max_jump"], (" FAILED " + sw["failed"]) if sw["failed"] else "")) if sw else ""), flush=True)
         if os.environ.get("PICKLE"):
             import pickle
             with open(os.environ["PICKLE"] % (h + 1), "wb") as f:
