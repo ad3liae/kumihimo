@@ -14,7 +14,7 @@ print("hand %d: thread %d %s" % (H, thread, move))
 def show(tag):
     n, rows = upside_down(b)
     keys = sorted(set((r[0], r[1], r[2], r[3], r[4], r[5]) for r in rows))
-    print("%-22s %2d pairs, %2d upside down: %s" % (tag, n, len(rows), "; ".join("t%d(h%d%s)>t%d(h%d%s)" % (k[0], k[1], "F" if k[2] else "f", k[3], k[4], "F" if k[5] else "f") for k in keys)))
+    print("%-22s %2d pairs, %2d candidates: %s" % (tag, n, len(rows), "; ".join("t%d(h%d%s)>t%d(h%d%s)" % (k[0], k[1], "F" if k[2] else "f", k[3], k[4], "F" if k[5] else "f") for k in keys)))
 show("before")
 b.hand = H
 rep = b.sweep_carry(thread, move[1]); show("after the sweep")
