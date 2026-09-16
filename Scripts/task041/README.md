@@ -185,3 +185,55 @@ itself: hand 4 reported two pass-throughs, thread 2 dropping 1.26 d past a threa
 been lowered yet, and then the reverse. **The descent and its rim links are one transition**, as
 `follow.py` has always taken them; with that, hand 4 is clean. In the carry a rim link is still its
 own transition, where it belongs.
+
+---
+
+# 041-3b: the projection cap, and the checking that had to be repaired first
+
+## What was wrong with the checking (3 節 0 of 3b)
+
+Three more faults, all in how the two states were prepared for the check, not in the bound:
+
+  * **`common()` merged arc lengths within 1e-5 d.** Where the merge dropped a bead that was a
+    corner, the check saw a chord across the corner instead of the corner: the colleague's example
+    has two polylines touching at a corner, and the merged version put them 5e-6 d apart and
+    **certified them safe**. `common()` is now the plain common refinement -- every breakpoint of
+    either state is a point in both, nothing merged, both shapes exact. `ccd_check.py` case 5 holds
+    this: merging certifies the touch, keeping every breakpoint finds it.
+  * **Short check segments were thrown away** (`real = length > MERGE`). Gone: a check segment of no
+    length is a point and is measured as one. Nothing is excluded for being short.
+  * **The self-check used an arc-length threshold** (0.5 d). Gone as well: two check segments of one
+    thread are excluded when they lie on the **same original segment or on two that touch**, in
+    either state -- that is what "neighbouring material" means, and it does not depend on where the
+    parametrisation put its points.
+
+Two reporting fixes went with them: the rim link's remainder is normal (`respace` leaves it), so
+only links **away from the rim** shorter than 0.5 d are counted; and the numbers are named for what
+they are -- "least sampled distance" (the bound stops subdividing once a pair is settled, so it is
+not the least distance over all time) and "check-point movement" (the common refinement's points).
+**Bead displacement is measured on the beads themselves**, across the projection calls where bead k
+stays bead k.
+
+## The cap (the experiment of 3b)
+
+    CAP=0.25 ... python3 Scripts/task041/checked_run.py <hands> 3 0.0
+    CAP=0.125 ...                                    the comparison
+    STOP=0 ...                                       count findings and carry on (the control needs
+                                                     the hand to finish, for residual and rounds)
+
+`cap_step` holds what **one projection** (space_out, push_apart, the stand's push_out) may move a
+bead to `CAP`, direction unchanged -- the same shape as the shrink's own `MOST` clamp. The capped
+update is what the continuous check then sees. **It is not a guarantee of non-crossing**: two
+threads 0.3 d apart, each moved 0.2 d toward the other, meet with both moves inside the cap. The
+check and the stopping stay.
+
+## The runs of 2026-09-16
+
+    python3 Scripts/task041/ccd_check.py                             the five artificial checks
+    python3 Scripts/task041/replay_check.py .build/task041/base <a> <b> <out>
+            040's baseline replayed and only watched, with the repaired checking
+    CAP=  /0.25/0.125  STOP=0 RESUME=<start-h31.pkl> RESUME_HAND=30 ... checked_run.py 31 3 0.0
+            hand 31: the uncapped control (which reproduces the known pass-through), then d/4, d/8
+    CAP=0.25 python3 Scripts/task041/step_compare.py .build/task041/base <out> 25
+    CAP=0.25 SAVE=<dir> PICKLE=<dir>/h%02d.pkl python3 Scripts/task041/checked_run.py 48 3 0.0
+    python3 Scripts/task041/crossing_audit.py --track <dir> 2 48

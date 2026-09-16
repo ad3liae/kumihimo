@@ -56,6 +56,13 @@ import given_length as gl             # noqa: E402
 import follow as F                    # noqa: E402
 
 D = 1.0
+CAP = float(os.environ.get("CAP", "0") or 0)      # 041-3b: the most one projection may move a bead
+                                                   # (d/4 in the main run, d/8 in the comparison);
+                                                   # 0 leaves the solver alone
+SHORT = 0.5 * D          # a link shorter than this, away from the rim, is worth counting
+PROJECTIONS = ("shrink", "shrink (carry)", "space_out", "push_apart", "push_out (stand)",
+               "MOST clamp, re-anchor")            # the calls where bead k stays bead k
+CAPPED = ("space_out", "push_apart", "push_out (stand)")   # the calls `cap_step` holds back
 
 
 class Trouble(Exception):
@@ -101,9 +108,15 @@ class Checker:
         self.least = float("inf")
         self.least_same = float("inf")      # a thread against itself: a fold can come close
         self.least_other = float("inf")     # one thread against another: what 041 is really asking
-        self.big = 0
+        self.big = 0                        # check points (not beads) moved more than BIG
         self.biggest = 0.0
         self.big_calls = {}
+        self.bead_big = 0                   # **beads themselves**, across a projection
+        self.bead_biggest = 0.0
+        self.over_cap = 0                   # beads a projection moved further than CAP (must be 0)
+        self.clamped = 0                    # beads the cap actually held back
+        self.short_links = 0                # links under SHORT away from the rim (the rim's remainder
+        self.shortest_link = float("inf")   # is normal: `respace` leaves it)
         self.events = 0
         self.trouble = None
 
@@ -138,7 +151,7 @@ class Checker:
         if len(now) != len(self.last):
             self.last = now
             return
-        P0, P1, who, seg, along = [], [], [], [], []
+        P0, P1, who, seg, along, was, will = [], [], [], [], [], [], []
         base = 0
         for i, (a, b) in enumerate(zip(self.last, now)):
             if len(a.pos) < 2 or len(b.pos) < 2:
@@ -147,6 +160,12 @@ class Checker:
             P0.append(q0); P1.append(q1); along.append(u)
             k = base + np.arange(len(q0) - 1)
             seg.append(k); who.append(np.full(len(k), i))
+            # which **original** segment each check segment lies on, in each state: that is what
+            # says whether two of them are neighbouring material (10 回目の指摘), not their length
+            mid = (u[:-1] + u[1:]) / 2.0
+            mid[~np.isfinite(mid)] = u[-2] if len(u) > 1 else 0.0
+            was.append(np.clip(np.searchsorted(a.u, mid, side="right") - 1, 0, len(a.u) - 2))
+            will.append(np.clip(np.searchsorted(b.u, mid, side="right") - 1, 0, len(b.u) - 2))
             base += len(q0)
         if not seg:
             self.last = now
@@ -154,11 +173,28 @@ class Checker:
         P0, P1 = np.concatenate(P0), np.concatenate(P1)
         seg, who = np.concatenate(seg), np.concatenate(who)
         along = np.concatenate(along)
+        was, will = np.concatenate(was), np.concatenate(will)
         moved = np.linalg.norm(P1 - P0, axis=1)
         if float(moved.max()) <= 0.0:
             self.last = now
             return
         self.biggest = max(self.biggest, float(moved.max()))
+        if call in PROJECTIONS:
+            for a, b in zip(self.last, now):
+                if len(a.pos) == len(b.pos):
+                    step = np.linalg.norm(b.pos - a.pos, axis=1)
+                    self.bead_biggest = max(self.bead_biggest, float(step.max()))
+                    self.bead_big += int((step > self.BIG).sum())
+                    if CAP and call in CAPPED:
+                        # only the calls the cap is applied to: the inline clamp and re-anchoring is
+                        # not one of them, and counting it read as the cap failing three times
+                        self.over_cap += int((step > CAP + 1e-9).sum())
+        for b in now:
+            if len(b.pos) > 2:
+                links = np.linalg.norm(np.diff(b.pos, axis=0), axis=1)[:-1]    # the rim link is last
+                if len(links):
+                    self.shortest_link = min(self.shortest_link, float(links.min()))
+                    self.short_links += int((links < SHORT).sum())
         big = int((moved > self.BIG).sum())
         if big:
             self.big += big
@@ -173,22 +209,13 @@ class Checker:
         # **The same thread's own segments count too** (041-3a (i)): a thread can pass through
         # itself -- 041-2 saw the rim link leave a 0.2 d self-penetration. Only segments that share
         # a point are left out, as `given_length.contact_pairs` leaves them out.
-        # **A thread against itself** (041-3a (i)), but only where there is thread enough between the
-        # two segments to fold back: neighbouring material is within d of itself whatever the braid
-        # does, and two segments flanking a very short one sit on top of each other by arithmetic,
-        # not by geometry -- that read as 68,556 pass-throughs in hand 14 before this rule. The gap
-        # is measured in arc length, so it does not depend on where the parametrisation put points.
-        start, end = along[seg], along[seg + 1]
-        with np.errstate(invalid="ignore"):
-            apart = np.maximum(start[None, :] - end[:, None], start[:, None] - end[None, :])
-        apart = np.where(np.isnan(apart), np.inf, apart)
+        # **A thread against itself**, excluded only where the two check segments are the same piece
+        # of thread bending: on the same original segment, or on two that touch. Nothing is excluded
+        # for being short -- a check segment of no length is a point, and is measured as one
+        # (11 回目の指摘). Neighbouring material in **either** state counts as neighbouring.
         same = who[:, None] == who[None, :]
-        near &= ~(same & (apart < self.GAP))
-        # a segment of no length is a point and cannot pass through anything
-        length = np.maximum(np.linalg.norm(P0[seg + 1] - P0[seg], axis=1),
-                            np.linalg.norm(P1[seg + 1] - P1[seg], axis=1))
-        real = length > F.MERGE
-        near &= real[:, None] & real[None, :]
+        touching = (np.abs(was[:, None] - was[None, :]) <= 1) | (np.abs(will[:, None] - will[None, :]) <= 1)
+        near &= ~(same & touching)
         still = (moved[seg] <= 0.0) & (moved[seg + 1] <= 0.0)
         near &= ~(still[:, None] & still[None, :])
         I, J = np.nonzero(np.triu(near, 1))
@@ -226,6 +253,23 @@ class Checker:
         self.last = now
 
 
+def cap_step(p, before, check):
+    """041-3b: hold what **one projection** may move a bead to `CAP`, direction unchanged -- the same
+    shape as the shrink's own clamp (`taut.MOST`). Returns how many beads were held back.
+
+    **This changes the solver**, which is the whole of the 3b experiment, and **it is not a guarantee
+    of non-crossing** (9 回目の指摘): two threads 0.3 d apart, each moved 0.2 d toward the other, meet
+    although both moves are inside the cap. The continuous check and the stopping stay.
+    """
+    step = p - before
+    far = np.linalg.norm(step, axis=1, keepdims=True)
+    held = (far > CAP).ravel()
+    if not held.any():
+        return
+    p[:] = before + np.where(held[:, None], step * (CAP / np.maximum(far, 1e-12)), step)
+    check.clamped += int(held.sum())
+
+
 def install(check):
     """Wrap every call that moves a bead, as `follow.py` does, and check after each -- on the arrays
     the call itself works on."""
@@ -252,13 +296,25 @@ def install(check):
         kept["shrink_by"](p, links, held, factor); check.see_p(p, "shrink (carry)")
 
     def space_out(p, links, rim, held):
-        kept["space_out"](p, links, rim, held); check.see_p(p, "space_out")
+        was = p.copy() if CAP else None
+        kept["space_out"](p, links, rim, held)
+        if CAP:
+            cap_step(p, was, check)          # the check sees the capped update, not the raw one
+        check.see_p(p, "space_out")
 
     def push_apart(p, links, pairs, held):
-        kept["push_apart"](p, links, pairs, held); check.see_p(p, "push_apart")
+        was = p.copy() if CAP else None
+        kept["push_apart"](p, links, pairs, held)
+        if CAP:
+            cap_step(p, was, check)
+        check.see_p(p, "push_apart")
 
     def push_out(p):
-        kept["push_out"](p); check.see_p(p, "push_out (stand)")
+        was = p.copy() if CAP else None
+        kept["push_out"](p)
+        if CAP:
+            cap_step(p, was, check)
+        check.see_p(p, "push_out (stand)")
 
     taut.flatten, taut.unflatten, taut.shrink = flatten, unflatten, shrink
     taut.space_out, taut.push_apart, P.shrink_by = space_out, push_apart, shrink_by
@@ -361,6 +417,12 @@ class Braid041(P.Braid040):
         if not hasattr(self, "_check"):
             self._check = Checker(self)
         return self._check
+
+    def __setstate__(self, state):
+        """Old pickles (`start-h31.pkl` among them) carry a Checker from before this one had `stop`
+        and `note`; drop it and let `checker()` build a fresh one."""
+        state.pop("_check", None)
+        self.__dict__.update(state)
 
     def __getstate__(self):
         """The checker is not part of the braid: it holds the last state it compared against and a
@@ -513,6 +575,23 @@ def main():
               % (time.time() - t0, s[-1][1], s[-1][2], len(braid.core)), flush=True)
     m036 = P.r39.sibling("m036", "..", "task036", "measure.py")
     check = braid.checker()
+    # STOP=0: count what the check finds and carry on (the uncapped control of 041-3b needs the
+    # hand to finish, so that its residual and settle rounds can be compared with the capped runs)
+    check.stop = os.environ.get("STOP", "1") != "0"
+    found = []
+
+    def note(phase, call, rows, least, state):
+        """Save the two states a finding happened between (the braid's own pickle is not that
+        state: the tightening works on arrays of its own). The first 20 a hand."""
+        if where and len(found) < 20:
+            np.savez(os.path.join(where, "touch-h%02d-%d.npz" % (braid.hand, len(found))), **state)
+        found.append((phase, call, rows[0]))
+        if len(found) <= 20:
+            print("    FOUND in %s (%s): %s" % (phase, call, rows[0]), flush=True)
+        elif len(found) == 21:
+            print("    (more findings from here on are counted, not printed)", flush=True)
+
+    check.note = note
     per_cycle = {}
     for h in range(h0, hands_n):
         move = table[h % len(table)]
@@ -558,13 +637,18 @@ def main():
         per_cycle[c][0] += sent; per_cycle[c][1] += fixed
         sw = getattr(braid, "last_sweep", None)
         print("hand %2d thread %2d %2d->%2d %5.0fs  on-top %2d  fixed %2d  left %2d  top %+.2f  sent %.2f  knot-only %2d"
-              "  residual %.1e/%.1e rounds %5d capped %3d  (a) %d pairs, deepest %.3f"
+              "  tighten %.1e/%.1e rounds %5d capped %3d  send %.1e/%.1e rounds %5d capped %3d"
+              "  (a) %d pairs, deepest %.3f"
               "  checked %d transitions, %d pairs, touched %d, uncertain %d, least %.3f"
+              "  beads: biggest %.2f, over the cap %d, held back %d; short links %d (shortest %.3f)"
               "%s"
               % (h + 1, thread, move[0], move[1], time.time() - t0, ks[thread], fixed, len(got["left"]),
-                 top, sent, knot_only, s1[-1][1], s1[-1][2], s1[-1][5], s1[-1][6], a_pairs, a_deep,
+                 top, sent, knot_only, s1[-1][1], s1[-1][2], s1[-1][5], s1[-1][6],
+                 s2[-1][1], s2[-1][2], s2[-1][5], s2[-1][6], a_pairs, a_deep,
                  check.transitions, check.pairs, check.touched, check.uncertain,
                  check.least if np.isfinite(check.least) else float("nan"),
+                 check.bead_biggest, check.over_cap, check.clamped, check.short_links,
+                 check.shortest_link if np.isfinite(check.shortest_link) else float("nan"),
                  ("  sweep %d steps %d retries (%d of them the check) jump %.2f"
                   % (sw["steps"], sw["retries"], sw["check_retries"], sw["max_jump"])) if sw else ""), flush=True)
         if os.environ.get("PICKLE"):

@@ -124,6 +124,57 @@ def main():
         print("   %-24s %-12s least sampled %.3f   %s"
               % (name, NAMES[int(status[0])], least[0], "ok" if ok else "NOT %s" % NAMES[expect]))
 
+    print("5. a corner that a polyline touches at (the colleague's example, 10 回目の指摘)")
+    # A is a thread that bends; between the two states the bend moves 5e-6 d along the thread and
+    # 5e-6 d in space. B stands still, touching **the second state's corner**. The corner is an
+    # interior breakpoint, and merging arc lengths dropped it: the chord drawn across the missing
+    # corner passes 5e-6 d from B, so the pair was certified safe although the thread touches it.
+    pre = F.Strand(np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [1.0, 2.0, 0.0]]),
+                   np.array([0.0, 1.0, 2.0, 3.0]), None, None)
+    x = 1.0 + 5e-6
+    post = F.Strand(np.array([[0.0, 0.0, 0.0], [x, 0.0, 0.0], [x, 1.0, 0.0], [x, 2.0, 0.0]]),
+                    np.array([0.0, x, 1.0 + x, 2.0 + x]), None, None)
+    B = np.array([[x, 0.0, -1.0], [x, 0.0, 1.0]])
+
+    def apart(P):
+        return min(float(F.segdist(P[k:k + 1], P[k + 1:k + 2], B[0:1], B[1:2])[0])
+                   for k in range(len(P) - 1))
+
+    def merged(pre, post, merge=1e-5):        # what `common` used to do
+        hi = min(pre.u[-1], post.u[-1])
+        U = np.unique(np.concatenate([pre.u[:-1], post.u[:-1]]))
+        U = U[U < hi - 1e-9]
+        if len(U) > 1:
+            U = U[np.concatenate([[True], np.diff(U) > merge])]
+        Q0 = np.stack([np.interp(U, pre.u, pre.pos[:, a]) for a in range(3)], axis=1)
+        Q1 = np.stack([np.interp(U, post.u, post.pos[:, a]) for a in range(3)], axis=1)
+        return np.vstack([Q0, pre.pos[-1:]]), np.vstack([Q1, post.pos[-1:]])
+
+    P0, P1, _ = F.common(pre, post)
+    M0, M1 = merged(pre, post)
+    print("   the states themselves, against B: %.3g d before, %.3g d after (it touches)"
+          % (apart(pre.pos), apart(post.pos)))
+    print("   merging arc lengths (the old way):      %.3g d before, %.3g d after  <- the corner is cut"
+          % (apart(M0), apart(M1)))
+    print("   keeping every breakpoint (the way now): %.3g d before, %.3g d after" % (apart(P0), apart(P1)))
+    kept_touch = apart(P1) < 1e-12
+    good &= kept_touch
+    if not kept_touch:
+        print("   NOT ok: the refinement moved the corner away from B")
+    for name, (Q0, Q1), want in (("merging (the old way)", (M0, M1), 0), ("keeping every breakpoint", (P0, P1), 1)):
+        # every check segment of A against B's one segment (B stands still)
+        n = len(Q0) - 1
+        status, least, when, _ = F.ccd(Q0, Q1, B, B.copy(), 0.0, F.CENTRE,
+                                       np.arange(n), np.zeros(n, dtype=int))
+        worst = int(status.max())
+        print("   %-26s the check says %-9s (least sampled %.3g)   %s"
+              % (name, NAMES[worst], least.min(),
+                 "ok" if worst == want else ("NOT %s" % NAMES[want])))
+        if want == 1:
+            good &= worst == 1
+        elif worst != 0:
+            print("   (the old way no longer misses it here -- the example does not bite)")
+
     print("all as expected" if good else "SOMETHING IS NOT AS EXPECTED")
     return 0 if good else 1
 
