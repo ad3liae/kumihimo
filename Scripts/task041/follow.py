@@ -266,10 +266,17 @@ def common(pre, post):
     return P0, P1, np.concatenate([U, [np.inf]])
 
 
-def ccd(A0, A1, B0, B1, theta, found_below, I, J):
+def ccd(A0, A1, B0, B1, theta, found_below, I, J, depth=None):
     """Least distance of segment pairs (I, J) while both polylines move linearly from 0 to 1.
     Returns per pair: status (0 certified above theta, 1 a sample at or below found_below,
-    2 uncertain), the smallest sampled distance, the time of the first finding."""
+    2 uncertain), the smallest sampled distance, the time of the first finding.
+
+    **A pair is certified only by the bound.** Every interval that is still undecided when the
+    halving stops -- because it has been halved `depth` times, because the queue has grown past
+    what is worth working on, or because the passes ran out -- makes its pair uncertain, and the
+    bound certifies only by more than its own rounding. Silence is not safety: `ccd_check.py`
+    holds both to two segments made by hand."""
+    depth = DEPTH if depth is None else depth
     dA = np.linalg.norm(A1 - A0, axis=1)
     dB = np.linalg.norm(B1 - B0, axis=1)
     M = np.maximum(dA[I], dA[I + 1]) + np.maximum(dB[J], dB[J + 1])
@@ -292,11 +299,17 @@ def ccd(A0, A1, B0, B1, theta, found_below, I, J):
         f = d <= found_below
         status[idx[f]] = 1
         when[idx[f]] = np.where(np.isnan(when[idx[f]]), start[f], when[idx[f]])
-    for _ in range(DEPTH + 1):
+    for _ in range(depth + 1):
         live = status[idx] != 1
-        lb = (d0 + d1 - M[idx] * (t1 - t0)) / 2.0
-        live &= ~(lb > theta)
-        fine = live & ((t1 - t0) < 2.0 ** -DEPTH)
+        span = M[idx] * (t1 - t0)
+        lb = (d0 + d1 - span) / 2.0
+        # The bound is worked out in floating point. Two segments that pass through each other give
+        # d0 + d1 == span exactly, so the bound is exactly 0 and must not certify -- but rounding
+        # leaves it a few ulps either side. Certify only by more than the rounding of its own terms
+        # (without this, crossings at 10-300 d a transition came back certified: ccd_check.py 1).
+        guard = 8.0 * np.finfo(float).eps * (d0 + d1 + span + 1.0)
+        live &= ~(lb > theta + guard)
+        fine = live & ((t1 - t0) < 2.0 ** -depth)
         status[idx[fine]] = np.maximum(status[idx[fine]], 2)
         live &= ~fine
         if not live.any():
@@ -314,6 +327,8 @@ def ccd(A0, A1, B0, B1, theta, found_below, I, J):
         when[hit] = np.where(np.isnan(when[hit]), tm[f], np.minimum(when[hit], tm[f]))
         idx = np.concatenate([idx, idx]); t0, t1 = np.concatenate([t0, tm]), np.concatenate([tm, t1])
         d0, d1 = np.concatenate([d0, dm]), np.concatenate([dm, d1])
+    else:
+        status[idx] = np.maximum(status[idx], 2)   # the passes ran out with these intervals undecided
     return status, least, when, ends
 
 

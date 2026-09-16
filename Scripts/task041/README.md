@@ -20,8 +20,13 @@ states. Nothing touches product code; no Xcode target refers to it. Everything i
 
     python3 Scripts/task040/audit.py .build/task041/base/h03.pkl ...        audit.py's candidates
     python3 Scripts/task040/audit.py --relabel .build/task041/base 7        ... made by the relabel alone, at the hand's start
-    python3 Scripts/task041/crossings.py .build/task041/base/h03.pkl ...    the same candidates, split: at a plan
-                                                                            crossing of the two threads, or beside
+    python3 Scripts/task041/crossing_audit.py .build/task041/base/h03.pkl ...    (041-1: the same candidates, split
+                                                                            at a crossing / beside. **Rewritten in
+                                                                            041-2**: it now counts the crossings
+                                                                            themselves -- see below. The 041-1
+                                                                            numbers came from the first version,
+                                                                            in git history, and are not the same
+                                                                            quantity)
 
 ## Following a pair through a hand (2)
 
@@ -80,3 +85,63 @@ undetermined. The rule above handles it; every run since has 0.
 
 Positions do not depend on the reading of the place; whether a candidate is at a crossing does, so
 these read the FOLLOW_U=arclength runs (h03-arc, h06-arc, h07-arc).
+
+---
+
+# 041-2: the checked harness
+
+## What was wrong with the checker first (3 節 0)
+
+`follow.ccd` could return "safe" for two segments that pass through each other. Two faults, both
+found by `ccd_check.py` and both fixed in `follow.py`:
+
+  * the halving's passes ran out before the "interval narrower than 2^-26" test was reached, and the
+    intervals still in hand came back with their initial value, certified. **Now anything still
+    undecided when the halving stops -- the depth, the queue cap, or the passes -- is uncertain.**
+  * two segments that pass through each other give `d0 + d1 == M dt` exactly, so the bound is
+    exactly 0 and must not certify; in floating point it landed a few ulps above 0 and did.
+    **Now the bound must clear the threshold by more than the rounding of its own terms.** Without
+    this, 15 of 1000 artificial crossings at 10-300 d a transition were certified.
+
+    python3 Scripts/task041/ccd_check.py        two segments made by hand: crossings are never
+                                                certified (2-300 d a transition, 100 crossing times
+                                                each, square on and at a slant), far-apart pairs are
+                                                certified, and a judgement still open when the
+                                                passes run out is uncertain
+
+## The checked run (3 節 1-4)
+
+    SAVE=.build/task041/checked48 PICKLE=.build/task041/checked48/h%02d.pkl \
+        python3 Scripts/task041/checked_run.py <hands> [layers] [lift] [dump]
+    RESUME=<pickle> RESUME_HAND=<n> ...     continue after that hand
+    CHECK=all|carry|off                     where the centre-line check runs (default all)
+
+`Braid041` is `probe.Braid040` with the checks; the model is not touched. What changes is what is
+accepted: the carry's step is judged **after** the rim link (the rim link can take a bead in and pay
+another out in one call, which moved a bead far enough to leave a 0.2 d self-penetration -- see
+checked_run.py's note on `settle_now`), every position update in the carry, the tightening and the send is
+checked for a centre-line crossing against all sixteen threads, a failed check undoes the step and
+halves it, and the tightening or an unrecoverable carry saves the state and stops.
+
+**Run one at a time.** Three of these at once starved each other: hand 3 took 20:40 of wall clock
+for 138 s of work (11% CPU). Alone it takes 139 s and 61 MB.
+
+    python3 Scripts/task041/step_compare.py .build/task041/base <out> 25
+            hand 25 from the saved state at d/4 and at d/8, with the checks, and the largest
+            difference between the two -- bead against bead, and polyline against polyline at equal
+            arc length
+
+## The new audit (3 節 5)
+
+    python3 Scripts/task041/crossing_audit.py <pickle> ...              the crossings in each state
+    python3 Scripts/task041/crossing_audit.py --track <ck dir> <a> <b>  and hand by hand: kept, reversed,
+                                                                   born, left (through an end),
+                                                                   tracking unsure
+
+(`crossings.py` in 041-1; renamed because `import crossings` finds Task 022's file, which
+`probe.py` puts on the path -- as `import run` found Task 039's.) Crossings, not the old audit's
+candidates: every place two threads' plan projections cross, which is
+higher, and both hand numbers (carried for the record, never used to select). From hand to hand the
+crossings of each thread pair are matched **one to one** by arc length from the deepest fixed bead;
+a contested match is counted as unsure and never as kept or reversed. **The tracking's uncertainty
+and the collision check's uncertainty are different columns.**
