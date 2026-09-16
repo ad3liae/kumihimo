@@ -609,7 +609,21 @@ def main():
             ks = braid.on_top()
             check.on = mode == "all"
             check.phase = "hand %d tighten" % (h + 1)
+            # 042-2 の 5: how far the on-top run moves **across the settle**, and nothing else --
+            # not the send's descent, not beads added or taken in. The run is the last `resting`
+            # beads of the free part (the braid-end side); the tightening never changes that end,
+            # so bead k before is bead k after.
+            rested = [f[len(f) - k:].copy() if k else None for f, k in zip(braid.free, braid.resting)]
             s1 = braid.tighten()
+            moved = []
+            for was, f, k in zip(rested, braid.free, braid.resting):
+                if was is None or len(f) < len(was):
+                    continue
+                now = f[len(f) - len(was):]
+                if now.shape == was.shape:
+                    moved.extend(np.linalg.norm(now - was, axis=1).tolist())
+            rest_max = max(moved) if moved else 0.0
+            rest_mid = float(np.median(moved)) if moved else 0.0
             got = braid.cover()
             braid.on_top()
             check.phase = "hand %d send" % (h + 1)
@@ -641,6 +655,7 @@ def main():
               "  (a) %d pairs, deepest %.3f"
               "  checked %d transitions, %d pairs, touched %d, uncertain %d, least %.3f"
               "  beads: biggest %.2f, over the cap %d, held back %d; short links %d (shortest %.3f)"
+              "  on-top moved (settle) max %.3f median %.3f"
               "%s"
               % (h + 1, thread, move[0], move[1], time.time() - t0, ks[thread], fixed, len(got["left"]),
                  top, sent, knot_only, s1[-1][1], s1[-1][2], s1[-1][5], s1[-1][6],
@@ -649,6 +664,7 @@ def main():
                  check.least if np.isfinite(check.least) else float("nan"),
                  check.bead_biggest, check.over_cap, check.clamped, check.short_links,
                  check.shortest_link if np.isfinite(check.shortest_link) else float("nan"),
+                 rest_max, rest_mid,
                  ("  sweep %d steps %d retries (%d of them the check) jump %.2f"
                   % (sw["steps"], sw["retries"], sw["check_retries"], sw["max_jump"])) if sw else ""), flush=True)
         if os.environ.get("PICKLE"):

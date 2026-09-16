@@ -509,8 +509,9 @@ class Braid040(r39.Braid):
         tama. (Moving the on-top runs alone left the beads stacked on them, and the fans, a
         descent above their support, and the settle could not close the stretched links:
         hand 29 of the first REST=held run.)"""
-        if not REST_HELD():
-            return super().send()
+        # 042-2: **both conditions send the same way** -- the whole braid goes down together. The
+        # branch that sent only the fixed part and the core when REST=still is gone, so that held
+        # and still differ in one thing only: whether the on-top run may be moved by the projections.
         top = self.column_top()
         sent = max(0.0, top - self.braid_z) if np.isfinite(top) else 0.0
         if sent > 0.0:

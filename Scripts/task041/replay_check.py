@@ -40,8 +40,17 @@ import checked_run as R                # noqa: E402  (the Checker and the wrappi
 import probe as P                      # noqa: E402
 import braid as bd                     # noqa: E402
 import follow as F                     # noqa: E402
+import __main__                        # noqa: E402
+# the checked run's pickles name these; `crossing_audit.py` registers them the same way
+__main__.Braid041 = R.Braid041
+__main__.Braid040 = R.P.Braid040
+__main__.Checker = R.Checker
 
 SAVE_AT_MOST = 20                      # the first few findings are saved; the rest are counted
+# Which solver the replay plays. **A replay has to be of the run that was saved**, so this says so
+# out loud (042-0): "probe" is 040's own code as it stood -- no cap, no settle after the rim link --
+# and "checked" is Task 041's Braid041, the cap (CAP) and the settle after the rim link included.
+SOLVER = os.environ.get("SOLVER", "probe")
 
 
 def same_braid(a, b):
@@ -76,13 +85,16 @@ def play(ck, hand, out):
             if k == SAVE_AT_MOST:
                 print("    (more findings from here on are counted, not saved)", flush=True)
 
+    if SOLVER == "checked":
+        before.__class__ = R.Braid041
+    cls = type(before)
     check = R.Checker(before, stop=False, note=note)
     move = bd.FIG20[(hand - 1) % len(bd.FIG20)]
     thread = bd.thread_at(before, move[0])
     before.hand = hand
-    kept_rim = P.Braid040._rim_link
-    kept_send = P.Braid040.send
-    kept_tighten = P.Braid040.tighten
+    kept_rim = P.Braid040._rim_link          # neither class overrides this one
+    kept_send = cls.send
+    kept_tighten = cls.tighten
     sending = [False]
 
     def rim_link(self, t):
@@ -108,8 +120,8 @@ def play(ck, hand, out):
         return kept_tighten(self, *args, **kwargs)
 
     P.Braid040._rim_link = rim_link
-    P.Braid040.send = send
-    P.Braid040.tighten = tighten
+    cls.send = send
+    cls.tighten = tighten
     uninstall = R.install(check)
     t0 = time.time()
     try:
@@ -126,11 +138,12 @@ def play(ck, hand, out):
     finally:
         uninstall()
         P.Braid040._rim_link = kept_rim
-        P.Braid040.send = kept_send
-        P.Braid040.tighten = kept_tighten
+        cls.send = kept_send
+        cls.tighten = kept_tighten
     seconds = time.time() - t0
     replayed, worst = same_braid(before, after)
-    return dict(hand=hand, thread=thread, move="%d->%d" % move, seconds=round(seconds),
+    return dict(hand=hand, solver=SOLVER, cap=R.CAP, thread=thread, move="%d->%d" % move,
+                seconds=round(seconds),
                 replayed=replayed, difference=worst, sent=round(sent, 2), fixed=sum(got["fixed"]),
                 transitions=check.transitions, pairs=check.pairs, touched=check.touched,
                 uncertain=check.uncertain, events=check.events,
@@ -145,6 +158,10 @@ def play(ck, hand, out):
 def main():
     ck, first, last, out = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
     os.makedirs(out, exist_ok=True)
+    print("replaying %s with SOLVER=%s (cap %s): %s" %
+          (ck, SOLVER, R.CAP or "none",
+           "040's own code, no cap, no settle after the rim link" if SOLVER == "probe"
+           else "Task 041's checked solver: the cap and the settle after the rim link"), flush=True)
     path = os.path.join(out, "hands.csv")
     new = not os.path.exists(path)
     with open(path, "a", newline="") as fh:

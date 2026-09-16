@@ -254,24 +254,22 @@ def plan_crossings(PA, uA, PB, uB, ia, ib):
 
 
 def common(pre, post):
-    """Both states of one strand on the **common refinement** of their breakpoints: every arc length
-    that is a bead in either state is a point in both. Returns (P0, P1, u).
+    """Both states of one strand on the **common refinement of their breakpoints, both rim ends
+    included**. Returns (P0, P1, u).
 
-    **Nothing is merged.** An earlier version merged arc lengths within 1e-5 d of each other, which
-    cut a corner off whichever state's bead was dropped: the colleague's example has two polylines
-    that touch at a corner, and the merged version put them 5e-6 d apart and certified them safe
-    (10 回目の指摘). Keeping both breakpoints keeps both shapes exactly, at the price of some very
-    short check segments where the two states nearly agree -- which is harmless, because a segment
-    of no length is a point and is measured as one, and because neighbouring material is excluded by
-    which **original** segments the check segments lie on, not by how long they are."""
-    hi = min(pre.u[-1], post.u[-1])
-    U = np.unique(np.concatenate([pre.u[:-1], post.u[:-1]]))
-    U = U[U < hi - 1e-9]
+    Nothing is merged and nothing is cut off. An earlier version stopped the split points at the
+    shorter state's total length, so a corner of the longer state beyond that point was dropped and
+    the polyline ran straight to its rim point: the colleague's example (12 回目の指摘) touches at
+    such a corner, and the check called it safe at 0.00971 d. Past the shorter state's end the
+    material is **at that state's rim point** -- which is what `np.interp` returns there, its last
+    value -- so paying out and taking in are both covered.
+
+    Every original bead of either state is therefore a point of both refined polylines, and the
+    shape of each end state is kept exactly (`ccd_check.py` 6 holds this)."""
+    U = np.unique(np.concatenate([pre.u, post.u]))
     P0 = np.stack([np.interp(U, pre.u, pre.pos[:, a]) for a in range(3)], axis=1)
     P1 = np.stack([np.interp(U, post.u, post.pos[:, a]) for a in range(3)], axis=1)
-    P0 = np.vstack([P0, pre.pos[-1:]])
-    P1 = np.vstack([P1, post.pos[-1:]])
-    return P0, P1, np.concatenate([U, [np.inf]])
+    return P0, P1, U
 
 
 def ccd(A0, A1, B0, B1, theta, found_below, I, J, depth=None):

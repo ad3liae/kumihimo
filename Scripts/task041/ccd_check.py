@@ -175,6 +175,41 @@ def main():
         elif worst != 0:
             print("   (the old way no longer misses it here -- the example does not bite)")
 
+    print("6. a corner past the shorter state's end (the colleague's example, 12 回目の指摘)")
+    # Same bead count, same ends, nothing moved more than 0.2 d. The updated polyline's corner sits
+    # at arc length 2.0416, beyond the other state's total of 2.01; the old refinement cut it off and
+    # ran straight to the rim point, and the touch (0 d) read as 0.00971 d and "safe".
+    short = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0], [2.01, 0.0, 0.0]])
+    long_ = np.array([[0.0, 0.0, 0.0], [1.0, 0.2, 0.0], [2.0, -0.01, 0.0], [2.01, 0.0, 0.0]])
+    B6 = np.array([[2.0, -0.01, -1.0], [2.0, -0.01, 1.0]])
+
+    def strand(pos):
+        return F.Strand(pos, F.arclength(pos), None, None)
+
+    def nearest(P):
+        return min(float(F.segdist(P[k:k + 1], P[k + 1:k + 2], B6[0:1], B6[1:2])[0])
+                   for k in range(len(P) - 1))
+
+    def kept_shape(P, u, pos):
+        """every original bead is a point of the refined polyline"""
+        return all(min(float(np.linalg.norm(P[i] - q)) for i in range(len(P))) < 1e-12 for q in pos)
+
+    for way, pre_pos, post_pos in (("paying out (the update is longer)", short, long_),
+                                   ("taking in (the update is shorter)", long_, short)):
+        pre, post = strand(pre_pos), strand(post_pos)
+        P0, P1, u = F.common(pre, post)
+        shapes = kept_shape(P0, u, pre_pos) and kept_shape(P1, u, post_pos)
+        n = len(P0) - 1
+        status, least, when, _ = F.ccd(P0, P1, B6, B6.copy(), 0.0, F.CENTRE,
+                                       np.arange(n), np.zeros(n, dtype=int))
+        worst = int(status.max())
+        touching = min(nearest(pre_pos), nearest(post_pos))
+        ok = shapes and worst == 1
+        good &= ok
+        print("   %-34s states %.3g d apart at closest; refined %.3g / %.3g d; both shapes kept %s; "
+              "the check says %-9s %s"
+              % (way, touching, nearest(P0), nearest(P1), shapes, NAMES[worst], "ok" if ok else "NOT found"))
+
     print("all as expected" if good else "SOMETHING IS NOT AS EXPECTED")
     return 0 if good else 1
 
