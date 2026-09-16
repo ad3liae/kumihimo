@@ -145,3 +145,43 @@ higher, and both hand numbers (carried for the record, never used to select). Fr
 crossings of each thread pair are matched **one to one** by arc length from the deepest fixed bead;
 a contested match is counted as unsure and never as kept or reversed. **The tracking's uncertainty
 and the collision check's uncertainty are different columns.**
+
+---
+
+# 041-3a: replaying 040's baseline and only watching it
+
+    python3 Scripts/task041/replay_check.py .build/task041/base <first> <last> <out dir>
+
+Each hand is replayed from the state saved before it with `probe.Braid040` -- its own code, its own
+behaviour, nothing added and nothing stopped -- and compared with the state saved after it, bead for
+bead. A hand that does not come out identical is reported as not a replay. Every position update is
+checked between its two states, for **every segment pair of every thread**, and anything found is
+counted and saved while the replay carries on (the first 20 findings a hand are saved as
+`touch-h<NN>-<k>.npz`, the rest counted). `<out dir>/hands.csv` gets a line a hand: pass-throughs,
+uncertain pairs, the least distance seen (between threads and within one thread, apart), how many
+points one call moved more than 1 d and by which call, and the time.
+
+## Three faults in the checking that had to be fixed first
+
+The first two are the gaps the colleague named (3 節 0 of 041-3a); the third came out of the smoke
+test of the first.
+
+  * **A thread was never checked against itself.** Now it is, but only where there is thread enough
+    between the two segments to fold back (`Checker.GAP` = 0.5 d of arc length). Segments that share
+    a point, or that are nearer than that along the thread, are the same piece of thread bending.
+  * **The send's descent never reached the check.** `Braid041.tighten` took a fresh baseline at its
+    start, which dropped the descent and its rim links. That `check.take()` is gone; the descent is
+    now the first transition the send's tightening compares against.
+  * **`common()` made segments of no length.** The union of two states' arc lengths puts two points
+    almost on top of one another wherever the states nearly agree, and the two segments flanking
+    such a point read as touching although nothing moved: 68,556 false pass-throughs in hand 14.
+    Arc lengths within `follow.MERGE` (1e-5 d) are now one point.
+
+## And one in the replay itself
+
+The send lowers the whole braid at once and then pays thread out at every rim, but the code walks
+the threads one at a time. Checking after each thread's rim link compares a half-lowered braid with
+itself: hand 4 reported two pass-throughs, thread 2 dropping 1.26 d past a thread 12 that had not
+been lowered yet, and then the reverse. **The descent and its rim links are one transition**, as
+`follow.py` has always taken them; with that, hand 4 is clean. In the carry a rim link is still its
+own transition, where it belongs.

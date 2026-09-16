@@ -253,12 +253,24 @@ def plan_crossings(PA, uA, PB, uB, ia, ib):
     return sorted(out)
 
 
+MERGE = 1e-5             # arc lengths this close are the same place (see `common`)
+
+
 def common(pre, post):
     """Both states of one strand on the union of their material coordinates; the rim bead to the
-    rim bead. Returns (P0, P1, u)."""
+    rim bead. Returns (P0, P1, u).
+
+    **Arc lengths within MERGE of each other are merged.** The union of two states' arc lengths puts
+    two points almost on top of one another wherever the states nearly agree, and a segment of no
+    length makes the two segments flanking it read as touching when nothing has moved at all: in the
+    replay of hand 14 that was 68,556 false pass-throughs, every one of them a pair separated by a
+    segment 1e-12 to 1e-6 d long (041-3a). The smallest real feature here is a rim link of a few
+    tenths of d, so merging at 1e-5 d costs nothing."""
     hi = min(pre.u[-1], post.u[-1])
     U = np.unique(np.concatenate([pre.u[:-1], post.u[:-1]]))
     U = U[U < hi - 1e-9]
+    if len(U) > 1:
+        U = U[np.concatenate([[True], np.diff(U) > MERGE])]
     P0 = np.stack([np.interp(U, pre.u, pre.pos[:, a]) for a in range(3)], axis=1)
     P1 = np.stack([np.interp(U, post.u, post.pos[:, a]) for a in range(3)], axis=1)
     P0 = np.vstack([P0, pre.pos[-1:]])

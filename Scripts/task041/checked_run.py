@@ -80,9 +80,14 @@ class Checker:
     braid would watch nothing move and pass everything. (It did: the first version of this file
     counted only the carry's own calls, 262 transitions in a hand where there are 8,609.)"""
 
-    def __init__(self, braid):
+    BIG = 1.0            # a point moved this far by one call is worth counting on its own
+    GAP = 0.5            # thread enough between two segments of one strand for them to be judged
+
+    def __init__(self, braid, stop=True, note=None):
         self.b = braid
         self.on = True
+        self.stop = stop     # raise Trouble (a run that must stop), or count and carry on (041-3a)
+        self.note = note     # called with (phase, call, rows, least, state) whenever something is found
         self.phase = "start"
         self.last = None
         self.layout = None
@@ -94,6 +99,12 @@ class Checker:
         self.touched = 0
         self.uncertain = 0
         self.least = float("inf")
+        self.least_same = float("inf")      # a thread against itself: a fold can come close
+        self.least_other = float("inf")     # one thread against another: what 041 is really asking
+        self.big = 0
+        self.biggest = 0.0
+        self.big_calls = {}
+        self.events = 0
         self.trouble = None
 
     def strands_of(self, threads):
@@ -127,13 +138,13 @@ class Checker:
         if len(now) != len(self.last):
             self.last = now
             return
-        P0, P1, who, seg = [], [], [], []
+        P0, P1, who, seg, along = [], [], [], [], []
         base = 0
         for i, (a, b) in enumerate(zip(self.last, now)):
             if len(a.pos) < 2 or len(b.pos) < 2:
                 continue
-            q0, q1, _ = F.common(a, b)
-            P0.append(q0); P1.append(q1)
+            q0, q1, u = F.common(a, b)
+            P0.append(q0); P1.append(q1); along.append(u)
             k = base + np.arange(len(q0) - 1)
             seg.append(k); who.append(np.full(len(k), i))
             base += len(q0)
@@ -142,16 +153,42 @@ class Checker:
             return
         P0, P1 = np.concatenate(P0), np.concatenate(P1)
         seg, who = np.concatenate(seg), np.concatenate(who)
+        along = np.concatenate(along)
         moved = np.linalg.norm(P1 - P0, axis=1)
         if float(moved.max()) <= 0.0:
             self.last = now
             return
+        self.biggest = max(self.biggest, float(moved.max()))
+        big = int((moved > self.BIG).sum())
+        if big:
+            self.big += big
+            # points, not transitions: one descent moves every free bead at once, and that is worth
+            # telling apart from a projection moving one bead a diameter
+            self.big_calls[call] = self.big_calls.get(call, 0) + big
         lo = np.minimum(np.minimum(P0[seg], P0[seg + 1]), np.minimum(P1[seg], P1[seg + 1])) - 0.5 * D
         hi = np.maximum(np.maximum(P0[seg], P0[seg + 1]), np.maximum(P1[seg], P1[seg + 1])) + 0.5 * D
         near = np.ones((len(seg), len(seg)), dtype=bool)
         for axis in range(3):
             near &= (lo[:, None, axis] <= hi[None, :, axis]) & (lo[None, :, axis] <= hi[:, None, axis])
-        near &= who[:, None] != who[None, :]
+        # **The same thread's own segments count too** (041-3a (i)): a thread can pass through
+        # itself -- 041-2 saw the rim link leave a 0.2 d self-penetration. Only segments that share
+        # a point are left out, as `given_length.contact_pairs` leaves them out.
+        # **A thread against itself** (041-3a (i)), but only where there is thread enough between the
+        # two segments to fold back: neighbouring material is within d of itself whatever the braid
+        # does, and two segments flanking a very short one sit on top of each other by arithmetic,
+        # not by geometry -- that read as 68,556 pass-throughs in hand 14 before this rule. The gap
+        # is measured in arc length, so it does not depend on where the parametrisation put points.
+        start, end = along[seg], along[seg + 1]
+        with np.errstate(invalid="ignore"):
+            apart = np.maximum(start[None, :] - end[:, None], start[:, None] - end[None, :])
+        apart = np.where(np.isnan(apart), np.inf, apart)
+        same = who[:, None] == who[None, :]
+        near &= ~(same & (apart < self.GAP))
+        # a segment of no length is a point and cannot pass through anything
+        length = np.maximum(np.linalg.norm(P0[seg + 1] - P0[seg], axis=1),
+                            np.linalg.norm(P1[seg + 1] - P1[seg], axis=1))
+        real = length > F.MERGE
+        near &= real[:, None] & real[None, :]
         still = (moved[seg] <= 0.0) & (moved[seg + 1] <= 0.0)
         near &= ~(still[:, None] & still[None, :])
         I, J = np.nonzero(np.triu(near, 1))
@@ -162,6 +199,11 @@ class Checker:
         self.pairs += len(I)
         status, least, when, _ = F.ccd(P0, P1, P0, P1, 0.0, F.CENTRE, seg[I], seg[J])
         self.least = min(self.least, float(least.min()))
+        itself = who[I] == who[J]
+        if itself.any():
+            self.least_same = min(self.least_same, float(least[itself].min()))
+        if (~itself).any():
+            self.least_other = min(self.least_other, float(least[~itself].min()))
         bad = status != 0
         if bad.any():
             rows = []
@@ -172,10 +214,15 @@ class Checker:
                                "-" if np.isnan(when[k]) else "%.4f" % when[k], least[k]))
             self.touched += int((status[bad] == 1).sum())
             self.uncertain += int((status[bad] == 2).sum())
+            self.events += 1
             self.last = now
             state = dict(P0=P0, P1=P1, seg=seg, who=who, I=I[bad], J=J[bad],
                          status=status[bad], least=least[bad], when=when[bad])
-            raise Trouble(self.phase, call, rows, float(least[bad].min()), state)
+            if self.note is not None:
+                self.note(self.phase, call, rows, float(least[bad].min()), state)
+            if self.stop:
+                raise Trouble(self.phase, call, rows, float(least[bad].min()), state)
+            return
         self.last = now
 
 
@@ -405,15 +452,13 @@ class Braid041(P.Braid040):
         return report
 
     def tighten(self, every=1000, log=None):
-        check = self.checker()
-        check.take()
+        # **No fresh baseline here** (041-3a (ii)): the send lowers the braid and pays thread out at
+        # the rim before calling this, and taking the state again would drop that move from the
+        # check. The first call inside the tightening compares against the state before the descent.
         return P.Braid040.tighten(self, every=every, log=log)
 
     def send(self):
-        check = self.checker()
-        check.take()
-        out = P.Braid040.send(self)
-        return out
+        return P.Braid040.send(self)
 
 
 class Stop(Exception):
