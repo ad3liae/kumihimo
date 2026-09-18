@@ -325,3 +325,21 @@ bookA p.8–9 の拡大（3584×2058）。角は紐を横切る向きからの�
   ゆるく組まれた紐は太くなり伸びも長くなるので、向きとしては辻褄が合う。
   **どちらかが誤りとは言えていない。** 出荷したのは S の値である（信号が最も澄んでおり、
   描いている紐がそれである）
+
+## 7. アプリの描画を、決まった配色と回転角で撮って写真と並べる（Task 045、2026-09-19）
+
+**測る手順ではなく、見比べる画像を作り直せるようにするための手順である。**数は読まない（読んだのは頂点数と生成時間だけ）。
+
+1. デバッグビルドの起動引数で、八つ金剛の立体（またはカード）を直接開く
+   （`Kumihimo/Features/BraidSimulation/YatsuKongoComparisonPreview.swift`。本番UIには何も足していない）:
+   `--ui-testing-yatsu-kongo-solid`／`--ui-testing-yatsu-kongo-card`、`--yatsu-kongo-recipe=s|z`、
+   `--yatsu-kongo-colouring=plain|book|eight`（生成り1色・bookA p.54 の配色・8色すべて別）、`--yatsu-kongo-roll=<度>`（長軸まわり）。
+   描くのはエディタと同じ `BraidPreviewForFamily`／`BraidThumbnailForFamily` で、素材・照明・カメラは同じ。
+2. `sh Scripts/task045/render.sh <UDID> <app> .build/task045/<状態> <状態>` が、S/Z × 3配色 × 回転 0・30・60・90・180・270° と
+   カードを撮る（`xcrun simctl io … screenshot`）。起動から撮るまで4秒待つ。
+3. `python3 Scripts/task045/compose.py A B C` が `.build/task045/sheets/` に並べる。**紐幅を 200 px に揃える一様な拡大縮小だけ**で、
+   長手だけの伸縮はしない。写真の紐幅は測り方6の `body` で読み（S 235 px、Z-a 241 px）、画面の紐幅はキャンバスの地色と違う行の数で読む
+   （iPad (10th generation) の画面で 208 px）。**写真は右へ4分の1回して上を右へ置く**——写真の豆の尖った端は上を向き、描いた糸束の尖った端は
+   組み点（画面の右）を向くからである。**写真の上が組み点側だというのは、この読みであって写真が示していることではない。**
+   切り出した範囲と倍率は `sheets/record.txt` に書き出される。
+4. 状態ごとのアプリは `.build/task045/Kumihimo-{A,B,C}.app` に写して取っておいた（`.build/` は git 管理外。作り直すには該当コミットをビルドする）。

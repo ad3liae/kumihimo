@@ -1,6 +1,6 @@
 # Task 045: 八つ金剛を、粒の列から斜めに重なる糸束へ近づける
 
-- 状態: **実装指示・未着手**（2026-09-18）。実装担当は Claude Code。Codex は指示書の作成と、差分・画像・報告の審査を担当し、ソースコードを変更しない。
+- 状態: **実装指示・未着手**（2026-09-18）→ **実装済み・審査待ち**（2026-09-19、Claude Code）。実装担当は Claude Code。Codex は指示書の作成と、差分・画像・報告の審査を担当し、ソースコードを変更しない。
 - 対象: Task 025 の族のうち **筒8本の描き手（八つ金剛S・Z）**。
 - 目的: 単色でも、角丸の粒の列ではなく、糸束が斜めに寝て重なる組紐として読める見た目へ改善する。
 - 背景: 作者は2026-09-18のiPad画面について「金剛組みには見えない。とうもろこしのようだ」と判断した。物理の線は同日に中止済み。本タスクは物理研究の続きではない。
@@ -181,9 +181,152 @@ Claude Codeの完了報告には次を含める:
 技術的に通っただけの状態と、見た目が改善した状態を区別する。最終的な見た目の採否は作者の判断を尊重する。
 結果と審査は本書に追記し、過去の観測を上書きして消さない。`.build/` だけに判断の根拠を残さない。
 
-## 実装結果
+## 実装結果（2026-09-19、Claude Code）
 
-未提出。
+状態: **実装済み・審査待ち。**技術的に通ったこと（テスト・番人）と、見た目が良くなったかどうか（作者と Codex の判断）は別に書く。
+
+### 1. コミットと主要ファイル
+
+- 開始コミット: `4c5fe71`（main）。作業ブランチ `claude/task-045-yatsu-kongo-appearance`。着手時の未コミット変更は
+  `docs/README.md` の Task 045 の行と本書（未追跡）で、これを先に `da1305c` として入れた。`prototypes/` と `Claude outputs/` は触っていない。
+- `2029635` 045-0: 比較用のデバッグ起動引数と、撮影・並置スクリプト。**描き手は1行も触っていない（状態 A）**
+- `95ce64b` 045-1: 形（状態 B）。陰影は従来のまま
+- `5cc07a5` 045-2: 接触の陰（状態 C）
+- 本書・`docs/README.md`・`docs/measurement-procedures.md` 7 は最後のコミット
+
+| ファイル | 変えたこと |
+| --- | --- |
+| `Kumihimo/Domain/RoundTube8SurfacePattern.swift` | `RoundTube8Bundle`（糸の見える区間の形）と `leanDirection` を追加。**升（`surface`）は不変** |
+| `Kumihimo/Features/BraidSimulation/RoundTube8SurfaceMesh.swift` | 升ごとに、糸束のメッシュと、その下の谷底の升を作る。旧 `endValleyDepthRatio`（0.18）と `endRoundingOverHalfWidth`（0.55）は削除 |
+| `Kumihimo/Features/BraidSimulation/RoundTube8StrandTexture.swift` | B: 糸筋の本数を糸束の長さで数える。C: `shading` を「触れるところだけ」に |
+| `Kumihimo/Features/BraidSimulation/RoundTube8ThumbnailView.swift` | カードも同じ糸束の輪郭を到着順に塗る（下に升を暗く敷く） |
+| `Kumihimo/Domain/BraidPreset.swift` | 八つ金剛S・Zの留保文に「糸束の傾きと重なりは写真に合わせた描画上の近似です」を足した |
+| `Kumihimo/Features/BraidSimulation/YatsuKongoComparisonPreview.swift`、`Kumihimo/App/KumihimoApp.swift` | `#if DEBUG` の起動引数だけ（本番UIの切替ではない） |
+| `Scripts/task045/render.sh`、`compose.py` | 撮影と並置（`measurement-procedures.md` 7） |
+| `KumihimoTests/RoundTube8SurfaceTests.swift`、`BraidOrientationTests.swift` | 下の 4 |
+
+### 2. 採った形
+
+**升は動かしていない。**どの糸がどの場所にいつからいつまで立つか（占有履歴・到着の位相・糸ID・配色・S/Zの取り決め・
+`pitchOverDiameter` 0.403・`columnsCarriedPerCycle`）は1つも変えていない。模様図・カードの升の境目・色の対応の試験はそのまま通る。
+**変えたのは、その升に立つ糸が面にどう見えるか**で、升1つにつき「見える区間」（run）を1本描く:
+
+- **傾く。**中心線は、到着からの長手 `c` サイクルで周方向に `方向 × λ × (c − 0.5)` 列ずれる。**向きは手順表の運びの符号**
+  （S −3 → −、Z +3 → +。`leanDirection`）で、糸は運ばれてきた側から来て、運ばれていく側へ去る（Task 033 §4.2 の読み）。
+  **だから S と Z は手順表が鏡だから鏡になる。**描いた向きは写真の S・Z-a の豆の傾きと同じ側に出た（下の 3 の画像。目視）
+- **到着の直後に最も太く高い「肩」**まで四分の一楕円で立ち上がり（`crestProfile` と同じ形）、その先は細く低くなって**尖って終わる**
+- **次の糸の到着を過ぎても続き、その糸の下へ潜る。**後に置かれた糸が前の糸の上に押し付けられる（`architecture.md`「組み台の力学」）
+  ——**後の糸が上**。潜り込みは、前の糸が沈んでいくところで後の糸が肩へ立ち上がることで、深度が交わる線として出る。
+  **色では何も決めていない**（全ての糸束は同じ形で、どれがどれを覆うかは到着の順だけで決まる）
+- **升の下に、同じ糸の升を谷底（のごくわずか下）に敷いた。**糸束どうしの隙間からは背景ではなく「そこにいる糸」が見える。
+  筒は升だけで閉じているので、糸束が何をしても穴は開かない。黒い線や裏面で隠してはいない
+- 横の断面は従来どおり半楕円で、谷底 `crestHeightRatio`（0.282、導出）と山の高さは変えていない。**扁平化はしていない**
+
+**導出から保ったもの**: 升の全部（上記）、運びの符号、谷底と山の高さ、糸の幅＝1列（糸束の最も太いところの半幅 0.5 列）。
+**描画のために決めたもの**（3つとも `.declared`、「calibrated by eye against a photograph, not derived」、単位つき）:
+
+| 名前（`shape` の鍵） | 値 | 単位・意味 | 出典 |
+| --- | --- | --- | --- |
+| `a run's lean, in columns per cycle` | **0.35** | 1サイクル進む間に中心線が周方向へ動く列数（向きは手順表） | bookA p.8 拡大に目で合わせた。**Task 032 の 36° ではない**（あれは隣り合う豆の歩幅） |
+| `how far a run goes on beneath the next thread, in cycles` | **0.9** | 次の糸の到着を過ぎて、下へ潜ったまま続く長さ | 同上 |
+| `how far a run rises to its shoulder, in cycles` | **0.3** | 到着から肩（最も太く高いところ）まで | 同上 |
+
+前の端の2値（0.18・0.55）は、新しい形では意味を持たないので**再較正せず外した**（値だけを動かして済ませてはいない）。
+もう1つ `beneathClearanceOfRidge` 0.02（下の升を谷底より山の高さの 2% 下げる。重なって描かれないための数で形の値ではない）がある。
+
+**数を選んだ経過**: 先に Python の試作（高さ場の最大値で面を作る簡易描画。`.build/` の外には残していない）で、
+(a) 升の中で稜線だけを傾ける案、(b) 升より幅の広い紡錘を重ねる案、(c) 幅1列・尖った両端・次の糸の下へ長く潜る案を写真の横に並べ、
+(a) はまだ煉瓦に見え、(b) は鱗に見えたので (c) を採った。λ は 0.3〜0.45、潜りは 0.6〜0.9、肩は 0.2〜0.35 を試し、上の値を目で選んだ。
+**無制限の探索はしていない**（アプリに入れてからは1組しか描いていない）。
+
+### 3. 比較画像（`.build/task045/`。git 管理外。作り直し方は `measurement-procedures.md` 7）
+
+- A/B/C の生画像: `.build/task045/{A,B,C}/`（S/Z × 生成り・本の配色・8色 × 回転 0/30/60/90/180/270° ＋ カード、各 42 枚）。
+  撮影機は iPad (10th generation) シミュレータ（`440CB589-…`、作者の画面と同じ機種）、ライト、標準文字。
+  **A の画面は作者が添付した画面（2026-09-18 23:00）と、見出しの分段がない以外は同じだった**（同じ粒の並び・同じ留保文。起動引数で直接開いたので上の「立体／模様図」の切替が無い）
+- 並置: `.build/task045/sheets/{s,z}-{plain,book,eight}-front.png`（写真・A・B・C、正面）、`-front-zoom.png`（中央3分の1を2倍）、
+  `{s,z}-{配色}-{A,B,C}-turns.png`（回転6方向）。切り出し範囲と倍率は `sheets/record.txt`（写真 S は `(2213, 990, 2495, 1836)` を ×0.851、
+  Z-a は `(1274, 627, 1563, 1493)` を ×0.830、画面は紐幅 208 px を ×0.962）
+- 手で見た画面: `.build/task045/manual/`
+
+**良くなったと見えるところ（判断は作者と Codex に委ねる）**
+
+- 単色で、角の丸い粒の列ではなく、**斜めに寝て隣と重なる糸束**として読める。粒の縦の列（トウモロコシの粒の並び）は消えた
+- 糸束の先が次の糸束の下へ入って見える。**8色の画像で、どの糸の区間が次にどの糸の下へ入るかが追える**
+  （S では、場所 p に立つ糸の区間の先は、次に p へ着く糸——3つ隣 p+3 から運ばれてきた糸——の肩の下へ入り、自分は p−3 で次の区間を始める）
+- S と Z で傾きが逆になり、写真の S・Z-a の豆の傾きと同じ側に寝ている（目視）
+- 回転6方向のどれでも同じように見え、背景への穴・継ぎ目の段差・ちらつきは見当たらなかった（拡大・回転も手で見た）
+- C では、潜っていく先が暗くなり、上に出る肩は明るいままで、B より「上に載っている」ことが読みやすい。差は小さい
+
+**残る差と、悪くなった方向**
+
+- **写真の豆はもっと細長い。**写真では1つの豆が長手に約 1.5〜2 サイクルぶん見え、幅は1列ほどある。描いた糸束の見える長さは約 1.1〜1.3 サイクル。
+  **1升の面積（1列×1サイクル）では、写真の豆の見える面積に足りない**ように見える。見え方の違いか、升（1サイクル＝0.403）と写真の対応の違いかは
+  **決められていない**（この task の範囲では升を動かしていない）
+- 写真の豆の間の暗い割れ目はもっと深く暗い。描いた隙間の暗さは谷底の升に掛かる陰だけである
+- 写真の豆は尖った先が隣の2つの豆の間へ差し込まれる（煉瓦積みの隙間へ入る）ように見える。描いたものは主に同じ列の次の糸の下へ入り、横の隣とは脇で接するだけ
+- 輪郭（紐の縁）は、写真では豆の丸みで波打つ。描いたものは縁でも糸束が寝ているので、A より波が小さく平らに見える（**悪化の方向**）
+- 糸束が倍の長さになったので、糸筋（撚りの筋）は糸束に沿って走るが、糸束の太さが変わるところでは筋の間隔が詰まる（UV が線形なため）
+- **カードは立体の正面の見え方を上下に映したものになっている**（カードは周方向を下向きに取る。16本と共通の `UnrolledPatternThumbnailLayout` の取り決めで、
+  以前からそう。16本側を動かさないために触っていない）。糸束の傾きもカードでは立体と上下逆に見える。**判定が要るなら報告する**
+
+### 4. テスト
+
+**削除・変更した主張と理由**（旧近似を固定していたもの）:
+
+| 旧 | 新 | 理由 |
+| --- | --- | --- |
+| `aCellEndsInAGrooveAndItsEndIsRound`（升の両端は縦の谷 0.18 の底、真ん中は頂、次の升と同じ輪で接する） | `aRunSinksBeneathTheNextThreadAtItsPlace`（次の糸の肩より先では、前の糸の区間はどこでも後の糸より低い。両端は尖る、最も太いところは半列） | 端は「切れた糸の端」から「見える区間の終わり」になった |
+| — | `aRunLeansTheWayTheCarryGoes`（1サイクルで中心線が運びの符号 × λ 列動く。S と Z で逆） | 傾きの向きが手順表から来ることの番人 |
+| `theShadingIsTheSixteenThreadTubesValley`（四辺が同じ谷の陰） | `theShadingIsWhereTheRunTouchesSomething`（両脇と潜った先は谷の深さ、肩は陰なし、両端は非対称、左右は対称） | 「四辺の陰が同じ」を仕様から外した（045-2） |
+| `oneRepeatClosesAndMakesNoEndFace`（レーンごとに1タイル長、終わりの輪＝始まりの輪） | 同名（どのリピートも前のリピートを1リピート動かしたもの＝頂点とテクスチャが一致、下の升はレーンごとに隙間も重なりもなくタイル長ちょうど、端面なし） | 糸束はタイルの両端へはみ出すので、輪の一致では言えなくなった |
+| `theStripesRunOnAcrossTheTilesJoin` | 上に吸収（テクスチャ座標もリピートで一致） | 同上 |
+| `noRingOfCellEndsGoesRoundTheSolid`（升の頂点ブロックの端） | 同名（糸束の頂点の端。`runVertexRanges` で読む） | 頂点の並びが変わった。主張は同じ |
+| `theZBraidIsTheMirrorOfTheSBraid`（色ごとの頂点集合が 1/2048 の格子で一致） | 同名（格子の隣の升目まで許す。個数差 1% 以内） | 傾きが入って頂点が格子の線上に乗ることがあり、float の最後の桁で隣へ丸まる。鏡そのものは同じ主張 |
+| `theMeshIsTheShapeItWas`（18,304 頂点、`0x2873_a90b_e028_6589`） | 36,480 頂点（128 × (25×11 + 2×5)）、`0xfbb4_48c0_8f4a_7fdd` | 形を変えた。**番人であって形が正しい証明ではない** |
+| `everyValueTheDrawingRestsOnSaysWhereItCameFrom` の `.declared` の一覧 | 端の2値を外し、糸束の3値を足した | 上の 2 |
+| `theColourDiagonalIsRecordedAgainstThePhotographs`「幾何は何も傾いていない」 | 「升は傾いていない」（糸束は傾く、と注記） | 色の対角線は升のもので、変わっていない |
+| `theStripesLieAtTheDeclaredSlantAndJoinAtEveryCycle` | 長さを糸束の長さに | 糸筋の地図が糸束全体に掛かる |
+| `BraidOrientationTests.theDrawerPutsTheSlotsRoundTheTubeTheWayTheStandDoes` | `frame(of:cycles:across:leanDirection:…)` へ呼び方だけ | 関数の引数が変わった |
+
+**実行**（`AGENTS.md` の条件のとおり）:
+
+- 変更箇所を先に: `-only-testing:` で `RoundTube8SurfaceTests`・`BraidOrientationTests`・`BraidMeshHashTests`・`YatsuKongoTests`・
+  `BraidSurfaceWatertightnessTests`・`BraidFamilyDrawingTests`・`BraidScreenChoosesByFamilyTests`（1回目 56 成功・2 失敗: 鏡の格子丸めとハッシュの仮値。
+  直して `RoundTube8SurfaceTests` を2回、18/18 成功。`.build/test-results/task045-shape*.xcresult`、`task045-shading.xcresult`）
+- **全件を最後に1回**: `xcodebuild test -only-testing:KumihimoTests -parallel-testing-enabled NO -test-timeouts-enabled YES
+  -default-test-execution-time-allowance 60 -quiet -resultBundlePath .build/test-results/task045-all.xcresult`、
+  機体 iPad (10th generation) `440CB589-D966-44AF-8590-46DA61AE3011`（UDID 指定、起動済み）、Bash の timeout 300000。
+  **416 件中 412 件成功・0 件失敗・4 件スキップ、打ち切り 0 件。テスト段階 210 秒**（呼び出し全体 211 秒）。
+  スキップは `DRAW_SHEETS` のときだけ描くシート4件。`DRAW_SHEETS` は実行前に機体に置かれていないことを確かめ、この task では置いていない
+- **丸源氏・平源氏のメッシュのハッシュは不変**（`BraidMeshHashTests` 通過）。共通の素材生成器（`RoundTube16StrandTextureFactory`）は呼ぶだけで変えていない
+- `sh Scripts/check-braiding-is-general.sh` **通過**。ビルド警告は出ていない（`-quiet` の出力に warning なし）
+- **UI テスト一式は実行していない**（指示どおり）
+
+### 5. 手で確かめたこと・確かめられなかったこと
+
+- iPad (10th generation) シミュレータ: 新規作品で8本にし、一覧に八つ金剛S・Zのカードが新しい糸束で出ること、S と Z で傾きが逆なこと、
+  カードから詳細の立体を開けること、右回転ボタン・ピンチ拡大・リセット（正面・等倍に戻る）を見た（`manual/ipad-light-*.png`）。
+  ダーク＋アクセシビリティ最大文字（AX5）で Z の立体とカード（`manual/ipad-dark-ax5-*.png`。見たあとライト・標準へ戻した）
+- iPhone 16 シミュレータ（`28A066EF-…`、この確認のために起動し、あとで停止）: ライトで S の立体とカード（`manual/iphone-light-*.png`）
+- **確かめていない**: 実機（作者の iPad を含む）、iPhone のダーク・大きな文字、一覧での回転、VoiceOver の読み上げ（文言は留保文の追記のみ）、
+  横向き・Split View
+
+**性能**（Debug ビルド・シミュレータ、`RoundTube8SurfaceMesh.generate` の10回の中央値。一時的な試験で測り、コミットしていない）:
+頂点 18,304 → **36,480**、三角形 30,720 → **62,464**、生成 40.9 ms → **80.2 ms**。模様の導出は 0.6 ms で不変。
+テクスチャは3枚（遮蔽・粗さ・法線）で変わらない。操作（回転・拡大）が重くなった様子は手では感じなかった。
+
+### 6. 他の族への影響と未解決事項
+
+- **丸源氏・平源氏は1頂点も動いていない**（ハッシュ不変）。共通型（`BraidStrandSegment`、`UnrolledPatternThumbnailLayout`、16本の素材生成器）は変えていない
+- **Task 035 は完了扱いにしていない。**045 は現行の手順表と到着位相を固定した外観の改善で、手順表・対の中の先後が bookC と照合済みになったわけではない。
+  **新しい形は、現行データで決まらない先後を必要としなかった**——傾きの向きは運びの符号だけ、どれが上かは到着の順だけで、刷られた対の中の先後は
+  入らない（`swappingWhichOfAPairGoesFirstDoesNotMoveTheMesh` は通っている）
+- 写真の上端を組み点側と読んだこと（`compose.py` の向き。糸束の尖った先を写真の豆の尖った先に合わせた）は**読みであって確かめていない**
+- 残る差（上の 3）のうち、豆の長さ（写真 ≈ 1.5〜2 サイクル対 描いた ≈ 1.1〜1.3）は升の大きさと関わる可能性があり、形の数を動かすだけでは埋まらないかもしれない。
+  **次に手を付けるなら、先に写真の豆1つの長さ・幅・傾きを測り方を決めて測る**のがよい（今回は目で合わせたので `.declared`）
+- 本格的な絹の艶・毛羽は次の候補のまま（045-2 では触っていない）
+- 留保文の「柄の傾きは実物写真より8度（Z は数度）ゆるく出ます」は色の対角線（升）の話で、この task では変わらないので残した
 
 ## 審査結果
 
