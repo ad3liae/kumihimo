@@ -343,3 +343,6 @@ bookA p.8–9 の拡大（3584×2058）。角は紐を横切る向きからの�
    組み点（画面の右）を向くからである。**写真の上が組み点側だというのは、この読みであって写真が示していることではない。**
    切り出した範囲と倍率は `sheets/record.txt` に書き出される。
 4. 状態ごとのアプリは `.build/task045/Kumihimo-{A,B,C}.app` に写して取っておいた（`.build/` は git 管理外。作り直すには該当コミットをビルドする）。
+5. **追補（2026-09-19）**: `python3 Scripts/task045/review_fixes.py` が `.build/task045/review-fixes/sheets/` に、立体の正面と修正前後のカードを縦に並べ、
+   カードに立体の正面（turns 0）と正面から見える半周、長手・周方向の向きを注記した画像を作る。カードの座標は `UnrolledPatternThumbnailLayout` と同じ計算で
+   画面から読み（`record.txt`）、注記は画像を加工しない。**一覧と立体の一致そのものは画像ではなく試験で確かめる**（`RoundTube8CardAgreesWithSolidTests`）。
