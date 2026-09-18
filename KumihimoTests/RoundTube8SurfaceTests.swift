@@ -447,21 +447,33 @@ struct RoundTube8SurfaceTests {
 
     // MARK: - Stage 3 of Task 032: the stripes and the shading
 
-    /// **The shading is the sixteen-thread tube's valley, on all four sides of a
-    /// cell** (Task 033): across it, where two lanes meet, and along it, where one
-    /// thread's end meets the next. No shadow at a crossing — nothing crosses.
-    @Test func theShadingIsTheSixteenThreadTubesValley() {
+    /// **The shading is where the run touches something** (Task 045): the
+    /// sixteen-thread tube's valley at its two sides, the same depth where it
+    /// has gone under the next thread, and none on the shoulder it rises to,
+    /// which is on top. It replaced a valley on all four sides of a cell alike
+    /// (Task 033), which fixed "四辺の陰が同じ"; the run is not the same end to
+    /// end, so its shading is not either.
+    @Test func theShadingIsWhereTheRunTouchesSomething() {
         let valley = RoundTube16StrandTextureFactory.valleyOcclusion
-        #expect(abs(RoundTube8StrandTexture.shading(across: 0.5, along: 0.5) - 1) < 0.001)
-        #expect(abs(RoundTube8StrandTexture.shading(across: 0, along: 0.5) - valley) < 0.001)
-        #expect(abs(RoundTube8StrandTexture.shading(across: 1, along: 0.5) - valley) < 0.001)
-        #expect(abs(RoundTube8StrandTexture.shading(across: 0.5, along: 0) - valley) < 0.001)
-        #expect(abs(RoundTube8StrandTexture.shading(across: 0.5, along: 1) - valley) < 0.001)
+        let bundle = RoundTube8Bundle.standard
+        func at(_ row: Float, cycles: Float) -> Float {
+            RoundTube8StrandTexture.shading(across: row, along: cycles / bundle.lengthInCycles)
+        }
+        // On the crest at the shoulder: nothing touches it.
+        #expect(abs(at(0.5, cycles: bundle.shoulderCycles) - 1) < 0.001)
+        // Its sides: the valley.
+        #expect(abs(at(0, cycles: bundle.shoulderCycles) - valley) < 0.001)
+        #expect(abs(at(1, cycles: bundle.shoulderCycles) - valley) < 0.001)
+        // Past the next arrival and the next thread's shoulder: under it.
+        #expect(abs(at(0.5, cycles: 1 + bundle.shoulderCycles) - valley) < 0.001)
+        #expect(abs(at(0.5, cycles: bundle.lengthInCycles) - valley) < 0.001)
+        // Before the next arrival it is lighter than where it has gone under,
+        // and the two ends are not alike.
+        #expect(at(0.5, cycles: 0.5) > at(0.5, cycles: 1.2))
+        #expect(at(0.5, cycles: 0.2) != at(0.5, cycles: bundle.lengthInCycles - 0.2))
+        // Still the same both sides of the crest.
         for value in stride(from: Float(0), through: 1, by: 0.05) {
-            #expect(abs(RoundTube8StrandTexture.shading(across: value, along: 0.37)
-                - RoundTube8StrandTexture.shading(across: 1 - value, along: 0.37)) < 0.000_1)
-            #expect(abs(RoundTube8StrandTexture.shading(across: 0.37, along: value)
-                - RoundTube8StrandTexture.shading(across: 0.37, along: 1 - value)) < 0.000_1)
+            #expect(abs(at(value, cycles: 0.6) - at(1 - value, cycles: 0.6)) < 0.000_1)
         }
     }
 

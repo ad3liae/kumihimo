@@ -19,15 +19,15 @@ import os
 ///
 /// - **The shadow at a crossing**, for the reason the mesh borrows nothing about
 ///   crossings: on this braid nothing crosses.
-/// The ends of a cell are shaded as its sides are (Task 033): a cell ends where
-/// the next thread arrives at its place, and that is a trough between two
-/// threads like the one between two lanes. It was held back until the arrival
-/// phase staggered the ends — without it they lined up and would have drawn a
-/// dark ring round the braid at every cycle — and it no longer does.
+/// **The shading follows what the run touches** (Task 045, `shading`): its
+/// sides, where it meets its neighbours, and the part past the next arrival,
+/// where it goes under the next thread — not the shoulder it rises to, which is
+/// on top. Until then every cell was shaded the same on all four sides (Task
+/// 033).
 ///
-/// **One set of maps serves every cell.** The sixteen-thread tube needs a set per
-/// twist group because its chevrons shear the strand frame two ways; a cell here
-/// stands square to the braid and every cell is the same size, so no frame is
+/// **One set of maps serves every run.** The sixteen-thread tube needs a set per
+/// twist group because its chevrons shear the strand frame two ways; every run
+/// here is the same shape and leans the same way, so no frame is
 /// sheared and one pair of coefficients serves them all — as on the flat braid
 /// (`Flat16StitchTwistGrouping`).
 ///
@@ -169,19 +169,38 @@ enum RoundTube8StrandTexture {
 
     // MARK: - The shading
 
-    /// The valley shading at one place in a cell: `across` 0...1 over the
-    /// bitmap's rows, `along` 0...1 down the cell. **The sixteen-thread tube's
-    /// figures, on all four sides** — the trough between two lanes, and the
-    /// trough where one thread's end meets the next thread's at the same place.
-    /// The flat braid shades its stitches the same way
-    /// (`Flat16StitchTexture.shading`), and it adds no figure of its own.
-    static func shading(across row: Float, along: Float) -> Float {
+    /// The shading at one place on a thread's run: `across` 0...1 over the
+    /// bitmap's rows, `along` 0...1 from the arrival to the tip.
+    ///
+    /// **Where the run touches something, and only there** (Task 045). It was the
+    /// same trough on all four sides of a cell, which drew every cell as a
+    /// cushion with a dark rim; the run is not symmetric end to end, so neither
+    /// is its shading:
+    ///
+    /// - **its sides**, where it lies against the runs beside it or over the gap
+    ///   down to the floor: the sixteen-thread tube's valley, as before;
+    /// - **the shoulder it rises to after arriving is on top**, so it is shaded
+    ///   only where it is still coming up from beneath the run before it;
+    /// - **past the next thread's arrival it goes under that thread**, and it
+    ///   darkens there to the valley's depth, over the length the next thread
+    ///   takes to rise to its own shoulder.
+    ///
+    /// **No figure of its own**: the depth and reach are the sixteen-thread
+    /// tube's, and where the run rises and where it goes under are the bundle's.
+    static func shading(
+        across row: Float,
+        along: Float,
+        bundle: RoundTube8Bundle = .standard
+    ) -> Float {
         let offset = RoundTube16StrandTextureFactory.crossSectionOffset(forRow: row)
         let depth = RoundTube16StrandTextureFactory.valleyOcclusion
         let reach = RoundTube16StrandTextureFactory.valleyOcclusionWidth
         let sides = mix(depth, 1, smoothstep(0, reach, 1 - abs(offset)))
-        let ends = mix(depth, 1, smoothstep(0, reach, 1 - abs(2 * along - 1)))
-        return sides * ends
+        let cycles = along * bundle.lengthInCycles
+        let shoulder = bundle.shoulderCycles
+        let rising = mix(depth, 1, smoothstep(0, reach, cycles / shoulder))
+        let under = mix(1, depth, smoothstep(1 - shoulder, 1 + shoulder, cycles))
+        return sides * rising * under
     }
 
     /// The shading, darkened a little where a stripe turns away — the
