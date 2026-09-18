@@ -478,12 +478,14 @@ struct RoundTube8SurfaceTests {
     }
 
     /// **A thread's run goes on beneath the thread that arrives after it at the
-    /// same place, and the later one is on top wherever the two overlap past its
-    /// shoulder** (Task 045). Read off the surfaces themselves: at points of the
-    /// earlier run past the next arrival, the later run — wherever it is there —
-    /// stands higher. Only when the later has risen to its shoulder; before
-    /// that the two cross, which is the line the eye reads as one going under
-    /// the other.
+    /// same place: along the earlier run's crest, once the later has risen to its
+    /// shoulder, the later stands higher** (Task 045). Read off the surfaces
+    /// themselves, **on the earlier run's crest only**. It is not "the later is
+    /// on top wherever they overlap": on the earlier run's flanks, just past the
+    /// next arrival, the earlier can stand higher and show, and the card shows it
+    /// there too (Task 045 review, `RoundTube8CardAgreesWithSolidTests`). Where
+    /// two runs cross is a drawing approximation, not a settled order of the real
+    /// braid.
     ///
     /// **Decided by when each thread arrived, never by colour**: the check runs
     /// over every cell with the book's colouring, which puts the same colour next

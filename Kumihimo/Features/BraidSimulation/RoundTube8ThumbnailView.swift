@@ -1,115 +1,242 @@
+import CoreGraphics
 import SwiftUI
 
 /// The eight-thread tube, unrolled flat for a card.
 ///
-/// **The same drawing the solid is built from**, laid out by the same
-/// `UnrolledPatternThumbnailLayout` the sixteen-thread tube's card uses, so the
-/// two cards read at the same scale. Each thread is drawn as its visible run
-/// (`RoundTube8Bundle`) — the outline the solid's run has, leaning the carry's
-/// way and ending in a point beneath the next thread — **earliest arrival
-/// first**, so a later thread is painted over the one it was laid on, as it lies
-/// on it on the solid (Task 045).
+/// **The braid seen from outside, opened out**: along it runs to the right
+/// towards the braiding point, as on the solid, and round it runs *up* the
+/// card, as it does up the front of the solid — **with the front of the solid
+/// across the middle of the card** (Task 045 review). The sixteen-thread card
+/// lays round-the-braid down the card from its top edge; that layout
+/// (`UnrolledPatternThumbnailLayout`) is kept for how long a repeat is and where
+/// the repeats go, and only this card turns round-the-braid the other way, so
+/// the sixteen-thread card does not move.
 ///
-/// **A run hangs past the ends of its repeat** — its thread arrived in the cycle
-/// before, and it goes on beneath the next one — and the frame crops what hangs
-/// past the card, as it crops every overhanging repeat. Nothing is cut at a
-/// repeat's edge, so no line runs across all eight lanes (Task 033).
+/// **What shows at each place is what the solid shows there**: the run standing
+/// highest (`RoundTube8SurfacePattern.runsStanding`), and the cell beneath where
+/// no run reaches, darkened as the solid's valley floor is. It used to paint
+/// whole runs in the order the threads arrived, which is not what the solid
+/// shows on the flanks of a run just past the next arrival (Task 045 review).
+/// The card is a picture of that rule, one repeat of it, drawn into a bitmap
+/// once per braid and laid end to end. A thin line marks where one run meets
+/// another — by run, never by colour, so two threads of one colour still part.
 ///
-/// **The colour diagonal is still which thread stands where**, one place a
-/// cycle; the lean of each run is how that thread shows.
+/// **Drawn off the main thread**, once per braid and kept: working out what
+/// shows at every pixel of a repeat takes a moment (about a quarter of a second
+/// in a debug build), and the list should not wait for it. Until it is ready the
+/// card shows its plain background.
 struct RoundTube8ThumbnailView: View {
     let pattern: RoundTube8SurfacePattern
     var bundle: RoundTube8Bundle = .standard
 
-    /// Points down each side of a run's outline.
-    private static let outlineSamples = 16
+    @State private var image: CGImage?
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         Canvas { context, size in
-            guard let layout = UnrolledPatternThumbnailLayout(
+            guard let image, let layout = UnrolledPatternThumbnailLayout(
                 size: size,
                 aspectRatio: pattern.aspectRatio
             ) else { return }
-
-            // Beneath: each thread's own cell, in the shade the solid gives the
-            // valley floor, so a gap between two runs shows the thread lying there.
+            // Each repeat's edges on whole device pixels, shared with the next
+            // one's, so no seam of half-covered pixels shows between them.
+            let scale = max(displayScale, 1)
+            func snapped(_ value: CGFloat) -> CGFloat { (value * scale).rounded() / scale }
             for repeatIndex in layout.repeatIndices {
-                for segment in pattern.surface.segments {
-                    var path = Path()
-                    for (index, corner) in cell(of: segment).enumerated() {
-                        let point = layout.point(surfaceCoordinate: corner, repeatIndex: repeatIndex)
-                        if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
-                    }
-                    path.closeSubpath()
-                    context.fill(path, with: .color(color(for: segment.colorID).swiftUIColor))
-                    context.fill(path, with: .color(.black.opacity(Self.beneathShade)))
-                }
-            }
-
-            // Every run of every repeat, in the order the threads arrived.
-            let runs = layout.repeatIndices.flatMap { repeatIndex in
-                pattern.surface.segments.map { (repeatIndex, $0) }
-            }.sorted {
-                Float($0.0) + $0.1.centerlineStart.y < Float($1.0) + $1.1.centerlineStart.y
-            }
-            for (repeatIndex, segment) in runs {
-                // Round the braid is a ring: a run near the seam shows at both
-                // edges of the card, so it is drawn a turn either side as well.
-                for turn in [-1, 0, 1] {
-                    var path = Path()
-                    for (index, corner) in outline(of: segment).enumerated() {
-                        let point = layout.point(
-                            surfaceCoordinate: corner + SIMD2(Float(turn), 0),
-                            repeatIndex: repeatIndex
-                        )
-                        if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
-                    }
-                    path.closeSubpath()
-                    context.fill(path, with: .color(color(for: segment.colorID).swiftUIColor))
-                    context.stroke(path, with: .color(.primary.opacity(0.26)), lineWidth: 0.7)
-                }
+                let start = snapped(layout.point(surfaceCoordinate: SIMD2(0, 0), repeatIndex: repeatIndex).x)
+                let end = snapped(layout.point(surfaceCoordinate: SIMD2(0, 0), repeatIndex: repeatIndex + 1).x)
+                context.draw(
+                    Image(decorative: image, scale: 1),
+                    in: CGRect(x: start, y: 0, width: end - start, height: layout.circumference)
+                )
             }
         }
         .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .accessibilityHidden(true)
-    }
-
-    /// How much darker a cell beneath shows than a run: the valley shading the
-    /// solid gives it (`RoundTube16StrandTextureFactory.valleyOcclusion`).
-    private static var beneathShade: Double {
-        Double(1 - RoundTube16StrandTextureFactory.valleyOcclusion)
-    }
-
-    /// The thread's cell: one column wide, from its arrival to the next.
-    private func cell(of segment: BraidStrandSegment) -> [SIMD2<Float>] {
-        [
-            segment.surfacePoint(along: 0, across: -1),
-            segment.surfacePoint(along: 0, across: 1),
-            segment.surfacePoint(along: 1, across: 1),
-            segment.surfacePoint(along: 1, across: -1),
-        ]
-    }
-
-    /// The run's outline in surface coordinates: down one side from the
-    /// arrival to the tip, and back up the other.
-    private func outline(of segment: BraidStrandSegment) -> [SIMD2<Float>] {
-        let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
-        let cycle = segment.centerlineEnd.y - segment.centerlineStart.y
-        func point(_ step: Int, _ side: Float) -> SIMD2<Float> {
-            let cycles = bundle.lengthInCycles * Float(step) / Float(Self.outlineSamples)
-            let across = bundle.leanInColumns(atCycles: cycles, direction: pattern.leanDirection)
-                + side * bundle.halfWidthInColumns(atCycles: cycles)
-            return SIMD2(
-                segment.centerlineStart.x + across / columns,
-                segment.centerlineStart.y + cycles * cycle
-            )
+        .task(id: RoundTube8CardImage.Key(pattern: pattern, bundle: bundle)) {
+            image = await RoundTube8CardImage.image(for: pattern, bundle: bundle)
         }
-        let steps = 0...Self.outlineSamples
-        return steps.map { point($0, -1) } + steps.reversed().map { point($0, 1) }
+    }
+}
+
+/// One repeat of the card, as a bitmap: which run shows at each pixel, and its
+/// colour.
+enum RoundTube8CardImage {
+    /// Pixels round the braid for one column. The card is 112 points round and
+    /// eight columns, so 32 a column is over twice a point.
+    static let pixelsPerColumn = 32
+
+    /// How much a cell beneath is darkened: the valley shading the solid gives
+    /// it (`RoundTube16StrandTextureFactory.valleyOcclusion`).
+    static var beneathShade: Float { RoundTube16StrandTextureFactory.valleyOcclusion }
+    /// How much the line where two runs meet is darkened. A look, not a shape:
+    /// the stroke the card drew round every cell before, 0.26 of the ink.
+    static let edgeShade: Float = 0.74
+
+    /// **Round the braid, up the card, with the solid's front across the
+    /// middle.** Row `0` is the top. The solid lays `turns` 0 facing the camera
+    /// and more turns further up its front; so does this.
+    static func turns(atRow row: Float, rows: Int) -> Float {
+        0.5 - (row + 0.5) / Float(rows)
     }
 
-    private func color(for id: ThreadColorID) -> ThreadColor {
-        ThreadColorCatalog.color(for: id) ?? ThreadColorCatalog.defaultColor
+    /// What shows at a place: a run, or the cell beneath.
+    enum Shown: Equatable, Hashable {
+        case run(repeatOffset: Int, segment: Int)
+        case beneath(repeatOffset: Int, segment: Int)
+
+        /// The same thing, counted from `repeats` repeats further back.
+        func movedOn(by repeats: Int) -> Shown {
+            switch self {
+            case .run(let offset, let segment): .run(repeatOffset: offset + repeats, segment: segment)
+            case .beneath(let offset, let segment): .beneath(repeatOffset: offset + repeats, segment: segment)
+            }
+        }
+    }
+
+    /// Which run or cell each pixel of one repeat shows, row by row from the
+    /// top, and the size. **The card's picture is this and nothing else**, so a
+    /// test can hold it against the solid.
+    static func shownMap(
+        for pattern: RoundTube8SurfacePattern,
+        bundle: RoundTube8Bundle = .standard
+    ) -> (shown: [Shown?], width: Int, height: Int) {
+        let columns = RoundTube8SurfacePatternGenerator.requiredThreadCount
+        let height = columns * pixelsPerColumn
+        let width = max(1, Int((Float(height) * pattern.aspectRatio).rounded()))
+        var shown = [Shown?](repeating: nil, count: width * height)
+        let segments = pattern.surface.segments
+        for column in 0..<width {
+            let along = (Float(column) + 0.5) / Float(width)
+            // The runs reaching this far along, before looking round the braid.
+            var reaching = [(Int, Int)]()
+            for (index, segment) in segments.enumerated() {
+                let cycle = segment.centerlineEnd.y - segment.centerlineStart.y
+                for offset in -1...1 {
+                    let start = segment.centerlineStart.y + Float(offset)
+                    if along >= start, along <= start + cycle * bundle.lengthInCycles {
+                        reaching.append((offset, index))
+                    }
+                }
+            }
+            for row in 0..<height {
+                let turns = self.turns(atRow: Float(row), rows: height)
+                var best: (Int, Int, Float)?
+                for (offset, index) in reaching {
+                    guard let standing = pattern.standing(
+                        segments[index], repeatOffset: offset,
+                        atTurns: turns, along: along, bundle: bundle
+                    ) else { continue }
+                    if best == nil || standing > best!.2 { best = (offset, index, standing) }
+                }
+                if let best {
+                    shown[row * width + column] = .run(repeatOffset: best.0, segment: best.1)
+                } else if let cell = pattern.cellBeneath(atTurns: turns, along: along) {
+                    shown[row * width + column] = .beneath(repeatOffset: cell.repeatOffset, segment: cell.segment)
+                }
+            }
+        }
+        return (shown, width, height)
+    }
+
+    // MARK: - The bitmap
+
+    /// What a card's picture depends on.
+    struct Key: Hashable, Sendable {
+        let colours: [String]
+        /// Where each cell stands, so two tables with the same colours never
+        /// share a picture.
+        let cells: [Float]
+        let columnsCarried: Int
+        let rowCount: Int
+        let aspectRatio: Float
+        let bundle: [Float]
+
+        init(pattern: RoundTube8SurfacePattern, bundle: RoundTube8Bundle) {
+            colours = pattern.surface.segments.map(\.colorID.rawValue)
+            cells = pattern.surface.segments.flatMap {
+                [$0.centerlineStart.x, $0.centerlineStart.y, $0.centerlineEnd.y]
+            }
+            columnsCarried = pattern.columnsCarried
+            rowCount = pattern.rowCount
+            aspectRatio = pattern.aspectRatio
+            self.bundle = [bundle.leanColumnsPerCycle, bundle.tuckedCycles, bundle.shoulderCycles]
+        }
+    }
+
+    /// Pictures already drawn: a card is redrawn as the list scrolls, and the
+    /// braid does not change under it.
+    private actor Cache {
+        var images = [Key: CGImage]()
+        func image(for key: Key) -> CGImage? { images[key] }
+        func keep(_ image: CGImage, for key: Key) {
+            if images.count > 32 { images.removeAll() }
+            images[key] = image
+        }
+    }
+    private static let cache = Cache()
+
+    /// The picture for a braid, drawn off the main thread the first time and
+    /// kept.
+    static func image(
+        for pattern: RoundTube8SurfacePattern,
+        bundle: RoundTube8Bundle = .standard
+    ) async -> CGImage? {
+        let key = Key(pattern: pattern, bundle: bundle)
+        if let image = await cache.image(for: key) { return image }
+        let drawn = await Task.detached(priority: .userInitiated) {
+            draw(pattern, bundle: bundle)
+        }.value
+        if let drawn { await cache.keep(drawn, for: key) }
+        return drawn
+    }
+
+    static func draw(_ pattern: RoundTube8SurfacePattern, bundle: RoundTube8Bundle) -> CGImage? {
+        let (shown, width, height) = shownMap(for: pattern, bundle: bundle)
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        func colour(_ segment: Int) -> SIMD3<Float> {
+            let id = pattern.surface.segments[segment].colorID
+            let value = (ThreadColorCatalog.color(for: id) ?? ThreadColorCatalog.defaultColor).value
+            return SIMD3(Float(value.red), Float(value.green), Float(value.blue))
+        }
+        for row in 0..<height {
+            for column in 0..<width {
+                let here = shown[row * width + column]
+                var rgb = SIMD3<Float>(repeating: 0)
+                switch here {
+                case .run(_, let segment):
+                    rgb = colour(segment)
+                case .beneath(_, let segment):
+                    rgb = colour(segment) * beneathShade
+                case nil:
+                    break
+                }
+                // Where this run meets another: the pixel below or to the right
+                // shows something else (the bitmap wraps both ways).
+                // Across the join into the next repeat the same run is counted
+                // one repeat further back.
+                var right = shown[row * width + (column + 1) % width]
+                if column + 1 == width { right = right.map { $0.movedOn(by: 1) } }
+                let below = shown[((row + 1) % height) * width + column]
+                if here != right || here != below { rgb *= edgeShade }
+                let offset = (row * width + column) * 4
+                pixels[offset] = UInt8(min(max(rgb.x, 0), 1) * 255 + 0.5)
+                pixels[offset + 1] = UInt8(min(max(rgb.y, 0), 1) * 255 + 0.5)
+                pixels[offset + 2] = UInt8(min(max(rgb.z, 0), 1) * 255 + 0.5)
+                pixels[offset + 3] = 255
+            }
+        }
+        guard
+            let provider = CGDataProvider(data: Data(pixels) as CFData),
+            let space = CGColorSpace(name: CGColorSpace.sRGB)
+        else { return nil }
+        return CGImage(
+            width: width, height: height,
+            bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: width * 4,
+            space: space,
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
+            provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent
+        )
     }
 }

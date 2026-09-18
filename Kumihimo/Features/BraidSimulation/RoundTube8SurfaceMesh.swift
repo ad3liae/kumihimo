@@ -71,10 +71,12 @@ struct RoundTube8SurfaceMeshData: Sendable {
 /// its arrival to the next thread's — is drawn as that thread's visible run
 /// (`RoundTube8Bundle`): widest and tallest just after it arrives, leaning round
 /// the braid the way the carry goes, narrowing and sinking as the next thread
-/// arrives, and going on beneath that thread to a point. Runs overlap, and **the
-/// later is on top by construction**: where two overlap, the later one is still
-/// rising to its shoulder while the earlier one is sinking, and the depth test
-/// draws the line where they cross.
+/// arrives, and going on beneath that thread to a point. Runs overlap, and
+/// **whichever stands higher at a place is the one seen**: the depth test draws
+/// the line where two cross. Along the earlier run's crest, once the later has
+/// risen to its shoulder, that is the later; on the earlier run's flanks just
+/// past the next arrival it can be the earlier (Task 045 review). The card
+/// reads the same rule (`RoundTube8SurfacePattern.runsStanding`).
 ///
 /// **Beneath every cell lies the thread's own cell at the valley floor**, a hair
 /// below it, so that a gap between two runs shows the thread lying there rather
@@ -456,6 +458,9 @@ enum RoundTube8SurfaceMesh {
             let turns = segment.centerlineStart.x
                 + (bundle.leanInColumns(atCycles: cycles, direction: leanDirection)
                     + halfWidth * across) / columns
+            // The height the card reads too (`RoundTube8Bundle.standingFraction`
+            // is this, the envelope times the crest's section), written the way
+            // it was so that not one vertex moves.
             let height = floor + ridge * bundle.heightFraction(atCycles: cycles)
                 * crestProfile(across: across)
             let angle = 2 * .pi * turns

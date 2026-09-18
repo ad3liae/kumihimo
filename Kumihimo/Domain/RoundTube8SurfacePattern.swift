@@ -97,11 +97,21 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
 ///   on top of the braid, and **narrows and sinks towards the next arrival**;
 /// - **it goes on past the next arrival, beneath the thread that arrives there**,
 ///   and ends in a point. The later thread is laid on the earlier one and pressed
-///   down onto it (`docs/architecture.md`, 組み台の力学), so the later is on top.
-///   The end is where the run stops *showing*, not where the thread is cut.
+///   down onto it (`docs/architecture.md`, 組み台の力学), and the shape is built
+///   so that along the earlier run's crest, once the later one has risen to its
+///   shoulder, the later stands higher. The end is where the run stops
+///   *showing*, not where the thread is cut.
+///
+/// **What shows at a place is the run standing highest there** — nothing else
+/// decides it (`RoundTube8SurfacePattern.runsStanding`). That is not "the later
+/// is on top everywhere": on the flanks of the earlier run, just past the next
+/// arrival, the earlier can stand higher and show (Task 045 review). The line
+/// where two runs meet is a drawing approximation, not a settled order of the
+/// real braid. **The solid and the card both read this one rule.**
 ///
 /// **Nothing is decided by colour.** Every run of every thread has the same
-/// shape; which run covers which is decided only by when each arrived.
+/// shape, and which one shows is decided by where they stand, by run and thread,
+/// never by what colour they are.
 ///
 /// Three figures, each with a unit, all set by eye against book A p.8's zoom.
 /// The bundle's widest half-width is not one of them: it is half a column,
@@ -147,6 +157,15 @@ struct RoundTube8Bundle: Equatable, Sendable {
     /// thread's own cell, in columns, signed by `direction`.
     func leanInColumns(atCycles cycles: Float, direction: Float) -> Float {
         direction * leanColumnsPerCycle * (cycles - 0.5)
+    }
+
+    /// How far the run stands at `cycles` past its arrival and `across` its
+    /// width (-1...1), as a fraction of the ridge: its height there across a
+    /// semi-elliptical section (the crest's own, `RoundTube8SurfaceMesh
+    /// .crestProfile`). 0 at its edges, which lie on the valley floor.
+    func standingFraction(atCycles cycles: Float, across: Float) -> Float {
+        let clamped = min(max(across, -1), 1)
+        return heightFraction(atCycles: cycles) * max(0, 1 - clamped * clamped).squareRoot()
     }
 
     private func profile(atCycles cycles: Float, tail: (Float) -> Float) -> Float {
@@ -313,5 +332,91 @@ enum RoundTube8SurfacePatternGenerator {
     static func shortestWayRound(from: Int, to: Int, around count: Int) -> Int {
         let forward = ((to - from) % count + count) % count
         return forward * 2 > count ? forward - count : forward
+    }
+}
+
+/// One thread's run where it stands at a place on the braid.
+struct RoundTube8StandingRun: Equatable, Sendable {
+    /// Which repeat the run belongs to, counted from the one the place is
+    /// counted in: a run can reach into the next repeat and the one before.
+    let repeatOffset: Int
+    /// The run's cell, as an index into the pattern's `surface.segments`.
+    let segment: Int
+    /// How far it stands there, 0...1 of the ridge.
+    let height: Float
+}
+
+extension RoundTube8SurfacePattern {
+    /// Every run that reaches a place on the braid, highest first: `turns` round
+    /// it and `along` in repeats (0...1 is one repeat).
+    ///
+    /// **The rule for what shows** (Task 045 review): the first of these, and the
+    /// cell beneath (`cellBeneath`) where there is none. It is the surface the
+    /// solid's mesh samples, run by run, so the card and the solid show the same
+    /// thread at the same place. Found by run and thread; colour never enters.
+    func runsStanding(
+        atTurns turns: Float,
+        along: Float,
+        bundle: RoundTube8Bundle = .standard
+    ) -> [RoundTube8StandingRun] {
+        var found = [RoundTube8StandingRun]()
+        for (index, segment) in surface.segments.enumerated() {
+            for repeatOffset in -1...1 {
+                if let height = standing(
+                    segment, repeatOffset: repeatOffset,
+                    atTurns: turns, along: along, bundle: bundle
+                ) {
+                    found.append(RoundTube8StandingRun(
+                        repeatOffset: repeatOffset, segment: index, height: height
+                    ))
+                }
+            }
+        }
+        return found.sorted { $0.height > $1.height }
+    }
+
+    /// How far one run stands at a place, or `nil` where it does not reach.
+    /// `repeatOffset` moves the run that many repeats along.
+    func standing(
+        _ segment: BraidStrandSegment,
+        repeatOffset: Int,
+        atTurns turns: Float,
+        along: Float,
+        bundle: RoundTube8Bundle = .standard
+    ) -> Float? {
+        let cycle = segment.centerlineEnd.y - segment.centerlineStart.y
+        guard cycle > 0 else { return nil }
+        let cycles = (along - Float(repeatOffset) - segment.centerlineStart.y) / cycle
+        guard cycles >= 0, cycles <= bundle.lengthInCycles else { return nil }
+        let halfWidth = bundle.halfWidthInColumns(atCycles: cycles)
+        guard halfWidth > 0 else { return nil }
+        let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
+        let centre = segment.centerlineStart.x * columns
+            + bundle.leanInColumns(atCycles: cycles, direction: leanDirection)
+        // Round the ring: the nearest way to the run's centreline.
+        var offset = (turns * columns - centre).truncatingRemainder(dividingBy: columns)
+        if offset > columns / 2 { offset -= columns }
+        if offset < -columns / 2 { offset += columns }
+        let across = offset / halfWidth
+        guard abs(across) <= 1 else { return nil }
+        return bundle.standingFraction(atCycles: cycles, across: across)
+    }
+
+    /// The cell lying beneath a place: the thread standing at that place in the
+    /// occupancy history, as `(repeatOffset, segment)`.
+    func cellBeneath(atTurns turns: Float, along: Float) -> (repeatOffset: Int, segment: Int)? {
+        let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
+        var wrapped = turns.truncatingRemainder(dividingBy: 1)
+        if wrapped < 0 { wrapped += 1 }
+        let lane = min(Int(wrapped * columns), Int(columns) - 1)
+        for (index, segment) in surface.segments.enumerated()
+        where Int((segment.centerlineStart.x * columns).rounded(.down)) == lane {
+            for repeatOffset in -1...1 {
+                let start = segment.centerlineStart.y + Float(repeatOffset)
+                let end = segment.centerlineEnd.y + Float(repeatOffset)
+                if along >= start, along < end { return (repeatOffset, index) }
+            }
+        }
+        return nil
     }
 }
