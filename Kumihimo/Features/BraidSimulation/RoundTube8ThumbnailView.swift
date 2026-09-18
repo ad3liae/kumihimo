@@ -29,10 +29,18 @@ struct RoundTube8ThumbnailView: View {
     let pattern: RoundTube8SurfacePattern
     var bundle: RoundTube8Bundle = .standard
 
-    @State private var image: CGImage?
+    @State private var loader = RoundTube8CardLoader()
     @Environment(\.displayScale) private var displayScale
 
+    private var key: RoundTube8CardImage.Key {
+        RoundTube8CardImage.Key(pattern: pattern, bundle: bundle)
+    }
+
     var body: some View {
+        // **Only this braid's picture, never the one before it**: until the
+        // picture for the colouring now shown is ready, the card shows its plain
+        // background (Task 045 addendum 2).
+        let image = loader.image(for: key)
         Canvas { context, size in
             guard let image, let layout = UnrolledPatternThumbnailLayout(
                 size: size,
@@ -54,8 +62,8 @@ struct RoundTube8ThumbnailView: View {
         .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 12))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .accessibilityHidden(true)
-        .task(id: RoundTube8CardImage.Key(pattern: pattern, bundle: bundle)) {
-            image = await RoundTube8CardImage.image(for: pattern, bundle: bundle)
+        .task(id: key) {
+            await loader.load(pattern: pattern, bundle: bundle)
         }
     }
 }
@@ -166,30 +174,27 @@ enum RoundTube8CardImage {
     }
 
     /// Pictures already drawn: a card is redrawn as the list scrolls, and the
-    /// braid does not change under it.
-    private actor Cache {
-        var images = [Key: CGImage]()
+    /// braid does not change under it. **Keeping a picture here is not showing
+    /// it**: a picture finished for a colouring the card has since left is
+    /// still kept, for when the card comes back to it.
+    actor Cache {
+        private var images = [Key: CGImage]()
+        init() {}
         func image(for key: Key) -> CGImage? { images[key] }
         func keep(_ image: CGImage, for key: Key) {
             if images.count > 32 { images.removeAll() }
             images[key] = image
         }
     }
-    private static let cache = Cache()
+    static let sharedCache = Cache()
 
-    /// The picture for a braid, drawn off the main thread the first time and
-    /// kept.
-    static func image(
-        for pattern: RoundTube8SurfacePattern,
-        bundle: RoundTube8Bundle = .standard
+    /// Draws the picture off the main thread.
+    @Sendable static func drawOffTheMainThread(
+        _ pattern: RoundTube8SurfacePattern, _ bundle: RoundTube8Bundle
     ) async -> CGImage? {
-        let key = Key(pattern: pattern, bundle: bundle)
-        if let image = await cache.image(for: key) { return image }
-        let drawn = await Task.detached(priority: .userInitiated) {
+        await Task.detached(priority: .userInitiated) {
             draw(pattern, bundle: bundle)
         }.value
-        if let drawn { await cache.keep(drawn, for: key) }
-        return drawn
     }
 
     static func draw(_ pattern: RoundTube8SurfacePattern, bundle: RoundTube8Bundle) -> CGImage? {
@@ -238,5 +243,67 @@ enum RoundTube8CardImage {
             bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.noneSkipLast.rawValue),
             provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent
         )
+    }
+}
+
+/// **Which picture a card shows, and only the picture for what it shows now**
+/// (Task 045 addendum 2).
+///
+/// A card's colouring can change while its picture is still being drawn — pick
+/// a colour, then another, or go back to one already drawn — and the pictures
+/// can finish in any order. A picture that finishes for a colouring the card has
+/// left is **kept** (the cache) but **not shown**: every picture is shown with
+/// the key it was drawn for, and a card asks only for its current key's. Until
+/// that one is ready it has none, and the card shows its plain background rather
+/// than the colouring before.
+///
+/// The view calls `load` from `.task(id:)`, which cancels the load for a key the
+/// card has left; a cancelled load still keeps what it drew but shows nothing.
+@MainActor
+@Observable
+final class RoundTube8CardLoader {
+    typealias Draw = @Sendable (RoundTube8SurfacePattern, RoundTube8Bundle) async -> CGImage?
+
+    /// The key the card last asked for.
+    private(set) var requested: RoundTube8CardImage.Key?
+    /// The picture on hand, with the key it was drawn for.
+    private var shown: (key: RoundTube8CardImage.Key, image: CGImage)?
+
+    @ObservationIgnored private let cache: RoundTube8CardImage.Cache
+    @ObservationIgnored private let draw: Draw
+
+    init(
+        cache: RoundTube8CardImage.Cache = RoundTube8CardImage.sharedCache,
+        draw: @escaping Draw = RoundTube8CardImage.drawOffTheMainThread
+    ) {
+        self.cache = cache
+        self.draw = draw
+    }
+
+    /// The picture for `key`, if it is the one on hand; otherwise none.
+    func image(for key: RoundTube8CardImage.Key) -> CGImage? {
+        guard let shown, shown.key == key else { return nil }
+        return shown.image
+    }
+
+    /// Asks for the picture of `pattern`: from the cache if it is there,
+    /// otherwise drawn. **Whatever comes back is shown only if the card still
+    /// wants it** — the load not cancelled, and this key still the last asked for.
+    func load(pattern: RoundTube8SurfacePattern, bundle: RoundTube8Bundle) async {
+        let key = RoundTube8CardImage.Key(pattern: pattern, bundle: bundle)
+        requested = key
+        if let cached = await cache.image(for: key) {
+            show(cached, for: key)
+            return
+        }
+        let drawn = await draw(pattern, bundle)
+        guard let drawn else { return }
+        await cache.keep(drawn, for: key)
+        show(drawn, for: key)
+    }
+
+    private func show(_ image: CGImage, for key: RoundTube8CardImage.Key) {
+        guard !Task.isCancelled, requested == key else { return }
+        shown = (key, image)
     }
 }
