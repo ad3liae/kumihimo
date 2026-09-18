@@ -67,6 +67,11 @@ def segment_distance(p0, p1, q0, q1):
     s = np.where(low, np.clip(-c / np.maximum(a, 1e-12), 0, 1), s)
     s = np.where(high, np.clip((b - c) / np.maximum(a, 1e-12), 0, 1), s)
     t = np.clip(t, 0, 1)
+    # A second segment of no length is a point: its nearest place on the first is the point's
+    # projection. The lines above left s at 0 for it (Task 039-1'': the core is such points).
+    point = e <= 1e-12
+    s = np.where(point, np.clip(-c / np.maximum(a, 1e-12), 0, 1), s)
+    t = np.where(point, 0.0, t)
     return s, t, (p0 + s[:, None] * d1) - (q0 + t[:, None] * d2)
 
 

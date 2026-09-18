@@ -23,6 +23,13 @@ import read_dump
 PALETTE = ["#c0392b", "#2980b9", "#27ae60", "#8e44ad", "#d35400", "#16a085",
            "#2c3e50", "#7f8c8d", "#c2185b", "#00838f", "#558b2f", "#6a1b9a",
            "#ef6c00", "#00695c", "#37474f", "#ad1457"]
+GREY = "#9e9e9e"
+
+
+def colour(t):
+    """A thread's colour. Anything numbered past the sixteen threads -- Task 039-1''s core,
+    which is not a thread -- is grey."""
+    return PALETTE[t % 16] if t < 16 else GREY
 
 
 def svg(path, w, h, body, title):
@@ -78,7 +85,7 @@ def section(p, thread_of, out, cfg, name="seed"):
     for t in range(int(thread_of.max()) + 1):
         pick = thread_of == t
         pts = " ".join(f"{X(a):.1f},{Y(b):.1f}" for a, b in zip(r[pick], p[pick, 2]))
-        body.append(f'<polyline points="{pts}" fill="none" stroke="{PALETTE[t % 16]}" '
+        body.append(f'<polyline points="{pts}" fill="none" stroke="{colour(t)}" '
                     'stroke-width="1.2" opacity="0.8"/>')
     for v in (0, -5, -10):
         if v >= lo_z:
@@ -108,14 +115,14 @@ def above(p, thread_of, out, cfg, name="seed"):
     for t in range(int(thread_of.max()) + 1):
         pick = thread_of == t
         pts = " ".join(f"{X(a):.1f},{Y(b):.1f}" for a, b in zip(p[pick, 0], p[pick, 1]))
-        body.append(f'<polyline points="{pts}" fill="none" stroke="{PALETTE[t % 16]}" '
+        body.append(f'<polyline points="{pts}" fill="none" stroke="{colour(t)}" '
                     'stroke-width="1.4" opacity="0.9"/>')
         # the thread's own number, out past the rim where its tama hangs
         far = int(np.argmax(np.hypot(p[pick, 0], p[pick, 1])))
         x, y = p[pick][far, 0], p[pick][far, 1]
         body.append(f'<text x="{X(x*1.14):.1f}" y="{Y(y*1.14)+4:.1f}" '
                     f'font-family="Helvetica" font-size="12" font-weight="bold" '
-                    f'fill="{PALETTE[t % 16]}" text-anchor="middle">{t + 1}</text>')
+                    f'fill="{colour(t)}" text-anchor="middle">{t + 1}</text>')
     svg(os.path.join(out, name + "-above.svg"), W, H, "\n".join(body),
         "Task 022-1: the settled seed from above (book C's 32 angles, threads numbered)")
 
@@ -143,7 +150,7 @@ def rim(p, thread_of, out, cfg, name="seed"):
         pick = (thread_of == t) & (r > lo_r) & (p[:, 2] > lo_z)
         for a, b in zip(r[pick], p[pick, 2]):
             body.append(f'<circle cx="{X(a):.1f}" cy="{Y(b):.1f}" r="{0.5*s:.1f}" '
-                        f'fill="{PALETTE[t % 16]}" opacity="0.45"/>')
+                        f'fill="{colour(t)}" opacity="0.45"/>')
     svg(os.path.join(out, name + "-rim.svg"), W, H, "\n".join(body),
         "Task 022-1: the rim close up, one capsule one dot, to scale")
 
@@ -173,7 +180,7 @@ def hole(p, thread_of, out, cfg, name="seed"):
         pick = (thread_of == t) & (r < hi_r)
         for a, b in zip(r[pick], p[pick, 2]):
             body.append(f'<circle cx="{X(a):.1f}" cy="{Y(b):.1f}" r="{0.5*s:.1f}" '
-                        f'fill="{PALETTE[t % 16]}" opacity="0.4"/>')
+                        f'fill="{colour(t)}" opacity="0.4"/>')
     if "braid-point" in cfg:
         z = cfg["braid-point"]
         body.append(f'<line x1="{X(0):.1f}" y1="{Y(z):.1f}" x2="{X(hi_r*0.35):.1f}" '
@@ -254,7 +261,7 @@ def across(p, thread_of, out, cfg, at, name="cycle"):
             'stroke="#ddd" stroke-dasharray="4 4"/>']
     for point, t in zip(q, who):
         body.append(f'<circle cx="{X(point[0]):.1f}" cy="{Y(point[1]):.1f}" r="{0.5*s:.1f}" '
-                    f'fill="{PALETTE[t % 16]}" fill-opacity="0.55" stroke="{PALETTE[t % 16]}"/>')
+                    f'fill="{colour(t)}" fill-opacity="0.55" stroke="{colour(t)}"/>')
         body.append(f'<text x="{X(point[0]):.1f}" y="{Y(point[1])+3.5:.1f}" '
                     f'font-family="Helvetica" font-size="9" fill="#333" '
                     f'text-anchor="middle">{t + 1}</text>')
@@ -295,7 +302,7 @@ def unrolled(p, thread_of, out, cfg, name="cycle"):
                 continue
             t = int(who[pick][np.argmax(radius[pick])])
             body.append(f'<rect x="{x}" y="{y}" width="{cell-2}" height="{cell-2}" '
-                        f'fill="{PALETTE[t % 16]}" fill-opacity="0.75"/>')
+                        f'fill="{colour(t)}" fill-opacity="0.75"/>')
             body.append(f'<text x="{x + cell/2 - 1:.0f}" y="{y + cell*0.65:.0f}" '
                         'font-family="Helvetica" font-size="11" fill="#fff" '
                         f'text-anchor="middle">{t + 1}</text>')

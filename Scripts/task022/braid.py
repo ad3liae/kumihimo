@@ -213,7 +213,7 @@ class Braid:
 
     # --- what was laid on what ---------------------------------------------
 
-    def note_crossings(self):
+    def note_crossings(self, within=None):
         """Every bead this braid has laid on another thread's bead, by book C's
         order: a bead taken in later lies over one taken in earlier.
 
@@ -221,14 +221,16 @@ class Braid:
         over where it stands -- horizontal distance under a diameter, which is
         `under()` in Scripts/task021/sequential.py -- and the two are touching,
         which the capsule projection has already made mean a diameter apart to
-        within the settling tolerance.
+        within the settling tolerance. `within` replaces that distance (Task
+        039-1'': two touching chains have bead pairs up to 1.22 d apart).
         """
         p, thread_of, index, hand = self.beads(made_only=True)
         if len(p) < 2:
             return 0
         from scipy.spatial import cKDTree
         found = 0
-        for a, b in cKDTree(p).query_pairs(taut.D + taut.SETTLED, output_type='ndarray'):
+        near = taut.D + taut.SETTLED if within is None else within
+        for a, b in cKDTree(p).query_pairs(near, output_type='ndarray'):
             if thread_of[a] == thread_of[b] or hand[a] == hand[b]:
                 continue
             if np.hypot(*(p[a, :2] - p[b, :2])) >= taut.D:
