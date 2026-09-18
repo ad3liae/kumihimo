@@ -93,6 +93,14 @@ struct KumihimoApp: App {
                         isEmbedded: false
                     )
                 } else if CommandLine.arguments.contains(
+                    YatsuKongoComparisonPreviewData.solidLaunchArgument
+                ) {
+                    YatsuKongoComparisonSolid()
+                } else if CommandLine.arguments.contains(
+                    YatsuKongoComparisonPreviewData.cardLaunchArgument
+                ) {
+                    YatsuKongoComparisonCard()
+                } else if CommandLine.arguments.contains(
                     ProjectEditorPreviewData.hiraSurfacePlainLaunchArgument
                 ) {
                     Flat16PreviewView(
