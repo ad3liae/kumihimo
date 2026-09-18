@@ -91,14 +91,20 @@ enum RoundTube8StrandTexture {
             * cellLengthInThreadWidths
     }
 
-    /// One cycle along the braid, in thread widths. A thread is an eighth of the
-    /// valley floor's circumference — the relation `crestHeightRatio` rests on —
-    /// and a cycle is `pitchOverDiameter` of the braid's diameter.
+    /// One thread's visible run along the braid, in thread widths. A thread is an
+    /// eighth of the valley floor's circumference — the relation
+    /// `crestHeightRatio` rests on — and a cycle is `pitchOverDiameter` of the
+    /// braid's diameter; a run is `RoundTube8Bundle.lengthInCycles` cycles.
+    ///
+    /// **The maps span the whole run** (Task 045): its texture runs 0...1 from
+    /// the arrival to the tip, so the stripes are counted over that length and
+    /// lie as close as they did over a one-cycle cell.
     static var cellLengthInThreadWidths: Float {
         let threads = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
         // In radii: the braid is 2 across, and the floor is below the crest.
         let threadWidth = 2 * .pi * (1 - RoundTube8SurfaceMesh.crestHeightRatio) / threads
-        return 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameter / threadWidth
+        return 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameter
+            * RoundTube8Bundle.standard.lengthInCycles / threadWidth
     }
 
     /// The coefficients every cell uses, in the form the sixteen-thread factory
@@ -133,9 +139,11 @@ enum RoundTube8StrandTexture {
         let cosine = cos(angle)
         guard sine != 0 else { return nil }
 
-        // A cell is one cycle long and an eighth of the crest's circumference
-        // wide; across is read in half-widths, as the factory reads it.
+        // A run is `lengthInCycles` cycles long and, at its widest, an eighth of
+        // the crest's circumference wide; across is read in half-widths, as the
+        // factory reads it.
         let along = 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameter
+            * RoundTube8Bundle.standard.lengthInCycles
         let halfWidth = Float.pi / Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
         let phasePerAlong = -2 * .pi * stripesPerCell
         let phasePerAcross = phasePerAlong * halfWidth * cosine / (along * sine)

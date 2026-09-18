@@ -38,11 +38,13 @@ import simd
 /// a pair goes first: a printed step is one instant (`BraidDiskNotation
 /// .StepReading`), so the two threads of a pair arrive together.
 ///
-/// **What slants on the finished braid is the colour, not the geometry.** A place
-/// holds a different thread every cycle, and with these colourings the pattern
-/// walks one place round the braid each cycle, which is the diagonal a photograph
-/// shows. Nothing here draws that: it falls out of the occupancy history and the
-/// pitch.
+/// **The colour diagonal is the cells', not a slant drawn in.** A place holds a
+/// different thread every cycle, and with these colourings the pattern walks one
+/// place round the braid each cycle, which is the diagonal a photograph shows. It
+/// falls out of the occupancy history and the pitch. **The cells themselves do
+/// not lean**; how a thread *shows* on its cell — a run that leans and goes on
+/// beneath the next thread — is `RoundTube8Bundle`, a drawing approximation laid
+/// over them (Task 045), and it moves no cell.
 ///
 /// **Nothing here decides what passes over what, because nothing crosses.** Cells
 /// stand side by side round a ring and end to end along the braid; there is no
@@ -68,6 +70,95 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// is kept because it is what decides which thread is at which place next
     /// cycle, and so what the colour does.
     let columnsCarried: Int
+
+    /// Which way round the braid a thread's visible run leans as it goes along
+    /// it: the sign of the carry, `+1` or `-1`.
+    ///
+    /// **Only the sign is the table's.** A thread arrives from the place it was
+    /// carried from and leaves towards the place it is carried to, so its run
+    /// tilts from the one towards the other (Task 033 §4.2, Task 045). How far it
+    /// tilts is `RoundTube8Bundle.leanColumnsPerCycle`, a drawing figure.
+    var leanDirection: Float { columnsCarried < 0 ? -1 : 1 }
+}
+
+/// **What a thread's visible run looks like on the eight-thread tube: a bundle
+/// that lies at a slant and sinks under the next one** (Task 045).
+///
+/// **A drawing approximation calibrated against a photograph, not a derivation.**
+/// The cell a thread holds — one column wide, from its arrival to the next
+/// thread's arrival at the same place — is still what the occupancy history
+/// gives, and it is still the pattern's `surface`: which thread is at which place
+/// and when does not move. What this adds is how that thread *shows*:
+///
+/// - **it leans.** Its centreline moves round the braid as it goes along it, the
+///   way the carry goes (`RoundTube8SurfacePattern.leanDirection`) — so S and Z
+///   are mirrors because their tables are;
+/// - **it is widest and tallest just after it arrives**, where it has been laid
+///   on top of the braid, and **narrows and sinks towards the next arrival**;
+/// - **it goes on past the next arrival, beneath the thread that arrives there**,
+///   and ends in a point. The later thread is laid on the earlier one and pressed
+///   down onto it (`docs/architecture.md`, 組み台の力学), so the later is on top.
+///   The end is where the run stops *showing*, not where the thread is cut.
+///
+/// **Nothing is decided by colour.** Every run of every thread has the same
+/// shape; which run covers which is decided only by when each arrived.
+///
+/// Three figures, each with a unit, all set by eye against book A p.8's zoom.
+/// The bundle's widest half-width is not one of them: it is half a column,
+/// because a thread is one column wide (the same relation `crestHeightRatio`
+/// rests on), and its height is the ridge's.
+struct RoundTube8Bundle: Equatable, Sendable {
+    /// How far the run's centreline moves round the braid over one cycle along
+    /// it, **in columns per cycle**. Unsigned; the table gives the sign.
+    let leanColumnsPerCycle: Float
+    /// How far the run goes on beneath the next thread past that thread's
+    /// arrival, **in cycles**.
+    let tuckedCycles: Float
+    /// How far past its own arrival the run rises to its full width and height,
+    /// **in cycles**: the shoulder that lies on top of the run before it.
+    let shoulderCycles: Float
+
+    static let standard = RoundTube8Bundle(
+        leanColumnsPerCycle: 0.35,
+        tuckedCycles: 0.9,
+        shoulderCycles: 0.3
+    )
+
+    /// From the arrival to the end of the run, in cycles.
+    var lengthInCycles: Float { 1 + tuckedCycles }
+
+    /// A thread is one column wide.
+    static let widestHalfWidthInColumns: Float = 0.5
+
+    /// Half the run's width at `cycles` past its arrival, in columns: a quarter
+    /// ellipse up to the shoulder, then narrowing to a point at the end.
+    func halfWidthInColumns(atCycles cycles: Float) -> Float {
+        Self.widestHalfWidthInColumns * profile(atCycles: cycles, tail: { 1 - $0 * $0 })
+    }
+
+    /// How tall the run stands at `cycles` past its arrival, 0...1 of the ridge:
+    /// the same quarter ellipse up to the shoulder, then sinking smoothly to
+    /// nothing at the end.
+    func heightFraction(atCycles cycles: Float) -> Float {
+        profile(atCycles: cycles, tail: { 1 - $0 * $0 * (3 - 2 * $0) })
+    }
+
+    /// How far round the braid the centreline has moved from the middle of the
+    /// thread's own cell, in columns, signed by `direction`.
+    func leanInColumns(atCycles cycles: Float, direction: Float) -> Float {
+        direction * leanColumnsPerCycle * (cycles - 0.5)
+    }
+
+    private func profile(atCycles cycles: Float, tail: (Float) -> Float) -> Float {
+        guard cycles >= 0, cycles <= lengthInCycles else { return 0 }
+        if cycles < shoulderCycles, shoulderCycles > 0 {
+            let rest = 1 - cycles / shoulderCycles
+            return (1 - rest * rest).squareRoot()
+        }
+        let span = lengthInCycles - shoulderCycles
+        guard span > 0 else { return 1 }
+        return tail(min(max((cycles - shoulderCycles) / span, 0), 1))
+    }
 }
 
 enum RoundTube8SurfacePatternGenerator {

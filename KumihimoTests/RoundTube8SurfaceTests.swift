@@ -120,42 +120,75 @@ struct RoundTube8SurfaceTests {
         let theirs = painted(z, mirrored)
         #expect(!mine.isEmpty)
         #expect(Set(mine.keys) == Set(theirs.keys))
+        // **Within one step of the grid, not on it.** A point that falls on a
+        // grid line in one braid can round to the next cell in the other; the
+        // mirror is only exact to the last bit of a float. So every point must
+        // have a match in its own cell or a neighbouring one, both ways round.
+        func matched(_ places: Set<[Int32]>, in other: Set<[Int32]>) -> Int {
+            places.filter { key in
+                !(-1...1).contains { dx in (-1...1).contains { dy in (-1...1).contains { dz in
+                    other.contains([key[0] + Int32(dx), key[1] + Int32(dy), key[2] + Int32(dz)])
+                } } }
+            }.count
+        }
         for (colour, places) in mine {
-            #expect(theirs[colour] == places, "\(colour.rawValue)")
+            let other = theirs[colour] ?? []
+            #expect(matched(places, in: other) == 0, "\(colour.rawValue): S points with no Z point")
+            #expect(matched(other, in: places) == 0, "\(colour.rawValue): Z points with no S point")
+            #expect(abs(places.count - other.count) <= places.count / 100)
         }
     }
 
     // MARK: - 3. One repeat closes
 
-    /// **The tile joins itself, lane by lane, and has no end face.**
+    /// **The tile repeats itself exactly, and has no end face.**
     ///
-    /// A lane's first cell begins in the repeat before — its thread arrived part
-    /// way through the cycle before — so the tile's ends are not flat: each lane
-    /// begins and ends at its own place along the braid. What makes the tile join
-    /// itself is that **every lane is exactly one tile long, and the ring of
-    /// vertices where it ends is the ring where it begins**, moved by the tile's
-    /// length. That is what lets tiles be laid end to end with neither a cap nor a
-    /// gap between.
+    /// A thread's run reaches past both ends of its repeat — its thread arrived
+    /// part way through the cycle before, and it goes on beneath the next thread
+    /// for most of a cycle more — so the tile's ends are not flat. What lets tiles
+    /// be laid end to end with neither a cap nor a gap between is that **every
+    /// repeat is the one before moved one repeat along**, vertex for vertex,
+    /// texture included: whatever hangs past one end is met by what the next tile
+    /// hangs back. And **beneath every lane, the cells lie end to end for exactly
+    /// the tile's length**, so the tube is closed under the runs.
     @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
     func oneRepeatClosesAndMakesNoEndFace(recipe: BraidRecipe) throws {
         let drawn = try pattern(recipe)
         let mesh = try mesh(recipe)
-        func key(_ point: SIMD3<Float>) -> [Int32] {
-            [Int32((atan2(point.z, point.y) * 4096).rounded()),
-             Int32((sqrt(point.y * point.y + point.z * point.z) * 4096).rounded())]
+        let cells = drawn.surface.segments.count
+        #expect(mesh.runVertexRanges.count == cells * mesh.patternRepeatCount)
+        #expect(mesh.patternRepeatCount >= 2)
+        let shift = SIMD3<Float>(mesh.patternRepeatLength, 0, 0)
+        for cell in 0..<cells {
+            for ranges in [mesh.runVertexRanges, mesh.beneathVertexRanges] {
+                let here = ranges[cell]
+                let next = ranges[cells + cell]
+                #expect(here.count == next.count)
+                for (mine, theirs) in zip(here, next) {
+                    #expect(simd_distance(mesh.positions[mine] + shift, mesh.positions[theirs]) < 1e-4,
+                            "cell \(cell)")
+                    #expect(mesh.textureCoordinates[mine] == mesh.textureCoordinates[theirs])
+                }
+            }
         }
+
+        // Beneath: in every lane, the cells lie end to end over the tile.
         for lane in 0..<8 {
-            let vertices = Self.vertices(ofLane: lane, pattern: drawn, mesh: mesh)
-            let xs = vertices.map { mesh.positions[$0].x }
-            let low = try #require(xs.min())
-            let high = try #require(xs.max())
-            #expect(abs(high - low - mesh.length) < 1e-4, "lane \(lane)")
-            let begins = Set(vertices.filter { abs(mesh.positions[$0].x - low) < 1e-5 }
-                .map { key(mesh.positions[$0]) })
-            let ends = Set(vertices.filter { abs(mesh.positions[$0].x - high) < 1e-5 }
-                .map { key(mesh.positions[$0]) })
-            #expect(!begins.isEmpty)
-            #expect(begins == ends, "lane \(lane)")
+            var spans = [(Float, Float)]()
+            for repeatIndex in 0..<mesh.patternRepeatCount {
+                for (index, segment) in drawn.surface.segments.enumerated()
+                where Int((segment.centerlineStart.x * 8).rounded(.down)) == lane {
+                    let xs = mesh.beneathVertexRanges[repeatIndex * cells + index]
+                        .map { mesh.positions[$0].x }
+                    spans.append((try #require(xs.min()), try #require(xs.max())))
+                }
+            }
+            spans.sort { $0.0 < $1.0 }
+            for (earlier, later) in zip(spans, spans.dropFirst()) {
+                #expect(abs(earlier.1 - later.0) < 1e-4, "lane \(lane) has a gap or an overlap beneath")
+            }
+            let covered = (spans.last?.1 ?? 0) - (spans.first?.0 ?? 0)
+            #expect(abs(covered - mesh.length) < 1e-4, "lane \(lane)")
         }
 
         // No end face: no triangle stands square across the braid.
@@ -166,62 +199,6 @@ struct RoundTube8SurfaceTests {
             if abs(xs[0] - xs[1]) < 1e-6 && abs(xs[1] - xs[2]) < 1e-6 { square += 1 }
         }
         #expect(square == 0)
-    }
-
-    /// **The stripes run on across the tile's join.** A lane's last cell ends on
-    /// the ring where its first begins, and a cell carries whole stripes, so the
-    /// stripe map meets itself there.
-    @Test func theStripesRunOnAcrossTheTilesJoin() throws {
-        let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
-        let mesh = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
-        // Neighbouring cells share the points on the valley floor between them,
-        // so a point is told apart by which side of its cell it is on as well.
-        func key(_ index: Int) -> [Int32] {
-            let point = mesh.positions[index]
-            return [Int32((atan2(point.z, point.y) * 4096).rounded()),
-                    Int32((sqrt(point.y * point.y + point.z * point.z) * 4096).rounded()),
-                    Int32((mesh.textureCoordinates[index].y * 4096).rounded())]
-        }
-        var met = 0
-        for lane in 0..<8 {
-            let vertices = Self.vertices(ofLane: lane, pattern: drawn, mesh: mesh)
-            let xs = vertices.map { mesh.positions[$0].x }
-            let low = try #require(xs.min())
-            let high = try #require(xs.max())
-            var begins = [[Int32]: Float]()
-            for index in vertices where abs(mesh.positions[index].x - low) < 1e-5 {
-                begins[key(index)] = mesh.textureCoordinates[index].x
-            }
-            for index in vertices where abs(mesh.positions[index].x - high) < 1e-5 {
-                guard let there = begins[key(index)] else { continue }
-                let here = mesh.textureCoordinates[index].x
-                let apart = abs(here - there)
-                #expect(min(apart, abs(apart - 1)) < 1e-4, "lane \(lane): \(here) where it ends, \(there) where it begins")
-                met += 1
-            }
-        }
-        // Every sample across every lane's end: eight lanes of eleven.
-        #expect(met == 8 * (RoundTube8SurfaceMesh.defaultAcrossSubdivisions + 1))
-    }
-
-    /// Every vertex of one lane, over the whole tile. A cell's vertices are one
-    /// block, laid down repeat by repeat and cell by cell — the order
-    /// `RoundTube8SurfaceMesh.generate` writes them in.
-    private static func vertices(
-        ofLane lane: Int, pattern: RoundTube8SurfacePattern, mesh: RoundTube8SurfaceMeshData
-    ) -> [Int] {
-        let perCell = (RoundTube8SurfaceMesh.defaultAlongSubdivisions + 1)
-            * (RoundTube8SurfaceMesh.defaultAcrossSubdivisions + 1)
-        let cells = pattern.surface.segments.count
-        var out = [Int]()
-        for repeatIndex in 0..<mesh.patternRepeatCount {
-            for (segmentIndex, segment) in pattern.surface.segments.enumerated()
-            where Int((segment.centerlineStart.x * 8).rounded(.down)) == lane {
-                let first = (repeatIndex * cells + segmentIndex) * perCell
-                out += Array(first..<(first + perCell))
-            }
-        }
-        return out
     }
 
     // MARK: - No line runs across the whole braid
@@ -257,25 +234,21 @@ struct RoundTube8SurfaceTests {
         }
     }
 
-    /// **On the solid, no ring of cell ends goes round the braid.** The same
-    /// thing read off the mesh: where each cell's vertices begin and end along
-    /// the braid, and no two neighbouring lanes end a cell at the same place.
-    ///
-    /// A cell's vertices are one block, laid down repeat by repeat and cell by
-    /// cell — the order `RoundTube8SurfaceMesh.generate` writes them in.
+    /// **On the solid, no ring of run ends goes round the braid.** The same
+    /// thing read off the mesh: where each thread's run begins and ends along the
+    /// braid, and no two neighbouring lanes begin or end one at the same place.
+    /// A run leans, so its ends are not square to the braid either; what is
+    /// compared is where each end reaches furthest.
     @Test func noRingOfCellEndsGoesRoundTheSolid() throws {
         let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
         let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: drawn))
-        let perCell = (RoundTube8SurfaceMesh.defaultAlongSubdivisions + 1)
-            * (RoundTube8SurfaceMesh.defaultAcrossSubdivisions + 1)
         let cells = drawn.surface.segments.count
-        #expect(mesh.positions.count == perCell * cells * mesh.patternRepeatCount)
         var ends = [Int: [Float]]()
         for repeatIndex in 0..<mesh.patternRepeatCount {
             for (segmentIndex, segment) in drawn.surface.segments.enumerated() {
                 let lane = Int((segment.centerlineStart.x * 8).rounded(.down))
-                let first = (repeatIndex * cells + segmentIndex) * perCell
-                let xs = mesh.positions[first..<(first + perCell)].map(\.x)
+                let xs = mesh.runVertexRanges[repeatIndex * cells + segmentIndex]
+                    .map { mesh.positions[$0].x }
                 ends[lane, default: []] += [xs.min() ?? 0, xs.max() ?? 0]
             }
         }
@@ -284,7 +257,7 @@ struct RoundTube8SurfaceTests {
             let shared = (ends[lane] ?? []).filter { mine in
                 (ends[next] ?? []).contains { abs($0 - mine) < 1e-4 }
             }
-            #expect(shared.isEmpty, "lanes \(lane) and \(next) both end a cell at x = \(Array(Set(shared)).sorted())")
+            #expect(shared.isEmpty, "lanes \(lane) and \(next) both end a run at x = \(Array(Set(shared)).sorted())")
         }
     }
 
@@ -315,9 +288,8 @@ struct RoundTube8SurfaceTests {
     /// explained rather than slipping through.
     @Test func theMeshIsTheShapeItWas() throws {
         let s = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
-        // Sixty-four cells a repeat, two repeats, and thirteen by eleven samples
-        // over each: 128 * 143.
-        // **Changed six times, on purpose.** It was `0x03aa_f419_737c_1859` while a
+        // Sixty-four cells a repeat, two repeats.
+        // **Changed seven times, on purpose.** It was `0x03aa_f419_737c_1859` while a
         // cell was drawn stretched across the three places of the carry; a cell is
         // the thread standing still, so every cell is square to the braid. Then
         // `0xa2b9_f4b5_1eab_3079` while the ring was laid out as `(cos, sin)`, the
@@ -334,8 +306,14 @@ struct RoundTube8SurfaceTests {
         // groove was the ridge's own depth, borrowed from across the braid: it has
         // its own figure now, shallower, and the ends round over less of a thread's
         // half-width (the author, 2026-09-12). **The vertex count did not change.**
-        #expect(s.positions.count == 18_304)
-        #expect(BraidMeshHashTests.hash(s.positions) == 0x2873_a90b_e028_6589)
+        // Then `0x2873_a90b_e028_6589` (18,304 vertices) while a cell was drawn
+        // as a round-ended bead one column wide and one cycle long, square to the
+        // braid (Task 033): it read as a cob of corn (the author, 2026-09-18). A
+        // thread now shows as a run that leans the carry's way and goes on
+        // beneath the next thread, 25 by 11 samples, with its own cell lying
+        // beneath at the valley floor, 2 by 5 (Task 045).
+        #expect(s.positions.count == 128 * (25 * 11 + 2 * 5))
+        #expect(BraidMeshHashTests.hash(s.positions) == 0xfbb4_48c0_8f4a_7fdd)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
@@ -433,13 +411,14 @@ struct RoundTube8SurfaceTests {
         // the fibre stripes and the valley shading, and how big the braid is
         // drawn. None of them moves a vertex.
         #expect(shape.calibratedByEye.keys.sorted() == [
+            "a run's lean, in columns per cycle",
             "fibre stripe angle in degrees",
             "fibre stripe relief",
             "fibre stripes across a thread's width",
-            "how far a cell's end is rounded, over a thread's half-width",
+            "how far a run goes on beneath the next thread, in cycles",
+            "how far a run rises to its shoulder, in cycles",
             "how far across a cell the valley shading reaches",
             "radius on screen",
-            "the groove between two cells over the braid's radius",
             "valley shading at a cell's edge",
         ])
         // And each of the looks says, in so many words, what it is.
@@ -486,69 +465,88 @@ struct RoundTube8SurfaceTests {
         }
     }
 
-    /// **A cell ends in a groove of its own depth, and the thread's end is
-    /// round** (the author, 2026-09-12). The ring at either end of a cell sits one
-    /// groove below the crest — **not on the valley floor**, which is how deep the
-    /// groove between two lanes goes — and the next thread along the same place
-    /// begins on that same ring, so a lane is a run of threads pressed together
-    /// rather than one bar or a string of beads.
-    @Test func aCellEndsInAGrooveAndItsEndIsRound() throws {
+    /// **A thread's run goes on beneath the thread that arrives after it at the
+    /// same place, and the later one is on top wherever the two overlap past its
+    /// shoulder** (Task 045). Read off the surfaces themselves: at points of the
+    /// earlier run past the next arrival, the later run — wherever it is there —
+    /// stands higher. Only when the later has risen to its shoulder; before
+    /// that the two cross, which is the line the eye reads as one going under
+    /// the other.
+    ///
+    /// **Decided by when each thread arrived, never by colour**: the check runs
+    /// over every cell with the book's colouring, which puts the same colour next
+    /// to itself.
+    @Test func aRunSinksBeneathTheNextThreadAtItsPlace() throws {
         let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
         let mesh = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
-        let along = RoundTube8SurfaceMesh.defaultAlongSubdivisions
-        let across = RoundTube8SurfaceMesh.defaultAcrossSubdivisions
-        let perCell = (along + 1) * (across + 1)
-        func radius(_ index: Int) -> Float {
-            let point = mesh.positions[index]
-            return (point.y * point.y + point.z * point.z).squareRoot()
+        let bundle = RoundTube8Bundle.standard
+        func point(_ segment: BraidStrandSegment, _ cycles: Float, _ across: Float) -> SIMD3<Float> {
+            RoundTube8SurfaceMesh.frame(
+                of: segment, cycles: cycles, across: across,
+                leanDirection: drawn.leanDirection,
+                floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
+                base: 0, repeatLength: mesh.patternRepeatLength
+            ).position
         }
-        let dip = RoundTube8SurfaceMesh.endValleyDepthRatio * mesh.crestRadius
-        let ridge = mesh.crestRadius - mesh.valleyFloorRadius
-        // The groove along a lane is the shallower of the two.
-        #expect(dip < ridge)
+        func radius(_ point: SIMD3<Float>) -> Float { (point.y * point.y + point.z * point.z).squareRoot() }
+        func angle(_ point: SIMD3<Float>) -> Float { atan2(point.y, point.z) }
 
-        for cell in 0..<(mesh.positions.count / perCell) {
-            let first = cell * perCell
-            let middleAcross = across / 2
-            // Both ends: one groove below the crest, and clear of the floor.
-            for row in [0, along] {
-                let end = radius(first + row * (across + 1) + middleAcross)
-                #expect(abs(end - (mesh.crestRadius - dip)) < 1e-3, "cell \(cell)")
-                #expect(end > mesh.valleyFloorRadius + 1e-3)
-            }
-            // The middle of the cell stands at the crest.
-            #expect(abs(radius(first + (along / 2) * (across + 1) + middleAcross)
-                        - mesh.crestRadius) < 1e-3)
-            // The lane's own edges stay on the valley floor, ends included.
-            for row in [0, along / 2, along] {
-                #expect(abs(radius(first + row * (across + 1)) - mesh.valleyFloorRadius) < 1e-4)
+        var checked = 0
+        var pairs = 0
+        for segment in drawn.surface.segments {
+            guard let later = drawn.surface.segments.first(where: {
+                abs($0.centerlineStart.x - segment.centerlineStart.x) < 1e-5
+                    && abs($0.centerlineStart.y - segment.centerlineEnd.y) < 1e-5
+            }) else { continue }
+            pairs += 1
+            // The earlier run past the later one's shoulder, along its crest.
+            for cycles in stride(from: 1 + bundle.shoulderCycles, to: bundle.lengthInCycles, by: 0.1) {
+                let under = point(segment, cycles, 0)
+                // The later run's section at the same place along the braid.
+                let section = (0...200).map { point(later, cycles - 1, Float($0) / 100 - 1) }
+                guard let over = section.min(by: {
+                    abs(angle($0) - angle(under)) < abs(angle($1) - angle(under))
+                }), abs(angle(over) - angle(under)) < 0.01 else { continue }
+                #expect(radius(over) > radius(under), "cycle \(cycles) past the earlier arrival")
+                checked += 1
             }
         }
+        #expect(pairs == 7 * 8)
+        #expect(checked > pairs)
 
-        // Each cell ends on the ring the next one in its lane begins on.
-        func ring(_ first: Int, row: Int) -> Set<[Int32]> {
-            Set((0...across).map { sample in
-                let point = mesh.positions[first + row * (across + 1) + sample]
-                return [Int32((point.x * 4096).rounded()), Int32((point.y * 4096).rounded()),
-                        Int32((point.z * 4096).rounded())]
-            })
-        }
-        let cells = drawn.surface.segments.count
-        var met = 0
-        for repeatIndex in 0..<mesh.patternRepeatCount {
-            for (index, segment) in drawn.surface.segments.enumerated() {
-                guard let next = drawn.surface.segments.firstIndex(where: {
-                    abs($0.centerlineStart.x - segment.centerlineStart.x) < 1e-5
-                        && abs($0.centerlineStart.y - segment.centerlineEnd.y) < 1e-5
-                }) else { continue }
-                let mine = (repeatIndex * cells + index) * perCell
-                let theirs = (repeatIndex * cells + next) * perCell
-                #expect(ring(mine, row: along) == ring(theirs, row: 0))
-                met += 1
+        // It ends in a point at both ends and is widest at its shoulder.
+        #expect(bundle.halfWidthInColumns(atCycles: 0) == 0)
+        #expect(bundle.halfWidthInColumns(atCycles: bundle.lengthInCycles) < 1e-6)
+        #expect(bundle.halfWidthInColumns(atCycles: bundle.shoulderCycles)
+                == RoundTube8Bundle.widestHalfWidthInColumns)
+        // And a thread is one column wide: the widest is half a column.
+        #expect(RoundTube8Bundle.widestHalfWidthInColumns == 0.5)
+    }
+
+    /// **A run leans the way its thread is carried**, so S and Z lean opposite
+    /// ways because their tables carry opposite ways — the sign is read off the
+    /// courses, never written in. Along the run, towards the braiding point, the
+    /// crest moves round the braid by the declared lean per cycle.
+    @Test func aRunLeansTheWayTheCarryGoes() throws {
+        let bundle = RoundTube8Bundle.standard
+        for recipe in [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe] {
+            let drawn = try pattern(recipe)
+            let mesh = try mesh(recipe)
+            #expect(drawn.leanDirection == Float(drawn.columnsCarried.signum()))
+            let segment = drawn.surface.segments[0]
+            func turns(_ cycles: Float) -> Float {
+                let point = RoundTube8SurfaceMesh.frame(
+                    of: segment, cycles: cycles, across: 0,
+                    leanDirection: drawn.leanDirection,
+                    floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
+                    base: 0, repeatLength: mesh.patternRepeatLength
+                ).position
+                return atan2(point.y, point.z) / (2 * .pi)
             }
+            let moved = (turns(1) - turns(0)) * 8
+            #expect(abs(moved - drawn.leanDirection * bundle.leanColumnsPerCycle) < 1e-4,
+                    "\(recipe.id): \(moved) columns over one cycle")
         }
-        // Seven joins a lane inside each repeat, eight lanes, two repeats.
-        #expect(met == 7 * 8 * mesh.patternRepeatCount)
     }
 
     /// **The stripes lie at the declared slant to the thread's run, and come back
@@ -565,8 +563,10 @@ struct RoundTube8SurfaceTests {
         }
 
         // A line of one phase runs `tan(angle)` across for one along, in world
-        // units: a cell is one cycle long and an eighth of the crest wide.
+        // units: a run is `lengthInCycles` cycles long and, at its widest, an
+        // eighth of the crest wide.
         let along = 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameter
+            * RoundTube8Bundle.standard.lengthInCycles
         let halfWidth = Float.pi / 8
         let perAlong = abs(twist.coefficients.phasePerAlong) / along
         let perAcross = abs(twist.coefficients.phasePerAcross) / halfWidth
@@ -613,8 +613,9 @@ struct RoundTube8SurfaceTests {
     /// **What the drawing puts on the face at a slant is the colour**, and how far
     /// that is from the photographs is written down here rather than closed.
     ///
-    /// Nothing in the drawing leans: every cell stands square to the braid. The
-    /// diagonal comes from which thread is standing where — one place round the
+    /// No cell leans: every cell stands square to the braid (a thread's run on
+    /// the solid does, Task 045, but that is how it shows and not which thread is
+    /// where). The diagonal comes from which thread is standing where — one place round the
     /// braid a cycle, because these colourings repeat every four places and the
     /// table carries three, which is one back in four.
     ///
@@ -628,7 +629,10 @@ struct RoundTube8SurfaceTests {
     /// — so a derived figure and one photograph are not the like for like.
     @Test func theColourDiagonalIsRecordedAgainstThePhotographs() throws {
         let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
-        // Nothing in the geometry leans.
+        // The cells — which thread stands where, and when — do not lean. What
+        // leans since Task 045 is how each thread shows, its run
+        // (`aRunLeansTheWayTheCarryGoes`); the colour diagonal below is still
+        // the cells', and the run's lean is a drawing figure, not this.
         #expect(drawn.surface.segments.allSatisfy {
             $0.centerlineStart.x == $0.centerlineEnd.x
         })
