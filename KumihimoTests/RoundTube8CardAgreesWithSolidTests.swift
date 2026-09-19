@@ -128,7 +128,7 @@ struct RoundTube8CardAgreesWithSolidTests {
         // Lane 0's first-row run: it began at -0.75 of a cycle while cells were
         // drawn at their arrivals, and begins at its drawn phase since Task 048
         // (-0.5 on S). The places are read from where it begins.
-        let start = drawn.drawnPhaseBySlot[0] - 1
+        let start = drawn.drawnPhaseByColumn[0] - 1
         // The run is there, where the drawn phase says it begins.
         _ = try #require(drawn.surface.segments.firstIndex {
             abs($0.centerlineStart.x - 0.5 / 8) < 1e-5 && abs($0.centerlineStart.y * rows - start) < 1e-4
@@ -211,6 +211,15 @@ struct RoundTube8CardAgreesWithSolidTests {
                 case .run(let offset, let segment)?: .run(repeatIndex: home + offset, segment: segment)
                 case .beneath(let offset, let segment)?: .beneath(repeatIndex: home + offset, segment: segment)
                 case nil: nil
+                }
+                // Two cells beneath meet along the braid, and a sample exactly on
+                // their boundary can fall either side; that is not the card
+                // disagreeing with the solid about what shows.
+                if case .beneath(_, let mine)? = card, case .beneath(_, let theirs) = seen.part,
+                   abs(drawn.surface.segments[mine].centerlineStart.x
+                       - drawn.surface.segments[theirs].centerlineStart.x) < 1e-5 {
+                    letOff += 1
+                    continue
                 }
                 compared += 1
                 if card != seen.part {

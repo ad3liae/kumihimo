@@ -102,12 +102,17 @@ enum RoundTube8SurfaceMesh {
         var values: [String: BraidMeasurement] = [
             "one cycle over the braid's diameter": BraidMeasurement(
                 Double(RoundTube8SurfacePatternGenerator.pitchOverDiameter),
-                // The two readings, rounded outward: 0.403 on S and 0.506 on Z-a.
-                spread: 0.40...0.51,
+                // Task 031's two readings of the colour's period over the braid's
+                // width, halved as the cycle is now read (S 1.614/2, Z-a
+                // 2.023/2), rounded outward.
+                spread: 0.80...1.02,
                 basis: .fractionOf("the braid's own diameter"),
                 source: .observed("book A p.8-9, the zoom; Task 031 stage 1"),
-                unsettled: "the three braids photographed do not agree: S gives 0.403 "
-                    + "and Z-a 0.506, and colouring b cannot be read this way at all "
+                unsettled: "read as the colour's period divided by two drawn cycles "
+                    + "(Task 048's rework), not by four as Task 031 divided it; the "
+                    + "photograph's period is unchanged. The three braids photographed do "
+                    + "not agree: S gives 0.807 "
+                    + "and Z-a 1.012, and colouring b cannot be read this way at all "
                     + "because its colour turns in eight cycles rather than four. The "
                     + "value shipped is S's, whose signal is the cleanest and whose "
                     + "braid is the one drawn. The colour band does not settle it either "

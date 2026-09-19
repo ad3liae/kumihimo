@@ -56,10 +56,15 @@ struct RoundTube8SurfaceTests {
         #expect(figure.rowCount == drawn.rowCount)
 
         for row in 0..<drawn.rowCount {
-            for column in 0..<8 {
-                let shape = try #require(figure.appearance(atColumn: column, row: row))
-                // The cell standing at this place for this cycle. It does not
-                // lean, so it is at this column for the whole of the row.
+            for place in 0..<8 {
+                let shape = try #require(figure.appearance(atColumn: place, row: row))
+                // **The figure is by place on the stand; the solid is by column
+                // of the finished braid**, and the braid turns one column a
+                // cycle (Task 048's rework). The cell to read is the one in the
+                // column this place has turned to.
+                let column = RoundTube8SurfacePatternGenerator.drawnColumn(
+                    ofSlot: place, cycle: row, lean: Int(drawn.leanDirection)
+                )
                 let middle = (Float(column) + 0.5) / 8
                 let along = Float(row) / Float(drawn.rowCount)
                 let cell = try #require(drawn.surface.segments.first {
@@ -68,7 +73,7 @@ struct RoundTube8SurfaceTests {
                         && $0.centerlineEnd.y > along + 1e-4
                 })
                 #expect(cell.centerlineEnd.x == cell.centerlineStart.x)
-                #expect(cell.colorID == shape.colorID, "row \(row), column \(column)")
+                #expect(cell.colorID == shape.colorID, "row \(row), place \(place)")
                 #expect(cell.threadPosition == shape.threadPosition)
             }
         }
@@ -320,7 +325,11 @@ struct RoundTube8SurfaceTests {
         // Then `0x94ae_7327_2c10_992d` while each place's cells began at its
         // arrival (¼, ¾, ½, 1 … of a cycle on S): they are drawn half a pitch
         // from their neighbours round the braid now (Task 048).
-        #expect(BraidMeshHashTests.hash(s.positions) == 0x059f_de6a_459f_8b01)
+        // Then `0x059f_de6a_459f_8b01` while a place on the stand stayed at one
+        // column of the finished braid: the braid turns a column a cycle now,
+        // the cycle is twice as long, and a run is about one cycle (Task 048's
+        // rework).
+        #expect(BraidMeshHashTests.hash(s.positions) == 0x2716_6247_a8d0_b579)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
@@ -666,15 +675,18 @@ struct RoundTube8SurfaceTests {
         #expect(drawn.surface.segments.allSatisfy {
             $0.centerlineStart.x == $0.centerlineEnd.x
         })
-        // The colour walks one place a cycle, which is what makes the diagonal:
-        // three places on is one place back in a colouring that repeats every four.
-        let drift = RoundTube8SurfacePatternGenerator.shortestWayRound(
-            from: 0, to: drawn.columnsCarried, around: 4
-        )
-        #expect(abs(drift) == 1)
+        // The colour walks one column every half cycle, which is what makes the
+        // diagonal: the braid turns a column a cycle and the columns are half a
+        // pitch apart (`RoundTube8HalfPitchTests`).
+        #expect(drawn.drawnPhaseByColumn.count == 8)
 
+        // **A colour band steps one column round the braid every half cycle**
+        // since Task 048's rework (the braid turns a column a cycle, and the
+        // columns are staggered half a pitch), where it used to step one place
+        // every whole cycle of a cycle half as long. The two give the same
+        // angle: the cycle doubled and the step halved.
         let acrossOnePlace = sin(Double.pi / 8)          // of the braid's width
-        let along = Double(RoundTube8SurfacePatternGenerator.pitchOverDiameter)
+        let along = Double(RoundTube8SurfacePatternGenerator.pitchOverDiameter) / 2
         let derived = atan2(along, acrossOnePlace) * 180 / .pi
         #expect(abs(derived - 46.5) < 0.5)
 
