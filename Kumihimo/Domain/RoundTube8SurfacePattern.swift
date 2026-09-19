@@ -93,64 +93,77 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
 /// - **it leans.** Its centreline moves round the braid as it goes along it, the
 ///   way the carry goes (`RoundTube8SurfacePattern.leanDirection`) — so S and Z
 ///   are mirrors because their tables are;
-/// - **it is widest and tallest just after it arrives**, where it has been laid
-///   on top of the braid, and **narrows and sinks towards the next arrival**;
-/// - **it goes on past the next arrival, beneath the thread that arrives there**,
-///   and ends in a point. The later thread is laid on the earlier one and pressed
-///   down onto it (`docs/architecture.md`, 組み台の力学), and the shape is built
-///   so that along the earlier run's crest, once the later one has risen to its
-///   shoulder, the later stands higher. The end is where the run stops
-///   *showing*, not where the thread is cut.
+/// - **it is a lens with a belly** (Task 046): pointed where it arrives, widening
+///   to a belly that it holds for a while, and narrowing to a point again. The
+///   belly is what lies between its neighbours and keeps the floor from showing;
+///   the pointed ends are what slide in beside the runs around it;
+/// - **it goes on past the next arrival and ends beneath another run**. Because
+///   runs lean, a run's tail and the head of the next thread at its place lie
+///   side by side for a while; then the later one, grown to its belly, stands
+///   higher over the earlier one's tail, which sinks a little sooner than a head
+///   rises, and ends there. The later thread is laid on the earlier one and
+///   pressed down onto it (`docs/architecture.md`, 組み台の力学); this is how
+///   the drawing shows that, not a derivation of it. The end is where the run
+///   stops *showing*, not where the thread is cut.
 ///
 /// **What shows at a place is the run standing highest there** — nothing else
 /// decides it (`RoundTube8SurfacePattern.runsStanding`). That is not "the later
-/// is on top everywhere": on the flanks of the earlier run, just past the next
-/// arrival, the earlier can stand higher and show (Task 045 review). The line
-/// where two runs meet is a drawing approximation, not a settled order of the
-/// real braid. **The solid and the card both read this one rule.**
+/// is on top everywhere": where a tail and the next head lie side by side, and
+/// on the flanks of a run, the earlier can stand higher and show (Task 045
+/// review). The line where two runs meet is a drawing approximation, not a
+/// settled order of the real braid. **The solid and the card both read this one
+/// rule.**
 ///
 /// **Nothing is decided by colour.** Every run of every thread has the same
 /// shape, and which one shows is decided by where they stand, by run and thread,
 /// never by what colour they are.
 ///
-/// Three figures, each with a unit, all set by eye against book A p.8's zoom.
-/// The bundle's widest half-width is not one of them: it is half a column,
-/// because a thread is one column wide (the same relation `crestHeightRatio`
-/// rests on), and its height is the ridge's.
+/// **The figures, each with a unit, are all set by eye against book A p.8's
+/// zoom**, and so is the form: a quarter sine up to the belly and a quarter
+/// cosine down from it, the height rising as the square root of that and falling
+/// with it. The run's widest half-width is `widestHalfWidthInColumns`: half a
+/// column is what the thread count gives (a thread is one column wide, the
+/// relation `crestHeightRatio` rests on); **a run is allowed to show wider than
+/// the column its thread holds**, keeping the thread it belongs to.
 struct RoundTube8Bundle: Equatable, Sendable {
     /// How far the run's centreline moves round the braid over one cycle along
     /// it, **in columns per cycle**. Unsigned; the table gives the sign.
     let leanColumnsPerCycle: Float
-    /// How far the run goes on beneath the next thread past that thread's
-    /// arrival, **in cycles**.
+    /// How far the run goes on past the next thread's arrival, **in cycles**.
     let tuckedCycles: Float
-    /// How far past its own arrival the run rises to its full width and height,
-    /// **in cycles**: the shoulder that lies on top of the run before it.
-    let shoulderCycles: Float
+    /// Where the run's belly begins and ends, **in cycles past its arrival**.
+    let bellyStartCycles: Float
+    let bellyEndCycles: Float
+    /// Half the run's width across its belly, **in columns**.
+    let widestHalfWidthInColumns: Float
 
     static let standard = RoundTube8Bundle(
         leanColumnsPerCycle: 0.35,
         tuckedCycles: 0.9,
-        shoulderCycles: 0.3
+        bellyStartCycles: 0.6,
+        bellyEndCycles: 0.9,
+        widestHalfWidthInColumns: 0.55
     )
 
     /// From the arrival to the end of the run, in cycles.
     var lengthInCycles: Float { 1 + tuckedCycles }
 
-    /// A thread is one column wide.
-    static let widestHalfWidthInColumns: Float = 0.5
+    /// A thread is one column wide: the half-width the thread count gives.
+    static let oneThreadHalfWidthInColumns: Float = 0.5
 
-    /// Half the run's width at `cycles` past its arrival, in columns: a quarter
-    /// ellipse up to the shoulder, then narrowing to a point at the end.
+    /// Half the run's width at `cycles` past its arrival, in columns.
     func halfWidthInColumns(atCycles cycles: Float) -> Float {
-        Self.widestHalfWidthInColumns * profile(atCycles: cycles, tail: { 1 - $0 * $0 })
+        widestHalfWidthInColumns * lens(atCycles: cycles).rising
+            * lens(atCycles: cycles).falling
     }
 
     /// How tall the run stands at `cycles` past its arrival, 0...1 of the ridge:
-    /// the same quarter ellipse up to the shoulder, then sinking smoothly to
-    /// nothing at the end.
+    /// rising as the square root of the width's rise, so a head stands up
+    /// quickly, and falling with the width's fall, so a tail sinks a little
+    /// sooner than a head rises.
     func heightFraction(atCycles cycles: Float) -> Float {
-        profile(atCycles: cycles, tail: { 1 - $0 * $0 * (3 - 2 * $0) })
+        let shape = lens(atCycles: cycles)
+        return shape.rising.squareRoot() * shape.falling
     }
 
     /// How far round the braid the centreline has moved from the middle of the
@@ -168,15 +181,16 @@ struct RoundTube8Bundle: Equatable, Sendable {
         return heightFraction(atCycles: cycles) * max(0, 1 - clamped * clamped).squareRoot()
     }
 
-    private func profile(atCycles cycles: Float, tail: (Float) -> Float) -> Float {
-        guard cycles >= 0, cycles <= lengthInCycles else { return 0 }
-        if cycles < shoulderCycles, shoulderCycles > 0 {
-            let rest = 1 - cycles / shoulderCycles
-            return (1 - rest * rest).squareRoot()
-        }
-        let span = lengthInCycles - shoulderCycles
-        guard span > 0 else { return 1 }
-        return tail(min(max((cycles - shoulderCycles) / span, 0), 1))
+    /// The lens: 0 at both ends and 1 across the belly, as a rising part before
+    /// the belly and a falling part after it (each 1 elsewhere).
+    private func lens(atCycles cycles: Float) -> (rising: Float, falling: Float) {
+        guard cycles >= 0, cycles <= lengthInCycles else { return (0, 0) }
+        let rising = bellyStartCycles > 0
+            ? sin(.pi / 2 * min(cycles / bellyStartCycles, 1)) : 1
+        let tail = lengthInCycles - bellyEndCycles
+        let falling = tail > 0
+            ? cos(.pi / 2 * min(max((cycles - bellyEndCycles) / tail, 0), 1)) : 1
+        return (rising, falling)
     }
 }
 

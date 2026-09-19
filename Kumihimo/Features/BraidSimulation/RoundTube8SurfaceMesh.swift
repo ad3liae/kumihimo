@@ -99,7 +99,7 @@ enum RoundTube8SurfaceMesh {
     /// Where every number this drawing rests on came from. **No value here is
     /// changed by saying so.**
     static var shape: BraidFamilyShape {
-        BraidFamilyShape(family: family, values: [
+        var values: [String: BraidMeasurement] = [
             "one cycle over the braid's diameter": BraidMeasurement(
                 Double(RoundTube8SurfacePatternGenerator.pitchOverDiameter),
                 // The two readings, rounded outward: 0.403 on S and 0.506 on Z-a.
@@ -181,18 +181,47 @@ enum RoundTube8SurfaceMesh {
                     + "past the next thread's arrival a bean's tip goes on before it is "
                     + "lost beneath the next one, on book A p.8's zoom"
             ),
-            "how far a run rises to its shoulder, in cycles": .declared(
-                Double(RoundTube8Bundle.standard.shoulderCycles),
+            "where a run's belly begins, in cycles past its arrival": .declared(
+                Double(RoundTube8Bundle.standard.bellyStartCycles),
                 calibratedBy: "calibrated by eye against a photograph, not derived: how far "
-                    + "past its own arrival a bean reaches its full width and height, on "
-                    + "book A p.8's zoom"
+                    + "past its pointed head a bean widens to its belly, on book A p.8's zoom "
+                    + "(Task 046)"
+            ),
+            "where a run's belly ends, in cycles past its arrival": .declared(
+                Double(RoundTube8Bundle.standard.bellyEndCycles),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how long "
+                    + "a bean keeps its width before narrowing to its tip, on book A p.8's "
+                    + "zoom (Task 046)"
             ),
             "radius on screen": .declared(
                 Double(defaultRadius),
                 calibratedBy: "how big the braid should be in the view; a display size, "
                     + "not a shape"
             ),
-        ])
+        ]
+        values.merge(bellyWidth) { first, _ in first }
+        return BraidFamilyShape(family: family, values: values)
+    }
+
+    /// **A run's widest half-width**: derived while it is the one column a
+    /// thread holds, and set by eye once a run is let show wider (Task 046).
+    private static var bellyWidth: [String: BraidMeasurement] {
+        let widest = RoundTube8Bundle.standard.widestHalfWidthInColumns
+        let name = "a run's widest half-width, in columns"
+        if widest == RoundTube8Bundle.oneThreadHalfWidthInColumns {
+            return [name: BraidMeasurement(
+                Double(widest),
+                basis: .fractionOf("one column"),
+                source: .derived("a thread is one column wide: eight threads round the tube")
+            )]
+        }
+        return [name: .declared(
+            Double(widest),
+            basis: .fractionOf("one column"),
+            calibratedBy: "calibrated by eye against a photograph, not derived: how wide a "
+                + "bean's belly looks against the columns, on book A p.8's zoom; wider than "
+                + "the column its thread holds, so that bellies meet over the floor (Task 046)"
+        )]
     }
 
     static let defaultRadius: Float = 0.48
@@ -287,8 +316,11 @@ enum RoundTube8SurfaceMesh {
             alongSubdivisions >= minimumAlongSubdivisions,
             acrossSubdivisions >= minimumAcrossSubdivisions,
             bundle.leanColumnsPerCycle.isFinite,
-            bundle.tuckedCycles >= 0, bundle.shoulderCycles > 0,
-            bundle.shoulderCycles < bundle.lengthInCycles,
+            bundle.tuckedCycles >= 0,
+            bundle.bellyStartCycles > 0,
+            bundle.bellyStartCycles <= bundle.bellyEndCycles,
+            bundle.bellyEndCycles < bundle.lengthInCycles,
+            bundle.widestHalfWidthInColumns > 0,
             !pattern.surface.segments.isEmpty
         else {
             return nil

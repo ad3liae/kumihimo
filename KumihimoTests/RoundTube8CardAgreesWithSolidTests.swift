@@ -309,4 +309,71 @@ struct RoundTube8CardAgreesWithSolidTests {
             #expect(upOnTheSolid * upOnTheCard > 0, "\(recipe.id): solid \(upOnTheSolid), card \(upOnTheCard)")
         }
     }
+
+    // MARK: - Task 046: the floor, and where a run ends
+
+    /// **The floor hardly shows** (Task 046), read the way the task asks: the
+    /// outermost surface on rays out from the axis over one whole repeat, run or
+    /// floor, on the real mesh — not dark pixels. It was 3.64% of the surface
+    /// with a run widest just after its arrival and one column at most (Task
+    /// 045); 1.78% with a lens of the same width; 0.32% with the lens's belly let
+    /// show a little wider than its column, which is what ships. The bound is a
+    /// guard against the floor coming back, not a target of zero.
+    @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
+    func theFloorHardlyShows(recipe: BraidRecipe) throws {
+        let drawn = try pattern(recipe)
+        let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: drawn))
+        let solid = Solid(mesh: mesh, cells: drawn.surface.segments.count)
+        var floor = 0, runs = 0
+        for row in 0..<128 {
+            for column in 0..<128 {
+                let turns = (Float(row) + 0.5) / 128
+                let along = (Float(column) + 0.5) / 128
+                let home: Float = along < 0.5 ? 1 : 0
+                let seen = try #require(solid.outermost(x: x(mesh, along: home + along), turns: turns))
+                switch seen.part {
+                case .beneath: floor += 1
+                case .run: runs += 1
+                }
+            }
+        }
+        #expect(Double(floor) / Double(floor + runs) < 0.01, "floor at \(floor) of \(floor + runs)")
+    }
+
+    /// **A run ends beneath another run** (Task 046): near its tip, along its
+    /// crest, what the solid shows is some other thread's run — read off the real
+    /// mesh, whichever run that is, not assumed to be the next one at its place.
+    @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
+    func aRunEndsBeneathAnotherRun(recipe: BraidRecipe) throws {
+        let drawn = try pattern(recipe)
+        let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: drawn))
+        let solid = Solid(mesh: mesh, cells: drawn.surface.segments.count)
+        let bundle = RoundTube8Bundle.standard
+        var checked = 0
+        var coveredBy = [String: Int]()
+        for (index, segment) in drawn.surface.segments.enumerated() {
+            for cycles in [bundle.lengthInCycles - 0.2, bundle.lengthInCycles - 0.05] {
+                let crest = RoundTube8SurfaceMesh.frame(
+                    of: segment, cycles: cycles, across: 0, leanDirection: drawn.leanDirection,
+                    floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
+                    base: -mesh.length / 2, repeatLength: mesh.patternRepeatLength
+                ).position
+                // Only where the tile holds everything that reaches this far.
+                guard abs(crest.x) < mesh.patternRepeatLength / 2 else { continue }
+                let seen = try #require(solid.outermost(x: crest.x, turns: atan2(crest.y, crest.z) / (2 * .pi)))
+                guard case let .run(_, other) = seen.part else {
+                    Issue.record("run \(index) ends over the floor at \(cycles)")
+                    continue
+                }
+                #expect(other != index, "run \(index) still shows at \(cycles) cycles")
+                let lane = { (i: Int) in Int((drawn.surface.segments[i].centerlineStart.x * 8).rounded(.down)) }
+                coveredBy[lane(other) == lane(index) ? "same lane" : "another lane", default: 0] += 1
+                checked += 1
+            }
+        }
+        #expect(checked > 20)
+        // Both kinds of cover happen: the next thread at its place, and a run
+        // leaning in from beside.
+        #expect(coveredBy.count >= 1)
+    }
 }

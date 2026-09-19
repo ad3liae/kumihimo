@@ -179,11 +179,12 @@ enum RoundTube8StrandTexture {
     ///
     /// - **its sides**, where it lies against the runs beside it or over the gap
     ///   down to the floor: the sixteen-thread tube's valley, as before;
-    /// - **the shoulder it rises to after arriving is on top**, so it is shaded
-    ///   only where it is still coming up from beneath the run before it;
-    /// - **past the next thread's arrival it goes under that thread**, and it
-    ///   darkens there to the valley's depth, over the length the next thread
-    ///   takes to rise to its own shoulder.
+    /// - **its head is shaded only while it is still coming up** from among the
+    ///   runs around it, over the way to its belly;
+    /// - **its tail goes under the next thread** once that thread has grown
+    ///   halfway to its belly, and is under it by the time it has: it darkens to
+    ///   the valley's depth over that stretch (Task 046: where the lens-shaped
+    ///   runs hand over, from beside to beneath).
     ///
     /// **No figure of its own**: the depth and reach are the sixteen-thread
     /// tube's, and where the run rises and where it goes under are the bundle's.
@@ -197,9 +198,9 @@ enum RoundTube8StrandTexture {
         let reach = RoundTube16StrandTextureFactory.valleyOcclusionWidth
         let sides = mix(depth, 1, smoothstep(0, reach, 1 - abs(offset)))
         let cycles = along * bundle.lengthInCycles
-        let shoulder = bundle.shoulderCycles
-        let rising = mix(depth, 1, smoothstep(0, reach, cycles / shoulder))
-        let under = mix(1, depth, smoothstep(1 - shoulder, 1 + shoulder, cycles))
+        let belly = bundle.bellyStartCycles
+        let rising = mix(depth, 1, smoothstep(0, reach, cycles / belly))
+        let under = mix(1, depth, smoothstep(1 + belly / 2, 1 + belly, cycles))
         return sides * rising * under
     }
 

@@ -313,7 +313,11 @@ struct RoundTube8SurfaceTests {
         // beneath the next thread, 25 by 11 samples, with its own cell lying
         // beneath at the valley floor, 2 by 5 (Task 045).
         #expect(s.positions.count == 128 * (25 * 11 + 2 * 5))
-        #expect(BraidMeshHashTests.hash(s.positions) == 0xfbb4_48c0_8f4a_7fdd)
+        // Then `0xfbb4_48c0_8f4a_7fdd` while a run was widest at a shoulder just
+        // after its arrival and narrowed all the way to its tip, one column at
+        // most: a lens with a belly now, pointed at both ends and a little wider
+        // than its column (Task 046). The vertex count did not change.
+        #expect(BraidMeshHashTests.hash(s.positions) == 0x94ae_7327_2c10_992d)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
@@ -410,17 +414,20 @@ struct RoundTube8SurfaceTests {
         // **What is set by eye is the look, never the shape** (Task 032 stage 3):
         // the fibre stripes and the valley shading, and how big the braid is
         // drawn. None of them moves a vertex.
-        #expect(shape.calibratedByEye.keys.sorted() == [
+        #expect(shape.calibratedByEye.keys.sorted() == ([
             "a run's lean, in columns per cycle",
             "fibre stripe angle in degrees",
             "fibre stripe relief",
             "fibre stripes across a thread's width",
             "how far a run goes on beneath the next thread, in cycles",
-            "how far a run rises to its shoulder, in cycles",
             "how far across a cell the valley shading reaches",
             "radius on screen",
             "valley shading at a cell's edge",
-        ])
+            "where a run's belly begins, in cycles past its arrival",
+            "where a run's belly ends, in cycles past its arrival",
+        ] + (RoundTube8Bundle.standard.widestHalfWidthInColumns
+            == RoundTube8Bundle.oneThreadHalfWidthInColumns ? [] : ["a run's widest half-width, in columns"]))
+            .sorted())
         // And each of the looks says, in so many words, what it is.
         for (name, value) in shape.calibratedByEye where name != "radius on screen" {
             #expect(value.source.origin.contains("calibrated by eye against a photograph, not derived"),
@@ -450,7 +457,8 @@ struct RoundTube8SurfaceTests {
     /// **The shading is where the run touches something** (Task 045): the
     /// sixteen-thread tube's valley at its two sides, the same depth where it
     /// has gone under the next thread, and none on the shoulder it rises to,
-    /// which is on top. It replaced a valley on all four sides of a cell alike
+    /// which is on top; where the run goes under is where the next thread grows
+    /// to its belly (Task 046). It replaced a valley on all four sides of a cell alike
     /// (Task 033), which fixed "四辺の陰が同じ"; the run is not the same end to
     /// end, so its shading is not either.
     @Test func theShadingIsWhereTheRunTouchesSomething() {
@@ -459,17 +467,17 @@ struct RoundTube8SurfaceTests {
         func at(_ row: Float, cycles: Float) -> Float {
             RoundTube8StrandTexture.shading(across: row, along: cycles / bundle.lengthInCycles)
         }
-        // On the crest at the shoulder: nothing touches it.
-        #expect(abs(at(0.5, cycles: bundle.shoulderCycles) - 1) < 0.001)
+        // On the crest at the belly: nothing touches it.
+        #expect(abs(at(0.5, cycles: bundle.bellyStartCycles) - 1) < 0.001)
         // Its sides: the valley.
-        #expect(abs(at(0, cycles: bundle.shoulderCycles) - valley) < 0.001)
-        #expect(abs(at(1, cycles: bundle.shoulderCycles) - valley) < 0.001)
-        // Past the next arrival and the next thread's shoulder: under it.
-        #expect(abs(at(0.5, cycles: 1 + bundle.shoulderCycles) - valley) < 0.001)
+        #expect(abs(at(0, cycles: bundle.bellyStartCycles) - valley) < 0.001)
+        #expect(abs(at(1, cycles: bundle.bellyStartCycles) - valley) < 0.001)
+        // Once the next thread has grown to its belly: under it.
+        #expect(abs(at(0.5, cycles: 1 + bundle.bellyStartCycles) - valley) < 0.001)
         #expect(abs(at(0.5, cycles: bundle.lengthInCycles) - valley) < 0.001)
-        // Before the next arrival it is lighter than where it has gone under,
-        // and the two ends are not alike.
-        #expect(at(0.5, cycles: 0.5) > at(0.5, cycles: 1.2))
+        // Before the hand-over it is lighter than during it, and the two ends
+        // are not alike.
+        #expect(at(0.5, cycles: 0.7) > at(0.5, cycles: 1 + 0.75 * bundle.bellyStartCycles))
         #expect(at(0.5, cycles: 0.2) != at(0.5, cycles: bundle.lengthInCycles - 0.2))
         // Still the same both sides of the crest.
         for value in stride(from: Float(0), through: 1, by: 0.05) {
@@ -478,8 +486,9 @@ struct RoundTube8SurfaceTests {
     }
 
     /// **A thread's run goes on beneath the thread that arrives after it at the
-    /// same place: along the earlier run's crest, once the later has risen to its
-    /// shoulder, the later stands higher** (Task 045). Read off the surfaces
+    /// same place: along the earlier run's crest, once the later has grown to its
+    /// belly, the later stands higher** (Task 045; the belly since Task 046 —
+    /// before that the two lie side by side, because runs lean). Read off the surfaces
     /// themselves, **on the earlier run's crest only**. It is not "the later is
     /// on top wherever they overlap": on the earlier run's flanks, just past the
     /// next arrival, the earlier can stand higher and show, and the card shows it
@@ -513,8 +522,8 @@ struct RoundTube8SurfaceTests {
                     && abs($0.centerlineStart.y - segment.centerlineEnd.y) < 1e-5
             }) else { continue }
             pairs += 1
-            // The earlier run past the later one's shoulder, along its crest.
-            for cycles in stride(from: 1 + bundle.shoulderCycles, to: bundle.lengthInCycles, by: 0.1) {
+            // The earlier run past the later one's belly, along its crest.
+            for cycles in stride(from: 1 + bundle.bellyStartCycles, to: bundle.lengthInCycles, by: 0.1) {
                 let under = point(segment, cycles, 0)
                 // The later run's section at the same place along the braid.
                 let section = (0...200).map { point(later, cycles - 1, Float($0) / 100 - 1) }
@@ -528,13 +537,17 @@ struct RoundTube8SurfaceTests {
         #expect(pairs == 7 * 8)
         #expect(checked > pairs)
 
-        // It ends in a point at both ends and is widest at its shoulder.
+        // It ends in a point at both ends and is widest across its belly.
         #expect(bundle.halfWidthInColumns(atCycles: 0) == 0)
         #expect(bundle.halfWidthInColumns(atCycles: bundle.lengthInCycles) < 1e-6)
-        #expect(bundle.halfWidthInColumns(atCycles: bundle.shoulderCycles)
-                == RoundTube8Bundle.widestHalfWidthInColumns)
-        // And a thread is one column wide: the widest is half a column.
-        #expect(RoundTube8Bundle.widestHalfWidthInColumns == 0.5)
+        for cycles in [bundle.bellyStartCycles, bundle.bellyEndCycles] {
+            #expect(abs(bundle.halfWidthInColumns(atCycles: cycles) - bundle.widestHalfWidthInColumns) < 1e-6)
+            #expect(abs(bundle.heightFraction(atCycles: cycles) - 1) < 1e-6)
+        }
+        // A thread is one column wide: that is half a column, and a run may show
+        // wider than that (Task 046) but never narrower at its belly.
+        #expect(RoundTube8Bundle.oneThreadHalfWidthInColumns == 0.5)
+        #expect(bundle.widestHalfWidthInColumns >= RoundTube8Bundle.oneThreadHalfWidthInColumns)
     }
 
     /// **A run leans the way its thread is carried**, so S and Z lean opposite

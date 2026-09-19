@@ -169,7 +169,10 @@ enum RoundTube8CardImage {
             columnsCarried = pattern.columnsCarried
             rowCount = pattern.rowCount
             aspectRatio = pattern.aspectRatio
-            self.bundle = [bundle.leanColumnsPerCycle, bundle.tuckedCycles, bundle.shoulderCycles]
+            self.bundle = [
+                bundle.leanColumnsPerCycle, bundle.tuckedCycles, bundle.bellyStartCycles,
+                bundle.bellyEndCycles, bundle.widestHalfWidthInColumns,
+            ]
         }
     }
 

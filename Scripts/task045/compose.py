@@ -3,6 +3,7 @@
 Run from the repository root after `render.sh` has drawn the states:
 
     python3 Scripts/task045/compose.py A B C
+    TASK045_ROOT=.build/task046 python3 Scripts/task045/compose.py E0 E1 E2
 
 It reads `.build/task045/<state>/<state>-<recipe>-<colouring>-<shot>.png` and
 writes sheets to `.build/task045/sheets/`, with `sheets/record.txt` saying for
@@ -29,7 +30,8 @@ from PIL import Image, ImageDraw
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "task031"))
 import measure_photographs as photo_tools  # noqa: E402
 
-ROOT = ".build/task045"
+# `TASK045_ROOT` lets a later task lay out its own states the same way (Task 046).
+ROOT = os.environ.get("TASK045_ROOT", ".build/task045")
 OUT = os.path.join(ROOT, "sheets")
 WIDTH = 200            # braid width on every panel, px
 LENGTH = 3.6           # how much braid each panel shows, in braid widths
