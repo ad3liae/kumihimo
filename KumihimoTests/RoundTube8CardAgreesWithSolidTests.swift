@@ -183,7 +183,7 @@ struct RoundTube8CardAgreesWithSolidTests {
         let edgeSample = RoundTube8SurfaceMesh.crossSectionOffset(
             forSample: 1 - 1 / Float(RoundTube8SurfaceMesh.defaultAcrossSubdivisions)
         )
-        var compared = 0, letOff = 0
+        var compared = 0, letOff = 0, onAFloorBoundary = 0
         var disagreements = [String]()
         for row in stride(from: 0, to: map.height, by: 2) {
             for column in stride(from: 0, to: map.width, by: 2) {
@@ -212,13 +212,19 @@ struct RoundTube8CardAgreesWithSolidTests {
                 case .beneath(let offset, let segment)?: .beneath(repeatIndex: home + offset, segment: segment)
                 case nil: nil
                 }
-                // Two cells beneath meet along the braid, and a sample exactly on
-                // their boundary can fall either side; that is not the card
-                // disagreeing with the solid about what shows.
-                if case .beneath(_, let mine)? = card, case .beneath(_, let theirs) = seen.part,
-                   abs(drawn.surface.segments[mine].centerlineStart.x
-                       - drawn.surface.segments[theirs].centerlineStart.x) < 1e-5 {
-                    letOff += 1
+                // **A sample exactly on the line where two cells beneath meet**
+                // can fall either side; that is not the card disagreeing with
+                // the solid about what shows. Nothing else about the floor is
+                // let off: the two cells have to be the ones that meet there,
+                // and the sample has to be on their shared end within rounding
+                // (`meetOnTheirSharedEnd`).
+                if case .beneath(let mineRepeat, let mine)? = card,
+                   case .beneath(let theirsRepeat, let theirs) = seen.part,
+                   Self.meetOnTheirSharedEnd(
+                       mine: (mineRepeat - home, mine), theirs: (theirsRepeat - home, theirs),
+                       at: along, of: drawn
+                   ) {
+                    onAFloorBoundary += 1
                     continue
                 }
                 compared += 1
@@ -231,8 +237,11 @@ struct RoundTube8CardAgreesWithSolidTests {
         #expect(disagreements.count == 0,
                 "\(disagreements.count) of \(compared): \(disagreements.prefix(8).joined(separator: "; "))")
         #expect(compared > 10_000)
-        // Bounded: the band the triangles cannot follow is a small part of the card.
-        #expect(letOff * 10 < compared + letOff, "let off \(letOff) of \(compared + letOff)")
+        // Bounded, and counted by reason: the band the flat triangles cannot
+        // follow, and samples on the line where two cells beneath meet.
+        let all = compared + letOff + onAFloorBoundary
+        #expect(letOff * 10 < all, "let off \(letOff) of \(all) for the triangles")
+        #expect(onAFloorBoundary * 100 < all, "let off \(onAFloorBoundary) of \(all) on a floor boundary")
     }
 
     /// How far a run stands at a place **as the mesh cuts it**: the rule's height
@@ -261,6 +270,42 @@ struct RoundTube8CardAgreesWithSolidTests {
         let (j, v) = bracket(acrosses, across)
         func at(_ i: Int, _ j: Int) -> Float { bundle.standingFraction(atCycles: alongs[i], across: acrosses[j]) }
         return (1 - u) * ((1 - v) * at(i, j) + v * at(i, j + 1)) + u * ((1 - v) * at(i + 1, j) + v * at(i + 1, j + 1))
+    }
+
+    /// **Whether two cells beneath are the two that meet at this place**: the
+    /// same column, ends that are the same line along the braid, and the sample
+    /// on that line within rounding. Repeats are counted in, so the join
+    /// between two repeats is treated like any other.
+    ///
+    /// Anything else is a disagreement: two cells of one column that do not
+    /// touch, a sample inside a cell rather than on its end, or cells of
+    /// different columns.
+    static func meetOnTheirSharedEnd(
+        mine: (repeatOffset: Int, segment: Int),
+        theirs: (repeatOffset: Int, segment: Int),
+        at along: Float,
+        of pattern: RoundTube8SurfacePattern,
+        tolerance: Float = 1e-4
+    ) -> Bool {
+        let one = pattern.surface.segments[mine.segment]
+        let other = pattern.surface.segments[theirs.segment]
+        guard abs(one.centerlineStart.x - other.centerlineStart.x) < 1e-5 else { return false }
+        // Ends in the coordinate the sample is in: repeats along the braid.
+        let mineStart = one.centerlineStart.y + Float(mine.repeatOffset)
+        let mineEnd = one.centerlineEnd.y + Float(mine.repeatOffset)
+        let theirsStart = other.centerlineStart.y + Float(theirs.repeatOffset)
+        let theirsEnd = other.centerlineEnd.y + Float(theirs.repeatOffset)
+        // They must meet: one's end is the other's start.
+        let line: Float
+        if abs(mineEnd - theirsStart) < tolerance {
+            line = mineEnd
+        } else if abs(theirsEnd - mineStart) < tolerance {
+            line = theirsEnd
+        } else {
+            return false
+        }
+        // And the sample must be on that line.
+        return abs(along - line) < tolerance
     }
 
     /// Where a place lies on a run: cycles past its arrival, and across its
@@ -389,5 +434,46 @@ struct RoundTube8CardAgreesWithSolidTests {
         // Both kinds of cover happen: the next thread at its place, and a run
         // leaning in from beside.
         #expect(coveredBy.count >= 1)
+    }
+
+    /// **The floor-boundary let-off forgives the boundary and nothing else.**
+    /// Held up against the real pattern: two cells of one column that meet, a
+    /// sample on their line and samples either side of it, two cells of one
+    /// column that do not touch, and two cells of different columns.
+    @Test func onlyTheLineWhereTwoFloorCellsMeetIsLetOff() throws {
+        let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
+        let column = 0
+        let cells = drawn.surface.segments.indices
+            .filter { Int((drawn.surface.segments[$0].centerlineStart.x * 8).rounded(.down)) == column }
+            .sorted { drawn.surface.segments[$0].centerlineStart.y < drawn.surface.segments[$1].centerlineStart.y }
+        #expect(cells.count == drawn.rowCount)
+        let first = cells[0], second = cells[1], far = cells[3]
+        let line = drawn.surface.segments[first].centerlineEnd.y
+        func meets(_ a: Int, _ b: Int, at along: Float, offsets: (Int, Int) = (0, 0)) -> Bool {
+            Self.meetOnTheirSharedEnd(mine: (offsets.0, a), theirs: (offsets.1, b), at: along, of: drawn)
+        }
+        // On the line where the first two meet: let off.
+        #expect(meets(first, second, at: line))
+        #expect(meets(second, first, at: line))
+        // A hair either side of it, and well inside a cell: not let off.
+        #expect(!meets(first, second, at: line + 0.01))
+        #expect(!meets(first, second, at: line - 0.01))
+        let inside = (drawn.surface.segments[second].centerlineStart.y
+            + drawn.surface.segments[second].centerlineEnd.y) / 2
+        #expect(!meets(first, second, at: inside))
+        // Two cells of the same column that do not touch: not let off, wherever
+        // the sample is.
+        #expect(!meets(first, far, at: line))
+        #expect(!meets(first, far, at: drawn.surface.segments[far].centerlineStart.y))
+        // A cell of another column: not let off.
+        let elsewhere = try #require(drawn.surface.segments.indices.first {
+            Int((drawn.surface.segments[$0].centerlineStart.x * 8).rounded(.down)) == 1
+        })
+        #expect(!meets(first, elsewhere, at: line))
+        // The join between two repeats is a boundary like any other.
+        let last = cells[cells.count - 1]
+        let join = drawn.surface.segments[last].centerlineEnd.y
+        #expect(meets(last, cells[0], at: join, offsets: (0, 1)))
+        #expect(!meets(last, cells[0], at: join, offsets: (0, 0)))
     }
 }
