@@ -11,7 +11,8 @@ photographs are not mirrored or stretched.
 States:
   old4  `d518959`, the rejected four-step version, rebuilt with the current
         capture arguments only (its drawing code untouched)
-  R     the rework as committed
+  R     the rework's first committed state (`739620f`, lap 0.45)
+  R2    the rework as adopted (lap 0.30, matched to the finished photographs)
 """
 
 import os
@@ -30,6 +31,7 @@ OWN_ROWS = (1036, 1119)           # braid edges read by eye on a 3x crop
 WIDTH = 160                       # braid width on the whole-braid sheets
 LOCAL = (150, 420, 950, 960)      # the front V at zoom 1.8, in capture pixels
 record = []
+A = os.environ.get("ADOPTED", "R2")
 
 
 def labelled(image, text):
@@ -114,8 +116,8 @@ def main():
     stack([
         labelled(sketch(SKETCH, h), "author's sketch (2026-09-19), on white"),
         labelled(local("old4", "plain-roll0-zoom1.8"), "old4 = d518959 (4-step lap), natural, maps on, 0 deg, zoom 1.8"),
-        labelled(local("R", "plain-roll0-zoom1.8-nodetail"), "R = rework, natural, NO maps, 0 deg, zoom 1.8"),
-        labelled(local("R", "plain-roll0-zoom1.8"), "R = rework, natural, maps on, 0 deg, zoom 1.8"),
+        labelled(local(A, "plain-roll0-zoom1.8-nodetail"), f"{A} = rework, natural, NO maps, 0 deg, zoom 1.8"),
+        labelled(local(A, "plain-roll0-zoom1.8"), f"{A} = rework, natural, maps on, 0 deg, zoom 1.8"),
     ], "local-plain")
     # 2. Local, the four threads of the sketch told apart.
     notes = [
@@ -127,37 +129,37 @@ def main():
     stack([
         labelled(sketch(COLOURED, h), "author's coloured sketch: black+yellow and red+blue are separate threads"),
         labelled(local("old4", "sketch-roll0-zoom1.8"), "old4 = d518959, sketch colouring, maps on, 0 deg, zoom 1.8"),
-        labelled(annotate(local("R", "sketch-roll0-zoom1.8-nodetail"), notes),
-                 "R = rework, sketch colouring, NO maps, 0 deg, zoom 1.8 (thread: layer at the front V)"),
-        labelled(local("R", "sketch-roll0-zoom1.8"), "R = rework, sketch colouring, maps on, 0 deg, zoom 1.8"),
+        labelled(annotate(local(A, "sketch-roll0-zoom1.8-nodetail"), notes),
+                 f"{A} = rework, sketch colouring, NO maps, 0 deg, zoom 1.8 (thread: layer at the front V)"),
+        labelled(local(A, "sketch-roll0-zoom1.8"), f"{A} = rework, sketch colouring, maps on, 0 deg, zoom 1.8"),
     ], "local-sketch")
     # 3. The whole braid beside the photographs, at one braid width.
     stack([
         labelled(photo(BOOK, BOOK_ROWS, 3364), "photo: book A, 24 maru-genji (navy/white)"),
         labelled(photo(OWN, OWN_ROWS, 1800), "photo: the author's own maru-genji, top-down (Task 005I)"),
         labelled(whole("final", "plain-roll0"), "old4 = d518959, natural, 0 deg"),
-        labelled(whole("R", "plain-roll0-nodetail"), "R = rework, natural, NO maps, 0 deg"),
-        labelled(whole("R", "plain-roll0"), "R = rework, natural, 0 deg"),
+        labelled(whole(A, "plain-roll0-nodetail"), f"{A} = rework, natural, NO maps, 0 deg"),
+        labelled(whole(A, "plain-roll0"), f"{A} = rework, natural, 0 deg"),
         labelled(whole("final", "bluewhite-roll0"), "old4 = d518959, blue/white (not the book's colouring), 0 deg"),
-        labelled(whole("R", "bluewhite-roll0"), "R = rework, blue/white, 0 deg"),
+        labelled(whole(A, "bluewhite-roll0"), f"{A} = rework, blue/white, 0 deg"),
     ], "whole-with-photos")
     # 4. Turns and fixtures.
     for colouring in ["plain", "blue", "bluewhite", "fixture1"]:
-        stack([labelled(whole("R", f"{colouring}-roll{r}"), f"R = rework, {colouring}, {r} deg")
-               for r in [0, 45, 90, 180, 270]], f"turns-{colouring}-R")
-    stack([labelled(whole("R", f"plain-roll{r}-nodetail"), f"R = rework, natural, NO maps, {r} deg")
-           for r in [0, 45, 90, 180, 270]], "turns-plain-nodetail-R")
+        stack([labelled(whole(A, f"{colouring}-roll{r}"), f"{A} = rework, {colouring}, {r} deg")
+               for r in [0, 45, 90, 180, 270]], f"turns-{colouring}-{A}")
+    stack([labelled(whole(A, f"plain-roll{r}-nodetail"), f"{A} = rework, natural, NO maps, {r} deg")
+           for r in [0, 45, 90, 180, 270]], f"turns-plain-nodetail-{A}")
     stack([p for f in ["fixture1", "fixture2", "fixture3"] for p in (
         labelled(whole("final", f"{f}-roll0"), f"old4 = d518959, {f}, 0 deg"),
-        labelled(whole("R", f"{f}-roll0"), f"R = rework, {f}, 0 deg"),
-    )], "fixtures-old4-vs-R")
+        labelled(whole(A, f"{f}-roll0"), f"{A} = rework, {f}, 0 deg"),
+    )], f"fixtures-old4-vs-{A}")
     # 5. The card beside the solid: the card is unchanged, the solid is not.
     cards = []
     for colouring in ["fixture1", "sketch"]:
-        card = capture("R", f"{colouring}-card").crop((0, 1060, 1640, 1305))
+        card = capture(A, f"{colouring}-card").crop((0, 1060, 1640, 1305))
         cards.append(labelled(card, f"list card (unchanged by the rework), {colouring}"))
-        solid = capture("R", f"{colouring}-roll0").crop((0, 520, 1640, 900))
-        cards.append(labelled(solid, f"R = rework, detail, {colouring}, 0 deg"))
+        solid = capture(A, f"{colouring}-roll0").crop((0, 520, 1640, 900))
+        cards.append(labelled(solid, f"{A} = rework, detail, {colouring}, 0 deg"))
     stack(cards, "card-and-detail")
     with open(os.path.join(OUT, "record.txt"), "w") as f:
         f.write("\n".join(record) + "\n")

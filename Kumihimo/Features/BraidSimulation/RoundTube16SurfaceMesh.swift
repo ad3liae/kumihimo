@@ -177,14 +177,15 @@ enum RoundTube16SurfaceMesh {
             "how far a bundle passing over goes on past the crossing": .declared(
                 Double(overCrossingLap),
                 calibratedBy: "how far one side of a V lies over the other before it "
-                    + "sinks, held against the author's sketch by eye (Task 047 rework)"
+                    + "sinks, held against the finished braids' photographs by eye "
+                    + "(Task 047 rework; 0.45 read longer than the photographs)"
             ),
             "how far a bundle passing under goes on beneath the crossing": .declared(
                 Double(underCrossingTuck), calibratedBy: "only that its end is buried"
             ),
             "a bundle's rise over one column, over its cell's": .declared(
                 Double(bundleLean),
-                calibratedBy: "the bundles of the author's sketch and own braid lie "
+                calibratedBy: "the bundles of the finished braids' photographs lie "
                     + "much nearer the axis than the cells' diagonal (57 degrees); "
                     + "the cells, the card and the chevron density are unchanged"
             ),
@@ -270,7 +271,7 @@ enum RoundTube16SurfaceMesh {
     /// How far past its own ends a bundle passing over a crossing goes on, as a
     /// fraction of its length: over the end of the bundle passing under, and on
     /// until it sinks beneath the bundles beyond.
-    static let overCrossingLap: Float = 0.45
+    static let overCrossingLap: Float = 0.3
     /// How far past its own ends a bundle passing under goes on, sinking, so its
     /// end is buried rather than cut.
     static let underCrossingTuck: Float = 0.15

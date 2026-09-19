@@ -46,7 +46,7 @@ struct BraidMeshHashTests {
         let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.maruGenji16Colouring))
         let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
-        #expect(mesh.positions.count == 335_808)
-        #expect(Self.hash(mesh.positions) == 0xf478_405c_a68f_105a)
+        #expect(mesh.positions.count == 304_608)
+        #expect(Self.hash(mesh.positions) == 0xdf3f_7422_ff3e_b3a1)
     }
 }
