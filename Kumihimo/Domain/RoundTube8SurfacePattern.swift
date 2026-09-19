@@ -34,6 +34,13 @@ import simd
 /// the arrival is what `BraidDerivation.arrivalInstants(atSlot:)` has always
 /// counted, and the drawing had been leaving it out.
 ///
+/// **Since Task 048 a cell is drawn half a pitch from its neighbours round the
+/// braid**, as near its arrival as that allows (at most a quarter of a cycle
+/// away): the author's condition for a clean spiral. The arrival is still
+/// recorded (`arrivalPhaseBySlot`), and which thread is in which cell does not
+/// move; only where the cell is drawn along the braid does
+/// (`RoundTube8SurfacePatternGenerator.halfPitchPlacement`).
+///
 /// **It rests only on the order of the printed steps**, never on which thread of
 /// a pair goes first: a printed step is one instant (`BraidDiskNotation
 /// .StepReading`), so the two threads of a pair arrive together.
@@ -70,6 +77,15 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// is kept because it is what decides which thread is at which place next
     /// cycle, and so what the colour does.
     let columnsCarried: Int
+
+    /// When each place takes its new thread in the braiding, as a share of the
+    /// cycle, by slot: **the braiding's own record**, kept as it was worked out
+    /// (Task 032). Since Task 048 it is not where the cell is drawn.
+    let arrivalPhaseBySlot: [Float]
+    /// Where each place's cells are drawn to begin, as a share of the cycle, by
+    /// slot: **half a pitch apart from one place to the next** (the author,
+    /// Task 048), each as near its arrival as that allows. In (0, 1].
+    let drawnPhaseBySlot: [Float]
 
     /// Which way round the braid a thread's visible run leans as it goes along
     /// it: the sign of the carry, `+1` or `-1`.
@@ -289,6 +305,10 @@ enum RoundTube8SurfacePatternGenerator {
             phaseOfSlot[slot] = Float(instant) / Float(braidingInstants)
         }
 
+        let arrivalPhases = (0..<requiredThreadCount).compactMap { phaseOfSlot[$0] }
+        guard arrivalPhases.count == requiredThreadCount else { return nil }
+        let drawnPhases = halfPitchPlacement(near: arrivalPhases)
+
         let columnWidth = Float(1) / Float(requiredThreadCount)
         let rowHeight = Float(1) / Float(rows)
 
@@ -297,7 +317,12 @@ enum RoundTube8SurfacePatternGenerator {
             for course in derivation.courses {
                 guard let colour = colours[course.threadPosition] else { return nil }
                 let slot = course.slots[row]
-                guard let phase = phaseOfSlot[slot] else { return nil }
+                // **Drawn half a pitch on from the next place round** (Task
+                // 048), not at the arrival itself: see `halfPitchPlacement`.
+                // The cell is still the thread standing here in cycle `row`;
+                // only where it is drawn along the braid moves, by at most a
+                // quarter of a cycle.
+                let phase = drawnPhases[slot]
                 // **The thread stands here for one cycle**, so the cell runs along
                 // the braid at this one place: one column wide, one cycle long,
                 // square to the braid. It is the thread that is here at the start
@@ -337,8 +362,43 @@ enum RoundTube8SurfacePatternGenerator {
             // One repeat is `rows` cycles of `pitchOverDiameter` diameters each,
             // and one turn is pi diameters.
             aspectRatio: Float(rows) * pitchOverDiameter / .pi,
-            columnsCarried: columnsCarried
+            columnsCarried: columnsCarried,
+            arrivalPhaseBySlot: arrivalPhases,
+            drawnPhaseBySlot: drawnPhases
         )
+    }
+
+    /// **Where each place's cells are drawn to begin: half a pitch on from the
+    /// place beside it, all the way round** (the author, Task 048).
+    ///
+    /// "The bundles are staggered by half a pitch, which is why the braid is a
+    /// clean spiral; they are never a whole pitch apart." The arrival instants
+    /// the cells used to begin at (Task 032) put neighbouring places a quarter,
+    /// a half or three quarters of a cycle apart — ¼, ¾, ½, 1, ¼, ¾, ½, 1 on S —
+    /// and the spiral came out uneven. **This is the author's condition on how
+    /// the braid looks, not something the table was found to imply.**
+    ///
+    /// Half a pitch a place round means the places take turns: every other one
+    /// begins at a whole cycle, the rest half a cycle on. Of the two ways to
+    /// choose which, the one nearer the arrivals is taken — the sum of how far
+    /// every place moves, each place moving to its nearer drawn phase — and the
+    /// even places win a tie. Each phase is given in (0, 1], a whole cycle as 1,
+    /// as the arrivals are, so a cell still stands across the boundary of the
+    /// row it belongs to. Eight places round is an even number, so going once
+    /// round comes back to the same turn.
+    static func halfPitchPlacement(near arrivals: [Float]) -> [Float] {
+        func distance(_ a: Float, _ b: Float) -> Float {
+            let d = abs(a - b).truncatingRemainder(dividingBy: 1)
+            return min(d, 1 - d)
+        }
+        let choices: [[Float]] = [
+            arrivals.indices.map { $0.isMultiple(of: 2) ? 0.5 : 1 },
+            arrivals.indices.map { $0.isMultiple(of: 2) ? 1 : 0.5 },
+        ]
+        func cost(_ drawn: [Float]) -> Float {
+            zip(arrivals, drawn).reduce(0) { $0 + distance($1.0, $1.1) }
+        }
+        return cost(choices[1]) < cost(choices[0]) ? choices[1] : choices[0]
     }
 
     /// The way round the ring from one slot to another, signed, taking whichever

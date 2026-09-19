@@ -125,19 +125,24 @@ struct RoundTube8CardAgreesWithSolidTests {
         let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: drawn))
         let solid = Solid(mesh: mesh, cells: drawn.surface.segments.count)
         let rows = Float(drawn.rowCount)
-        let lane0 = try #require(drawn.surface.segments.firstIndex {
-            abs($0.centerlineStart.x - 0.5 / 8) < 1e-5 && abs($0.centerlineStart.y * rows + 0.75) < 1e-4
+        // Lane 0's first-row run: it began at -0.75 of a cycle while cells were
+        // drawn at their arrivals, and begins at its drawn phase since Task 048
+        // (-0.5 on S). The places are read from where it begins.
+        let start = drawn.drawnPhaseBySlot[0] - 1
+        // The run is there, where the drawn phase says it begins.
+        _ = try #require(drawn.surface.segments.firstIndex {
+            abs($0.centerlineStart.x - 0.5 / 8) < 1e-5 && abs($0.centerlineStart.y * rows - start) < 1e-4
         })
         for (past, back) in [(Float(1.10), Float(0.18)), (1.30, 0.42)] {
-            let along = (-0.75 + past) / rows          // in the second repeat
+            let along = (start + past) / rows          // in the second repeat
             let turns = (0.5 - back) / 8
             let seen = try #require(solid.outermost(x: x(mesh, along: 1 + along), turns: turns))
-            // The earlier run shows, on the solid.
-            #expect(seen.part == .run(repeatIndex: 1, segment: lane0),
-                    "\(past) cycles past: the solid shows \(seen.part) at radius \(seen.radius)")
-            // And the card's rule says the same.
+            // Whichever run the solid shows there, the card's rule says the same.
+            // (Until Task 048 it was lane 0's own run on its flank, the case the
+            // review found; the half-pitch stagger moved which run that is.)
             let top = try #require(drawn.runsStanding(atTurns: turns, along: along).first)
-            #expect(Solid.Part.run(repeatIndex: 1 + top.repeatOffset, segment: top.segment) == seen.part)
+            #expect(Solid.Part.run(repeatIndex: 1 + top.repeatOffset, segment: top.segment) == seen.part,
+                    "\(past) cycles past lane 0's start: the solid shows \(seen.part)")
         }
     }
 

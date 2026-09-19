@@ -317,7 +317,10 @@ struct RoundTube8SurfaceTests {
         // after its arrival and narrowed all the way to its tip, one column at
         // most: a lens with a belly now, pointed at both ends and a little wider
         // than its column (Task 046). The vertex count did not change.
-        #expect(BraidMeshHashTests.hash(s.positions) == 0x94ae_7327_2c10_992d)
+        // Then `0x94ae_7327_2c10_992d` while each place's cells began at its
+        // arrival (¼, ¾, ½, 1 … of a cycle on S): they are drawn half a pitch
+        // from their neighbours round the braid now (Task 048).
+        #expect(BraidMeshHashTests.hash(s.positions) == 0x059f_de6a_459f_8b01)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
