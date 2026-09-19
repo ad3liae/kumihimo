@@ -56,10 +56,10 @@ struct RoundTube16ViewportCoverageTests {
         let repeatLength = RoundTube16SurfaceMesh.defaultLength
             / Float(RoundTube16SurfaceMesh.defaultPatternRepeatCount)
 
-        // A repeat is a little under one turn of braid, so a few of them fit across
-        // the screen at rest. Anything near the pre-Task-005F eight would mean the
-        // wrap had been squashed again.
-        #expect((1.5...4.5).contains(visibleWidth / repeatLength))
+        // A repeat is a little over one turn of braid since the Task 047 rework
+        // (1.25 turns), so one and a bit fit across the screen at rest. Anything
+        // near the pre-Task-005F eight would mean the wrap had been squashed again.
+        #expect((1.0...4.5).contains(visibleWidth / repeatLength))
     }
 
     @Test(arguments: [

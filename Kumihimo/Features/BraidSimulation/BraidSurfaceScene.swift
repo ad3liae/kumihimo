@@ -293,7 +293,14 @@ enum BraidSurfaceScene {
                     count: indices.count / 3
                 )
             )
+#if DEBUG
+            // Task 047's comparisons read the shape without the maps.
+            let maps = YatsuKongoComparisonPreviewData.drawsWithoutDetail
+                ? nil
+                : detail.maps(forTwistGroup: key.twistGroupIndex)
+#else
             let maps = detail.maps(forTwistGroup: key.twistGroupIndex)
+#endif
             materials.append(
                 material(
                     color: threadColor.uiColor,

@@ -37,12 +37,20 @@ final class RoundTube16StrandTextures {
                     name: "occlusion \(index)"
                 ),
                 roughness: Self.texture(
-                    RoundTube16StrandTextureFactory.roughnessImage(twist: twist),
+                    RoundTube16StrandTextureFactory.roughnessImage(
+                        twist: twist,
+                        spansBundle: true,
+                        amplitude: RoundTube16StrandTextureFactory.strandTwistRoughnessAmplitude
+                    ),
                     semantic: .scalar,
                     name: "roughness \(index)"
                 ),
                 normal: Self.texture(
-                    RoundTube16StrandTextureFactory.normalImage(twist: twist),
+                    RoundTube16StrandTextureFactory.normalImage(
+                        twist: twist,
+                        spansBundle: true,
+                        relief: RoundTube16SurfaceMesh.strandTwistReliefRatio
+                    ),
                     semantic: .normal,
                     name: "normal \(index)"
                 )

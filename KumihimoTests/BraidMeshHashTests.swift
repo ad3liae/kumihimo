@@ -37,11 +37,16 @@ struct BraidMeshHashTests {
         #expect(Self.hash(mesh.positions) == 0x53c4_4c9b_835a_e598)
     }
 
+    /// **Changed on purpose in Task 047.** `0xe3fc_af47_ceea_d34e` over 294,936
+    /// vertices until then. The rework draws every cell as a bundle of its own,
+    /// every bundle alike, that reaches past its cell and overlaps its
+    /// neighbours, with a floor beneath and no walls; and the repeat is 1.25 turns
+    /// long rather than 0.65.
     @Test func theRoundBraidsMeshIsTheShapeItWas() throws {
         let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.maruGenji16Colouring))
         let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
-        #expect(mesh.positions.count == 294_936)
-        #expect(Self.hash(mesh.positions) == 0xe3fc_af47_ceea_d34e)
+        #expect(mesh.positions.count == 303_840)
+        #expect(Self.hash(mesh.positions) == 0x4bd9_d069_9c8f_9734)
     }
 }
