@@ -54,6 +54,8 @@ struct Flat16StitchTwistTests {
     /// The stripes stand about as far apart as the round braid's do, measured
     /// against the yarn rather than against the patch they are drawn on — and
     /// there are a whole number of them, so they meet at every join.
+    /// "The round braid's" is `fiberCount`, the value this braid borrowed; since
+    /// Task 047 maru-genji itself draws finer ones (`strandFibreCount`).
     @Test func theStripesStandAboutAsFarApartAsTheRoundBraids() {
         let roundSegmentInYarns = Float(RoundTube16StrandTextureFactory.width)
             / Float(RoundTube16StrandTextureFactory.height)

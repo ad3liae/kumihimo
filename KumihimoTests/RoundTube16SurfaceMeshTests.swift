@@ -352,7 +352,7 @@ struct MaruGenjiSurfaceMeshTests {
         // in, so only the shear the group corrects for differs.
         #expect(mesh.twist.groups.allSatisfy {
             abs($0.coefficients.phasePerAlong)
-                == 2 * .pi * Float(RoundTube16SurfaceMesh.fiberCount)
+                == 2 * .pi * Float(RoundTube16SurfaceMesh.strandFibreCount)
         })
 
         for segmentIndex in 0..<RoundTube16SurfacePatternGenerator.patchCount {
@@ -412,13 +412,14 @@ struct MaruGenjiSurfaceMeshTests {
         let mesh = try makeMesh()
 
         // Two chevron directions, so two shears to correct and two textures. More
-        // groups than this would mean more materials than colours times two.
+        // groups than this would mean more materials than colours times two
+        // times the two layers (Task 047 shades the layers apart).
         #expect(mesh.twist.groups.count == 2)
         #expect(mesh.twist.groupIndexBySegment.count
             == RoundTube16SurfacePatternGenerator.patchCount)
         #expect(Set(mesh.twist.groupIndexBySegment) == Set(mesh.twist.groups.indices))
         #expect(mesh.materialGroups.count
-            <= Set(mesh.materialGroups.keys.map(\.colorID)).count * 2)
+            <= Set(mesh.materialGroups.keys.map(\.colorID)).count * 2 * 2)
         #expect(mesh.materialGroups.keys.allSatisfy {
             mesh.twist.groups.indices.contains($0.twistGroupIndex)
         })
@@ -475,8 +476,10 @@ struct MaruGenjiSurfaceMeshTests {
             .groupIndexBySegment)
 
         for twist in RoundTube16StrandTextureFactory.twistGroups {
-            #expect(pixels(RoundTube16StrandTextureFactory.occlusionImage(twist: twist))
-                == pixels(RoundTube16StrandTextureFactory.occlusionImage(twist: twist)))
+            for layer in BraidCrossingLayer.allCases {
+                #expect(pixels(RoundTube16StrandTextureFactory.occlusionImage(twist: twist, layer: layer))
+                    == pixels(RoundTube16StrandTextureFactory.occlusionImage(twist: twist, layer: layer)))
+            }
             #expect(pixels(RoundTube16StrandTextureFactory.roughnessImage(twist: twist))
                 == pixels(RoundTube16StrandTextureFactory.roughnessImage(twist: twist)))
             #expect(pixels(RoundTube16StrandTextureFactory.normalImage(twist: twist))

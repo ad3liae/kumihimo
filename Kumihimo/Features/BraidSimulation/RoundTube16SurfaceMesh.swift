@@ -6,6 +6,10 @@ import simd
 struct RoundTube16SurfaceMaterialKey: Hashable, Sendable {
     let colorID: ThreadColorID
     let twistGroupIndex: Int
+    /// Which side of its crossings the strand takes. The two sides are shaded
+    /// apart — a strand is darkened where it goes under, not where it lies on
+    /// top — and their maps span different lengths (Task 047).
+    let layer: BraidCrossingLayer
 }
 
 struct RoundTube16SurfaceMeshData: Sendable {
@@ -13,9 +17,11 @@ struct RoundTube16SurfaceMeshData: Sendable {
     let normals: [SIMD3<Float>]
     let tangents: [SIMD3<Float>]
     let bitangents: [SIMD3<Float>]
-    /// Strand-local coordinates: `x` runs 0...1 along the strand, `y` runs 0...1
-    /// across it. Shared by every strand; the stripe angle a strand needs is
-    /// carried by its twist group's textures, not by these coordinates.
+    /// Strand-local coordinates: `x` runs 0...1 along the strand's texture, `y`
+    /// runs 0...1 across it. On a strand passing over, `x` spans the laps as well
+    /// (`textureAlong`), so the stripes run on into them instead of smearing.
+    /// The stripe angle a strand needs is carried by its twist group's textures,
+    /// not by these coordinates.
     let textureCoordinates: [SIMD2<Float>]
     /// Strand coordinates: `x` runs along the strand and reaches past 0...1 where a
     /// strand laps over a crossing; `y` runs across it, -1...1, 0 on the crest.
@@ -24,7 +30,7 @@ struct RoundTube16SurfaceMeshData: Sendable {
     let twistPhases: [Float]
     /// The twist groups the strands fall into, and which group each strand uses.
     let twist: RoundTube16SurfaceMesh.TwistGrouping
-    /// Triangle indices per colour and twist group. One material per entry.
+    /// Triangle indices per colour, twist group and layer. One material per entry.
     let materialGroups: [RoundTube16SurfaceMaterialKey: [UInt32]]
     let vertexSegmentIndices: [Int]
     let vertexIsCrossingWall: [Bool]
@@ -100,9 +106,13 @@ struct RoundTube16SurfaceMeshData: Sendable {
     /// Draw groups in a fixed order, so every derived grouping is deterministic.
     var sortedMaterialGroups: [(key: RoundTube16SurfaceMaterialKey, value: [UInt32])] {
         materialGroups.sorted {
-            $0.key.colorID.rawValue == $1.key.colorID.rawValue
-                ? $0.key.twistGroupIndex < $1.key.twistGroupIndex
-                : $0.key.colorID.rawValue < $1.key.colorID.rawValue
+            if $0.key.colorID.rawValue != $1.key.colorID.rawValue {
+                return $0.key.colorID.rawValue < $1.key.colorID.rawValue
+            }
+            if $0.key.twistGroupIndex != $1.key.twistGroupIndex {
+                return $0.key.twistGroupIndex < $1.key.twistGroupIndex
+            }
+            return $0.key.layer == .over && $1.key.layer == .under
         }
     }
 }
@@ -143,16 +153,29 @@ enum RoundTube16SurfaceMesh {
                 Double(underCrossingDip), calibratedBy: "how far the under thread sinks"
             ),
             "how far the over thread laps": .declared(
-                Double(overCrossingLap), calibratedBy: "how far the lap reaches"
+                Double(overCrossingLap),
+                calibratedBy: "how gently a thread's tip slides under the next one, held "
+                    + "against book A's photograph by eye (Task 047; was 0.16)"
             ),
+            "how the cross-section falls to the valley, as the power of |across|":
+                .declared(
+                    Double(crestProfilePower),
+                    calibratedBy: "a wide, soft swelling instead of a tube, held against "
+                        + "book A's photograph by eye (Task 047; was a semi-ellipse)"
+                ),
             "how far the lap sinks": .declared(
                 Double(overCrossingLapSink), calibratedBy: "how the lap meets the floor"
             ),
             "twist angle in degrees": .declared(
                 Double(twistAngleDegrees), calibratedBy: "the slant of the fibre stripes"
             ),
+            "fibre stripes along one strand": .declared(
+                Double(strandFibreCount),
+                calibratedBy: "how fine the fibres look close up (Task 047; was 8)"
+            ),
             "twist relief": .declared(
-                Double(twistReliefRatio), calibratedBy: "how much the stripes stand out"
+                Double(strandTwistReliefRatio),
+                calibratedBy: "how much the stripes stand out (Task 047; was 0.005)"
             ),
             "radius on screen": .declared(
                 Double(defaultRadius),
@@ -200,20 +223,31 @@ enum RoundTube16SurfaceMesh {
     /// fraction of its length. The lap sinks back to the valley floor and finishes
     /// buried inside the strand underneath, which is what makes a crest look like
     /// it runs on while the crest beneath it breaks off.
-    static let overCrossingLap: Float = 0.16
-    static let overCrossingLapSubdivisions = 3
+    static let overCrossingLap: Float = 0.32
+    static let overCrossingLapSubdivisions = 4
     /// How far the lap sinks below the valley floor once it has tapered away, so
     /// its rim never lands exactly on the surface it is buried in.
     static let overCrossingLapSink: Float = 0.004
 
-    /// Twist stripes crossing one strand segment lengthwise.
+    /// Twist stripes crossing one strand segment lengthwise, **as hira-genji's
+    /// stitch and the eight-thread tube borrow it**. Maru-genji itself draws
+    /// finer stripes since Task 047 (`strandFibreCount`); this stays, so the
+    /// borrowers draw what they drew.
     static let fiberCount = 8
+    /// Twist stripes along one maru-genji strand. More than `fiberCount` so that
+    /// close up the strand reads as a bundle of fine fibres rather than a rope
+    /// with a few thick grooves (Task 047).
+    static let strandFibreCount = 14
     /// Angle between the twist stripes and the strand direction.
     static let twistAngleDegrees: Float = 30
     /// Twist relief as a fraction of the nominal radius. Rendered as a normal and
     /// roughness variation rather than as displaced geometry, so the stripes stay
     /// free of the moire a mesh at this subdivision level would produce.
     static let twistReliefRatio: Float = 0.005
+    /// Maru-genji's own twist relief. Lower than `twistReliefRatio`, which the
+    /// other families borrow, because finer stripes at the same height would be
+    /// steeper and so stand out more, not less (Task 047).
+    static let strandTwistReliefRatio: Float = 0.003
 
     static func generate(
         pattern: RoundTube16SurfacePattern,
@@ -338,10 +372,18 @@ enum RoundTube16SurfaceMesh {
         return progress * progress * (3 - 2 * progress)
     }
 
-    /// Semi-elliptical cross-section: 1 on the crest, 0 at both edges.
+    /// How the cross-section falls to the valley: `1 - |across|^power`.
+    static let crestProfilePower: Float = 3
+
+    /// Cross-section: 1 on the crest, 0 at both edges.
+    ///
+    /// **Until Task 047 a semi-ellipse**, whose sides fall vertically into the
+    /// valley. That made every strand a tube outlined on all four sides. This one
+    /// keeps the crest wide and meets the valley at a finite slope, so the
+    /// strands still part in a groove but read as flattened bundles.
     static func crestProfile(across: Float) -> Float {
-        let clamped = min(max(across, -1), 1)
-        return sqrt(max(0, 1 - clamped * clamped))
+        let clamped = min(abs(across), 1)
+        return max(0, 1 - pow(clamped, crestProfilePower))
     }
 
     /// Peaks at both ends of a strand, where it meets the strands running the
@@ -424,7 +466,28 @@ enum RoundTube16SurfaceMesh {
     /// Phase turned over one strand length. Fixed, so every strand shows the same
     /// number of stripes however its frame is sheared.
     static var twistPhasePerAlong: Float {
-        -2 * .pi * Float(fiberCount)
+        -2 * .pi * Float(strandFibreCount)
+    }
+
+    // MARK: - Texture span
+
+    /// Where a point `along` a strand falls in its texture, 0...1.
+    ///
+    /// A strand passing under stops at its own ends, so its texture spans exactly
+    /// its length. A strand passing over laps past both ends, and its texture
+    /// spans the laps too: were it clamped at the ends, the lap would repeat the
+    /// last column and the stripes would smear out just where the tip is seen
+    /// sliding under the next strand (Task 047).
+    static func textureAlong(_ along: Float, layer: BraidCrossingLayer) -> Float {
+        let span: Float = layer == .over ? overCrossingLap : 0
+        return min(max((along + span) / (1 + 2 * span), 0), 1)
+    }
+
+    /// The inverse of `textureAlong`: the point along the strand a texture
+    /// column stands for.
+    static func strandAlong(forTextureAlong textureAlong: Float, layer: BraidCrossingLayer) -> Float {
+        let span: Float = layer == .over ? overCrossingLap : 0
+        return textureAlong * (1 + 2 * span) - span
     }
 
     static func twistGrouping(
@@ -559,10 +622,10 @@ enum RoundTube16SurfaceMesh {
         let strandCoordinate: SIMD2<Float>
         let radialLevel: Float
 
-        /// Strand-local texture coordinates, both 0...1.
-        var textureCoordinate: SIMD2<Float> {
+        /// Texture coordinates, both 0...1. See `textureAlong`.
+        func textureCoordinate(layer: BraidCrossingLayer) -> SIMD2<Float> {
             SIMD2<Float>(
-                min(max(strandCoordinate.x, 0), 1),
+                RoundTube16SurfaceMesh.textureAlong(strandCoordinate.x, layer: layer),
                 RoundTube16SurfaceMesh.crossSectionSample(forOffset: strandCoordinate.y)
             )
         }
@@ -697,7 +760,7 @@ enum RoundTube16SurfaceMesh {
                 builder.normals.append(frame.normal)
                 builder.tangents.append(frame.tangent)
                 builder.bitangents.append(frame.bitangent)
-                builder.textureCoordinates.append(vertex.textureCoordinate)
+                builder.textureCoordinates.append(vertex.textureCoordinate(layer: segment.layer))
                 builder.strandCoordinates.append(vertex.strandCoordinate)
                 builder.twistPhases.append(
                     twist.phase(
@@ -717,7 +780,8 @@ enum RoundTube16SurfaceMesh {
             builder.materialGroups[
                 RoundTube16SurfaceMaterialKey(
                     colorID: segment.colorID,
-                    twistGroupIndex: twistGroupIndex
+                    twistGroupIndex: twistGroupIndex,
+                    layer: segment.layer
                 ),
                 default: []
             ].append(contentsOf: [firstIndex, firstIndex + 1, firstIndex + 2])
@@ -786,7 +850,14 @@ enum RoundTube16SurfaceMesh {
     ) -> VertexFrame {
         let radial = radialDirection(around: vertex.surfaceCoordinate.x)
         let epsilon: Float = 0.002
-        let local = vertex.textureCoordinate
+        // Measured on the strand's own shape, laps included: until Task 047 the
+        // lap took the frame of the strand's end, so the tip was lit as though it
+        // were still at full height instead of sloping under the next strand.
+        let reach: Float = segment.layer == .over ? overCrossingLap : 0
+        let local = SIMD2<Float>(
+            min(max(vertex.strandCoordinate.x, -reach), 1 + reach),
+            crossSectionSample(forOffset: vertex.strandCoordinate.y)
+        )
 
         func sampled(_ point: SIMD2<Float>) -> SIMD3<Float> {
             position(
@@ -801,8 +872,8 @@ enum RoundTube16SurfaceMesh {
             )
         }
 
-        let alongLow = SIMD2<Float>(max(0, local.x - epsilon), local.y)
-        let alongHigh = SIMD2<Float>(min(1, local.x + epsilon), local.y)
+        let alongLow = SIMD2<Float>(max(-reach, local.x - epsilon), local.y)
+        let alongHigh = SIMD2<Float>(min(1 + reach, local.x + epsilon), local.y)
         let acrossLow = SIMD2<Float>(local.x, max(0, local.y - epsilon))
         let acrossHigh = SIMD2<Float>(local.x, min(1, local.y + epsilon))
         let alongTangent = sampled(alongHigh) - sampled(alongLow)

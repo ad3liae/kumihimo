@@ -10,6 +10,17 @@ import simd
 /// than a separately coloured band, and the twist lives in the normal and
 /// roughness maps so it stays finer than the mesh could resolve without moire.
 ///
+/// One set of maps is generated per twist group and per layer rather than one for
+/// all strands. The layer is Task 047's: a strand is darkened where it goes under
+/// the next one, not where it lies on top, and a strand passing over has laps
+/// its texture has to span (`RoundTube16SurfaceMesh.textureAlong`).
+///
+/// **Other families borrow from here** — the eight-thread tube calls
+/// `roughnessImage` and `normalImage`, and hira-genji's stitch and the
+/// eight-thread tube read the shared figures below. Called without a layer those
+/// draw exactly what they drew before Task 047; maru-genji's own figures are the
+/// `strand…` ones and reach nothing else.
+///
 /// One set of maps is generated per twist group rather than one for all strands.
 /// Strand-local coordinates are sheared differently in the two chevron
 /// directions, so a single set of stripes baked into them would meet the braid at
@@ -37,30 +48,69 @@ enum RoundTube16StrandTextureFactory {
     static let baseRoughness: Float = 0.86
     static let twistRoughnessAmplitude: Float = 0.12
 
-    static func occlusionImage(twist: Twist) -> CGImage? {
-        grayscaleImage { along, across in
+    // MARK: Maru-genji's own figures (Task 047)
+
+    /// How dark the valley between two maru-genji strands becomes. Lighter than
+    /// `valleyOcclusion`: the softer cross-section already shades the groove,
+    /// and at full depth every strand was ringed in the same dark line.
+    static let strandValleyOcclusion: Float = 0.5
+    /// How far along a strand passing under its shadow reaches from each end.
+    /// Longer than `crossingOcclusionLength` because the lap now covers the first
+    /// sixth or so of it; the shadow has to show past where the lap tucks in.
+    static let strandUnderShadowLength: Float = 0.28
+    /// Where on a lap, past the strand's end, its tip starts to darken as it
+    /// slides under. The top of a strand passing over is not shaded at all.
+    static let strandLapShadowStart: Float = 0.10
+    static let strandTwistRoughnessAmplitude: Float = 0.08
+
+    /// The contact shadow along a maru-genji strand, 1 where there is none.
+    static func crossingShade(along: Float, layer: BraidCrossingLayer) -> Float {
+        switch layer {
+        case .under:
+            return mix(
+                crossingOcclusion,
+                1,
+                smoothstep(0, strandUnderShadowLength, min(along, 1 - along))
+            )
+        case .over:
+            let pastTheEnd = max(-along, along - 1, 0)
+            return mix(
+                1,
+                crossingOcclusion,
+                smoothstep(strandLapShadowStart, RoundTube16SurfaceMesh.overCrossingLap, pastTheEnd)
+            )
+        }
+    }
+
+    /// Maru-genji's only; nothing borrows it.
+    static func occlusionImage(twist: Twist, layer: BraidCrossingLayer) -> CGImage? {
+        grayscaleImage { column, across in
+            let along = RoundTube16SurfaceMesh.strandAlong(forTextureAlong: column, layer: layer)
             let offset = crossSectionOffset(forRow: across)
             let valley = mix(
-                valleyOcclusion,
+                strandValleyOcclusion,
                 1,
                 smoothstep(0, valleyOcclusionWidth, 1 - abs(offset))
             )
-            let crossing = mix(
-                crossingOcclusion,
-                1,
-                smoothstep(0, crossingOcclusionLength, min(along, 1 - along))
-            )
+            let crossing = crossingShade(along: along, layer: layer)
             let twistShade = 1 - twistTint
                 * (1 - cos(twist.coefficients.phase(along: along, across: offset))) / 2
             return linearToSRGB(valley * crossing * twistShade)
         }
     }
 
-    static func roughnessImage(twist: Twist) -> CGImage? {
-        grayscaleImage { along, across in
+    /// `layer` and `amplitude` are maru-genji's; the defaults draw what the
+    /// eight-thread tube has always borrowed.
+    static func roughnessImage(
+        twist: Twist,
+        layer: BraidCrossingLayer = .under,
+        amplitude: Float = twistRoughnessAmplitude
+    ) -> CGImage? {
+        grayscaleImage { column, across in
+            let along = RoundTube16SurfaceMesh.strandAlong(forTextureAlong: column, layer: layer)
             let offset = crossSectionOffset(forRow: across)
             let value = baseRoughness
-                + twistRoughnessAmplitude
+                + amplitude
                 * cos(twist.coefficients.phase(along: along, across: offset))
             return min(max(value, 0), 1)
         }
@@ -73,14 +123,22 @@ enum RoundTube16StrandTextureFactory {
     /// bitangent, rather than in strand coordinates: the two are not at right
     /// angles to each other, and differentiating in the sheared pair would tilt
     /// the relief away from the stripes it is lighting.
-    static func normalImage(twist: Twist) -> CGImage? {
+    ///
+    /// `layer` and `relief` are maru-genji's; the defaults draw what the
+    /// eight-thread tube has always borrowed.
+    static func normalImage(
+        twist: Twist,
+        layer: BraidCrossingLayer = .under,
+        relief: Float = RoundTube16SurfaceMesh.twistReliefRatio
+    ) -> CGImage? {
         let gradient = twist.normalizedPhaseGradient
         guard gradient.x.isFinite, gradient.y.isFinite else { return nil }
         // Height and gradient are both scaled by the radius, so the slope the
         // normal map stores is the same at any braid size.
-        let amplitude = RoundTube16SurfaceMesh.twistReliefRatio
+        let amplitude = relief
 
-        return colorImage { along, across in
+        return colorImage { column, across in
+            let along = RoundTube16SurfaceMesh.strandAlong(forTextureAlong: column, layer: layer)
             let offset = crossSectionOffset(forRow: across)
             let value = cos(twist.coefficients.phase(along: along, across: offset))
             let slope = amplitude * value * gradient

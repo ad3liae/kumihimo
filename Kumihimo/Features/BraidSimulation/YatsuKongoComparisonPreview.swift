@@ -12,22 +12,36 @@ import SwiftUI
 ///
 ///     --ui-testing-yatsu-kongo-solid   the solid, full screen
 ///     --ui-testing-yatsu-kongo-card    the card, as the results list lays it out
-///     --yatsu-kongo-recipe=s|z         which braid (default s)
+///     --yatsu-kongo-recipe=s|z|maru    which braid (default s). `maru` is the
+///                                      sixteen-thread maru-genji, added for
+///                                      Task 047's comparisons; the launch
+///                                      arguments keep their first name
 ///     --yatsu-kongo-colouring=plain|book|eight
 ///                                      one colour, book A p.54's, or all eight
 ///                                      told apart (default plain)
+///                              maru only: plain|blue|fixture1|fixture2|fixture3|
+///                                      bluewhite — natural, blue, the editor's
+///                                      surface fixtures, and fixture 1 with its
+///                                      pink as white (the nearest the catalogue
+///                                      comes to book A's navy and white)
 ///     --yatsu-kongo-roll=<degrees>     turned about the braid's own axis
+@MainActor
 enum YatsuKongoComparisonPreviewData {
     static let solidLaunchArgument = "--ui-testing-yatsu-kongo-solid"
     static let cardLaunchArgument = "--ui-testing-yatsu-kongo-card"
 
     static var recipe: BraidRecipe {
-        value(of: "--yatsu-kongo-recipe") == "z"
-            ? BraidMethodCatalog.yatsuKongoZ8Recipe
-            : BraidMethodCatalog.yatsuKongoS8Recipe
+        switch value(of: "--yatsu-kongo-recipe") {
+        case "z": return BraidMethodCatalog.yatsuKongoZ8Recipe
+        case "maru": return BraidMethodCatalog.maruGenji16Recipe
+        default: return BraidMethodCatalog.yatsuKongoS8Recipe
+        }
     }
 
     static var assignments: [ThreadAssignment] {
+        if recipe.id == BraidMethodCatalog.maruGenji16Recipe.id {
+            return maruGenjiAssignments
+        }
         switch value(of: "--yatsu-kongo-colouring") {
         case "book":
             return recipe.colouring
@@ -40,6 +54,27 @@ enum YatsuKongoComparisonPreviewData {
             return (1...8).map {
                 ThreadAssignment(position: $0, colorID: ThreadColorColorIDs.natural)
             }
+        }
+    }
+
+    private static var maruGenjiAssignments: [ThreadAssignment] {
+        let fixture: [ThreadAssignment]
+        switch value(of: "--yatsu-kongo-colouring") {
+        case "blue": return ProjectEditorPreviewData.maruGenjiSurfacePlain
+        case "fixture1": return ProjectEditorPreviewData.maruGenjiSurfaceFixture1
+        case "fixture2": return ProjectEditorPreviewData.maruGenjiSurfaceFixture2
+        case "fixture3": return ProjectEditorPreviewData.maruGenjiSurfaceFixture3
+        case "bluewhite": fixture = ProjectEditorPreviewData.maruGenjiSurfaceFixture1
+        default:
+            return (1...16).map {
+                ThreadAssignment(position: $0, colorID: ThreadColorColorIDs.natural)
+            }
+        }
+        return fixture.map {
+            ThreadAssignment(
+                position: $0.position,
+                colorID: $0.colorID.rawValue == "pink" ? ThreadColorID(rawValue: "white") : $0.colorID
+            )
         }
     }
 

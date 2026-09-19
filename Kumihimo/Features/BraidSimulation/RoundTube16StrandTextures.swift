@@ -7,7 +7,7 @@ import os
 ///
 /// The maps depend only on the strand shape, never on the colouring, so they are
 /// generated once and reused by every material and every rebuild of the scene.
-/// There is one set per twist group, because the stripe angle a strand needs
+/// There is one set per twist group and layer, because the stripe angle a strand needs
 /// depends on how its own frame is sheared; the sets are indexed the way the mesh
 /// numbers its twist groups.
 @MainActor
@@ -26,36 +26,49 @@ final class RoundTube16StrandTextures {
         category: "RoundTube16StrandTextures"
     )
 
-    let mapsByTwistGroup: [Maps]
+    /// One set per twist group, for each layer (Task 047).
+    let mapsByLayer: [BraidCrossingLayer: [Maps]]
 
     private init() {
-        mapsByTwistGroup = RoundTube16StrandTextureFactory.twistGroups.enumerated().map { index, twist in
-            Maps(
-                occlusion: Self.texture(
-                    RoundTube16StrandTextureFactory.occlusionImage(twist: twist),
-                    semantic: .color,
-                    name: "occlusion \(index)"
-                ),
-                roughness: Self.texture(
-                    RoundTube16StrandTextureFactory.roughnessImage(twist: twist),
-                    semantic: .scalar,
-                    name: "roughness \(index)"
-                ),
-                normal: Self.texture(
-                    RoundTube16StrandTextureFactory.normalImage(twist: twist),
-                    semantic: .normal,
-                    name: "normal \(index)"
+        var mapsByLayer = [BraidCrossingLayer: [Maps]]()
+        for layer in BraidCrossingLayer.allCases {
+            mapsByLayer[layer] = RoundTube16StrandTextureFactory.twistGroups.enumerated().map { index, twist in
+                Maps(
+                    occlusion: Self.texture(
+                        RoundTube16StrandTextureFactory.occlusionImage(twist: twist, layer: layer),
+                        semantic: .color,
+                        name: "occlusion \(index) \(layer.rawValue)"
+                    ),
+                    roughness: Self.texture(
+                        RoundTube16StrandTextureFactory.roughnessImage(
+                            twist: twist,
+                            layer: layer,
+                            amplitude: RoundTube16StrandTextureFactory.strandTwistRoughnessAmplitude
+                        ),
+                        semantic: .scalar,
+                        name: "roughness \(index) \(layer.rawValue)"
+                    ),
+                    normal: Self.texture(
+                        RoundTube16StrandTextureFactory.normalImage(
+                            twist: twist,
+                            layer: layer,
+                            relief: RoundTube16SurfaceMesh.strandTwistReliefRatio
+                        ),
+                        semantic: .normal,
+                        name: "normal \(index) \(layer.rawValue)"
+                    )
                 )
-            )
+            }
         }
+        self.mapsByLayer = mapsByLayer
     }
 
-    /// The maps for one twist group. A mesh built from a pattern the factory has
-    /// no group for falls back to the first set rather than losing its detail.
-    func maps(forTwistGroup index: Int) -> Maps? {
-        mapsByTwistGroup.indices.contains(index)
-            ? mapsByTwistGroup[index]
-            : mapsByTwistGroup.first
+    /// The maps for one twist group and layer. A mesh built from a pattern the
+    /// factory has no group for falls back to the first set rather than losing
+    /// its detail.
+    func maps(forTwistGroup index: Int, layer: BraidCrossingLayer) -> Maps? {
+        guard let sets = mapsByLayer[layer] else { return nil }
+        return sets.indices.contains(index) ? sets[index] : sets.first
     }
 
     private static func texture(

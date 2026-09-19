@@ -59,7 +59,8 @@ struct BraidScreenChoosesByFamilyTests {
         let tubePattern = try #require(RoundTube16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.maruGenji16Colouring))
         let tubeMesh = try #require(RoundTube16SurfaceMesh.generate(pattern: tubePattern))
-        #expect(BraidMeshHashTests.hash(tubeMesh.positions) == 0xe3fc_af47_ceea_d34e)
+        // Task 047 changed this shape on purpose; see `BraidMeshHashTests`.
+        #expect(BraidMeshHashTests.hash(tubeMesh.positions) == 0x3109_0161_4394_2bd7)
     }
 
     /// **A braid nothing draws gets no drawer**, and the screen shows the empty
