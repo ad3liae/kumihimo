@@ -608,14 +608,11 @@ struct BraidOrientationTests {
             let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(
                 assignments: BraidMethodCatalog.maruGenji16Colouring))
             let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
-            // Every triangle of this drawer has vertices of its own, so a
-            // triangle is a wall when its first vertex is.
+            // Since the Task 047 rework this drawer has no walls: its bundles
+            // overlap, and a floor lies beneath them.
             let indices = mesh.materialGroups.values.flatMap { $0 }
-            let walls = stride(from: 0, to: indices.count - 2, by: 3).map {
-                mesh.vertexIsCrossingWall[Int(indices[$0])]
-            }
             return Mesh(positions: mesh.positions, indices: indices,
-                        tileEnd: mesh.length / 2, walls: walls, labels: nil)
+                        tileEnd: mesh.length / 2, walls: nil, labels: nil)
         default:
             let stand = BraidMethodCatalog.stand8
             let recipe = BraidMethodCatalog.yatsuKongoS8Recipe

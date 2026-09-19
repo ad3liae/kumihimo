@@ -16,7 +16,7 @@ struct MaruGenjiSurfaceMeshTests {
         #expect(mesh.positions.count == mesh.strandCoordinates.count)
         #expect(mesh.positions.count == mesh.twistPhases.count)
         #expect(mesh.positions.count == mesh.vertexSegmentIndices.count)
-        #expect(mesh.positions.count == mesh.vertexIsCrossingWall.count)
+        #expect(mesh.positions.count == mesh.vertexIsBeneath.count)
         #expect(mesh.positions.allSatisfy(isFinite))
         #expect(mesh.normals.allSatisfy(isUnit))
         #expect(mesh.tangents.allSatisfy(isUnit))
@@ -27,7 +27,7 @@ struct MaruGenjiSurfaceMeshTests {
         #expect(Set(mesh.colorGroups.keys) == Set([blue, pink]))
         #expect(mesh.colorGroups.values.allSatisfy { !$0.isEmpty })
         #expect(mesh.triangleSegmentIndices.count == mesh.triangleCount)
-        #expect(mesh.triangleSegmentIndices.count == mesh.triangleIsCrossingWall.count)
+        #expect(mesh.triangleSegmentIndices.count == mesh.triangleIsBeneath.count)
 
         let indices = mesh.allTriangleIndices
         #expect(indices.count.isMultiple(of: 3))
@@ -37,7 +37,7 @@ struct MaruGenjiSurfaceMeshTests {
             let second = mesh.positions[Int(indices[offset + 1])]
             let third = mesh.positions[Int(indices[offset + 2])]
             #expect(simd_length_squared(simd_cross(second - first, third - first))
-                > 0.000_000_000_001)
+                > RoundTube16SurfaceMesh.minimumTriangleCross)
         }
     }
 
@@ -170,11 +170,12 @@ struct MaruGenjiSurfaceMeshTests {
         }
 
         #expect(angles.count == RoundTube16SurfacePatternGenerator.patchCount)
-        // The angle is a consequence of the density, not a target of its own: a
-        // repeat 0.65 turns long puts a chevron at atan(1 / 0.65) off the axis. The
-        // tolerance only covers the sampling of the crest, not a shear.
+        // A repeat 0.65 turns long puts a cell's diagonal at atan(1 / 0.65), 57
+        // degrees, off the axis; the bundle drawn over it rises `bundleLean` times
+        // as far, so it lies at atan(1 / (0.65 * lean)) (Task 047 rework: 37.6).
+        // The tolerance only covers the sampling of the crest, not a shear.
         #expect(angles.allSatisfy { abs($0 - ridgeAngleToAxisInDegrees) < 1 })
-        #expect(abs(ridgeAngleToAxisInDegrees - 57.0) < 0.5)
+        #expect(abs(ridgeAngleToAxisInDegrees - 37.6) < 0.5)
     }
 
     @Test func theRidgeAngleIsIndependentOfTheRadiusAndTheRepeatCount() throws {
@@ -195,9 +196,11 @@ struct MaruGenjiSurfaceMeshTests {
         }
     }
 
-    /// The lean the declared aspect puts a chevron at, measured from the braid axis.
+    /// The lean a bundle is drawn at, measured from the braid axis: the declared
+    /// aspect's, turned by the bundle's own lean.
     private var ridgeAngleToAxisInDegrees: Float {
-        atan(1 / RoundTube16SurfacePatternGenerator.patternAspectRatio) * 180 / .pi
+        atan(1 / (RoundTube16SurfacePatternGenerator.patternAspectRatio
+            * RoundTube16SurfaceMesh.bundleLean)) * 180 / .pi
     }
 
     // MARK: - Round strands
@@ -215,7 +218,7 @@ struct MaruGenjiSurfaceMeshTests {
             // ends, which both sit at or below the valley floor by design.
             let vertices = mesh.positions.indices.filter {
                 mesh.vertexSegmentIndices[$0] == index
-                    && !mesh.vertexIsCrossingWall[$0]
+                    && !mesh.vertexIsBeneath[$0]
                     && (0...1).contains(mesh.strandCoordinates[$0].x)
             }
             #expect(!vertices.isEmpty)
@@ -242,8 +245,12 @@ struct MaruGenjiSurfaceMeshTests {
         )
         let radii = mesh.positions.indices.map { radius(of: mesh, at: $0) }
 
-        let lowest = mesh.valleyFloorRadius
-            - base * RoundTube16SurfaceMesh.overCrossingLapSink
+        // A buried tip ends below the floor, and the floor lies below every rim.
+        let lowest = min(
+            RoundTube16SurfaceMesh.beneathRadius(radius: base),
+            mesh.valleyFloorRadius - base * RoundTube16SurfaceMesh.crestHeightRatio
+                * RoundTube16SurfaceMesh.buriedTipSink
+        )
         #expect(radii.allSatisfy { $0 >= lowest - 0.000_1 })
         #expect(radii.allSatisfy { $0 <= highest + 0.000_1 })
         // The silhouette has to undulate rather than trace a circle.
@@ -282,21 +289,26 @@ struct MaruGenjiSurfaceMeshTests {
         }
     }
 
-    @Test func onlyTheOverStrandSealsACrossingSoTheWallsNeverOverlap() throws {
+    /// Every cell has its floor laid beneath its bundle, at the floor's radius,
+    /// so a gap between bundles shows the thread lying there rather than the
+    /// background (Task 047 rework; this replaced the walls that sealed a
+    /// crossing step, which bundles that overlap no longer have).
+    @Test func everyCellHasItsFloorBeneathItsBundle() throws {
         let pattern = try #require(
             RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
         let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let floor = RoundTube16SurfaceMesh.beneathRadius(radius: mesh.baseRadius)
 
-        #expect(mesh.triangleIsCrossingWall.contains(true))
-        #expect(mesh.triangleIsCrossingWall.contains(false))
-        for (index, isWall) in zip(mesh.triangleSegmentIndices, mesh.triangleIsCrossingWall)
-        where isWall {
-            #expect(pattern.patches[index].layer == .over)
-        }
-        for index in pattern.patches.indices where pattern.patches[index].layer == .over {
-            #expect(zip(mesh.triangleSegmentIndices, mesh.triangleIsCrossingWall)
+        #expect(mesh.triangleIsBeneath.contains(true))
+        #expect(mesh.triangleIsBeneath.contains(false))
+        for index in pattern.patches.indices {
+            #expect(zip(mesh.triangleSegmentIndices, mesh.triangleIsBeneath)
                 .contains { $0 == index && $1 })
+        }
+        for index in mesh.positions.indices where mesh.vertexIsBeneath[index] {
+            #expect(abs(simd_length(SIMD2<Float>(mesh.positions[index].y,
+                                                 mesh.positions[index].z)) - floor) < 0.000_1)
         }
     }
 
@@ -306,10 +318,8 @@ struct MaruGenjiSurfaceMeshTests {
         let mesh = try makeMesh()
         let halfLength = RoundTube16SurfaceMesh.defaultLength / 2
         // The visible skin has to present the same ring at both ends so tiles can be
-        // repeated. The walls sealing a crossing are excluded: one of them may begin
-        // exactly on a repeat boundary, and the adjoining tile carries its
-        // continuation.
-        let surface = mesh.positions.indices.filter { !mesh.vertexIsCrossingWall[$0] }
+        // repeated. The floor is left out; it is checked on its own.
+        let surface = mesh.positions.indices.filter { !mesh.vertexIsBeneath[$0] }
         let start = surface.filter { abs(mesh.positions[$0].x + halfLength) < 0.000_001 }
         let end = surface.filter { abs(mesh.positions[$0].x - halfLength) < 0.000_001 }
 
@@ -318,25 +328,27 @@ struct MaruGenjiSurfaceMeshTests {
         #expect(edgeColorIDs(start, in: mesh) == edgeColorIDs(end, in: mesh))
     }
 
-    @Test func circumferentialSeamIsSealedAtEveryLongitudinalPosition() throws {
+    /// The floor alone closes the tube, the circumferential seam included: every
+    /// line of sight across the braid meets it twice. Whatever the bundles do
+    /// above it, nothing behind can show.
+    @Test func theFloorAloneClosesTheTubeAcrossTheSeam() throws {
         let mesh = try makeMesh()
-
-        #expect(!mesh.seamStartVertexIndices.isEmpty)
-        #expect(!mesh.seamEndVertexIndices.isEmpty)
-
-        let start = radiiByLongitudinalPosition(mesh.seamStartVertexIndices, in: mesh)
-        let end = radiiByLongitudinalPosition(mesh.seamEndVertexIndices, in: mesh)
-        #expect(Set(start.keys) == Set(end.keys))
-
-        for (key, startRadii) in start {
-            let endRadii = try #require(end[key])
-            let startRange = (startRadii.min() ?? 0)...(startRadii.max() ?? 0)
-            let endRange = (endRadii.min() ?? 0)...(endRadii.max() ?? 0)
-            // Both sides of the seam reach the shared valley floor, and the wall on
-            // the over side spans the step, so the tube stays closed.
-            #expect(startRange.overlaps(endRange))
-            #expect(min(startRange.lowerBound, endRange.lowerBound)
-                <= mesh.valleyFloorRadius + 0.000_1)
+        let all = mesh.allTriangleIndices
+        var floor = [UInt32]()
+        for offset in stride(from: 0, to: all.count, by: 3)
+        where mesh.vertexIsBeneath[Int(all[offset])] {
+            floor.append(contentsOf: all[offset..<(offset + 3)])
+        }
+        for axis in SurfaceOpacityAudit.Axis.allCases {
+            let audit = SurfaceOpacityAudit(
+                positions: mesh.positions,
+                indices: floor,
+                tileEndX: mesh.length / 2,
+                axis: axis
+            )
+            #expect(audit.rays > 1_000)
+            #expect(audit.raysReachingTheBackground == 0)
+            #expect(audit.raysMeetingOneSurfaceOnly == 0)
         }
     }
 
@@ -411,10 +423,11 @@ struct MaruGenjiSurfaceMeshTests {
     @Test func twistGroupsStayWithinOneTexturePairAndMatchTheGeneratedTextures() throws {
         let mesh = try makeMesh()
 
-        // Two chevron directions, so two shears to correct and two textures. More
-        // groups than this would mean more materials than colours times two
-        // times the two layers (Task 047 shades the layers apart).
-        #expect(mesh.twist.groups.count == 2)
+        // Two chevron directions, so two shears to correct, and since the Task 047
+        // rework the two layers' bundles are drawn at different widths, which the
+        // stripes follow: four groups at most. More would mean more materials than
+        // colours times two times the two layers.
+        #expect((2...4).contains(mesh.twist.groups.count))
         #expect(mesh.twist.groupIndexBySegment.count
             == RoundTube16SurfacePatternGenerator.patchCount)
         #expect(Set(mesh.twist.groupIndexBySegment) == Set(mesh.twist.groups.indices))
@@ -511,7 +524,7 @@ struct MaruGenjiSurfaceMeshTests {
         #expect(first.twistPhases == second.twistPhases)
         #expect(first.colorGroups == second.colorGroups)
         #expect(first.triangleSegmentIndices == second.triangleSegmentIndices)
-        #expect(first.triangleIsCrossingWall == second.triangleIsCrossingWall)
+        #expect(first.triangleIsBeneath == second.triangleIsBeneath)
         #expect(first.triangleCount == second.triangleCount)
     }
 
@@ -622,7 +635,11 @@ struct MaruGenjiSurfaceMeshTests {
         surface: BraidStrandSurface,
         segmentIndex: Int
     ) throws -> Float {
-        let segment = surface.segments[segmentIndex]
+        // Measured on the bundle as drawn, at mid-span: its centreline is turned
+        // from its cell's, and it is wider (Task 047 rework). Towards the ends a
+        // bundle narrows, and the stripes meet it at another angle there.
+        let cell = surface.segments[segmentIndex]
+        let segment = RoundTube16SurfaceMesh.bundle(for: cell)
         let fit = try twistPhaseFit(of: mesh, segmentIndex: segmentIndex)
         let along = RoundTube16SurfaceMesh.worldOffset(
             segment.centerlineDelta,
@@ -631,7 +648,8 @@ struct MaruGenjiSurfaceMeshTests {
             repeatCount: mesh.patternRepeatCount
         )
         let across = RoundTube16SurfaceMesh.worldOffset(
-            segment.meanHalfWidth,
+            segment.meanHalfWidth
+                * RoundTube16SurfaceMesh.bundleWidth(layer: segment.layer, along: 0.5),
             radius: mesh.baseRadius,
             length: mesh.length,
             repeatCount: mesh.patternRepeatCount
@@ -701,7 +719,7 @@ struct MaruGenjiSurfaceMeshTests {
     ) throws -> Float {
         let crest = mesh.positions.indices.filter {
             mesh.vertexSegmentIndices[$0] == segmentIndex
-                && !mesh.vertexIsCrossingWall[$0]
+                && !mesh.vertexIsBeneath[$0]
                 && abs(mesh.strandCoordinates[$0].y) < 0.000_1
                 && (0...1).contains(mesh.strandCoordinates[$0].x)
         }
@@ -727,18 +745,6 @@ struct MaruGenjiSurfaceMeshTests {
         // with the axis rather than the direction it happens to be travelling in.
         let angle = abs(atan2(around, axial)) * 180 / .pi
         return min(angle, 180 - angle)
-    }
-
-    private func radiiByLongitudinalPosition(
-        _ indices: [Int],
-        in mesh: RoundTube16SurfaceMeshData
-    ) -> [Int: [Float]] {
-        var result = [Int: [Float]]()
-        for index in indices {
-            let key = Int((mesh.positions[index].x * 10_000).rounded())
-            result[key, default: []].append(radius(of: mesh, at: index))
-        }
-        return result
     }
 
     private func signedAngle(from first: SIMD2<Float>, to second: SIMD2<Float>) -> Float {
@@ -772,9 +778,9 @@ struct MaruGenjiSurfaceMeshTests {
         func hasMatch(for sourceIndex: Int, in candidates: [Int]) -> Bool {
             let sourcePosition = mesh.positions[sourceIndex]
             let sourceNormal = mesh.normals[sourceIndex]
-            let sourceIsWall = mesh.vertexIsCrossingWall[sourceIndex]
+            let sourceIsWall = mesh.vertexIsBeneath[sourceIndex]
             return candidates.contains { candidateIndex in
-                guard mesh.vertexIsCrossingWall[candidateIndex] == sourceIsWall else { return false }
+                guard mesh.vertexIsBeneath[candidateIndex] == sourceIsWall else { return false }
                 let candidatePosition = mesh.positions[candidateIndex]
                 return hypot(
                     sourcePosition.y - candidatePosition.y,

@@ -20,10 +20,18 @@ import SwiftUI
 ///                                      one colour, book A p.54's, or all eight
 ///                                      told apart (default plain)
 ///                              maru only: plain|blue|fixture1|fixture2|fixture3|
-///                                      bluewhite — natural, blue, the editor's
-///                                      surface fixtures, and fixture 1 with its
-///                                      pink as white (the nearest the catalogue
-///                                      comes to book A's navy and white)
+///                                      bluewhite|sketch — natural, blue, the
+///                                      editor's surface fixtures, fixture 1 with
+///                                      its pink as white (the nearest the
+///                                      catalogue comes to book A's navy and
+///                                      white), and the four threads whose cells
+///                                      meet at the front V in the first two rows
+///                                      painted as the author's coloured sketch
+///                                      paints them (Task 047 rework), the rest
+///                                      natural
+///     --yatsu-kongo-zoom=<factor>      zoomed in, as a pinch would (clamped)
+///     --yatsu-kongo-no-detail          maru only: no stripe, roughness or
+///                                      shading maps, to read the shape alone
 ///     --yatsu-kongo-roll=<degrees>     turned about the braid's own axis
 @MainActor
 enum YatsuKongoComparisonPreviewData {
@@ -65,6 +73,19 @@ enum YatsuKongoComparisonPreviewData {
         case "fixture2": return ProjectEditorPreviewData.maruGenjiSurfaceFixture2
         case "fixture3": return ProjectEditorPreviewData.maruGenjiSurfaceFixture3
         case "bluewhite": fixture = ProjectEditorPreviewData.maruGenjiSurfaceFixture1
+        case "sketch":
+            // At the front V, row 1: thread 1 passes over, 12 under; row 2: 11
+            // over, 2 under. Painted by which side of the V each is on, as the
+            // sketch paints them: black and red on one side, yellow and blue on
+            // the other.
+            let sketch: [Int: String] = [12: "black", 1: "yellow", 11: "red", 2: "blue"]
+            return (1...16).map {
+                ThreadAssignment(
+                    position: $0,
+                    colorID: sketch[$0].map(ThreadColorID.init(rawValue:))
+                        ?? ThreadColorColorIDs.natural
+                )
+            }
         default:
             return (1...16).map {
                 ThreadAssignment(position: $0, colorID: ThreadColorColorIDs.natural)
@@ -76,6 +97,14 @@ enum YatsuKongoComparisonPreviewData {
                 colorID: $0.colorID.rawValue == "pink" ? ThreadColorID(rawValue: "white") : $0.colorID
             )
         }
+    }
+
+    static var zoom: Float {
+        value(of: "--yatsu-kongo-zoom").flatMap(Float.init) ?? 1
+    }
+
+    static var drawsWithoutDetail: Bool {
+        CommandLine.arguments.contains("--yatsu-kongo-no-detail")
     }
 
     static var rollDegrees: Float {
@@ -97,6 +126,7 @@ struct YatsuKongoComparisonSolid: View {
     @StateObject private var controller: RoundTube16ViewerController = {
         let controller = RoundTube16ViewerController()
         controller.rotate(horizontal: YatsuKongoComparisonPreviewData.rollDegrees * .pi / 180)
+        controller.zoom(by: YatsuKongoComparisonPreviewData.zoom)
         return controller
     }()
 

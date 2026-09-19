@@ -37,16 +37,16 @@ struct BraidMeshHashTests {
         #expect(Self.hash(mesh.positions) == 0x53c4_4c9b_835a_e598)
     }
 
-    /// **Changed once, on purpose** (Task 047). It was `0xe3fc_af47_ceea_d34e`
-    /// over 294,936 vertices. The strand passing over now laps twice as far, in
-    /// four steps instead of three, and the cross-section meets the valley at a
-    /// finite slope instead of a semi-ellipse's vertical side. The extra lap
-    /// step is the whole of the added vertices.
+    /// **Changed on purpose, twice in Task 047.** `0xe3fc_af47_ceea_d34e` over
+    /// 294,936 vertices until the first round (then `0x3109_0161_4394_2bd7` over
+    /// 313,560). The rework draws every cell as a bundle of its own that reaches
+    /// past its cell and overlaps its neighbours, with a floor beneath, and no
+    /// walls.
     @Test func theRoundBraidsMeshIsTheShapeItWas() throws {
         let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.maruGenji16Colouring))
         let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
-        #expect(mesh.positions.count == 313_560)
-        #expect(Self.hash(mesh.positions) == 0x3109_0161_4394_2bd7)
+        #expect(mesh.positions.count == 335_808)
+        #expect(Self.hash(mesh.positions) == 0xf478_405c_a68f_105a)
     }
 }

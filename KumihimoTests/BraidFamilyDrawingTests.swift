@@ -115,8 +115,11 @@ struct BraidFamilyDrawingTests {
                 == Double(RoundTube16SurfacePatternGenerator.patternAspectRatio))
         // And the ones calibrated by eye are kept, and counted, not hidden.
         #expect(flat.calibratedByEye.count == 4)
-        // Ten since Task 047: the cross-section's power and maru-genji's own
-        // fibre count were added, both held against the photograph by eye.
-        #expect(tube.calibratedByEye.count == 10)
+        // Seventeen since the Task 047 rework: every cell is drawn as a bundle,
+        // and how far it laps or tucks, how wide it is, how it narrows, how far
+        // it leans and how its buried tip and the floor sink are all set by eye
+        // against the author's sketch and photographs, as are the cross-section
+        // and the fibre count.
+        #expect(tube.calibratedByEye.count == 17)
     }
 }

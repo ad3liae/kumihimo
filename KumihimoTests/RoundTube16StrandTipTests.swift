@@ -3,10 +3,11 @@ import simd
 import Testing
 @testable import Kumihimo
 
-/// Task 047: a maru-genji strand passing over now laps twice as far and slides
-/// under the next strand gently, its texture spans the laps, and it is shaded only
-/// where it goes under. These hold what that changed; the look itself was judged
-/// against the photograph, not here.
+/// Task 047: every cell is drawn as a bundle that reaches past its cell; one
+/// passing over goes on across the crossing over the end of the one passing
+/// under, its texture spans all of it, and it is shaded only where it goes under.
+/// These hold what that changed; the look itself was judged against the
+/// author's sketch and the photographs, not here.
 struct RoundTube16StrandTipTests {
     // MARK: - Colour does not move the shape
 
@@ -35,79 +36,86 @@ struct RoundTube16StrandTipTests {
         #expect(pinkVertexSegments == threeSegments)
     }
 
-    // MARK: - The tip goes under
+    // MARK: - Who covers whom at a crossing, on the drawn triangles
 
-    /// On the drawn mesh, not on the centreline: near the tip of every lap, some
-    /// other strand stands higher at the same place, so the tip is hidden; at the
-    /// strand's own end, where it crosses, nothing stands higher, so it is on top.
-    @Test func everyLapTipEndsBeneathAnotherStrandWhileItsEndStaysOnTop() throws {
+    /// On the drawn mesh, by the triangles themselves (Task 047 review, addendum
+    /// 1): at a place on a bundle, a line out from the braid's axis through that
+    /// place is followed and **every triangle it crosses** is found. Whatever
+    /// crosses it further out covers the place. Nothing here reads a nearby
+    /// vertex's height as cover.
+    ///
+    /// At every crossing in the middle of the tile, on the crest and about 0.6 of
+    /// the way to each rim:
+    /// - the end of a bundle passing under is covered, by a bundle of **another
+    ///   thread** passing over;
+    /// - the end of a bundle passing over has nothing over it;
+    /// - the tip of the lap a bundle passing over runs on into is covered, by
+    ///   another bundle.
+    /// These are claims at those points only, not over the whole width or path.
+    @Test func atEveryCrossingTheBundleGoingOnCoversTheEndOfTheOneGoingUnder() throws {
         let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture))
         let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let lines = RadialLines(mesh: mesh)
         let lap = RoundTube16SurfaceMesh.overCrossingLap
-        let radius = mesh.baseRadius
-
-        // Surface points laid flat: along the braid, and round it as arc length.
-        let flat = mesh.positions.map { point -> SIMD2<Float> in
-            let angle = atan2(point.z, point.y)
-            return SIMD2<Float>(point.x, angle * radius)
-        }
-        let radii = mesh.positions.map { simd_length(SIMD2<Float>($0.y, $0.z)) }
-        let circumference = 2 * Float.pi * radius
-
-        // Bucketed so each question looks at a few hundred vertices, not all.
-        let cell: Float = 0.03
-        func key(_ point: SIMD2<Float>) -> SIMD2<Int32> {
-            SIMD2<Int32>(Int32((point.x / cell).rounded(.down)),
-                         Int32((point.y / cell).rounded(.down)))
-        }
-        var buckets = [SIMD2<Int32>: [Int]]()
-        for index in mesh.positions.indices where !mesh.vertexIsCrossingWall[index] {
-            buckets[key(flat[index]), default: []].append(index)
-        }
-        let wrap = Int32((circumference / cell).rounded(.up))
-
-        func highestOther(than segment: Int, near index: Int, within reach: Float) -> Float {
-            var highest = -Float.infinity
-            let centre = key(flat[index])
-            for dx in Int32(-1)...1 {
-                for dy in Int32(-1)...1 {
-                    for shift in [Int32(0), wrap, -wrap] {
-                        let bucket = SIMD2<Int32>(centre.x + dx, centre.y + dy + shift)
-                        for other in buckets[bucket] ?? []
-                        where mesh.vertexSegmentIndices[other] != segment {
-                            var offset = flat[other] - flat[index]
-                            offset.y = remainder(offset.y, circumference)
-                            guard simd_length(offset) < reach else { continue }
-                            highest = max(highest, radii[other])
-                        }
-                    }
-                }
-            }
-            return highest
-        }
-
-        var tipsChecked = 0
-        var endsChecked = 0
-        // Away from the tile ends, where the neighbouring repeat is clipped away.
         let inner = Float(0.3) * mesh.length
+        // The crest, and a sample about 0.6 of the way to each rim.
+        let across = [Float(0), RoundTube16SurfaceMesh.crossSectionOffset(forSample: 0.3),
+                      RoundTube16SurfaceMesh.crossSectionOffset(forSample: 0.7)]
+
+        var underEnds = 0, overEnds = 0, lapTips = 0
         for index in mesh.positions.indices
-        where !mesh.vertexIsCrossingWall[index]
-            && abs(mesh.strandCoordinates[index].y) < 0.001
-            && abs(mesh.positions[index].x) < inner {
+        where !mesh.vertexIsBeneath[index] && abs(mesh.positions[index].x) < inner {
+            let coordinate = mesh.strandCoordinates[index]
+            guard across.contains(where: { abs(coordinate.y - $0) < 0.001 }) else { continue }
             let segment = mesh.vertexSegmentIndices[index]
-            guard pattern.patches[segment].layer == .over else { continue }
-            let along = mesh.strandCoordinates[index].x
-            let pastTheEnd = max(-along, along - 1)
-            if abs(pastTheEnd - lap) < 0.001 {
-                #expect(highestOther(than: segment, near: index, within: 0.03) > radii[index])
-                tipsChecked += 1
-            } else if abs(pastTheEnd) < 0.001 {
-                #expect(highestOther(than: segment, near: index, within: 0.01) <= radii[index] + 0.000_1)
-                endsChecked += 1
+            let patch = pattern.patches[segment]
+            let own = radius(mesh.positions[index])
+            let isEnd = abs(coordinate.x) < 0.001 || abs(coordinate.x - 1) < 0.001
+            let isLapTip = abs(RoundTube16SurfaceMesh.pastTheEnd(coordinate.x) - lap) < 0.001
+            guard isEnd || (isLapTip && patch.layer == .over) else { continue }
+
+            let covering = lines.crossings(at: mesh.positions[index])
+                .filter { $0.radius > own + 0.000_5 && $0.segment != segment }
+            if patch.layer == .under {
+                let cover = covering.max { $0.radius < $1.radius }
+                #expect(cover != nil)
+                if let cover {
+                    #expect(!cover.isBeneath)
+                    #expect(pattern.patches[cover.segment].layer == .over)
+                    #expect(pattern.patches[cover.segment].threadPosition != patch.threadPosition)
+                }
+                underEnds += 1
+            } else if isEnd {
+                #expect(covering.isEmpty)
+                overEnds += 1
+            } else {
+                #expect(!covering.isEmpty)
+                lapTips += 1
             }
         }
-        #expect(tipsChecked >= 8)
-        #expect(endsChecked >= 8)
+        #expect(underEnds >= 24)
+        #expect(overEnds >= 24)
+        #expect(lapTips >= 24)
+    }
+
+    /// The line test itself, on two made-up triangles. A triangle whose corners
+    /// stand high beside the line but which does not reach it does not cover;
+    /// one whose corners are all far away but whose inside the line passes
+    /// through does.
+    @Test func aTriangleCoversALineOnlyWhereTheLineCrossesIt() {
+        let through = SIMD3<Float>(0, 0.5, 0)       // x 0, angle 0, radius 0.5
+        let beside = [                                  // tall, but off to one side
+            SIMD3<Float>(0.02, 0.9, 0.05), SIMD3<Float>(0.06, 0.9, 0.05),
+            SIMD3<Float>(0.04, 0.9, 0.09),
+        ]
+        let across = [                                  // corners far, inside on the line
+            SIMD3<Float>(-0.4, 0.6, -0.4), SIMD3<Float>(0.4, 0.6, -0.4),
+            SIMD3<Float>(0, 0.6, 0.5),
+        ]
+        #expect(RadialLines.crossing(at: through, triangle: beside) == nil)
+        let hit = RadialLines.crossing(at: through, triangle: across)
+        #expect(hit != nil)
+        #expect(abs((hit ?? 0) - 0.6) < 0.000_1)
     }
 
     // MARK: - Shading follows what is hidden
@@ -130,26 +138,29 @@ struct RoundTube16StrandTipTests {
 
     // MARK: - The stripes run on into the lap
 
-    @Test func aLappingStrandsTextureSpansItsLapsAndNoOtherStrandsDoes() throws {
-        let lap = RoundTube16SurfaceMesh.overCrossingLap
-        #expect(RoundTube16SurfaceMesh.textureAlong(-lap, layer: .over) == 0)
-        #expect(abs(RoundTube16SurfaceMesh.textureAlong(1 + lap, layer: .over) - 1) < 0.000_1)
-        for along in stride(from: Float(0), through: 1, by: 0.125) {
-            #expect(RoundTube16SurfaceMesh.textureAlong(along, layer: .under) == along)
-            let back = RoundTube16SurfaceMesh.strandAlong(
-                forTextureAlong: RoundTube16SurfaceMesh.textureAlong(along, layer: .over),
-                layer: .over
-            )
-            #expect(abs(back - along) < 0.000_1)
+    @Test func aBundlesTextureSpansAllOfItPastItsCellsEnds() throws {
+        for layer in BraidCrossingLayer.allCases {
+            let reach = RoundTube16SurfaceMesh.pastTheEnds(layer: layer)
+            #expect(RoundTube16SurfaceMesh.textureAlong(-reach, layer: layer) == 0)
+            #expect(abs(RoundTube16SurfaceMesh.textureAlong(1 + reach, layer: layer) - 1) < 0.000_1)
+            for along in stride(from: -reach, through: 1 + reach, by: 0.125) {
+                let back = RoundTube16SurfaceMesh.strandAlong(
+                    forTextureAlong: RoundTube16SurfaceMesh.textureAlong(along, layer: layer),
+                    layer: layer
+                )
+                #expect(abs(back - along) < 0.000_1)
+            }
         }
+        #expect(RoundTube16SurfaceMesh.pastTheEnds(layer: .over)
+            > RoundTube16SurfaceMesh.pastTheEnds(layer: .under))
 
         // On the mesh: the texture column every vertex reads stands for the place
-        // along the strand the vertex is at, laps included. Were the lap clamped,
-        // every vertex on it would read the last column.
+        // along the bundle the vertex is at, past the ends included. Were it
+        // clamped, every vertex past an end would read the last column.
         let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture))
         let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
         var lapVertices = 0
-        for index in mesh.positions.indices where !mesh.vertexIsCrossingWall[index] {
+        for index in mesh.positions.indices where !mesh.vertexIsBeneath[index] {
             let layer = pattern.patches[mesh.vertexSegmentIndices[index]].layer
             let along = mesh.strandCoordinates[index].x
             let read = RoundTube16SurfaceMesh.strandAlong(
@@ -170,5 +181,95 @@ struct RoundTube16StrandTipTests {
         (1...16).map {
             ThreadAssignment(position: $0, colorID: ($0 % 4 < 2) ? blue : pink)
         }
+    }
+
+    private func radius(_ point: SIMD3<Float>) -> Float {
+        simd_length(SIMD2<Float>(point.y, point.z))
+    }
+}
+
+/// Lines out from the braid's axis, and the drawn triangles they cross. The
+/// triangles are sorted into cells of length and angle once, so each question
+/// looks at a few of them rather than all.
+struct RadialLines {
+    struct Crossing {
+        let radius: Float
+        let segment: Int
+        let isBeneath: Bool
+    }
+
+    private let positions: [SIMD3<Float>]
+    private let triangles: [Int]            // first vertex of each triangle
+    private let segments: [Int]
+    private let beneath: [Bool]
+    private var cells = [SIMD2<Int32>: [Int]]()
+    private static let cellLength: Float = 0.05
+    private static let cellAngle: Float = 0.05
+
+    init(mesh: RoundTube16SurfaceMeshData) {
+        positions = mesh.positions
+        segments = mesh.vertexSegmentIndices
+        beneath = mesh.vertexIsBeneath
+        let indices = mesh.allTriangleIndices
+        triangles = stride(from: 0, to: indices.count, by: 3).map { Int(indices[$0]) }
+        for (number, first) in triangles.enumerated() {
+            let corners = (0..<3).map { mesh.positions[first + $0] }
+            var angles = corners.map { atan2($0.z, $0.y) }
+            if (angles.max() ?? 0) - (angles.min() ?? 0) > .pi {
+                angles = angles.map { $0 < 0 ? $0 + 2 * .pi : $0 }
+            }
+            let xs = corners.map(\.x)
+            for shift in [Float(0), -2 * .pi] {
+                let low = Self.key(x: xs.min() ?? 0, angle: (angles.min() ?? 0) + shift)
+                let high = Self.key(x: xs.max() ?? 0, angle: (angles.max() ?? 0) + shift)
+                for x in low.x...high.x {
+                    for a in low.y...high.y { cells[SIMD2(x, a), default: []].append(number) }
+                }
+            }
+        }
+    }
+
+    private static func key(x: Float, angle: Float) -> SIMD2<Int32> {
+        SIMD2(Int32((x / cellLength).rounded(.down)), Int32((angle / cellAngle).rounded(.down)))
+    }
+
+    /// Every drawn triangle the line out through `point` crosses.
+    func crossings(at point: SIMD3<Float>) -> [Crossing] {
+        let key = Self.key(x: point.x, angle: atan2(point.z, point.y))
+        var seen = Set<Int>()
+        var out = [Crossing]()
+        for number in cells[key] ?? [] where seen.insert(number).inserted {
+            let first = triangles[number]
+            let corners = (0..<3).map { positions[first + $0] }
+            if let radius = Self.crossing(at: point, triangle: corners) {
+                out.append(Crossing(radius: radius, segment: segments[first],
+                                    isBeneath: beneath[first]))
+            }
+        }
+        return out
+    }
+
+    /// Where the line from the axis out through `point` crosses a triangle, as
+    /// a radius, or `nil` if it does not. Möller–Trumbore.
+    static func crossing(at point: SIMD3<Float>, triangle: [SIMD3<Float>]) -> Float? {
+        let out = simd_normalize(SIMD3<Float>(0, point.y, point.z))
+        let origin = SIMD3<Float>(point.x, 0, 0)
+        let edge1 = triangle[1] - triangle[0]
+        let edge2 = triangle[2] - triangle[0]
+        let p = simd_cross(out, edge2)
+        let determinant = simd_dot(edge1, p)
+        guard abs(determinant) > 1e-12 else { return nil }
+        let t0 = origin - triangle[0]
+        // A hair of slack, so a line running exactly along the edge two
+        // triangles share is not missed by both of them to rounding. Points on a
+        // column's edge are exactly that.
+        let slack: Float = 0.000_01
+        let u = simd_dot(t0, p) / determinant
+        guard u >= -slack, u <= 1 + slack else { return nil }
+        let q = simd_cross(t0, edge1)
+        let v = simd_dot(out, q) / determinant
+        guard v >= -slack, u + v <= 1 + slack else { return nil }
+        let distance = simd_dot(edge2, q) / determinant
+        return distance > 0 ? distance : nil
     }
 }

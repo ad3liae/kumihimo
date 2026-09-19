@@ -53,14 +53,14 @@ enum RoundTube16StrandTextureFactory {
     /// How dark the valley between two maru-genji strands becomes. Lighter than
     /// `valleyOcclusion`: the softer cross-section already shades the groove,
     /// and at full depth every strand was ringed in the same dark line.
-    static let strandValleyOcclusion: Float = 0.5
+    static let strandValleyOcclusion: Float = 0.6
     /// How far along a strand passing under its shadow reaches from each end.
     /// Longer than `crossingOcclusionLength` because the lap now covers the first
     /// sixth or so of it; the shadow has to show past where the lap tucks in.
     static let strandUnderShadowLength: Float = 0.28
     /// Where on a lap, past the strand's end, its tip starts to darken as it
     /// slides under. The top of a strand passing over is not shaded at all.
-    static let strandLapShadowStart: Float = 0.10
+    static let strandLapShadowStart: Float = 0.2
     static let strandTwistRoughnessAmplitude: Float = 0.08
 
     /// The contact shadow along a maru-genji strand, 1 where there is none.
@@ -85,7 +85,7 @@ enum RoundTube16StrandTextureFactory {
     /// Maru-genji's only; nothing borrows it.
     static func occlusionImage(twist: Twist, layer: BraidCrossingLayer) -> CGImage? {
         grayscaleImage { column, across in
-            let along = RoundTube16SurfaceMesh.strandAlong(forTextureAlong: column, layer: layer)
+            let along = spanned(column, layer: layer)
             let offset = crossSectionOffset(forRow: across)
             let valley = mix(
                 strandValleyOcclusion,
@@ -99,15 +99,15 @@ enum RoundTube16StrandTextureFactory {
         }
     }
 
-    /// `layer` and `amplitude` are maru-genji's; the defaults draw what the
-    /// eight-thread tube has always borrowed.
+    /// `layer` and `amplitude` are maru-genji's; the defaults (no layer) draw
+    /// what the eight-thread tube has always borrowed.
     static func roughnessImage(
         twist: Twist,
-        layer: BraidCrossingLayer = .under,
+        layer: BraidCrossingLayer? = nil,
         amplitude: Float = twistRoughnessAmplitude
     ) -> CGImage? {
         grayscaleImage { column, across in
-            let along = RoundTube16SurfaceMesh.strandAlong(forTextureAlong: column, layer: layer)
+            let along = spanned(column, layer: layer)
             let offset = crossSectionOffset(forRow: across)
             let value = baseRoughness
                 + amplitude
@@ -124,11 +124,11 @@ enum RoundTube16StrandTextureFactory {
     /// angles to each other, and differentiating in the sheared pair would tilt
     /// the relief away from the stripes it is lighting.
     ///
-    /// `layer` and `relief` are maru-genji's; the defaults draw what the
-    /// eight-thread tube has always borrowed.
+    /// `layer` and `relief` are maru-genji's; the defaults (no layer) draw what
+    /// the eight-thread tube has always borrowed.
     static func normalImage(
         twist: Twist,
-        layer: BraidCrossingLayer = .under,
+        layer: BraidCrossingLayer? = nil,
         relief: Float = RoundTube16SurfaceMesh.twistReliefRatio
     ) -> CGImage? {
         let gradient = twist.normalizedPhaseGradient
@@ -138,7 +138,7 @@ enum RoundTube16StrandTextureFactory {
         let amplitude = relief
 
         return colorImage { column, across in
-            let along = RoundTube16SurfaceMesh.strandAlong(forTextureAlong: column, layer: layer)
+            let along = spanned(column, layer: layer)
             let offset = crossSectionOffset(forRow: across)
             let value = cos(twist.coefficients.phase(along: along, across: offset))
             let slope = amplitude * value * gradient
@@ -149,6 +149,13 @@ enum RoundTube16StrandTextureFactory {
                 normal.z / 2 + 0.5
             )
         }
+    }
+
+    /// The place along a strand a texture column stands for. Without a layer
+    /// the texture spans exactly the strand, which is what the eight-thread
+    /// tube borrows; with one it spans the maru-genji bundle past its ends.
+    private static func spanned(_ column: Float, layer: BraidCrossingLayer?) -> Float {
+        layer.map { RoundTube16SurfaceMesh.strandAlong(forTextureAlong: column, layer: $0) } ?? column
     }
 
     /// The cross-section offset a bitmap row stands for.
@@ -180,6 +187,15 @@ enum RoundTube16StrandTextureFactory {
 
     static var twistGroups: [Twist] {
         twistGrouping.groups
+    }
+
+    /// The layer each twist group's strands take. Since the Task 047 rework the
+    /// two layers' bundles are drawn at different widths, so no group holds
+    /// both, and only the layer a group is drawn in needs maps.
+    static let twistGroupLayers: [BraidCrossingLayer] = twistGrouping.groups.indices.map { group in
+        referenceSurface.segments.indices
+            .first { twistGrouping.groupIndexBySegment[$0] == group }
+            .map { referenceSurface.segments[$0].layer } ?? .over
     }
 
     /// The strand shape is the same for every colouring, so a fixed single-colour
