@@ -92,10 +92,10 @@ struct BraidOrientationTests {
                 abs($0.centerlineStart.x - middle) < 1e-4
                     && $0.centerlineStart.y <= height && $0.centerlineEnd.y >= height
             })
-            let along = (height - cell.centerlineStart.y)
+            let cycles = (height - cell.centerlineStart.y)
                 / (cell.centerlineEnd.y - cell.centerlineStart.y)
             return RoundTube8SurfaceMesh.frame(
-                of: cell, along: along, across: 0,
+                of: cell, cycles: cycles, across: 0, leanDirection: pattern.leanDirection,
                 floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
                 base: -mesh.length / 2, repeatLength: mesh.patternRepeatLength
             ).position

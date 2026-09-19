@@ -21,6 +21,17 @@ struct RoundTube8SurfaceMeshData: Sendable {
     let length: Float
     let patternRepeatCount: Int
     let rowCount: Int
+    /// The vertices of each thread's visible run, repeat by repeat and cell by
+    /// cell: `runVertexRanges[repeat * cells + cell]`. A run's vertices are one
+    /// block, `along` by `across`, laid down in that order.
+    let runVertexRanges: [Range<Int>]
+    /// The vertices of what lies beneath each cell, in the same order: the
+    /// thread's own cell at the valley floor, which is what a gap between two
+    /// runs shows.
+    let beneathVertexRanges: [Range<Int>]
+    /// Samples along a run and across it, plus one each.
+    let runAlongSamples: Int
+    let runAcrossSamples: Int
 
     var visibleWidth: Float { 2 * crestRadius }
     var circumference: Float { 2 * .pi * crestRadius }
@@ -55,14 +66,26 @@ struct RoundTube8SurfaceMeshData: Sendable {
 /// is everything about crossings — the lift, the dip, the lap, the walls that
 /// seal a step — because on this braid nothing crosses.
 ///
-/// **A cell ends, and a thread's end is round** (Task 033). The places along a
-/// lane are held by one thread after another, so a lane is not one ridge but a
-/// run of them, each falling to the valley floor at its ends and meeting the
-/// next there. The end is the crest's own semi-ellipse turned round the end
-/// (`crestProfile` again, over the thread's own half-width): as round as its
-/// side, and no new number. This is what the model already said — a thread
-/// stands at its place from its arrival to the next thread's — and had not been
-/// drawn, as the arrival phase had not.
+/// **A thread shows as a bundle that leans and sinks under the next one**
+/// (Task 045). Each cell of the pattern — the thread standing at its place from
+/// its arrival to the next thread's — is drawn as that thread's visible run
+/// (`RoundTube8Bundle`): widest and tallest just after it arrives, leaning round
+/// the braid the way the carry goes, narrowing and sinking as the next thread
+/// arrives, and going on beneath that thread to a point. Runs overlap, and
+/// **whichever stands higher at a place is the one seen**: the depth test draws
+/// the line where two cross. Along the earlier run's crest, once the later has
+/// risen to its shoulder, that is the later; on the earlier run's flanks just
+/// past the next arrival it can be the earlier (Task 045 review). The card
+/// reads the same rule (`RoundTube8SurfacePattern.runsStanding`).
+///
+/// **Beneath every cell lies the thread's own cell at the valley floor**, a hair
+/// below it, so that a gap between two runs shows the thread lying there rather
+/// than the background. It is the same cell the pattern gives, so the tube is
+/// closed whatever the runs do.
+///
+/// It replaced a round-ended bead one column wide and one cycle long, square to
+/// the braid, with a groove of its own depth at each end (Task 033). That read
+/// as a cob of corn (the author, 2026-09-18).
 ///
 /// **The fibre stripes and the valley shading are borrowed too**, from the
 /// sixteen-thread tube's maps (`RoundTube8StrandTexture`), and only they are set
@@ -76,7 +99,7 @@ enum RoundTube8SurfaceMesh {
     /// Where every number this drawing rests on came from. **No value here is
     /// changed by saying so.**
     static var shape: BraidFamilyShape {
-        BraidFamilyShape(family: family, values: [
+        var values: [String: BraidMeasurement] = [
             "one cycle over the braid's diameter": BraidMeasurement(
                 Double(RoundTube8SurfacePatternGenerator.pitchOverDiameter),
                 // The two readings, rounded outward: 0.403 on S and 0.506 on Z-a.
@@ -144,26 +167,61 @@ enum RoundTube8SurfaceMesh {
                     + "sixteen-thread tube's own figure, borrowed and held against book A "
                     + "p.8's zoom for how wide the groove looks"
             ),
-            "the groove between two cells over the braid's radius": .declared(
-                Double(endValleyDepthRatio),
-                basis: .fractionOf("the braid's outer radius"),
-                calibratedBy: "calibrated by eye against a photograph, not derived: how "
-                    + "deep the groove along a lane looks on book A p.8's zoom, held "
-                    + "against the ripple of the braid's outline. It is not the groove "
-                    + "across the braid, which is derived and not this"
+            "a run's lean, in columns per cycle": .declared(
+                Double(RoundTube8Bundle.standard.leanColumnsPerCycle),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how far "
+                    + "a bean's centreline moves round the braid as it goes along it, on book "
+                    + "A p.8's zoom. The table gives only which way (the carry's); this is "
+                    + "not Task 032's 36 degrees, which is the step between neighbouring "
+                    + "beans and not the lean of one"
             ),
-            "how far a cell's end is rounded, over a thread's half-width": .declared(
-                Double(endRoundingOverHalfWidth),
-                calibratedBy: "calibrated by eye against a photograph, not derived: how "
-                    + "far a bean's end rounds off before it meets the next one, on book "
-                    + "A p.8's zoom"
+            "how far a run goes on beneath the next thread, in cycles": .declared(
+                Double(RoundTube8Bundle.standard.tuckedCycles),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how far "
+                    + "past the next thread's arrival a bean's tip goes on before it is "
+                    + "lost beneath the next one, on book A p.8's zoom"
+            ),
+            "where a run's belly begins, in cycles past its arrival": .declared(
+                Double(RoundTube8Bundle.standard.bellyStartCycles),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how far "
+                    + "past its pointed head a bean widens to its belly, on book A p.8's zoom "
+                    + "(Task 046)"
+            ),
+            "where a run's belly ends, in cycles past its arrival": .declared(
+                Double(RoundTube8Bundle.standard.bellyEndCycles),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how long "
+                    + "a bean keeps its width before narrowing to its tip, on book A p.8's "
+                    + "zoom (Task 046)"
             ),
             "radius on screen": .declared(
                 Double(defaultRadius),
                 calibratedBy: "how big the braid should be in the view; a display size, "
                     + "not a shape"
             ),
-        ])
+        ]
+        values.merge(bellyWidth) { first, _ in first }
+        return BraidFamilyShape(family: family, values: values)
+    }
+
+    /// **A run's widest half-width**: derived while it is the one column a
+    /// thread holds, and set by eye once a run is let show wider (Task 046).
+    private static var bellyWidth: [String: BraidMeasurement] {
+        let widest = RoundTube8Bundle.standard.widestHalfWidthInColumns
+        let name = "a run's widest half-width, in columns"
+        if widest == RoundTube8Bundle.oneThreadHalfWidthInColumns {
+            return [name: BraidMeasurement(
+                Double(widest),
+                basis: .fractionOf("one column"),
+                source: .derived("a thread is one column wide: eight threads round the tube")
+            )]
+        }
+        return [name: .declared(
+            Double(widest),
+            basis: .fractionOf("one column"),
+            calibratedBy: "calibrated by eye against a photograph, not derived: how wide a "
+                + "bean's belly looks against the columns, on book A p.8's zoom; wider than "
+                + "the column its thread holds, so that bellies meet over the floor (Task 046)"
+        )]
     }
 
     static let defaultRadius: Float = 0.48
@@ -181,45 +239,11 @@ enum RoundTube8SurfaceMesh {
     /// (`docs/tasks/025-5-adding-a-recipe.md`).
     static let crestHeightRatio: Float = 1 - 1 / (1 + .pi / 8)
 
-    /// How deep the groove between two cells of one lane is, as a fraction of the
-    /// braid's outer radius.
-    ///
-    /// **Its own number, calibrated by eye against a photograph, not derived**
-    /// (the author, 2026-09-12). **It is not `crestHeightRatio`.** That is the
-    /// groove *across* the braid, between two lanes, and it is worked out from the
-    /// thread count; carrying it over to the groove *along* a lane was a loan, and
-    /// a loan is neither a derivation nor a measurement. It drew the braid as a
-    /// cob of corn.
-    ///
-    /// **The braid's own weight says the groove along is the shallower one.** Two
-    /// threads that stand at one place one after the other are pressed together:
-    /// the later one is laid on the bundle at the braiding point, and the weight
-    /// hanging below pulls it down onto the one before it, so no gap of half a
-    /// thread opens between them (`docs/architecture.md`, 組み台の力学). Two lanes
-    /// side by side have nothing pressing them together — they are held where they
-    /// are by their own outward tension — so the groove across is the deeper.
-    ///
-    /// Set against the ripple the braid's outline shows, on the comparison sheet
-    /// where photograph and drawing are one width: **0.011 of the width straight
-    /// on and 0.06 turned with this figure**, against 0.05 and 0.10 while the
-    /// ridge's own depth was used here. The photograph's is 0.025 straight on.
-    /// **The outline is a weak guide here** — the ends of neighbouring lanes are
-    /// staggered, so the outline is nearly always at some lane's crest, and the
-    /// silhouette cannot be used on a round braid anyway (Task 005J). The
-    /// judgement was made on the braid's face, beside the photograph: 0.14 left
-    /// the cells reading as flat bricks, and this leaves them rounded and parted
-    /// as the photograph's beans are.
-    static let endValleyDepthRatio: Float = 0.18
-
-    /// How far back from a cell's end the crest starts to fall, as a fraction of a
-    /// thread's half-width.
-    ///
-    /// **Calibrated by eye against a photograph, not derived.** Rounded over the
-    /// whole half-width, which is what a thread's end would be if nothing touched
-    /// it, every cell came out a sphere; the beans on the photograph meet their
-    /// neighbours and overlap a little, which is the same pressing-together the
-    /// depth above comes from.
-    static let endRoundingOverHalfWidth: Float = 0.55
+    /// How far beneath the valley floor the cell under a run lies, as a
+    /// fraction of the ridge. **Not a shape figure**: it only keeps the cell
+    /// beneath from sharing the floor with the edges of the runs above it, so
+    /// the two never draw over each other.
+    static let beneathClearanceOfRidge: Float = 0.02
 
     /// Angle between the fibre stripes and a thread's own run.
     ///
@@ -250,14 +274,18 @@ enum RoundTube8SurfaceMesh {
     /// degrees that allows 5.2 across or 7.8; this gives 7.8, which the eye kept.
     static let fibreStripesAcrossThreadWidth: Float = 8
 
-    /// Samples down one cell and across it. Across resolves the round ridge; along
-    /// resolves the round ends, **packed towards both ends the way the across
-    /// samples are packed towards the edges** (`crossSectionOffset`), because that
-    /// is where the surface turns fastest.
-    static let defaultAlongSubdivisions = 12
+    /// Samples along one run and across it. Across resolves the round ridge;
+    /// along resolves the shoulder and the tip, **packed towards both ends the
+    /// way the across samples are packed towards the edges**
+    /// (`crossSectionOffset`), because that is where the run turns fastest. A
+    /// run is nearly two cycles long, so it has twice the samples along that a
+    /// one-cycle cell had.
+    static let defaultAlongSubdivisions = 24
     static let defaultAcrossSubdivisions = 10
     static let minimumAlongSubdivisions = 4
     static let minimumAcrossSubdivisions = 4
+    /// Round the arc of a cell beneath. Only the curvature needs resolving.
+    static let beneathAcrossSubdivisions = 4
 
     /// The tile's length, derived from the radius and the aspect ratio the pattern
     /// declares. **Never chosen independently**: a radius and a length picked apart
@@ -271,7 +299,8 @@ enum RoundTube8SurfaceMesh {
         radius: Float = defaultRadius,
         patternRepeatCount: Int = defaultPatternRepeatCount,
         alongSubdivisions: Int = defaultAlongSubdivisions,
-        acrossSubdivisions: Int = defaultAcrossSubdivisions
+        acrossSubdivisions: Int = defaultAcrossSubdivisions,
+        bundle: RoundTube8Bundle = .standard
     ) -> RoundTube8SurfaceMeshData? {
         let tileLength = length(
             radius: radius,
@@ -286,6 +315,12 @@ enum RoundTube8SurfaceMesh {
             pattern.rowCount > 0,
             alongSubdivisions >= minimumAlongSubdivisions,
             acrossSubdivisions >= minimumAcrossSubdivisions,
+            bundle.leanColumnsPerCycle.isFinite,
+            bundle.tuckedCycles >= 0,
+            bundle.bellyStartCycles > 0,
+            bundle.bellyStartCycles <= bundle.bellyEndCycles,
+            bundle.bellyEndCycles < bundle.lengthInCycles,
+            bundle.widestHalfWidthInColumns > 0,
             !pattern.surface.segments.isEmpty
         else {
             return nil
@@ -293,6 +328,7 @@ enum RoundTube8SurfaceMesh {
 
         let floor = radius * (1 - crestHeightRatio)
         let repeatLength = tileLength / Float(patternRepeatCount)
+        let beneath = floor - beneathClearanceOfRidge * (radius - floor)
 
         var positions = [SIMD3<Float>]()
         var normals = [SIMD3<Float>]()
@@ -301,20 +337,43 @@ enum RoundTube8SurfaceMesh {
         var textures = [SIMD2<Float>]()
         var colorGroups = [ThreadColorID: [UInt32]]()
         var triangleSegments = [Int]()
+        var runRanges = [Range<Int>]()
+        var beneathRanges = [Range<Int>]()
+
+        func grid(first: UInt32, along: Int, across: Int, segmentIndex: Int,
+                  into indices: inout [UInt32]) {
+            let stride = UInt32(across + 1)
+            for alongStep in 0..<UInt32(along) {
+                for acrossStep in 0..<UInt32(across) {
+                    let corner = first + alongStep * stride + acrossStep
+                    indices.append(contentsOf: [
+                        corner, corner + stride, corner + 1,
+                        corner + 1, corner + stride, corner + stride + 1,
+                    ])
+                    triangleSegments.append(contentsOf: [segmentIndex, segmentIndex])
+                }
+            }
+        }
 
         for repeatIndex in 0..<patternRepeatCount {
             let base = -tileLength / 2 + Float(repeatIndex) * repeatLength
             for (segmentIndex, segment) in pattern.surface.segments.enumerated() {
-                let first = UInt32(positions.count)
+                var indices = colorGroups[segment.colorID] ?? []
+
+                // The run: the thread as it shows.
+                let first = positions.count
                 for alongStep in 0...alongSubdivisions {
                     let along = (1 + crossSectionOffset(
                         forSample: Float(alongStep) / Float(alongSubdivisions)
                     )) / 2
                     for acrossStep in 0...acrossSubdivisions {
                         let sample = Float(acrossStep) / Float(acrossSubdivisions)
-                        let across = crossSectionOffset(forSample: sample)
                         let frame = self.frame(
-                            of: segment, along: along, across: across,
+                            of: segment,
+                            cycles: along * bundle.lengthInCycles,
+                            across: crossSectionOffset(forSample: sample),
+                            leanDirection: pattern.leanDirection,
+                            bundle: bundle,
                             floor: floor, radius: radius,
                             base: base, repeatLength: repeatLength
                         )
@@ -325,19 +384,37 @@ enum RoundTube8SurfaceMesh {
                         textures.append(SIMD2(along, sample))
                     }
                 }
+                runRanges.append(first..<positions.count)
+                grid(first: UInt32(first), along: alongSubdivisions,
+                     across: acrossSubdivisions, segmentIndex: segmentIndex, into: &indices)
 
-                let stride = UInt32(acrossSubdivisions + 1)
-                var indices = colorGroups[segment.colorID] ?? []
-                for alongStep in 0..<UInt32(alongSubdivisions) {
-                    for acrossStep in 0..<UInt32(acrossSubdivisions) {
-                        let corner = first + alongStep * stride + acrossStep
-                        indices.append(contentsOf: [
-                            corner, corner + stride, corner + 1,
-                            corner + 1, corner + stride, corner + stride + 1,
-                        ])
-                        triangleSegments.append(contentsOf: [segmentIndex, segmentIndex])
+                // Beneath it: the thread's own cell, at the valley floor. Straight
+                // along the braid, so one step along is enough.
+                let under = positions.count
+                for end in [segment.centerlineStart.y, segment.centerlineEnd.y] {
+                    for acrossStep in 0...beneathAcrossSubdivisions {
+                        let sample = Float(acrossStep) / Float(beneathAcrossSubdivisions)
+                        let turns = segment.centerlineStart.x
+                            + segment.startHalfWidth.x * (2 * sample - 1)
+                        let angle = 2 * .pi * turns
+                        let outward = SIMD3<Float>(0, sin(angle), cos(angle))
+                        positions.append(SIMD3(
+                            base + repeatLength * end,
+                            beneath * sin(angle),
+                            beneath * cos(angle)
+                        ))
+                        normals.append(outward)
+                        tangents.append(SIMD3(1, 0, 0))
+                        bitangents.append(cross(outward, SIMD3(1, 0, 0)))
+                        // The edge of a thread in the stripe and shading maps:
+                        // this is only ever seen down a gap.
+                        textures.append(SIMD2(0.5, 0))
                     }
                 }
+                beneathRanges.append(under..<positions.count)
+                grid(first: UInt32(under), along: 1, across: beneathAcrossSubdivisions,
+                     segmentIndex: segmentIndex, into: &indices)
+
                 colorGroups[segment.colorID] = indices
             }
         }
@@ -354,7 +431,11 @@ enum RoundTube8SurfaceMesh {
             valleyFloorRadius: floor,
             length: tileLength,
             patternRepeatCount: patternRepeatCount,
-            rowCount: pattern.rowCount
+            rowCount: pattern.rowCount,
+            runVertexRanges: runRanges,
+            beneathVertexRanges: beneathRanges,
+            runAlongSamples: alongSubdivisions + 1,
+            runAcrossSamples: acrossSubdivisions + 1
         )
         return isConsistent(mesh) ? mesh : nil
     }
@@ -376,7 +457,9 @@ enum RoundTube8SurfaceMesh {
         sin(.pi / 2 * (2 * min(max(sample, 0), 1) - 1))
     }
 
-    /// Where a point of a cell sits on the braid, and the frame there.
+    /// Where a point of a thread's visible run sits on the braid, and the frame
+    /// there: `cycles` past the thread's arrival (0 to the run's length) and
+    /// `across` its width, -1...1.
     ///
     /// The normal is taken from the surface itself rather than assumed radial: a
     /// ridge falls away to the valley on both sides, and a shading that ignored
@@ -385,33 +468,34 @@ enum RoundTube8SurfaceMesh {
     /// and the near side of the braid is drawn.
     static func frame(
         of segment: BraidStrandSegment,
-        along: Float,
+        cycles: Float,
         across: Float,
+        leanDirection: Float,
+        bundle: RoundTube8Bundle = .standard,
         floor: Float,
         radius: Float,
         base: Float,
         repeatLength: Float
     ) -> (position: SIMD3<Float>, normal: SIMD3<Float>,
           tangent: SIMD3<Float>, bitangent: SIMD3<Float>) {
-        // **A cell ends in a groove of its own depth, and its end is round.** The
-        // shape of the end is the crest's own semi-ellipse (`crestProfile`); how
-        // far it reaches and how far it falls are this drawer's two declared
-        // figures, not the ridge's — see them for why the groove along a lane is
-        // the shallower one.
-        let cellLength = repeatLength * (segment.centerlineEnd.y - segment.centerlineStart.y)
-        let halfWidth = 2 * .pi * radius * segment.startHalfWidth.x
-        let reach = endRoundingOverHalfWidth * halfWidth
+        let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
+        // One cycle along the braid, as a share of the repeat: the cell is one.
+        let cycle = segment.centerlineEnd.y - segment.centerlineStart.y
         let ridge = radius - floor
-        let dip = min(endValleyDepthRatio * radius, ridge)
-        func at(_ along: Float, _ across: Float) -> SIMD3<Float> {
-            let surface = segment.surfacePoint(along: along, across: across)
-            let fromEnd = min(along, 1 - along) * cellLength
-            let end = reach > 0 ? max(0, 1 - fromEnd / reach) : 0
-            // Across and along multiply, so the lane's edges stay on the valley
-            // floor whatever the ends are doing.
-            let height = floor + crestProfile(across: across)
-                * (ridge - dip * (1 - crestProfile(across: end)))
-            let angle = 2 * .pi * surface.x
+        // Never quite a point, so that the width still has a direction at the
+        // tip and the frame there is defined.
+        let narrowest: Float = 1e-3
+        func at(_ cycles: Float, _ across: Float) -> SIMD3<Float> {
+            let halfWidth = max(bundle.halfWidthInColumns(atCycles: cycles), narrowest)
+            let turns = segment.centerlineStart.x
+                + (bundle.leanInColumns(atCycles: cycles, direction: leanDirection)
+                    + halfWidth * across) / columns
+            // The height the card reads too (`RoundTube8Bundle.standingFraction`
+            // is this, the envelope times the crest's section), written the way
+            // it was so that not one vertex moves.
+            let height = floor + ridge * bundle.heightFraction(atCycles: cycles)
+                * crestProfile(across: across)
+            let angle = 2 * .pi * turns
             // **The stand's own placement, seen from the braiding point**: `(sin,
             // cos)`, as `BraidStands.round` puts a position on the stand seen from
             // above. The braiding point is at `+x` — later cycles are made nearer
@@ -423,22 +507,22 @@ enum RoundTube8SurfaceMesh {
             // out as its own reflection, and every triangle was wound facing into
             // the braid (`BraidOrientationTests`).
             return SIMD3(
-                base + repeatLength * surface.y,
+                base + repeatLength * (segment.centerlineStart.y + cycles * cycle),
                 height * sin(angle),
                 height * cos(angle)
             )
         }
-        let step: Float = 1e-3
-        let position = at(along, across)
-        var tangent = at(min(along + step, 1), across) - at(max(along - step, 0), across)
-        var bitangent = at(along, min(across + step, 1)) - at(along, max(across - step, -1))
+        let length = bundle.lengthInCycles
+        let step: Float = 1e-3 * length
+        let position = at(cycles, across)
+        var tangent = at(min(cycles + step, length), across) - at(max(cycles - step, 0), across)
+        var bitangent = at(cycles, min(across + 1e-3, 1)) - at(cycles, max(across - 1e-3, -1))
         tangent = normalised(tangent)
         bitangent = normalised(bitangent)
         // **Outward by construction**: along the braid towards the braiding point,
         // then round it clockwise seen from there, and the right hand points out.
         // Nothing turns the normal round afterwards. Something did until Task 032,
-        // at every one of the 18,304 vertices, because the ring was strung the
-        // other way round.
+        // at every vertex, because the ring was strung the other way round.
         let normal = normalised(cross(tangent, bitangent))
         return (position, normal, tangent, bitangent)
     }
@@ -457,7 +541,8 @@ enum RoundTube8SurfaceMesh {
             mesh.bitangents.count == count,
             mesh.textureCoordinates.count == count,
             mesh.triangleCount == mesh.triangleSegmentIndices.count,
-            mesh.positions.allSatisfy({ $0.x.isFinite && $0.y.isFinite && $0.z.isFinite })
+            mesh.positions.allSatisfy({ $0.x.isFinite && $0.y.isFinite && $0.z.isFinite }),
+            mesh.normals.allSatisfy({ $0.x.isFinite && $0.y.isFinite && $0.z.isFinite })
         else { return false }
         return mesh.allTriangleIndices.allSatisfy { $0 < UInt32(count) }
     }

@@ -68,7 +68,7 @@ enum BraidPresetCatalog {
         supportedThreadCounts: [8],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順表はbookA p54の絵と、運ばれた糸の着地についての判定から起こした試作です。立体は転写した升目図ではなく規則から描いており、柄の傾きは実物写真より8度ゆるく出ます。対の中の先後も未照合です。"
+        prototypeNotice: "手順表はbookA p54の絵と、運ばれた糸の着地についての判定から起こした試作です。立体の糸の並びは転写した升目図ではなく規則から出しており、糸束の傾きと重なりは写真に合わせた描画上の近似です。柄の傾きは実物写真より8度ゆるく出ます。対の中の先後も未照合です。"
     )
 
     static let yatsuKongoZ = BraidPreset(
@@ -77,7 +77,7 @@ enum BraidPresetCatalog {
         supportedThreadCounts: [8],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "八つ金剛Sの手順表を盤の上で鏡に写したものです。立体は転写した升目図ではなく規則から描いており、柄の傾きは実物写真より数度ゆるく出ます。対の中の先後も未照合です。"
+        prototypeNotice: "八つ金剛Sの手順表を盤の上で鏡に写したものです。立体の糸の並びは転写した升目図ではなく規則から出しており、糸束の傾きと重なりは写真に合わせた描画上の近似です。柄の傾きは実物写真より数度ゆるく出ます。対の中の先後も未照合です。"
     )
 
     static let presets = [maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ]
