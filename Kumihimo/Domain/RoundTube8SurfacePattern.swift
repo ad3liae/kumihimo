@@ -164,12 +164,20 @@ struct RoundTube8Bundle: Equatable, Sendable {
     /// the figures moved when the cycle did (Task 048's rework doubled it): a
     /// run is about one cycle long and a little wider than its column, which is
     /// the size of a bean on book A p.8's zoom.
+    ///
+    /// **Measured again on the finished drawing** (Task 049): a bean on the
+    /// photograph shows 0.67 of the braid's width long and 0.30 across, its long
+    /// axis within a few degrees of the braid's own. The belly was widened along
+    /// the run (0.25 to 0.75 of a cycle) and the tail shortened so that a run
+    /// shows for most of a cycle instead of two thirds of one, and the lean was
+    /// taken from 0.35 to 0.2 columns a cycle, which is where the photograph's
+    /// beans lie.
     static let standard = RoundTube8Bundle(
-        leanColumnsPerCycle: 0.35,
-        tuckedCycles: 0.45,
-        bellyStartCycles: 0.3,
-        bellyEndCycles: 0.6,
-        widestHalfWidthInColumns: 0.65
+        leanColumnsPerCycle: 0.2,
+        tuckedCycles: 0.35,
+        bellyStartCycles: 0.25,
+        bellyEndCycles: 0.75,
+        widestHalfWidthInColumns: 0.6
     )
 
     /// From the arrival to the end of the run, in cycles.

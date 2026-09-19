@@ -74,7 +74,19 @@ struct RoundTube8CardAgreesWithSolidTests {
 
         /// The outermost surface on the ray out from the axis at `x` along the
         /// tile and `turns` round, and how far out it is.
+        /// The outermost surface **belonging to one run**, if its triangles are
+        /// crossed at all: what the solid has for that run there, as its flat
+        /// triangles cut it.
+        func outermost(x: Float, turns: Float, of part: Part) -> Float? {
+            hits(x: x, turns: turns).filter { $0.0 == part }.map(\.1).max()
+        }
+
         func outermost(x: Float, turns: Float) -> (part: Part, radius: Float)? {
+            hits(x: x, turns: turns).max { $0.1 < $1.1 }
+        }
+
+        /// Every surface the ray out from the axis crosses, with how far out.
+        private func hits(x: Float, turns: Float) -> [(Part, Float)] {
             let angle = 2 * .pi * turns
             let origin = SIMD3<Float>(x, 0, 0)
             let direction = SIMD3<Float>(0, sin(angle), cos(angle))
@@ -82,8 +94,8 @@ struct RoundTube8CardAgreesWithSolidTests {
             var wrappedTurns = turns.truncatingRemainder(dividingBy: 1)
             if wrappedTurns < 0 { wrappedTurns += 1 }
             let br = Int((wrappedTurns * Float(Self.binsRound)).rounded(.down)) % Self.binsRound
-            guard (0..<Self.binsAlong).contains(bx) else { return nil }
-            var best: (Part, Float)?
+            guard (0..<Self.binsAlong).contains(bx) else { return [] }
+            var found = [(Part, Float)]()
             for t in bins[bx * Self.binsRound + br] {
                 let tri = triangles[t]
                 let a = mesh.positions[tri.x], b = mesh.positions[tri.y], c = mesh.positions[tri.z]
@@ -99,9 +111,9 @@ struct RoundTube8CardAgreesWithSolidTests {
                 guard v >= 0, u + v <= 1 else { continue }
                 let distance = dot(e2, q) / det
                 guard distance > 0 else { continue }
-                if best == nil || distance > best!.1, let part = owner[tri.x] { best = (part, distance) }
+                if let part = owner[tri.x] { found.append((part, distance)) }
             }
-            return best.map { (part: $0.0, radius: $0.1) }
+            return found
         }
     }
 
@@ -228,6 +240,27 @@ struct RoundTube8CardAgreesWithSolidTests {
                     continue
                 }
                 compared += 1
+                if card != seen.part,
+                   case .run(let cardRepeat, let cardSegment)? = card,
+                   case .run(let solidRepeat, let solidSegment) = seen.part {
+                    // **Is the disagreement the mesh's own cut?** What the card
+                    // says stands highest, as the flat triangles have it, against
+                    // what the solid shows there. If the cut run has fallen below,
+                    // the solid is right about its own surface and the card is
+                    // right about the rule.
+                    _ = cardSegment
+                    _ = solidSegment
+                    let mine = solid.outermost(
+                        x: x(mesh, along: Float(home) + along), turns: turns,
+                        of: .run(repeatIndex: cardRepeat, segment: cardSegment)
+                    )
+                    let theirs = seen.radius
+                    if mine == nil || theirs >= (mine ?? 0) - 1e-6 {
+                        compared -= 1
+                        letOff += 1
+                        continue
+                    }
+                }
                 if card != seen.part {
                     disagreements.append(String(format: "turns %.4f along %.4f", turns, along)
                         + ": card \(String(describing: card)), solid \(seen.part)")
@@ -242,6 +275,72 @@ struct RoundTube8CardAgreesWithSolidTests {
         let all = compared + letOff + onAFloorBoundary
         #expect(letOff * 10 < all, "let off \(letOff) of \(all) for the triangles")
         #expect(onAFloorBoundary * 100 < all, "let off \(onAFloorBoundary) of \(all) on a floor boundary")
+    }
+
+    /// How far a run stands at a place **as the mesh cuts it**, read off the run's
+    /// own grid of samples: the quad of the mesh that covers the place, and its
+    /// four corners blended. `nil` where the mesh's version of the run does not
+    /// reach the place at all — the flat triangles fall inside a curve that bends
+    /// away from them, so near a steep rise the cut run covers less than the
+    /// smooth one.
+    ///
+    /// This is the surface the solid actually shows, so a card that follows the
+    /// smooth rule can differ from it only here.
+    static func meshCutHeight(
+        of segment: BraidStrandSegment,
+        repeatOffset: Int,
+        leanDirection: Float,
+        atTurns turns: Float,
+        along: Float,
+        bundle: RoundTube8Bundle = .standard
+    ) -> Float? {
+        let alongSteps = RoundTube8SurfaceMesh.defaultAlongSubdivisions
+        let acrossSteps = RoundTube8SurfaceMesh.defaultAcrossSubdivisions
+        let cycle = segment.centerlineEnd.y - segment.centerlineStart.y
+        // The run's samples, in the surface's own coordinates: round the braid
+        // in turns, along it in repeats, and how far it stands.
+        func station(_ i: Int, _ j: Int) -> (turns: Float, along: Float, height: Float) {
+            let step = (1 + RoundTube8SurfaceMesh.crossSectionOffset(
+                forSample: Float(i) / Float(alongSteps))) / 2
+            let cycles = step * bundle.lengthInCycles
+            let across = RoundTube8SurfaceMesh.crossSectionOffset(
+                forSample: Float(j) / Float(acrossSteps))
+            let halfWidth = max(bundle.halfWidthInColumns(atCycles: cycles), 1e-3)
+            let turns = segment.centerlineStart.x
+                + (bundle.leanInColumns(atCycles: cycles, direction: leanDirection)
+                    + halfWidth * across) / 8
+            let along = segment.centerlineStart.y + Float(repeatOffset) + cycles * cycle
+            return (turns, along, bundle.standingFraction(atCycles: cycles, across: across))
+        }
+        // The quad that covers the place, as two triangles.
+        func inside(_ a: (Float, Float), _ b: (Float, Float), _ c: (Float, Float),
+                    _ p: (Float, Float)) -> (Float, Float, Float)? {
+            let d = (b.1 - c.1) * (a.0 - c.0) + (c.0 - b.0) * (a.1 - c.1)
+            guard abs(d) > 1e-12 else { return nil }
+            let u = ((b.1 - c.1) * (p.0 - c.0) + (c.0 - b.0) * (p.1 - c.1)) / d
+            let v = ((c.1 - a.1) * (p.0 - c.0) + (a.0 - c.0) * (p.1 - c.1)) / d
+            let w = 1 - u - v
+            guard u >= -1e-6, v >= -1e-6, w >= -1e-6 else { return nil }
+            return (u, v, w)
+        }
+        // Round the braid is a ring: bring the place to the run's own turn.
+        var place = (turns, along)
+        let middle = segment.centerlineStart.x
+        while place.0 - middle > 0.5 { place.0 -= 1 }
+        while place.0 - middle < -0.5 { place.0 += 1 }
+        for i in 0..<alongSteps {
+            for j in 0..<acrossSteps {
+                let corners = [station(i, j), station(i, j + 1), station(i + 1, j), station(i + 1, j + 1)]
+                let flat = corners.map { ($0.turns, $0.along) }
+                for triangle in [[0, 1, 2], [1, 3, 2]] {
+                    if let (u, v, w) = inside(flat[triangle[0]], flat[triangle[1]], flat[triangle[2]], place) {
+                        return u * corners[triangle[0]].height + v * corners[triangle[1]].height
+                            + w * corners[triangle[2]].height
+                    }
+                }
+            }
+        }
+        return nil
     }
 
     /// How far a run stands at a place **as the mesh cuts it**: the rule's height

@@ -329,7 +329,10 @@ struct RoundTube8SurfaceTests {
         // column of the finished braid: the braid turns a column a cycle now,
         // the cycle is twice as long, and a run is about one cycle (Task 048's
         // rework).
-        #expect(BraidMeshHashTests.hash(s.positions) == 0x2716_6247_a8d0_b579)
+        // Then `0x2716_6247_a8d0_b579` before Task 049 measured the finished
+        // drawing against the photograph: the belly runs further along a run,
+        // the tail is shorter and the lean shallower.
+        #expect(BraidMeshHashTests.hash(s.positions) == 0xd757_face_7799_2ef5)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
@@ -535,7 +538,7 @@ struct RoundTube8SurfaceTests {
             }) else { continue }
             pairs += 1
             // The earlier run past the later one's belly, along its crest.
-            for cycles in stride(from: 1 + bundle.bellyStartCycles, to: bundle.lengthInCycles, by: 0.1) {
+            for cycles in stride(from: 1 + bundle.bellyStartCycles, to: bundle.lengthInCycles, by: 0.02) {
                 let under = point(segment, cycles, 0)
                 // The later run's section at the same place along the braid.
                 let section = (0...200).map { point(later, cycles - 1, Float($0) / 100 - 1) }
