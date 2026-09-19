@@ -3,9 +3,10 @@ import simd
 import Testing
 @testable import Kumihimo
 
-/// Task 047: every cell is drawn as a bundle that reaches past its cell; one
-/// passing over goes on across the crossing over the end of the one passing
-/// under, its texture spans all of it, and it is shaded only where it goes under.
+/// Task 047: every cell is drawn as a bundle that reaches past its cell, and every
+/// bundle is alike: at its trailing end it passes over and goes on across the
+/// crossing, over the leading end of the bundle there, which passes under. Its
+/// texture spans all of it, and it is shaded only where it goes under.
 /// These hold what that changed; the look itself was judged against the
 /// author's sketch and the photographs, not here.
 struct RoundTube16StrandTipTests {
@@ -46,11 +47,11 @@ struct RoundTube16StrandTipTests {
     ///
     /// At every crossing in the middle of the tile, on the crest and about 0.6 of
     /// the way to each rim:
-    /// - the end of a bundle passing under is covered, by a bundle of **another
-    ///   thread** passing over;
-    /// - the end of a bundle passing over has nothing over it;
-    /// - the tip of the lap a bundle passing over runs on into is covered, by
-    ///   another bundle.
+    /// - a bundle's leading end, which passes under, is covered, by a bundle of
+    ///   **another thread**;
+    /// - a bundle's trailing end, which passes over, has nothing over it;
+    /// - the tip it runs on into past its trailing end is covered, by another
+    ///   bundle.
     /// These are claims at those points only, not over the whole width or path.
     @Test func atEveryCrossingTheBundleGoingOnCoversTheEndOfTheOneGoingUnder() throws {
         let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture))
@@ -70,22 +71,22 @@ struct RoundTube16StrandTipTests {
             let segment = mesh.vertexSegmentIndices[index]
             let patch = pattern.patches[segment]
             let own = radius(mesh.positions[index])
-            let isEnd = abs(coordinate.x) < 0.001 || abs(coordinate.x - 1) < 0.001
-            let isLapTip = abs(RoundTube16SurfaceMesh.pastTheEnd(coordinate.x) - lap) < 0.001
-            guard isEnd || (isLapTip && patch.layer == .over) else { continue }
+            let isLeading = abs(coordinate.x) < 0.001
+            let isTrailing = abs(coordinate.x - 1) < 0.001
+            let isTip = abs(coordinate.x - 1 - lap) < 0.001
+            guard isLeading || isTrailing || isTip else { continue }
 
             let covering = lines.crossings(at: mesh.positions[index])
                 .filter { $0.radius > own + 0.000_5 && $0.segment != segment }
-            if patch.layer == .under {
+            if isLeading {
                 let cover = covering.max { $0.radius < $1.radius }
                 #expect(cover != nil)
                 if let cover {
                     #expect(!cover.isBeneath)
-                    #expect(pattern.patches[cover.segment].layer == .over)
                     #expect(pattern.patches[cover.segment].threadPosition != patch.threadPosition)
                 }
                 underEnds += 1
-            } else if isEnd {
+            } else if isTrailing {
                 #expect(covering.isEmpty)
                 overEnds += 1
             } else {
@@ -125,34 +126,28 @@ struct RoundTube16StrandTipTests {
         let lap = RoundTube16SurfaceMesh.overCrossingLap
         typealias Factory = RoundTube16StrandTextureFactory
 
-        for along in stride(from: Float(0), through: 1, by: 0.05) {
-            #expect(Factory.crossingShade(along: along, layer: .over) == 1)
+        // Dark where it goes under, at its leading end, and at the tip past its
+        // trailing end; not from mid-span to the trailing end, where it lies on top.
+        #expect(abs(Factory.crossingShade(along: 0) - dark) < 0.000_1)
+        for along in stride(from: Float(0.5), through: 1, by: 0.05) {
+            #expect(Factory.crossingShade(along: along) == 1)
         }
-        #expect(abs(Factory.crossingShade(along: 1 + lap, layer: .over) - dark) < 0.000_1)
-        #expect(abs(Factory.crossingShade(along: -lap, layer: .over) - dark) < 0.000_1)
-
-        #expect(abs(Factory.crossingShade(along: 0, layer: .under) - dark) < 0.000_1)
-        #expect(abs(Factory.crossingShade(along: 1, layer: .under) - dark) < 0.000_1)
-        #expect(Factory.crossingShade(along: 0.5, layer: .under) == 1)
+        #expect(abs(Factory.crossingShade(along: 1 + lap) - dark) < 0.000_1)
     }
 
     // MARK: - The stripes run on into the lap
 
     @Test func aBundlesTextureSpansAllOfItPastItsCellsEnds() throws {
-        for layer in BraidCrossingLayer.allCases {
-            let reach = RoundTube16SurfaceMesh.pastTheEnds(layer: layer)
-            #expect(RoundTube16SurfaceMesh.textureAlong(-reach, layer: layer) == 0)
-            #expect(abs(RoundTube16SurfaceMesh.textureAlong(1 + reach, layer: layer) - 1) < 0.000_1)
-            for along in stride(from: -reach, through: 1 + reach, by: 0.125) {
-                let back = RoundTube16SurfaceMesh.strandAlong(
-                    forTextureAlong: RoundTube16SurfaceMesh.textureAlong(along, layer: layer),
-                    layer: layer
-                )
-                #expect(abs(back - along) < 0.000_1)
-            }
+        let tuck = RoundTube16SurfaceMesh.underCrossingTuck
+        let lap = RoundTube16SurfaceMesh.overCrossingLap
+        #expect(RoundTube16SurfaceMesh.textureAlong(-tuck) == 0)
+        #expect(abs(RoundTube16SurfaceMesh.textureAlong(1 + lap) - 1) < 0.000_1)
+        for along in stride(from: -tuck, through: 1 + lap, by: 0.125) {
+            let back = RoundTube16SurfaceMesh.strandAlong(
+                forTextureAlong: RoundTube16SurfaceMesh.textureAlong(along)
+            )
+            #expect(abs(back - along) < 0.000_1)
         }
-        #expect(RoundTube16SurfaceMesh.pastTheEnds(layer: .over)
-            > RoundTube16SurfaceMesh.pastTheEnds(layer: .under))
 
         // On the mesh: the texture column every vertex reads stands for the place
         // along the bundle the vertex is at, past the ends included. Were it
@@ -161,10 +156,9 @@ struct RoundTube16StrandTipTests {
         let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
         var lapVertices = 0
         for index in mesh.positions.indices where !mesh.vertexIsBeneath[index] {
-            let layer = pattern.patches[mesh.vertexSegmentIndices[index]].layer
             let along = mesh.strandCoordinates[index].x
             let read = RoundTube16SurfaceMesh.strandAlong(
-                forTextureAlong: mesh.textureCoordinates[index].x, layer: layer
+                forTextureAlong: mesh.textureCoordinates[index].x
             )
             #expect(abs(read - along) < 0.001)
             if along > 1.001 || along < -0.001 { lapVertices += 1 }

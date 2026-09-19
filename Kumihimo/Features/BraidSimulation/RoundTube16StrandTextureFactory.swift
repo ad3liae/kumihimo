@@ -10,15 +10,14 @@ import simd
 /// than a separately coloured band, and the twist lives in the normal and
 /// roughness maps so it stays finer than the mesh could resolve without moire.
 ///
-/// One set of maps is generated per twist group and per layer rather than one for
-/// all strands. The layer is Task 047's: a strand is darkened where it goes under
-/// the next one, not where it lies on top, and a strand passing over has laps
-/// its texture has to span (`RoundTube16SurfaceMesh.textureAlong`).
+/// A maru-genji bundle's maps span it past both of its cell's ends, and shade it
+/// where it goes under, not where it lies on top (Task 047;
+/// `RoundTube16SurfaceMesh.textureAlong`).
 ///
 /// **Other families borrow from here** — the eight-thread tube calls
 /// `roughnessImage` and `normalImage`, and hira-genji's stitch and the
-/// eight-thread tube read the shared figures below. Called without a layer those
-/// draw exactly what they drew before Task 047; maru-genji's own figures are the
+/// eight-thread tube read the shared figures below. Called with their defaults
+/// those draw exactly what they drew before Task 047; maru-genji's own figures are the
 /// `strand…` ones and reach nothing else.
 ///
 /// One set of maps is generated per twist group rather than one for all strands.
@@ -54,60 +53,54 @@ enum RoundTube16StrandTextureFactory {
     /// `valleyOcclusion`: the softer cross-section already shades the groove,
     /// and at full depth every strand was ringed in the same dark line.
     static let strandValleyOcclusion: Float = 0.6
-    /// How far along a strand passing under its shadow reaches from each end.
-    /// Longer than `crossingOcclusionLength` because the lap now covers the first
-    /// sixth or so of it; the shadow has to show past where the lap tucks in.
+    /// How far from its leading end, where it goes under, a bundle's shadow
+    /// reaches. Longer than `crossingOcclusionLength` because the bundle lying
+    /// over it covers the first part; the shadow has to show past that.
     static let strandUnderShadowLength: Float = 0.28
-    /// Where on a lap, past the strand's end, its tip starts to darken as it
-    /// slides under. The top of a strand passing over is not shaded at all.
+    /// Where past its trailing end a bundle's tip starts to darken as it sinks
+    /// under the bundles beyond. Where it lies on top it is not shaded at all.
     static let strandLapShadowStart: Float = 0.2
     static let strandTwistRoughnessAmplitude: Float = 0.08
 
-    /// The contact shadow along a maru-genji strand, 1 where there is none.
-    static func crossingShade(along: Float, layer: BraidCrossingLayer) -> Float {
-        switch layer {
-        case .under:
-            return mix(
-                crossingOcclusion,
-                1,
-                smoothstep(0, strandUnderShadowLength, min(along, 1 - along))
-            )
-        case .over:
-            let pastTheEnd = max(-along, along - 1, 0)
+    /// The contact shadow along a maru-genji bundle, 1 where there is none: at
+    /// its leading end, where it goes under, and at the tip past its trailing
+    /// end, where it sinks beneath the bundles beyond. Not where it lies on top.
+    static func crossingShade(along: Float) -> Float {
+        if along > 1 {
             return mix(
                 1,
                 crossingOcclusion,
-                smoothstep(strandLapShadowStart, RoundTube16SurfaceMesh.overCrossingLap, pastTheEnd)
+                smoothstep(strandLapShadowStart, RoundTube16SurfaceMesh.overCrossingLap, along - 1)
             )
         }
+        return mix(crossingOcclusion, 1, smoothstep(0, strandUnderShadowLength, along))
     }
 
-    /// Maru-genji's only; nothing borrows it.
-    static func occlusionImage(twist: Twist, layer: BraidCrossingLayer) -> CGImage? {
+    static func occlusionImage(twist: Twist) -> CGImage? {
         grayscaleImage { column, across in
-            let along = spanned(column, layer: layer)
+            let along = RoundTube16SurfaceMesh.strandAlong(forTextureAlong: column)
             let offset = crossSectionOffset(forRow: across)
             let valley = mix(
                 strandValleyOcclusion,
                 1,
                 smoothstep(0, valleyOcclusionWidth, 1 - abs(offset))
             )
-            let crossing = crossingShade(along: along, layer: layer)
+            let crossing = crossingShade(along: along)
             let twistShade = 1 - twistTint
                 * (1 - cos(twist.coefficients.phase(along: along, across: offset))) / 2
             return linearToSRGB(valley * crossing * twistShade)
         }
     }
 
-    /// `layer` and `amplitude` are maru-genji's; the defaults (no layer) draw
-    /// what the eight-thread tube has always borrowed.
+    /// `spansBundle` and `amplitude` are maru-genji's; the defaults draw what the
+    /// eight-thread tube has always borrowed.
     static func roughnessImage(
         twist: Twist,
-        layer: BraidCrossingLayer? = nil,
+        spansBundle: Bool = false,
         amplitude: Float = twistRoughnessAmplitude
     ) -> CGImage? {
         grayscaleImage { column, across in
-            let along = spanned(column, layer: layer)
+            let along = spanned(column, spansBundle: spansBundle)
             let offset = crossSectionOffset(forRow: across)
             let value = baseRoughness
                 + amplitude
@@ -124,11 +117,11 @@ enum RoundTube16StrandTextureFactory {
     /// angles to each other, and differentiating in the sheared pair would tilt
     /// the relief away from the stripes it is lighting.
     ///
-    /// `layer` and `relief` are maru-genji's; the defaults (no layer) draw what
-    /// the eight-thread tube has always borrowed.
+    /// `spansBundle` and `relief` are maru-genji's; the defaults draw what the
+    /// eight-thread tube has always borrowed.
     static func normalImage(
         twist: Twist,
-        layer: BraidCrossingLayer? = nil,
+        spansBundle: Bool = false,
         relief: Float = RoundTube16SurfaceMesh.twistReliefRatio
     ) -> CGImage? {
         let gradient = twist.normalizedPhaseGradient
@@ -138,7 +131,7 @@ enum RoundTube16StrandTextureFactory {
         let amplitude = relief
 
         return colorImage { column, across in
-            let along = spanned(column, layer: layer)
+            let along = spanned(column, spansBundle: spansBundle)
             let offset = crossSectionOffset(forRow: across)
             let value = cos(twist.coefficients.phase(along: along, across: offset))
             let slope = amplitude * value * gradient
@@ -151,11 +144,11 @@ enum RoundTube16StrandTextureFactory {
         }
     }
 
-    /// The place along a strand a texture column stands for. Without a layer
-    /// the texture spans exactly the strand, which is what the eight-thread
-    /// tube borrows; with one it spans the maru-genji bundle past its ends.
-    private static func spanned(_ column: Float, layer: BraidCrossingLayer?) -> Float {
-        layer.map { RoundTube16SurfaceMesh.strandAlong(forTextureAlong: column, layer: $0) } ?? column
+    /// The place along a strand a texture column stands for. By default the
+    /// texture spans exactly the strand, which is what the eight-thread tube
+    /// borrows; for maru-genji it spans the bundle past both of its ends.
+    private static func spanned(_ column: Float, spansBundle: Bool) -> Float {
+        spansBundle ? RoundTube16SurfaceMesh.strandAlong(forTextureAlong: column) : column
     }
 
     /// The cross-section offset a bitmap row stands for.
@@ -189,14 +182,6 @@ enum RoundTube16StrandTextureFactory {
         twistGrouping.groups
     }
 
-    /// The layer each twist group's strands take. Since the Task 047 rework the
-    /// two layers' bundles are drawn at different widths, so no group holds
-    /// both, and only the layer a group is drawn in needs maps.
-    static let twistGroupLayers: [BraidCrossingLayer] = twistGrouping.groups.indices.map { group in
-        referenceSurface.segments.indices
-            .first { twistGrouping.groupIndexBySegment[$0] == group }
-            .map { referenceSurface.segments[$0].layer } ?? .over
-    }
 
     /// The strand shape is the same for every colouring, so a fixed single-colour
     /// pattern is enough to read the geometry the detail maps have to match.

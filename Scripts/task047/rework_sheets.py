@@ -12,7 +12,9 @@ States:
   old4  `d518959`, the rejected four-step version, rebuilt with the current
         capture arguments only (its drawing code untouched)
   R     the rework's first committed state (`739620f`, lap 0.45)
-  R2    the rework as adopted (lap 0.30, matched to the finished photographs)
+  R2    lap 0.30, matched to the finished photographs (`d9d30c2`)
+  R3    every bundle alike: over at its trailing end, under at its leading end
+  R5    R3 with one repeat 1.25 turns long and the bundle on its cell's diagonal
 """
 
 import os
@@ -31,7 +33,7 @@ OWN_ROWS = (1036, 1119)           # braid edges read by eye on a 3x crop
 WIDTH = 160                       # braid width on the whole-braid sheets
 LOCAL = (150, 420, 950, 960)      # the front V at zoom 1.8, in capture pixels
 record = []
-A = os.environ.get("ADOPTED", "R2")
+A = os.environ.get("ADOPTED", "R5")
 
 
 def labelled(image, text):
@@ -121,10 +123,10 @@ def main():
     ], "local-plain")
     # 2. Local, the four threads of the sketch told apart.
     notes = [
-        ((245, 205, 60), "thread 1 (yellow): over at the front V, row 1"),
-        ((40, 40, 40), "thread 12 (black): under there; its end is hidden beneath 1"),
-        ((215, 50, 55), "thread 11 (red): over at the front V, row 2"),
-        ((55, 100, 200), "thread 2 (blue): under there; its end is hidden beneath 11"),
+        ((245, 205, 60), "thread 1 (yellow): passes over at the front V"),
+        ((40, 40, 40), "thread 12 (black): passes under it there; its end is hidden"),
+        ((215, 50, 55), "thread 11 (red): passes under 2 at the front V; its end is hidden"),
+        ((55, 100, 200), "thread 2 (blue): passes over at the front V"),
     ]
     stack([
         labelled(sketch(COLOURED, h), "author's coloured sketch: black+yellow and red+blue are separate threads"),
@@ -157,7 +159,7 @@ def main():
     cards = []
     for colouring in ["fixture1", "sketch"]:
         card = capture(A, f"{colouring}-card").crop((0, 1060, 1640, 1305))
-        cards.append(labelled(card, f"list card (unchanged by the rework), {colouring}"))
+        cards.append(labelled(card, f"list card (cells and colours unchanged; the repeat follows the aspect), {colouring}"))
         solid = capture(A, f"{colouring}-roll0").crop((0, 520, 1640, 900))
         cards.append(labelled(solid, f"{A} = rework, detail, {colouring}, 0 deg"))
     stack(cards, "card-and-detail")

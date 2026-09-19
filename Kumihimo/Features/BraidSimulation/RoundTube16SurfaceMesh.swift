@@ -6,10 +6,6 @@ import simd
 struct RoundTube16SurfaceMaterialKey: Hashable, Sendable {
     let colorID: ThreadColorID
     let twistGroupIndex: Int
-    /// Which side of its crossings the strand takes. The two sides are shaded
-    /// apart — a strand is darkened where it goes under, not where it lies on
-    /// top — and their maps span different lengths (Task 047).
-    let layer: BraidCrossingLayer
 }
 
 struct RoundTube16SurfaceMeshData: Sendable {
@@ -31,7 +27,7 @@ struct RoundTube16SurfaceMeshData: Sendable {
     let twistPhases: [Float]
     /// The twist groups the strands fall into, and which group each strand uses.
     let twist: RoundTube16SurfaceMesh.TwistGrouping
-    /// Triangle indices per colour, twist group and layer. One material per entry.
+    /// Triangle indices per colour and twist group. One material per entry.
     let materialGroups: [RoundTube16SurfaceMaterialKey: [UInt32]]
     let vertexSegmentIndices: [Int]
     /// The floor laid beneath every cell, as against the bundle drawn over it.
@@ -67,9 +63,7 @@ struct RoundTube16SurfaceMeshData: Sendable {
     /// change to how the ridge is built comes through here too. Mid-span puts the
     /// crossing weight at zero and the cross-section on its crest.
     var crestRadius: Float {
-        RoundTube16SurfaceMesh.strandRadius(
-            layer: .over, along: 0.5, across: 0, radius: baseRadius
-        )
+        RoundTube16SurfaceMesh.strandRadius(along: 0.5, across: 0, radius: baseRadius)
     }
 
     /// What a photograph of the finished braid measures across.
@@ -108,13 +102,9 @@ struct RoundTube16SurfaceMeshData: Sendable {
     /// Draw groups in a fixed order, so every derived grouping is deterministic.
     var sortedMaterialGroups: [(key: RoundTube16SurfaceMaterialKey, value: [UInt32])] {
         materialGroups.sorted {
-            if $0.key.colorID.rawValue != $1.key.colorID.rawValue {
-                return $0.key.colorID.rawValue < $1.key.colorID.rawValue
-            }
-            if $0.key.twistGroupIndex != $1.key.twistGroupIndex {
-                return $0.key.twistGroupIndex < $1.key.twistGroupIndex
-            }
-            return $0.key.layer == .over && $1.key.layer == .under
+            $0.key.colorID.rawValue == $1.key.colorID.rawValue
+                ? $0.key.twistGroupIndex < $1.key.twistGroupIndex
+                : $0.key.colorID.rawValue < $1.key.colorID.rawValue
         }
     }
 }
@@ -123,12 +113,13 @@ struct RoundTube16SurfaceMeshData: Sendable {
 /// bundles.
 ///
 /// **Each cell of the pattern is drawn as one bundle, and the bundle is not the
-/// cell** (Task 047 rework). The cell says which thread is where and which side
-/// of each crossing it takes; the bundle is that thread's visible run, wider than
-/// its cell so it lies over its neighbours' flanks, and longer, so that a bundle
-/// passing over a crossing goes on across it with its full width over the end of
-/// the bundle passing under, and only then narrows and sinks beneath the bundles
-/// beyond. The bundle passing under narrows and sinks at its ends and is buried.
+/// cell** (Task 047 rework). The cell says which thread is where; the bundle is
+/// that thread's visible run, wider than its cell so it lies over its
+/// neighbours' flanks, and longer. **Every bundle is the same**: at its trailing
+/// end it passes over the crossing and goes on across it with its full width,
+/// over the leading end of the bundle there, and only then narrows and sinks
+/// beneath the bundles beyond; at its leading end it narrows, sinks and is
+/// buried beneath the one passing over it.
 /// **Whichever bundle stands higher at a place is the one seen**; the depth test
 /// draws the outline where two meet, so a hidden outline breaks off under the
 /// one that goes on. Beneath every cell lies the floor of that cell, in its
@@ -141,8 +132,16 @@ struct RoundTube16SurfaceMeshData: Sendable {
 /// facing each other end to end, which the author rejected: the two sides of a V
 /// are **separate bundles lying over one another** (the author, 2026-09-19).
 ///
-/// The crossing rule is still the pattern's checkerboard, an approximation of the
-/// braid's own order that nothing here claims to settle.
+/// **Which side of a crossing a bundle takes is its end's, not its cell's.** Every
+/// crossing joins one cell's trailing end to the next cell's leading end, so one
+/// passes over and one under there, and every bundle goes over one crossing and
+/// under the next. The pattern's checkerboard (`RoundTube16SurfacePatch.layer`)
+/// put a cell over at both ends or under at both, which drew a long bundle and a
+/// short one in turn, row by row; a maru-genji's bundles are all one size (the
+/// author, 2026-09-20). The checkerboard no longer shapes the drawing. Which
+/// end goes over is chosen so both sides of a V do the same row after row, as
+/// the author's sketch has it; it is an approximation of the braid's own order
+/// that nothing here claims to settle.
 enum RoundTube16SurfaceMesh {
     /// **The family this draws**: sixteen threads, a tube.
     static let family = BraidFamily.roundTube(threads: 16)
@@ -160,47 +159,40 @@ enum RoundTube16SurfaceMesh {
             ),
             "one repeat over one turn": BraidMeasurement(
                 Double(RoundTube16SurfacePatternGenerator.patternAspectRatio),
-                source: .observed("photographs, Task 005I: 1.8 to 2.15 chevrons a braid "
-                                  + "width, read two ways"),
-                unsettled: "found by rendering and comparing, and only its product with "
-                    + "the crest height is held"
+                source: .observed("the author's own maru-genji, top-down and close up: a V "
+                                  + "every 0.44 to 0.47 braid widths, one V a row (Task 047 "
+                                  + "rework; Task 005I read one V as two rows and took 0.65)"),
+                unsettled: "read by eye off two photographs of one braid; book A's braid "
+                    + "is coarser still, and only its product with the crest height is "
+                    + "held by the outline"
             ),
             "valley below the nominal radius": .declared(
                 Double(valleyDepthRatio), calibratedBy: "how deep the groove looks"
             ),
-            "extra crest where a thread passes over": .declared(
-                Double(overCrossingLift), calibratedBy: "how far the over thread stands up"
+            "extra crest at the end that passes over": .declared(
+                Double(overCrossingLift), calibratedBy: "how far the over end stands up"
             ),
-            "crest lost where a thread passes under": .declared(
-                Double(underCrossingDip), calibratedBy: "how far the under thread sinks"
+            "crest lost at the end that passes under": .declared(
+                Double(underCrossingDip), calibratedBy: "how far the under end sinks"
             ),
-            "how far a bundle passing over goes on past the crossing": .declared(
+            "how far a bundle goes on past the crossing it passes over": .declared(
                 Double(overCrossingLap),
                 calibratedBy: "how far one side of a V lies over the other before it "
                     + "sinks, held against the finished braids' photographs by eye "
                     + "(Task 047 rework; 0.45 read longer than the photographs)"
             ),
-            "how far a bundle passing under goes on beneath the crossing": .declared(
+            "how far a bundle goes on beneath the crossing it passes under": .declared(
                 Double(underCrossingTuck), calibratedBy: "only that its end is buried"
             ),
-            "a bundle's rise over one column, over its cell's": .declared(
-                Double(bundleLean),
-                calibratedBy: "the bundles of the finished braids' photographs lie "
-                    + "much nearer the axis than the cells' diagonal (57 degrees); "
-                    + "the cells, the card and the chevron density are unchanged"
-            ),
-            "a bundle passing over, its half-width over its cell's": .declared(
-                Double(overBundleWidth),
+            "a bundle's half-width over its cell's": .declared(
+                Double(bundleWidthOverCell),
                 calibratedBy: "how far its broad face lies over its neighbours' flanks"
             ),
-            "a bundle passing under, its half-width over its cell's": .declared(
-                Double(underBundleWidth), calibratedBy: "as above"
-            ),
-            "how much a bundle passing under narrows at its ends": .declared(
+            "how much a bundle narrows at the end that passes under": .declared(
                 Double(underEndNarrowing),
                 calibratedBy: "so its outline goes in beneath the one passing over"
             ),
-            "how much a bundle passing over narrows at its tip": .declared(
+            "how much a bundle narrows at the tip past the crossing": .declared(
                 Double(overTipNarrowing), calibratedBy: "the rounded tip of the sketch"
             ),
             "how the cross-section falls to its rim, as the power of |across|":
@@ -268,26 +260,19 @@ enum RoundTube16SurfaceMesh {
     static let overCrossingLift: Float = 0.16
     /// Crest removed from the strand passing under a crossing.
     static let underCrossingDip: Float = 0.55
-    /// How far past its own ends a bundle passing over a crossing goes on, as a
-    /// fraction of its length: over the end of the bundle passing under, and on
-    /// until it sinks beneath the bundles beyond.
+    /// How far past its trailing end, where it passes over, a bundle goes on,
+    /// as a fraction of its length: over the leading end of the bundle there,
+    /// and on until it sinks beneath the bundles beyond.
     static let overCrossingLap: Float = 0.3
-    /// How far past its own ends a bundle passing under goes on, sinking, so its
-    /// end is buried rather than cut.
+    /// How far past its leading end, where it passes under, a bundle goes on,
+    /// sinking, so its end is buried rather than cut.
     static let underCrossingTuck: Float = 0.15
-    /// Half-widths over the cell's half-width. Wider than 1 lies over the
-    /// neighbouring rows' flanks.
-    static let overBundleWidth: Float = 1.25
-    static let underBundleWidth: Float = 1.05
-    /// How far a bundle rises along the braid over one column, over what its
-    /// cell rises. Above 1 a bundle lies nearer the braid's axis than its cell
-    /// does, turned about the cell's middle, so its ends still land on the
-    /// column's edges; the neighbours it meets there are the same, because the
-    /// two sides of every crossing turn by the same amount the same way.
-    static let bundleLean: Float = 2
-    /// How much narrower a bundle passing under is at its ends than mid-span.
+    /// Half-width over the cell's half-width. Wider than 1 lies over the
+    /// neighbouring rows' flanks. One value for every bundle.
+    static let bundleWidthOverCell: Float = 1.15
+    /// How much narrower a bundle is at its leading end, where it passes under.
     static let underEndNarrowing: Float = 0.6
-    /// How much narrower a bundle passing over is at the tip of its lap.
+    /// How much narrower a bundle is at the tip past its trailing end.
     static let overTipNarrowing: Float = 0.55
     /// How far below its rim a buried tip ends, in crest heights.
     static let buriedTipSink: Float = 0.08
@@ -358,10 +343,7 @@ enum RoundTube16SurfaceMesh {
                 repeatCount: patternRepeatCount
             )
         )
-        let alongSamples: [BraidCrossingLayer: [Float]] = [
-            .over: bundleAlongSamples(layer: .over, count: alongStrandSubdivisions),
-            .under: bundleAlongSamples(layer: .under, count: alongStrandSubdivisions),
-        ]
+        let alongSamples = bundleAlongSamples(count: alongStrandSubdivisions)
         let acrossSamples = subdivisionSamples(from: 0, to: 1, count: acrossStrandSubdivisions)
 
         var builder = MeshBuilder()
@@ -372,11 +354,11 @@ enum RoundTube16SurfaceMesh {
         for repeatIndex in -1...patternRepeatCount {
             for (segmentIndex, segment) in surface.segments.enumerated() {
                 appendStrand(
-                    bundle(for: segment),
+                    segment,
                     segmentIndex: segmentIndex,
                     repeatIndex: repeatIndex,
                     metrics: metrics,
-                    alongSamples: alongSamples[segment.layer] ?? [],
+                    alongSamples: alongSamples,
                     acrossSamples: acrossSamples,
                     builder: &builder
                 )
@@ -411,17 +393,12 @@ enum RoundTube16SurfaceMesh {
 
     /// Radius of a bundle's surface, before the twist relief is applied by the
     /// normal map. `across` is 0 on the crest and ±1 at the rim, which lies on the
-    /// valley floor. Past its ends the bundle sinks, and ends buried below the
+    /// valley floor. Past either end the bundle sinks, and ends buried below the
     /// floor.
-    static func strandRadius(
-        layer: BraidCrossingLayer,
-        along: Float,
-        across: Float,
-        radius: Float
-    ) -> Float {
-        let past = pastTheEnd(along)
-        let sinking = smoothstep(0, pastTheEnds(layer: layer), past)
-        let crest = crossingCrestFactor(layer: layer, along: along)
+    static func strandRadius(along: Float, across: Float, radius: Float) -> Float {
+        let reach = along < 0 ? underCrossingTuck : overCrossingLap
+        let sinking = smoothstep(0, reach, pastTheEnd(along))
+        let crest = crossingCrestFactor(along: along)
             * crestProfile(across: across)
             * (1 - sinking)
             - buriedTipSink * sinking
@@ -433,48 +410,22 @@ enum RoundTube16SurfaceMesh {
         radius * (1 - valleyDepthRatio - beneathSink)
     }
 
-    /// The bundle a cell is drawn as: its centreline turned about the cell's
-    /// middle to rise `bundleLean` times as far over the column. The width stays
-    /// the cell's, along the braid.
-    static func bundle(for segment: BraidStrandSegment) -> BraidStrandSegment {
-        let middle = (segment.centerlineStart + segment.centerlineEnd) / 2
-        let half = segment.centerlineDelta / 2
-        let turned = SIMD2<Float>(half.x, half.y * bundleLean)
-        return BraidStrandSegment(
-            threadPosition: segment.threadPosition,
-            colorID: segment.colorID,
-            layer: segment.layer,
-            centerlineStart: middle - turned,
-            centerlineEnd: middle + turned,
-            startHalfWidth: segment.startHalfWidth,
-            endHalfWidth: segment.endHalfWidth
-        )
-    }
-
-    /// How far a layer's bundle reaches past each of its cell's ends.
-    static func pastTheEnds(layer: BraidCrossingLayer) -> Float {
-        layer == .over ? overCrossingLap : underCrossingTuck
-    }
-
     /// 0 inside the cell's own span, the distance past the nearer end outside it.
     static func pastTheEnd(_ along: Float) -> Float {
         max(-along, along - 1, 0)
     }
 
-    /// A bundle's half-width over its cell's, along it. A bundle passing over
-    /// keeps its width through the crossing and narrows only at the tip of its
-    /// lap; one passing under narrows towards its ends, so its outline goes in
-    /// beneath the one lying over it.
-    static func bundleWidth(layer: BraidCrossingLayer, along: Float) -> Float {
-        switch layer {
-        case .over:
-            let tip = smoothstep(0, overCrossingLap, pastTheEnd(along))
-            return overBundleWidth * (1 - overTipNarrowing * tip)
-        case .under:
-            let span = min(max(along, 0), 1)
-            let end = 1 - smoothstep(0, 0.4, min(span, 1 - span))
-            return underBundleWidth * (1 - underEndNarrowing * end)
+    /// A bundle's half-width over its cell's, along it. It keeps its width
+    /// through the crossing at its trailing end and narrows only at the tip
+    /// past it; towards its leading end it narrows, so its outline goes in
+    /// beneath the bundle lying over it there.
+    static func bundleWidth(along: Float) -> Float {
+        if along > 1 {
+            let tip = smoothstep(0, overCrossingLap, along - 1)
+            return bundleWidthOverCell * (1 - overTipNarrowing * tip)
         }
+        let end = 1 - smoothstep(0, 0.4, max(along, 0))
+        return bundleWidthOverCell * (1 - underEndNarrowing * end)
     }
 
     private static func smoothstep(_ edge0: Float, _ edge1: Float, _ value: Float) -> Float {
@@ -498,14 +449,13 @@ enum RoundTube16SurfaceMesh {
         (1 + cos(2 * .pi * min(max(along, 0), 1))) / 2
     }
 
-    static func crossingCrestFactor(layer: BraidCrossingLayer, along: Float) -> Float {
+    /// Lower towards the leading end, where the bundle passes under, and higher
+    /// towards the trailing end, where it passes over. 1 at mid-span.
+    static func crossingCrestFactor(along: Float) -> Float {
         let weight = crossingWeight(along: along)
-        switch layer {
-        case .over:
-            return 1 + overCrossingLift * weight
-        case .under:
-            return 1 - underCrossingDip * weight
-        }
+        return along < 0.5
+            ? 1 - underCrossingDip * weight
+            : 1 + overCrossingLift * weight
     }
 
     /// Maps an even 0...1 sampling onto the cross-section so that steps in the
@@ -579,21 +529,21 @@ enum RoundTube16SurfaceMesh {
 
     /// Where a point `along` a strand falls in its texture, 0...1.
     ///
-    /// A bundle reaches past both of its cell's ends — a long way when it passes
-    /// over, a little when it passes under — and its texture spans all of it:
+    /// A bundle reaches past both of its cell's ends — a long way at its trailing
+    /// end, where it passes over, a little at its leading end, where it passes
+    /// under — and its texture spans all of it:
     /// were it clamped at the ends, the part past them would repeat the last
     /// column and the stripes would smear out just where the tip is seen going
     /// on over the crossing (Task 047).
-    static func textureAlong(_ along: Float, layer: BraidCrossingLayer) -> Float {
-        let span = pastTheEnds(layer: layer)
-        return min(max((along + span) / (1 + 2 * span), 0), 1)
+    static func textureAlong(_ along: Float) -> Float {
+        let span = 1 + underCrossingTuck + overCrossingLap
+        return min(max((along + underCrossingTuck) / span, 0), 1)
     }
 
     /// The inverse of `textureAlong`: the point along the strand a texture
     /// column stands for.
-    static func strandAlong(forTextureAlong textureAlong: Float, layer: BraidCrossingLayer) -> Float {
-        let span = pastTheEnds(layer: layer)
-        return textureAlong * (1 + 2 * span) - span
+    static func strandAlong(forTextureAlong textureAlong: Float) -> Float {
+        textureAlong * (1 + underCrossingTuck + overCrossingLap) - underCrossingTuck
     }
 
     static func twistGrouping(
@@ -635,9 +585,8 @@ enum RoundTube16SurfaceMesh {
         let cosine = cos(angle)
         guard sine != 0 else { return nil }
 
-        let drawn = bundle(for: segment)
         let along = worldOffset(
-            drawn.centerlineDelta,
+            segment.centerlineDelta,
             radius: radius,
             length: length,
             repeatCount: repeatCount
@@ -645,7 +594,7 @@ enum RoundTube16SurfaceMesh {
         // The bundle's own width, not its cell's: the stripes have to meet the
         // bundle that is drawn at the angle, and it is wider than its cell.
         let across = worldOffset(
-            segment.meanHalfWidth * bundleWidth(layer: segment.layer, along: 0.5),
+            segment.meanHalfWidth * bundleWidth(along: 0.5),
             radius: radius,
             length: length,
             repeatCount: repeatCount
@@ -731,9 +680,9 @@ enum RoundTube16SurfaceMesh {
         let radialLevel: Float
 
         /// Texture coordinates, both 0...1. See `textureAlong`.
-        func textureCoordinate(layer: BraidCrossingLayer) -> SIMD2<Float> {
+        var textureCoordinate: SIMD2<Float> {
             SIMD2<Float>(
-                RoundTube16SurfaceMesh.textureAlong(strandCoordinate.x, layer: layer),
+                RoundTube16SurfaceMesh.textureAlong(strandCoordinate.x),
                 RoundTube16SurfaceMesh.crossSectionSample(forOffset: strandCoordinate.y)
             )
         }
@@ -884,7 +833,7 @@ enum RoundTube16SurfaceMesh {
                 builder.normals.append(frame.normal)
                 builder.tangents.append(frame.tangent)
                 builder.bitangents.append(frame.bitangent)
-                builder.textureCoordinates.append(vertex.textureCoordinate(layer: segment.layer))
+                builder.textureCoordinates.append(vertex.textureCoordinate)
                 builder.strandCoordinates.append(vertex.strandCoordinate)
                 builder.twistPhases.append(
                     twist.phase(
@@ -904,8 +853,7 @@ enum RoundTube16SurfaceMesh {
             builder.materialGroups[
                 RoundTube16SurfaceMaterialKey(
                     colorID: segment.colorID,
-                    twistGroupIndex: twistGroupIndex,
-                    layer: segment.layer
+                    twistGroupIndex: twistGroupIndex
                 ),
                 default: []
             ].append(contentsOf: [firstIndex, firstIndex + 1, firstIndex + 2])
@@ -928,7 +876,7 @@ enum RoundTube16SurfaceMesh {
         )
         let width = radialLevel > 0.5
             ? 1
-            : bundleWidth(layer: segment.layer, along: strandCoordinate.x)
+            : bundleWidth(along: strandCoordinate.x)
         let surfaceCoordinate = segment.surfacePoint(
             along: strandCoordinate.x,
             across: strandCoordinate.y * width
@@ -949,7 +897,6 @@ enum RoundTube16SurfaceMesh {
         let displacedRadius = vertex.radialLevel > 0.5
             ? beneathRadius(radius: metrics.radius)
             : strandRadius(
-                layer: segment.layer,
                 along: vertex.strandCoordinate.x,
                 across: vertex.strandCoordinate.y,
                 radius: metrics.radius
@@ -979,8 +926,7 @@ enum RoundTube16SurfaceMesh {
     ) -> VertexFrame {
         let radial = radialDirection(around: vertex.surfaceCoordinate.x)
         let epsilon: Float = 0.002
-        let reach = pastTheEnds(layer: segment.layer)
-        let along = min(max(vertex.strandCoordinate.x, -reach), 1 + reach)
+        let along = min(max(vertex.strandCoordinate.x, -underCrossingTuck), 1 + overCrossingLap)
         let sample = crossSectionSample(forOffset: vertex.strandCoordinate.y)
 
         func sampled(_ point: SIMD2<Float>) -> SIMD3<Float> {
@@ -992,8 +938,8 @@ enum RoundTube16SurfaceMesh {
             )
         }
 
-        let alongTangent = sampled(SIMD2<Float>(min(1 + reach, along + epsilon), sample))
-            - sampled(SIMD2<Float>(max(-reach, along - epsilon), sample))
+        let alongTangent = sampled(SIMD2<Float>(min(1 + overCrossingLap, along + epsilon), sample))
+            - sampled(SIMD2<Float>(max(-underCrossingTuck, along - epsilon), sample))
         let acrossTangent = sampled(SIMD2<Float>(along, min(1, sample + epsilon)))
             - sampled(SIMD2<Float>(along, max(0, sample - epsilon)))
 
@@ -1067,12 +1013,15 @@ enum RoundTube16SurfaceMesh {
     }
 
     /// A bundle's samples along it: its own span in `count` steps, and past each
-    /// end as far as the layer reaches, in steps about as long.
-    private static func bundleAlongSamples(layer: BraidCrossingLayer, count: Int) -> [Float] {
-        let reach = pastTheEnds(layer: layer)
-        let steps = max(1, Int((reach * Float(count)).rounded(.up)))
-        let before = subdivisionSamples(from: -reach, to: 0, count: steps).dropLast()
-        let after = subdivisionSamples(from: 1, to: 1 + reach, count: steps).dropFirst()
+    /// end as far as it reaches there, in steps about as long.
+    private static func bundleAlongSamples(count: Int) -> [Float] {
+        func steps(_ reach: Float) -> Int { max(1, Int((reach * Float(count)).rounded(.up))) }
+        let before = subdivisionSamples(
+            from: -underCrossingTuck, to: 0, count: steps(underCrossingTuck)
+        ).dropLast()
+        let after = subdivisionSamples(
+            from: 1, to: 1 + overCrossingLap, count: steps(overCrossingLap)
+        ).dropFirst()
         return Array(before) + subdivisionSamples(from: 0, to: 1, count: count) + Array(after)
     }
 
@@ -1220,11 +1169,9 @@ enum RoundTube16SurfaceMesh {
         isFinite(vector) && abs(simd_length(vector) - 1) < 0.001
     }
 
-    private static var maximumReach: Float { max(overCrossingLap, underCrossingTuck) }
-
     private static func isFiniteStrandCoordinate(_ vector: SIMD2<Float>) -> Bool {
         vector.x.isFinite && vector.y.isFinite
-            && (-maximumReach - 0.001...1 + maximumReach + 0.001).contains(vector.x)
+            && (-underCrossingTuck - 0.001...1 + overCrossingLap + 0.001).contains(vector.x)
             && (-1.001...1.001).contains(vector.y)
     }
 

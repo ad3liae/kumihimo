@@ -37,21 +37,21 @@ enum RoundTube16SurfacePatternGenerator {
     /// The unwrapped drawing is a square — eight columns of 400 source units around,
     /// 400 units along one repeat, see `normalizedCorners(for:)` — but the drawing is
     /// a correspondence table, not a scale drawing, so its own proportions do not
-    /// say how far the finished braid advances in one repeat. Task 005F took the
-    /// square at face value and drew the chevrons about a third coarser than the
-    /// real braid.
+    /// say how far the finished braid advances in one repeat.
     ///
-    /// This value was found by rendering and comparing, not by calculation: the
-    /// braid is cut to 4.5 times its own width, scaled to the same height as the
-    /// same length of the photographed braid, and the chevrons counted in both. The
-    /// density is inversely proportional to this ratio, and lowering it from 1.0
-    /// takes the count from about 1.3 chevrons per braid width to about 2.0.
+    /// **1.25 since the Task 047 rework, read off the author's own braid**: a V
+    /// every 0.47 braid widths in the top-down photograph (117 of 250 px) and 0.44
+    /// close up (182 of 410 px). Eight rows a repeat, one V a row, puts a V every
+    /// `π × aspect / 8` braid widths, 0.45 at this value (0.43 of the drawn
+    /// outline, which the crest widens).
     ///
-    /// The photograph is read two ways: counted by eye it shows about 1.8 chevrons
-    /// per braid width, measured off the same normalised strip about 2.15. This
-    /// ratio sits between them, within 9 per cent of either, so it holds whichever
-    /// reading is right. See `.build/task005i-screenshots/`.
-    static let patternAspectRatio: Float = 0.65
+    /// **It was 0.65 (Task 005I), and that read one V as two rows.** The drawing
+    /// then showed a long bundle and a short one in turn, row by row, and the pair
+    /// was counted as one chevron. Every bundle is now the same size (the author,
+    /// 2026-09-20), so every row is a V, and the same photograph asks for about
+    /// twice the repeat. Task 005F's 1.0 had been read as a third too coarse under
+    /// that counting; it was within a fifth of this.
+    static let patternAspectRatio: Float = 1.25
 
     /// Which thread the occupancy history puts in each cell of this drawing.
     ///

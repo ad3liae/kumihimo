@@ -280,9 +280,8 @@ enum BraidSurfaceScene {
         var combinedIndices = [UInt32]()
         var faceMaterialIndices = [UInt32]()
         var materials = [PhysicallyBasedMaterial]()
-        // One material per thread colour, twist group and layer: the colour comes
-        // from the catalogue, the stripe angle and the shading from the group's
-        // own maps.
+        // One material per thread colour and twist group: the colour comes from
+        // the catalogue, the stripe angle from the group's own maps.
         for (key, indices) in drawGroups where !indices.isEmpty {
             guard let threadColor = ThreadColorCatalog.color(for: key.colorID) else {
                 throw SceneError.unknownColor

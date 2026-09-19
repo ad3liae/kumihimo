@@ -67,18 +67,18 @@ struct MaruGenjiSurfaceMeshTests {
     // MARK: - Wrapping aspect
 
     @Test func thePatternDeclaresTheRepeatMatchedToThePhotographedBraid() {
-        // Set by rendering and comparing against the real braid, not by calculation:
-        // the chevron density is inversely proportional to this ratio, and 0.65 puts
-        // it between the two readings of the photograph, 1.8 counted by eye and 2.15
-        // measured off the normalised strip.
-        #expect(abs(RoundTube16SurfacePatternGenerator.patternAspectRatio - 0.65) < 0.000_1)
+        // Read off the author's own braid, not calculated: a V every 0.44 to 0.47
+        // braid widths, one V a row (Task 047 rework; Task 005I's 0.65 read one V
+        // as two rows).
+        #expect(abs(RoundTube16SurfacePatternGenerator.patternAspectRatio - 1.25) < 0.000_1)
         #expect(RoundTube16SurfacePattern(patches: []).aspectRatio
             == RoundTube16SurfacePatternGenerator.patternAspectRatio)
     }
 
     /// The one number the density depends on. A repeat is eight chevron rows, so the
-    /// rows land `π × aspect / 8` braid widths apart and a chevron — one row over,
-    /// one row under — is twice that.
+    /// rows land `π × aspect / 8` braid widths apart. **Every row is a V** since the
+    /// Task 047 rework drew every bundle the same size; until then a V was counted
+    /// as a pair of rows, one over and one under, which the drawing then set apart.
     @Test(arguments: [(Float(0.48), 4), (Float(0.2), 7), (Float(1.35), 3)])
     func theChevronDensityFollowsTheDeclaredAspectAtAnySize(
         _ radius: Float,
@@ -100,20 +100,14 @@ struct MaruGenjiSurfaceMeshTests {
         // even though the pattern is untouched. `baseRadius` cannot see that: it
         // stays put whatever the crest does, which left the density unguarded
         // against exactly the change Task 005J was weighing.
-        let chevronsPerBraidWidth = 4 * mesh.visibleWidth / mesh.patternRepeatLength
+        let vsPerBraidWidth = 8 * mesh.visibleWidth / mesh.patternRepeatLength
 
-        // The photograph reads between 1.8 and 2.15 chevrons per braid width. The
-        // band is the task's plus or minus 15 per cent around the lower reading,
-        // widened to the upper one — Task 005I's own figures, with nothing added.
-        //
-        // At the current crest of 0.12 this reads 2.14, which is 0.5 per cent under
-        // the upper reading: whether it is inside or outside is not something this
-        // band can settle. What it does settle is that 0.24 reads 2.37 and the 0.353
-        // the flat braid's yarn width implies reads 2.59, both plainly outside. The
-        // crest and the pattern's aspect ratio are not separable from a photograph,
-        // and moving one without the other leaves the braid. See
-        // `docs/architecture.md`「畝の高さと模様の縦横比は写真からは分離できない」.
-        #expect((1.5...2.2).contains(chevronsPerBraidWidth))
+        // The author's own braid reads 2.13 Vs a braid width top-down and 2.27 close
+        // up. The band is those two readings widened by 10 per cent either way. At
+        // the current crest of 0.12 this reads 2.22. The crest and the pattern's
+        // aspect ratio are still not separable from a photograph (see
+        // `docs/architecture.md`「畝の高さと模様の縦横比は写真からは分離できない」).
+        #expect((1.9...2.5).contains(vsPerBraidWidth))
     }
 
     @Test(arguments: [
@@ -156,7 +150,7 @@ struct MaruGenjiSurfaceMeshTests {
             * Float(RoundTube16SurfaceMesh.defaultPatternRepeatCount)
 
         #expect(abs(RoundTube16SurfaceMesh.defaultLength - expected) < 0.000_1)
-        #expect(abs(RoundTube16SurfaceMesh.defaultLength - 7.841) < 0.005)
+        #expect(abs(RoundTube16SurfaceMesh.defaultLength - 15.080) < 0.005)
     }
 
     @Test func everyRidgeLeansAtTheAngleTheDeclaredAspectImplies() throws {
@@ -170,12 +164,11 @@ struct MaruGenjiSurfaceMeshTests {
         }
 
         #expect(angles.count == RoundTube16SurfacePatternGenerator.patchCount)
-        // A repeat 0.65 turns long puts a cell's diagonal at atan(1 / 0.65), 57
-        // degrees, off the axis; the bundle drawn over it rises `bundleLean` times
-        // as far, so it lies at atan(1 / (0.65 * lean)) (Task 047 rework: 37.6).
-        // The tolerance only covers the sampling of the crest, not a shear.
+        // The angle is a consequence of the density, not a target of its own: a
+        // repeat 1.25 turns long puts a chevron at atan(1 / 1.25), 38.7 degrees, off
+        // the axis. The tolerance only covers the sampling of the crest, not a shear.
         #expect(angles.allSatisfy { abs($0 - ridgeAngleToAxisInDegrees) < 1 })
-        #expect(abs(ridgeAngleToAxisInDegrees - 37.6) < 0.5)
+        #expect(abs(ridgeAngleToAxisInDegrees - 38.7) < 0.5)
     }
 
     @Test func theRidgeAngleIsIndependentOfTheRadiusAndTheRepeatCount() throws {
@@ -196,11 +189,9 @@ struct MaruGenjiSurfaceMeshTests {
         }
     }
 
-    /// The lean a bundle is drawn at, measured from the braid axis: the declared
-    /// aspect's, turned by the bundle's own lean.
+    /// The lean the declared aspect puts a chevron at, measured from the braid axis.
     private var ridgeAngleToAxisInDegrees: Float {
-        atan(1 / (RoundTube16SurfacePatternGenerator.patternAspectRatio
-            * RoundTube16SurfaceMesh.bundleLean)) * 180 / .pi
+        atan(1 / RoundTube16SurfacePatternGenerator.patternAspectRatio) * 180 / .pi
     }
 
     // MARK: - Round strands
@@ -257,33 +248,24 @@ struct MaruGenjiSurfaceMeshTests {
         #expect((radii.max() ?? 0) - (radii.min() ?? 0) > base * 0.08)
     }
 
-    @Test func theStrandPassingOverACrossingCoversTheStepBelowIt() {
+    /// At every crossing a bundle's trailing end, which passes over, stands
+    /// above the next bundle's leading end, which passes under; and a bundle's
+    /// rim lies on the valley floor all along its own span, whatever its crest.
+    @Test func theEndPassingOverACrossingStandsAboveTheEndPassingUnder() {
         let radius = RoundTube16SurfaceMesh.defaultRadius
         let floor = radius * (1 - RoundTube16SurfaceMesh.valleyDepthRatio)
 
         for step in 0...20 {
             let across = Float(step) / 10 - 1
-            for along in [Float(0), Float(1)] {
-                let over = RoundTube16SurfaceMesh.strandRadius(
-                    layer: .over, along: along, across: across, radius: radius
-                )
-                let under = RoundTube16SurfaceMesh.strandRadius(
-                    layer: .under, along: along, across: across, radius: radius
-                )
-                #expect(over >= under)
-                #expect(under >= floor - 0.000_1)
-            }
+            let over = RoundTube16SurfaceMesh.strandRadius(along: 1, across: across, radius: radius)
+            let under = RoundTube16SurfaceMesh.strandRadius(along: 0, across: across, radius: radius)
+            #expect(over >= under)
+            #expect(under >= floor - 0.000_1)
         }
-
-        // Both layers meet exactly in the valley, so neighbouring strands never
-        // leave a gap however differently their crests are scaled.
         for along in [Float(0), Float(0.5), Float(1)] {
             for across in [Float(-1), Float(1)] {
                 #expect(abs(RoundTube16SurfaceMesh.strandRadius(
-                    layer: .over, along: along, across: across, radius: radius
-                ) - floor) < 0.000_01)
-                #expect(abs(RoundTube16SurfaceMesh.strandRadius(
-                    layer: .under, along: along, across: across, radius: radius
+                    along: along, across: across, radius: radius
                 ) - floor) < 0.000_01)
             }
         }
@@ -423,16 +405,14 @@ struct MaruGenjiSurfaceMeshTests {
     @Test func twistGroupsStayWithinOneTexturePairAndMatchTheGeneratedTextures() throws {
         let mesh = try makeMesh()
 
-        // Two chevron directions, so two shears to correct, and since the Task 047
-        // rework the two layers' bundles are drawn at different widths, which the
-        // stripes follow: four groups at most. More would mean more materials than
-        // colours times two times the two layers.
-        #expect((2...4).contains(mesh.twist.groups.count))
+        // Two chevron directions, so two shears to correct and two textures. More
+        // groups than this would mean more materials than colours times two.
+        #expect(mesh.twist.groups.count == 2)
         #expect(mesh.twist.groupIndexBySegment.count
             == RoundTube16SurfacePatternGenerator.patchCount)
         #expect(Set(mesh.twist.groupIndexBySegment) == Set(mesh.twist.groups.indices))
         #expect(mesh.materialGroups.count
-            <= Set(mesh.materialGroups.keys.map(\.colorID)).count * 2 * 2)
+            <= Set(mesh.materialGroups.keys.map(\.colorID)).count * 2)
         #expect(mesh.materialGroups.keys.allSatisfy {
             mesh.twist.groups.indices.contains($0.twistGroupIndex)
         })
@@ -489,10 +469,8 @@ struct MaruGenjiSurfaceMeshTests {
             .groupIndexBySegment)
 
         for twist in RoundTube16StrandTextureFactory.twistGroups {
-            for layer in BraidCrossingLayer.allCases {
-                #expect(pixels(RoundTube16StrandTextureFactory.occlusionImage(twist: twist, layer: layer))
-                    == pixels(RoundTube16StrandTextureFactory.occlusionImage(twist: twist, layer: layer)))
-            }
+            #expect(pixels(RoundTube16StrandTextureFactory.occlusionImage(twist: twist))
+                == pixels(RoundTube16StrandTextureFactory.occlusionImage(twist: twist)))
             #expect(pixels(RoundTube16StrandTextureFactory.roughnessImage(twist: twist))
                 == pixels(RoundTube16StrandTextureFactory.roughnessImage(twist: twist)))
             #expect(pixels(RoundTube16StrandTextureFactory.normalImage(twist: twist))
@@ -635,11 +613,10 @@ struct MaruGenjiSurfaceMeshTests {
         surface: BraidStrandSurface,
         segmentIndex: Int
     ) throws -> Float {
-        // Measured on the bundle as drawn, at mid-span: its centreline is turned
-        // from its cell's, and it is wider (Task 047 rework). Towards the ends a
-        // bundle narrows, and the stripes meet it at another angle there.
-        let cell = surface.segments[segmentIndex]
-        let segment = RoundTube16SurfaceMesh.bundle(for: cell)
+        // Measured on the bundle as drawn, at mid-span, where it is wider than its
+        // cell (Task 047 rework). Towards its leading end a bundle narrows, and the
+        // stripes meet it at another angle there.
+        let segment = surface.segments[segmentIndex]
         let fit = try twistPhaseFit(of: mesh, segmentIndex: segmentIndex)
         let along = RoundTube16SurfaceMesh.worldOffset(
             segment.centerlineDelta,
@@ -648,8 +625,7 @@ struct MaruGenjiSurfaceMeshTests {
             repeatCount: mesh.patternRepeatCount
         )
         let across = RoundTube16SurfaceMesh.worldOffset(
-            segment.meanHalfWidth
-                * RoundTube16SurfaceMesh.bundleWidth(layer: segment.layer, along: 0.5),
+            segment.meanHalfWidth * RoundTube16SurfaceMesh.bundleWidth(along: 0.5),
             radius: mesh.baseRadius,
             length: mesh.length,
             repeatCount: mesh.patternRepeatCount

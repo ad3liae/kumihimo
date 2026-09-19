@@ -53,18 +53,18 @@ struct FlatThumbnailRoundTheBraidTests {
         #expect(abs(width - 1.466) < 1e-3)
     }
 
-    /// The same quantity the round braid declares, which is why the two families'
-    /// thumbnails come out at the same density rather than one being three times
-    /// coarser than the other.
+    /// The same quantity the round braid declares. **Until Task 047's rework the
+    /// two came within a fifth of each other** (flat 0.55, round 0.65), and the
+    /// two families' thumbnails came out at about the same density. The round
+    /// braid's value is now 1.25, read off the author's own maru-genji with every
+    /// row a V; the flat braid's is its own and was not touched. The two cards now
+    /// differ in density by about 2.3 times; whether the flat braid's should move
+    /// is for its own appearance task, against its own photographs.
     @Test func itIsTheSameQuantityTheRoundBraidDeclares() throws {
         let flat = try Self.roundTheBraid
-        let width = try Self.acrossTheWidth
         let tube = RoundTube16SurfacePatternGenerator.patternAspectRatio
-        #expect(abs(tube - 0.65) < 1e-6)
-        // Within a fifth of each other, where the width's ratio was 2.3 times the
-        // tube's.
-        #expect(abs(flat - tube) / tube < 0.2)
-        #expect(abs(width - tube) / tube > 1.0)
+        #expect(abs(tube - 1.25) < 1e-6)
+        #expect(abs(flat - 0.54975) < 1e-4)
     }
 
     // MARK: - 2. What the card comes out at

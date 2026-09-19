@@ -26,36 +26,33 @@ final class RoundTube16StrandTextures {
         category: "RoundTube16StrandTextures"
     )
 
-    /// One set per twist group, in the layer its strands take (Task 047).
     let mapsByTwistGroup: [Maps]
 
     private init() {
-        let layers = RoundTube16StrandTextureFactory.twistGroupLayers
         mapsByTwistGroup = RoundTube16StrandTextureFactory.twistGroups.enumerated().map { index, twist in
-            let layer = layers.indices.contains(index) ? layers[index] : .over
-            return Maps(
+            Maps(
                 occlusion: Self.texture(
-                    RoundTube16StrandTextureFactory.occlusionImage(twist: twist, layer: layer),
+                    RoundTube16StrandTextureFactory.occlusionImage(twist: twist),
                     semantic: .color,
-                    name: "occlusion \(index) \(layer.rawValue)"
+                    name: "occlusion \(index)"
                 ),
                 roughness: Self.texture(
                     RoundTube16StrandTextureFactory.roughnessImage(
                         twist: twist,
-                        layer: layer,
+                        spansBundle: true,
                         amplitude: RoundTube16StrandTextureFactory.strandTwistRoughnessAmplitude
                     ),
                     semantic: .scalar,
-                    name: "roughness \(index) \(layer.rawValue)"
+                    name: "roughness \(index)"
                 ),
                 normal: Self.texture(
                     RoundTube16StrandTextureFactory.normalImage(
                         twist: twist,
-                        layer: layer,
+                        spansBundle: true,
                         relief: RoundTube16SurfaceMesh.strandTwistReliefRatio
                     ),
                     semantic: .normal,
-                    name: "normal \(index) \(layer.rawValue)"
+                    name: "normal \(index)"
                 )
             )
         }
