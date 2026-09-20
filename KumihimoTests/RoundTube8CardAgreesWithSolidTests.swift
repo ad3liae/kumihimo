@@ -519,9 +519,20 @@ struct RoundTube8CardAgreesWithSolidTests {
         #expect(Double(floor) / Double(floor + runs) < 0.01, "floor at \(floor) of \(floor + runs)")
     }
 
-    /// **A run ends beneath another run** (Task 046): near its tip, along its
-    /// crest, what the solid shows is some other thread's run — read off the real
-    /// mesh, whichever run that is, not assumed to be the next one at its place.
+    /// **A run ends beneath another run, at both ends** (Task 046; Task 049's
+    /// second rework made it both). Near its head and near its tail, along its
+    /// crest, what the solid shows is some other thread's run — read off the
+    /// real mesh, whichever run that is, not assumed to be the next one at its
+    /// place.
+    ///
+    /// **Why both ends.** The height is an even arc over the run's whole length,
+    /// so a run and the one a cycle behind it in the same lane are the same
+    /// curve offset by a cycle: they cross exactly halfway between them. A run
+    /// is therefore covered for the first `tuckedCycles / 2` and again from a
+    /// cycle and `tuckedCycles / 2`, and **shows for exactly one cycle in
+    /// between**. While the crest sat before the middle of the run it was the
+    /// tail alone that went under, and the head rose over its predecessor from
+    /// the start.
     @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
     func aRunEndsBeneathAnotherRun(recipe: BraidRecipe) throws {
         let drawn = try pattern(recipe)
@@ -530,8 +541,11 @@ struct RoundTube8CardAgreesWithSolidTests {
         let bundle = RoundTube8Bundle.standard
         var checked = 0
         var coveredBy = [String: Int]()
+        // Either side of where the two runs of a lane cross, by a quarter of the
+        // overlap, and the middle of the run where it must be showing itself.
+        let hidden = [bundle.tuckedCycles / 4, 1 + bundle.tuckedCycles * 0.75]
         for (index, segment) in drawn.surface.segments.enumerated() {
-            for cycles in [bundle.lengthInCycles - 0.2, bundle.lengthInCycles - 0.05] {
+            for cycles in hidden + [bundle.crestAtCycles] {
                 let crest = RoundTube8SurfaceMesh.frame(
                     of: segment, cycles: cycles, across: 0, leanDirection: drawn.leanDirection,
                     floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
@@ -542,6 +556,11 @@ struct RoundTube8CardAgreesWithSolidTests {
                 let seen = try #require(solid.outermost(x: crest.x, turns: atan2(crest.y, crest.z) / (2 * .pi)))
                 guard case let .run(_, other) = seen.part else {
                     Issue.record("run \(index) ends over the floor at \(cycles)")
+                    continue
+                }
+                guard hidden.contains(cycles) else {
+                    // The middle of a run is the run's own.
+                    #expect(other == index, "run \(index) is covered at its own crest")
                     continue
                 }
                 #expect(other != index, "run \(index) still shows at \(cycles) cycles")

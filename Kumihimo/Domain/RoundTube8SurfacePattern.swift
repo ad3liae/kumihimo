@@ -142,9 +142,10 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
 /// never by what colour they are.
 ///
 /// **The figures, each with a unit, are all set by eye against book A p.8's
-/// zoom**, and so is the form: a quarter sine up to the belly and a quarter
-/// cosine down from it, the height rising as the square root of that and falling
-/// with it. The run's widest half-width is `widestHalfWidthInColumns`: half a
+/// zoom.** The form is not: the width is a lens (a quarter sine up to the belly,
+/// a quarter cosine down from it) and **the height is a circular arc over the
+/// whole run**, even about its middle, with a half-ellipse across it. The run's
+/// widest half-width is `widestHalfWidthInColumns`: half a
 /// column is what the thread count gives (a thread is one column wide, the
 /// relation `crestHeightRatio` rests on); **a run is allowed to show wider than
 /// the column its thread holds**, keeping the thread it belongs to.
@@ -153,21 +154,23 @@ struct RoundTube8Bundle: Equatable, Sendable {
     /// it, **in columns per cycle**. Unsigned; the table gives the sign.
     let leanColumnsPerCycle: Float
     /// How far the run goes on past the next thread's arrival, **in cycles**.
+    ///
+    /// **Since the height became an even arc this no longer sets how long a bean
+    /// shows** (the author, 2026-09-20): two runs a cycle apart are the same
+    /// curve offset by a cycle, so they cross exactly halfway between them and
+    /// **a run shows for exactly one cycle whatever this is** — hidden at its
+    /// head for half of it and lost at its tail from a cycle and half of it.
+    /// What it sets is **how far down that crossing sits**, which is the groove
+    /// between one bean and the next along its own lane: `sqrt(1 - 1/(1+t)^2)`
+    /// of the run's height, 0.67 at 0.35. **The figure is still the one Task 046
+    /// set for the old meaning**; see `RoundTube8SurfaceMesh.shape` for what it
+    /// costs to set it again.
     let tuckedCycles: Float
     /// Where the run's belly begins and ends, **in cycles past its arrival**.
     let bellyStartCycles: Float
     let bellyEndCycles: Float
     /// Half the run's width across its belly, **in columns**.
     let widestHalfWidthInColumns: Float
-    /// Where the run stands highest, **in cycles past its arrival**. The width's
-    /// belly holds the neighbours apart; this is where the run is tallest, and
-    /// they are no longer the same thing (Task 049's rework).
-    let crestAtCycles: Float
-    /// How full or pointed the hump is, as a power on the quarter sine and
-    /// cosine. Above 1 draws a rounder crest with the flanks pulled down;
-    /// **it does the same on both sides**, so what makes the run's two ends
-    /// differ is where the crest sits, not this.
-    let humpSharpness: Float
 
     /// **Set against the photograph with a cycle of `pitchOverDiameter`**, so
     /// the figures moved when the cycle did (Task 048's rework doubled it): a
@@ -186,9 +189,7 @@ struct RoundTube8Bundle: Equatable, Sendable {
         tuckedCycles: 0.35,
         bellyStartCycles: 0.25,
         bellyEndCycles: 0.75,
-        widestHalfWidthInColumns: 0.6,
-        crestAtCycles: 0.4,
-        humpSharpness: 1.6
+        widestHalfWidthInColumns: 0.6
     )
 
     /// From the arrival to the end of the run, in cycles.
@@ -203,25 +204,30 @@ struct RoundTube8Bundle: Equatable, Sendable {
             * lens(atCycles: cycles).falling
     }
 
+    /// Where the run stands highest, **in cycles past its arrival**: the middle
+    /// of the run, because the height is a circular arc. **This is not a figure
+    /// set by eye** — it follows from the form, and there is nothing to tune.
+    var crestAtCycles: Float { lengthInCycles / 2 }
+
     /// How tall the run stands at `cycles` past its arrival, 0...1 of the ridge:
-    /// **a smooth hump, rising to a crest and falling away**, so no stretch of a
-    /// run is flat along its length (Task 049's rework: 「鱗もしくは平らなお餅が
-    /// 並んでいるように見える」). It used to hold the width's plateau — half a
-    /// cycle, about 0.4 of the braid's width, at one height — and that is what
-    /// read as flat tiles.
+    /// **a circular arc over the run's whole length** — zero at both ends, one
+    /// in the middle, and even about it (the author's ruling, Task 049's second
+    /// rework: 「偏りのある膨らみではない。円弧というか半円状で良い」).
     ///
-    /// The crest is `crestAtCycles` along the run, nearer the head than the
-    /// tail: a quarter sine up to it and a quarter cosine down from it, both
-    /// raised to `humpSharpness`. **The two ends differ because the crest is not
-    /// in the middle** — the head climbs over a short stretch and the tail sinks
-    /// over a long one, which is the end that goes under the next thread.
+    /// Two shapes were tried before it and both were wrong. It first held the
+    /// width's plateau — half a cycle, about 0.4 of the braid's width, all at
+    /// one height — which read as flat tiles (「鱗もしくは平らなお餅が並んでいる
+    /// ように見える」). Then a hump with its crest a little before the middle,
+    /// which read as a lopsided swelling. **The run is even end to end**: what
+    /// makes its two ends differ is the width's lens and where the neighbours
+    /// cover it, not the height.
+    ///
+    /// Across the run it is a half-ellipse as well (`standingFraction`), so a
+    /// run domes both ways.
     func heightFraction(atCycles cycles: Float) -> Float {
-        guard cycles >= 0, cycles <= lengthInCycles, crestAtCycles > 0,
-              crestAtCycles < lengthInCycles else { return 0 }
-        let up = sin(.pi / 2 * min(cycles / crestAtCycles, 1))
-        let down = cos(.pi / 2 * min(max((cycles - crestAtCycles)
-            / (lengthInCycles - crestAtCycles), 0), 1))
-        return pow(cycles < crestAtCycles ? up : down, humpSharpness)
+        guard cycles >= 0, cycles <= lengthInCycles, lengthInCycles > 0 else { return 0 }
+        let fromTheMiddle = 2 * cycles / lengthInCycles - 1
+        return max(0, 1 - fromTheMiddle * fromTheMiddle).squareRoot()
     }
 
     /// How far round the braid the centreline has moved from the middle of the

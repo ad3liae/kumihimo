@@ -181,11 +181,26 @@ enum RoundTube8SurfaceMesh {
                     + "not Task 032's 36 degrees, which is the step between neighbouring "
                     + "beans and not the lean of one"
             ),
-            "how far a run goes on beneath the next thread, in cycles": .declared(
+            "how far a run goes on beneath the next thread, in cycles": BraidMeasurement(
                 Double(RoundTube8Bundle.standard.tuckedCycles),
-                calibratedBy: "calibrated by eye against a photograph, not derived: how far "
-                    + "past the next thread's arrival a bean's tip goes on before it is "
-                    + "lost beneath the next one, on book A p.8's zoom"
+                source: .declared("calibrated by eye against a photograph, not derived: how "
+                                  + "far past the next thread's arrival a bean's tip goes on "
+                                  + "before it is lost beneath the next one, on book A p.8's "
+                                  + "zoom"),
+                unsettled: "calibrated against a photograph by eye, and **for a meaning this "
+                    + "figure no longer has**. Since the height became an even arc (the "
+                    + "author, 2026-09-20) two runs a cycle apart cross exactly halfway "
+                    + "between them, so a run shows for one cycle whatever this is, and what "
+                    + "it sets instead is how far down that crossing sits — the groove "
+                    + "between one bean and the next along its own lane — which is 0.67 of "
+                    + "the run's height here. **That groove is shallower than the "
+                    + "photograph's**, and it is the one way the even arc reads worse than "
+                    + "the lopsided hump it replaced. Deepening it means a shorter overlap, "
+                    + "which pulls the runs apart where they cross and re-opens the floor "
+                    + "Task 046 closed: measured on the real mesh, 0.15 shows the floor over "
+                    + "3.6 percent of the face against 0.3 percent here. Setting it again "
+                    + "would mean setting the belly figures again with it, which is the "
+                    + "author's to rule on"
             ),
             "where a run's belly begins, in cycles past its arrival": .declared(
                 Double(RoundTube8Bundle.standard.bellyStartCycles),
@@ -207,17 +222,12 @@ enum RoundTube8SurfaceMesh {
                     + "threads one to a column that do not overlap; these runs are wider than "
                     + "a column and do overlap (Task 049's rework)"
             ),
-            "where a run stands highest, in cycles past its arrival": .declared(
+            "where a run stands highest, in cycles past its arrival": BraidMeasurement(
                 Double(RoundTube8Bundle.standard.crestAtCycles),
-                calibratedBy: "calibrated by eye against a photograph, not derived: where a "
-                    + "bean stands highest along its own run, nearer the head than the tail "
-                    + "(Task 049's rework)"
-            ),
-            "how full a run's hump is": .declared(
-                Double(RoundTube8Bundle.standard.humpSharpness),
-                calibratedBy: "calibrated by eye against a photograph, not derived: how round "
-                    + "the top of a bean looks and how far its flanks are pulled down, on book "
-                    + "A p.8's zoom (Task 049's rework)"
+                source: .derived("the middle of the run: its height is a circular arc, even "
+                                 + "about the middle, so there is no figure to set here (the "
+                                 + "author's ruling on Task 049's rework: the swelling is not "
+                                 + "to be lopsided)")
             ),
             "radius on screen": .declared(
                 Double(defaultRadius),

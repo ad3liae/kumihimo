@@ -334,9 +334,12 @@ struct RoundTube8SurfaceTests {
         // the tail is shorter and the lean shallower.
         // Then `0xd757_face_7799_2ef5` while a run held one height across its
         // belly — half a cycle of it, which read as flat tiles (the author,
-        // 2026-09-20): the height is a hump now, and the valley between runs is
+        // 2026-09-20): the height became a hump, and the valley between runs is
         // the drawing's own depth (Task 049's rework).
-        #expect(BraidMeshHashTests.hash(s.positions) == 0xcc3d_f13e_a529_f765)
+        // Then `0xcc3d_f13e_a529_f765` while that hump's crest sat before the
+        // middle of the run, which read as a lopsided swelling (the author, the
+        // same day): the height is an even circular arc now.
+        #expect(BraidMeshHashTests.hash(s.positions) == 0x4da8_5335_9b7e_b01d)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
@@ -441,12 +444,10 @@ struct RoundTube8SurfaceTests {
             "how far a run goes on beneath the next thread, in cycles",
             "how far a run stands over the valley floor, over the braid's radius",
             "how far across a cell the valley shading reaches",
-            "how full a run's hump is",
             "radius on screen",
             "valley shading at a cell's edge",
             "where a run's belly begins, in cycles past its arrival",
             "where a run's belly ends, in cycles past its arrival",
-            "where a run stands highest, in cycles past its arrival",
         ] + (RoundTube8Bundle.standard.widestHalfWidthInColumns
             == RoundTube8Bundle.oneThreadHalfWidthInColumns ? [] : ["a run's widest half-width, in columns"]))
             .sorted())
@@ -565,20 +566,22 @@ struct RoundTube8SurfaceTests {
         for cycles in [bundle.bellyStartCycles, bundle.bellyEndCycles] {
             #expect(abs(bundle.halfWidthInColumns(atCycles: cycles) - bundle.widestHalfWidthInColumns) < 1e-6)
         }
-        // **The height is a hump, not the width's plateau** (Task 049's rework):
-        // highest at the crest, lower everywhere else, and falling faster
-        // towards the tail than it rose from the head.
+        // **The height is an even circular arc, not the width's plateau and not
+        // a lopsided hump** (Task 049's two reworks): zero at both ends, one in
+        // the middle, and the same either side of it.
+        #expect(bundle.crestAtCycles == bundle.lengthInCycles / 2)
         #expect(abs(bundle.heightFraction(atCycles: bundle.crestAtCycles) - 1) < 1e-6)
-        for cycles in stride(from: Float(0.05), to: bundle.lengthInCycles, by: 0.05)
-        where abs(cycles - bundle.crestAtCycles) > 0.05 {
-            #expect(bundle.heightFraction(atCycles: cycles) < 1)
+        #expect(bundle.heightFraction(atCycles: 0) == 0)
+        #expect(bundle.heightFraction(atCycles: bundle.lengthInCycles) < 1e-6)
+        for step in stride(from: Float(0.05), to: bundle.crestAtCycles, by: 0.05) {
+            let head = bundle.heightFraction(atCycles: bundle.crestAtCycles - step)
+            let tail = bundle.heightFraction(atCycles: bundle.crestAtCycles + step)
+            #expect(abs(head - tail) < 1e-6, "\(step) either side of the middle")
+            #expect(head < 1)
+            // And it really is an arc, not some other even curve.
+            let onACircle = (1 - pow(step / bundle.crestAtCycles, 2)).squareRoot()
+            #expect(abs(head - onACircle) < 1e-6)
         }
-        // The crest is nearer the head, so at the same distance from it the
-        // tail side is still higher: the head climbs over a short stretch and
-        // the tail sinks over a long one.
-        let step: Float = 0.3
-        #expect(bundle.heightFraction(atCycles: bundle.crestAtCycles + step)
-                > bundle.heightFraction(atCycles: bundle.crestAtCycles - step))
         // A thread is one column wide: that is half a column, and a run may show
         // wider than that (Task 046) but never narrower at its belly.
         #expect(RoundTube8Bundle.oneThreadHalfWidthInColumns == 0.5)
