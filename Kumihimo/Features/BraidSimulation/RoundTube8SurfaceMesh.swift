@@ -199,6 +199,26 @@ enum RoundTube8SurfaceMesh {
                     + "a bean keeps its width before narrowing to its tip, on book A p.8's "
                     + "zoom (Task 046)"
             ),
+            "how far a run stands over the valley floor, over the braid's radius": .declared(
+                Double(runHeightOverRadius),
+                basis: .fractionOf("the braid's outer radius"),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how much "
+                    + "a bean domes on book A p.8's zoom. The derived figure beside it is for "
+                    + "threads one to a column that do not overlap; these runs are wider than "
+                    + "a column and do overlap (Task 049's rework)"
+            ),
+            "where a run stands highest, in cycles past its arrival": .declared(
+                Double(RoundTube8Bundle.standard.crestAtCycles),
+                calibratedBy: "calibrated by eye against a photograph, not derived: where a "
+                    + "bean stands highest along its own run, nearer the head than the tail "
+                    + "(Task 049's rework)"
+            ),
+            "how full a run's hump is": .declared(
+                Double(RoundTube8Bundle.standard.humpSharpness),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how round "
+                    + "the top of a bean looks and how far its flanks are pulled down, on book "
+                    + "A p.8's zoom (Task 049's rework)"
+            ),
             "radius on screen": .declared(
                 Double(defaultRadius),
                 calibratedBy: "how big the braid should be in the view; a display size, "
@@ -245,6 +265,22 @@ enum RoundTube8SurfaceMesh {
     /// (`docs/tasks/025-5-adding-a-recipe.md`).
     static let crestHeightRatio: Float = 1 - 1 / (1 + .pi / 8)
 
+    /// How far a run stands above the valley floor, as a fraction of the braid's
+    /// outer radius — **the drawing's own depth since Task 049's rework**, and
+    /// no longer `crestHeightRatio`.
+    ///
+    /// `crestHeightRatio` is worked out for threads lying side by side, one to a
+    /// column, each standing half its own width proud. **The runs drawn here are
+    /// not that**: they are wider than a column (`widestHalfWidthInColumns`) and
+    /// they overlap, so a run 0.47 of the braid's width across stood 0.14 of it
+    /// tall and read as a flat tile (the author, 2026-09-20). This deepens the
+    /// valley between the runs so that one domes.
+    ///
+    /// **Calibrated by eye against a photograph, not derived, and not read off
+    /// the braid's outline** — measuring procedure 2 and Task 005J say the
+    /// outline of a round braid cannot give the grooves between its ridges.
+    static let runHeightOverRadius: Float = 0.44
+
     /// How far beneath the valley floor the cell under a run lies, as a
     /// fraction of the ridge. **Not a shape figure**: it only keeps the cell
     /// beneath from sharing the floor with the edges of the runs above it, so
@@ -268,8 +304,13 @@ enum RoundTube8SurfaceMesh {
     ///
     /// The fibre runs nearly along the thread, so the angle is small. Those five
     /// beans lean between 11 and 41 degrees either way, and the median of their
-    /// size is 14.9, which is where the eye had put it.
-    static let fibreStripeAngleDegrees: Float = 15
+    /// size is 14.9, which is where the eye first put it.
+    ///
+    /// **Eight since Task 049's rework.** At 15 the stripes crossed the run
+    /// plainly on screen, where the photograph's run nearly along the bean; the
+    /// figure is set by how the stripes lie on the drawn run, not by the reading
+    /// on the photograph alone.
+    static let fibreStripeAngleDegrees: Float = 8
     /// How many fibre stripes lie side by side across one thread's width.
     /// **Calibrated by eye against the same photograph, not derived** — counted
     /// across a thread, because the stripes run nearly along it and that is the
@@ -343,7 +384,7 @@ enum RoundTube8SurfaceMesh {
             return nil
         }
 
-        let floor = radius * (1 - crestHeightRatio)
+        let floor = radius * (1 - runHeightOverRadius)
         let repeatLength = tileLength / Float(patternRepeatCount)
         let beneath = floor - beneathClearanceOfRidge * (radius - floor)
 

@@ -242,20 +242,34 @@ struct RoundTube8CardAgreesWithSolidTests {
                 compared += 1
                 if card != seen.part,
                    case .run(let cardRepeat, let cardSegment)? = card,
-                   case .run(let solidRepeat, let solidSegment) = seen.part {
-                    // **Is the disagreement the mesh's own cut?** What the card
-                    // says stands highest, as the flat triangles have it, against
-                    // what the solid shows there. If the cut run has fallen below,
-                    // the solid is right about its own surface and the card is
-                    // right about the rule.
-                    _ = cardSegment
-                    _ = solidSegment
-                    let mine = solid.outermost(
+                   case .run(let solidRepeat, let solidSegment) = seen.part,
+                   let runnerUp = standing.dropFirst().first {
+                    // **Can the cut explain it?** The flat triangles lie inside
+                    // the surface they stand for, so the run the rule puts on
+                    // top can lose by as much as it loses to its own cut —
+                    // `loss` — and no more. It is let off only when
+                    //
+                    //   * the run the solid shows is the rule's runner-up, not
+                    //     some third run or another repeat, and
+                    //   * the rule's lead over that runner-up is no more than
+                    //     what the cut takes off the leader here.
+                    //
+                    // So a card that picked the wrong thread, or a point well
+                    // inside a run where the cut takes off almost nothing, is a
+                    // disagreement. (The check this replaced compared the
+                    // leader's own hit against the outermost hit of *all* runs,
+                    // which is never smaller, and so let every pair through —
+                    // Task 049's review.)
+                    let ridge = mesh.crestRadius - mesh.valleyFloorRadius
+                    let cut = solid.outermost(
                         x: x(mesh, along: Float(home) + along), turns: turns,
                         of: .run(repeatIndex: cardRepeat, segment: cardSegment)
-                    )
-                    let theirs = seen.radius
-                    if mine == nil || theirs >= (mine ?? 0) - 1e-6 {
+                    ).map { ($0 - mesh.valleyFloorRadius) / ridge }
+                    let loss = (standing.first?.height ?? 0) - (cut ?? 0)
+                    let shownIsRunnerUp = runnerUp.segment == solidSegment
+                        && runnerUp.repeatOffset == solidRepeat - home
+                    let lead = (standing.first?.height ?? 0) - runnerUp.height
+                    if Self.cutCanExplain(lead: lead, loss: loss, shownIsRunnerUp: shownIsRunnerUp) {
                         compared -= 1
                         letOff += 1
                         continue
@@ -405,6 +419,13 @@ struct RoundTube8CardAgreesWithSolidTests {
         }
         // And the sample must be on that line.
         return abs(along - line) < tolerance
+    }
+
+    /// **Whether the mesh's own cut can explain a disagreement**: only when the
+    /// run the solid shows is the rule's runner-up, and the rule's lead over it
+    /// is no bigger than what the flat triangles take off the leader there.
+    static func cutCanExplain(lead: Float, loss: Float, shownIsRunnerUp: Bool) -> Bool {
+        shownIsRunnerUp && lead <= loss + 1e-4
     }
 
     /// Where a place lies on a run: cycles past its arrival, and across its
@@ -574,5 +595,46 @@ struct RoundTube8CardAgreesWithSolidTests {
         let join = drawn.surface.segments[last].centerlineEnd.y
         #expect(meets(last, cells[0], at: join, offsets: (0, 1)))
         #expect(!meets(last, cells[0], at: join, offsets: (0, 0)))
+    }
+
+    /// **The let-off forgives the triangles' own cut and nothing else.** Fed
+    /// with places on the real braid: a point well inside a run, where the cut
+    /// takes off almost nothing, is a disagreement however the numbers are
+    /// dressed; and picking a run that is not the rule's runner-up — another
+    /// thread, or the same thread a repeat away — is never explained.
+    @Test func onlyTheTrianglesOwnCutIsLetOff() throws {
+        let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
+        let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: drawn))
+        let solid = Solid(mesh: mesh, cells: drawn.surface.segments.count)
+        let ridge = mesh.crestRadius - mesh.valleyFloorRadius
+
+        // A place well inside a run: on the crest of one, at its belly.
+        let bundle = RoundTube8Bundle.standard
+        let segment = drawn.surface.segments[0]
+        let belly = (bundle.bellyStartCycles + bundle.bellyEndCycles) / 2
+        let along = segment.centerlineStart.y
+            + belly * (segment.centerlineEnd.y - segment.centerlineStart.y)
+        let turns = segment.centerlineStart.x
+            + bundle.leanInColumns(atCycles: belly, direction: drawn.leanDirection) / 8
+        let standing = drawn.runsStanding(atTurns: turns, along: along)
+        let top = try #require(standing.first)
+        #expect(top.segment == 0)
+        // What the triangles take off the leader there is almost nothing.
+        let cut = try #require(solid.outermost(
+            x: -mesh.length / 2 + mesh.patternRepeatLength * (1 + along), turns: turns,
+            of: .run(repeatIndex: 1 + top.repeatOffset, segment: top.segment)
+        ))
+        let loss = top.height - (cut - mesh.valleyFloorRadius) / ridge
+        #expect(loss < 0.02, "the cut takes off \(loss) of the ridge on a crest")
+
+        // So a lead bigger than that is a disagreement, runner-up or not.
+        let lead = top.height - (standing.dropFirst().first?.height ?? 0)
+        #expect(lead > loss)
+        #expect(!Self.cutCanExplain(lead: lead, loss: loss, shownIsRunnerUp: true))
+        // And a run that is not the runner-up is never explained, however much
+        // the cut took off.
+        #expect(!Self.cutCanExplain(lead: 0, loss: 1, shownIsRunnerUp: false))
+        // What is explained: a lead inside the cut's own loss, to the runner-up.
+        #expect(Self.cutCanExplain(lead: 0.01, loss: 0.05, shownIsRunnerUp: true))
     }
 }

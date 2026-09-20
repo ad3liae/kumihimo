@@ -159,6 +159,15 @@ struct RoundTube8Bundle: Equatable, Sendable {
     let bellyEndCycles: Float
     /// Half the run's width across its belly, **in columns**.
     let widestHalfWidthInColumns: Float
+    /// Where the run stands highest, **in cycles past its arrival**. The width's
+    /// belly holds the neighbours apart; this is where the run is tallest, and
+    /// they are no longer the same thing (Task 049's rework).
+    let crestAtCycles: Float
+    /// How full or pointed the hump is, as a power on the quarter sine and
+    /// cosine. Above 1 draws a rounder crest with the flanks pulled down;
+    /// **it does the same on both sides**, so what makes the run's two ends
+    /// differ is where the crest sits, not this.
+    let humpSharpness: Float
 
     /// **Set against the photograph with a cycle of `pitchOverDiameter`**, so
     /// the figures moved when the cycle did (Task 048's rework doubled it): a
@@ -177,7 +186,9 @@ struct RoundTube8Bundle: Equatable, Sendable {
         tuckedCycles: 0.35,
         bellyStartCycles: 0.25,
         bellyEndCycles: 0.75,
-        widestHalfWidthInColumns: 0.6
+        widestHalfWidthInColumns: 0.6,
+        crestAtCycles: 0.4,
+        humpSharpness: 1.6
     )
 
     /// From the arrival to the end of the run, in cycles.
@@ -193,12 +204,24 @@ struct RoundTube8Bundle: Equatable, Sendable {
     }
 
     /// How tall the run stands at `cycles` past its arrival, 0...1 of the ridge:
-    /// rising as the square root of the width's rise, so a head stands up
-    /// quickly, and falling with the width's fall, so a tail sinks a little
-    /// sooner than a head rises.
+    /// **a smooth hump, rising to a crest and falling away**, so no stretch of a
+    /// run is flat along its length (Task 049's rework: 「鱗もしくは平らなお餅が
+    /// 並んでいるように見える」). It used to hold the width's plateau — half a
+    /// cycle, about 0.4 of the braid's width, at one height — and that is what
+    /// read as flat tiles.
+    ///
+    /// The crest is `crestAtCycles` along the run, nearer the head than the
+    /// tail: a quarter sine up to it and a quarter cosine down from it, both
+    /// raised to `humpSharpness`. **The two ends differ because the crest is not
+    /// in the middle** — the head climbs over a short stretch and the tail sinks
+    /// over a long one, which is the end that goes under the next thread.
     func heightFraction(atCycles cycles: Float) -> Float {
-        let shape = lens(atCycles: cycles)
-        return shape.rising.squareRoot() * shape.falling
+        guard cycles >= 0, cycles <= lengthInCycles, crestAtCycles > 0,
+              crestAtCycles < lengthInCycles else { return 0 }
+        let up = sin(.pi / 2 * min(cycles / crestAtCycles, 1))
+        let down = cos(.pi / 2 * min(max((cycles - crestAtCycles)
+            / (lengthInCycles - crestAtCycles), 0), 1))
+        return pow(cycles < crestAtCycles ? up : down, humpSharpness)
     }
 
     /// How far round the braid the centreline has moved from the middle of the
