@@ -62,7 +62,9 @@ enum RoundTube8StrandTexture {
                 semantic: .scalar, name: "roughness"
             ),
             normal: upload(
-                RoundTube16StrandTextureFactory.normalImage(twist: twist),
+                RoundTube16StrandTextureFactory.normalImage(
+                    twist: twist, relief: RoundTube8SurfaceMesh.fibreStripeRelief
+                ),
                 semantic: .normal, name: "normal"
             )
         )

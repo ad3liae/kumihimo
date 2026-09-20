@@ -56,10 +56,15 @@ struct RoundTube8SurfaceTests {
         #expect(figure.rowCount == drawn.rowCount)
 
         for row in 0..<drawn.rowCount {
-            for column in 0..<8 {
-                let shape = try #require(figure.appearance(atColumn: column, row: row))
-                // The cell standing at this place for this cycle. It does not
-                // lean, so it is at this column for the whole of the row.
+            for place in 0..<8 {
+                let shape = try #require(figure.appearance(atColumn: place, row: row))
+                // **The figure is by place on the stand; the solid is by column
+                // of the finished braid**, and the braid turns one column a
+                // cycle (Task 048's rework). The cell to read is the one in the
+                // column this place has turned to.
+                let column = RoundTube8SurfacePatternGenerator.drawnColumn(
+                    ofSlot: place, cycle: row, lean: Int(drawn.leanDirection)
+                )
                 let middle = (Float(column) + 0.5) / 8
                 let along = Float(row) / Float(drawn.rowCount)
                 let cell = try #require(drawn.surface.segments.first {
@@ -68,7 +73,7 @@ struct RoundTube8SurfaceTests {
                         && $0.centerlineEnd.y > along + 1e-4
                 })
                 #expect(cell.centerlineEnd.x == cell.centerlineStart.x)
-                #expect(cell.colorID == shape.colorID, "row \(row), column \(column)")
+                #expect(cell.colorID == shape.colorID, "row \(row), place \(place)")
                 #expect(cell.threadPosition == shape.threadPosition)
             }
         }
@@ -317,7 +322,24 @@ struct RoundTube8SurfaceTests {
         // after its arrival and narrowed all the way to its tip, one column at
         // most: a lens with a belly now, pointed at both ends and a little wider
         // than its column (Task 046). The vertex count did not change.
-        #expect(BraidMeshHashTests.hash(s.positions) == 0x94ae_7327_2c10_992d)
+        // Then `0x94ae_7327_2c10_992d` while each place's cells began at its
+        // arrival (¼, ¾, ½, 1 … of a cycle on S): they are drawn half a pitch
+        // from their neighbours round the braid now (Task 048).
+        // Then `0x059f_de6a_459f_8b01` while a place on the stand stayed at one
+        // column of the finished braid: the braid turns a column a cycle now,
+        // the cycle is twice as long, and a run is about one cycle (Task 048's
+        // rework).
+        // Then `0x2716_6247_a8d0_b579` before Task 049 measured the finished
+        // drawing against the photograph: the belly runs further along a run,
+        // the tail is shorter and the lean shallower.
+        // Then `0xd757_face_7799_2ef5` while a run held one height across its
+        // belly — half a cycle of it, which read as flat tiles (the author,
+        // 2026-09-20): the height became a hump, and the valley between runs is
+        // the drawing's own depth (Task 049's rework).
+        // Then `0xcc3d_f13e_a529_f765` while that hump's crest sat before the
+        // middle of the run, which read as a lopsided swelling (the author, the
+        // same day): the height is an even circular arc now.
+        #expect(BraidMeshHashTests.hash(s.positions) == 0x4da8_5335_9b7e_b01d)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
@@ -420,6 +442,7 @@ struct RoundTube8SurfaceTests {
             "fibre stripe relief",
             "fibre stripes across a thread's width",
             "how far a run goes on beneath the next thread, in cycles",
+            "how far a run stands over the valley floor, over the braid's radius",
             "how far across a cell the valley shading reaches",
             "radius on screen",
             "valley shading at a cell's edge",
@@ -523,7 +546,7 @@ struct RoundTube8SurfaceTests {
             }) else { continue }
             pairs += 1
             // The earlier run past the later one's belly, along its crest.
-            for cycles in stride(from: 1 + bundle.bellyStartCycles, to: bundle.lengthInCycles, by: 0.1) {
+            for cycles in stride(from: 1 + bundle.bellyStartCycles, to: bundle.lengthInCycles, by: 0.02) {
                 let under = point(segment, cycles, 0)
                 // The later run's section at the same place along the braid.
                 let section = (0...200).map { point(later, cycles - 1, Float($0) / 100 - 1) }
@@ -542,7 +565,22 @@ struct RoundTube8SurfaceTests {
         #expect(bundle.halfWidthInColumns(atCycles: bundle.lengthInCycles) < 1e-6)
         for cycles in [bundle.bellyStartCycles, bundle.bellyEndCycles] {
             #expect(abs(bundle.halfWidthInColumns(atCycles: cycles) - bundle.widestHalfWidthInColumns) < 1e-6)
-            #expect(abs(bundle.heightFraction(atCycles: cycles) - 1) < 1e-6)
+        }
+        // **The height is an even circular arc, not the width's plateau and not
+        // a lopsided hump** (Task 049's two reworks): zero at both ends, one in
+        // the middle, and the same either side of it.
+        #expect(bundle.crestAtCycles == bundle.lengthInCycles / 2)
+        #expect(abs(bundle.heightFraction(atCycles: bundle.crestAtCycles) - 1) < 1e-6)
+        #expect(bundle.heightFraction(atCycles: 0) == 0)
+        #expect(bundle.heightFraction(atCycles: bundle.lengthInCycles) < 1e-6)
+        for step in stride(from: Float(0.05), to: bundle.crestAtCycles, by: 0.05) {
+            let head = bundle.heightFraction(atCycles: bundle.crestAtCycles - step)
+            let tail = bundle.heightFraction(atCycles: bundle.crestAtCycles + step)
+            #expect(abs(head - tail) < 1e-6, "\(step) either side of the middle")
+            #expect(head < 1)
+            // And it really is an arc, not some other even curve.
+            let onACircle = (1 - pow(step / bundle.crestAtCycles, 2)).squareRoot()
+            #expect(abs(head - onACircle) < 1e-6)
         }
         // A thread is one column wide: that is half a column, and a run may show
         // wider than that (Task 046) but never narrower at its belly.
@@ -663,15 +701,18 @@ struct RoundTube8SurfaceTests {
         #expect(drawn.surface.segments.allSatisfy {
             $0.centerlineStart.x == $0.centerlineEnd.x
         })
-        // The colour walks one place a cycle, which is what makes the diagonal:
-        // three places on is one place back in a colouring that repeats every four.
-        let drift = RoundTube8SurfacePatternGenerator.shortestWayRound(
-            from: 0, to: drawn.columnsCarried, around: 4
-        )
-        #expect(abs(drift) == 1)
+        // The colour walks one column every half cycle, which is what makes the
+        // diagonal: the braid turns a column a cycle and the columns are half a
+        // pitch apart (`RoundTube8HalfPitchTests`).
+        #expect(drawn.drawnPhaseByColumn.count == 8)
 
+        // **A colour band steps one column round the braid every half cycle**
+        // since Task 048's rework (the braid turns a column a cycle, and the
+        // columns are staggered half a pitch), where it used to step one place
+        // every whole cycle of a cycle half as long. The two give the same
+        // angle: the cycle doubled and the step halved.
         let acrossOnePlace = sin(Double.pi / 8)          // of the braid's width
-        let along = Double(RoundTube8SurfacePatternGenerator.pitchOverDiameter)
+        let along = Double(RoundTube8SurfacePatternGenerator.pitchOverDiameter) / 2
         let derived = atan2(along, acrossOnePlace) * 180 / .pi
         #expect(abs(derived - 46.5) < 0.5)
 

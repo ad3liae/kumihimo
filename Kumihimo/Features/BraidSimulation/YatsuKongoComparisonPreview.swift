@@ -16,9 +16,12 @@ import SwiftUI
 ///                                      sixteen-thread maru-genji, added for
 ///                                      Task 047's comparisons; the launch
 ///                                      arguments keep their first name
-///     --yatsu-kongo-colouring=plain|book|eight
-///                                      one colour, book A p.54's, or all eight
-///                                      told apart (default plain)
+///     --yatsu-kongo-colouring=plain|book|eight|author|redblue|one
+///                                      one colour, book A p.54's, all eight
+///                                      told apart, the author's 青青赤赤青青赤赤
+///                                      (Task 048's rework), book A's layout in
+///                                      red and blue, or one blue thread
+///                                      (default plain)
 ///                              maru only: plain|blue|fixture1|fixture2|fixture3|
 ///                                      bluewhite|sketch — natural, blue, the
 ///                                      editor's surface fixtures, fixture 1 with
@@ -53,6 +56,29 @@ enum YatsuKongoComparisonPreviewData {
         switch value(of: "--yatsu-kongo-colouring") {
         case "book":
             return recipe.colouring
+        case "author":
+            // **The author's own colouring** for the spiral sketch (Task 048's
+            // rework): places 1-8 blue, blue, red, red, blue, blue, red, red.
+            let names = ["blue", "blue", "red", "red", "blue", "blue", "red", "red"]
+            return names.enumerated().map {
+                ThreadAssignment(position: $0.offset + 1, colorID: ThreadColorID(rawValue: $0.element))
+            }
+        case "redblue":
+            // Book A p.54's arrangement with its two colours as red and blue:
+            // a known two-colour layout, not a reading of the author's screen
+            // (Task 048).
+            return recipe.colouring.map { assignment in
+                ThreadAssignment(
+                    position: assignment.position,
+                    colorID: ThreadColorID(rawValue: assignment.colorID == recipe.colouring[0].colorID ? "red" : "blue")
+                )
+            }
+        case "one":
+            // Every thread natural but position 1, blue (Task 048).
+            return (1...8).map {
+                ThreadAssignment(position: $0, colorID: $0 == 1
+                    ? ThreadColorID(rawValue: "blue") : ThreadColorColorIDs.natural)
+            }
         case "eight":
             let names = ["red", "orange", "yellow", "green", "light-blue", "blue", "purple", "pink"]
             return names.enumerated().map {

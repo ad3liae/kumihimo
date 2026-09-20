@@ -102,23 +102,27 @@ enum RoundTube8SurfaceMesh {
         var values: [String: BraidMeasurement] = [
             "one cycle over the braid's diameter": BraidMeasurement(
                 Double(RoundTube8SurfacePatternGenerator.pitchOverDiameter),
-                // The two readings, rounded outward: 0.403 on S and 0.506 on Z-a.
-                spread: 0.40...0.51,
+                // Task 031's two readings of the colour's period over the braid's
+                // width, halved as the cycle is now read (S 1.614/2, Z-a
+                // 2.023/2), rounded outward.
+                spread: 0.80...1.02,
                 basis: .fractionOf("the braid's own diameter"),
                 source: .observed("book A p.8-9, the zoom; Task 031 stage 1"),
-                unsettled: "the three braids photographed do not agree: S gives 0.403 "
-                    + "and Z-a 0.506, and colouring b cannot be read this way at all "
-                    + "because its colour turns in eight cycles rather than four. The "
-                    + "value shipped is S's, whose signal is the cleanest and whose "
-                    + "braid is the one drawn. The colour band does not settle it either "
-                    + "way. Read as one place a cycle across the braid's middle, a pitch of "
-                    + "0.403 puts the band at 46.5 degrees from across the braid; the band "
-                    + "measured on S is 54.5, which would need 0.536. But the same "
-                    + "measurement on the drawn face swings from 17.5 to 63.0 degrees as "
-                    + "the braid is turned about its axis (54.5 and 55.5 at two of sixteen "
-                    + "turns), and a photograph shows one turn only. No turn matches the "
-                    + "photograph's shortest step (+36.0; the nearest drawn is +34.1) and "
-                    + "its band (+54.5) at once (the author, 2026-09-11)"
+                unsettled: "**the measurement is the colour's period, 1.614 of the braid's "
+                    + "width on S** (book A p.8-9's zoom, Task 031); this is that period "
+                    + "divided by the two drawn cycles it now takes to come round (Task "
+                    + "048's rework). Nothing was measured again, and 0.807 was not "
+                    + "observed on its own. Divided by four, as Task 031 read it, it gave "
+                    + "0.403 and drew each colour two cells at a time. The three braids "
+                    + "photographed do not agree — S gives 0.807 and Z-a 1.012, and "
+                    + "colouring b cannot be read this way at all — and the spread is those "
+                    + "two braids, not an error bar. The value shipped is S's, whose signal "
+                    + "is the cleanest and whose braid is drawn. **History, not a current "
+                    + "result**: while the cycle was 0.403 and a place held one column, Task "
+                    + "031 and 032 compared the colour band (derived 46.5 degrees against "
+                    + "54.5 measured on S) and found the drawn band swinging from 17.5 to "
+                    + "63.0 degrees with the turn of the braid; those comparisons belong to "
+                    + "that placement"
             ),
             "half a thread over the braid's radius": BraidMeasurement(
                 Double(crestHeightRatio),
@@ -150,10 +154,12 @@ enum RoundTube8SurfaceMesh {
                     + "p.8's zoom"
             ),
             "fibre stripe relief": .declared(
-                Double(RoundTube16SurfaceMesh.twistReliefRatio),
-                calibratedBy: "calibrated by eye against a photograph, not derived: the "
-                    + "sixteen-thread tube's own figure, borrowed and held against book A "
-                    + "p.8's zoom for how much the stripes stand out"
+                Double(fibreStripeRelief),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how much "
+                    + "the stripes stand out, held against book A p.8's zoom at one braid "
+                    + "width (Task 049). It was the sixteen-thread tube's 0.005, borrowed; "
+                    + "this braid's runs are broader on screen and that read as a few big "
+                    + "ridges"
             ),
             "valley shading at a cell's edge": .declared(
                 Double(RoundTube16StrandTextureFactory.valleyOcclusion),
@@ -175,11 +181,26 @@ enum RoundTube8SurfaceMesh {
                     + "not Task 032's 36 degrees, which is the step between neighbouring "
                     + "beans and not the lean of one"
             ),
-            "how far a run goes on beneath the next thread, in cycles": .declared(
+            "how far a run goes on beneath the next thread, in cycles": BraidMeasurement(
                 Double(RoundTube8Bundle.standard.tuckedCycles),
-                calibratedBy: "calibrated by eye against a photograph, not derived: how far "
-                    + "past the next thread's arrival a bean's tip goes on before it is "
-                    + "lost beneath the next one, on book A p.8's zoom"
+                source: .declared("calibrated by eye against a photograph, not derived: how "
+                                  + "far past the next thread's arrival a bean's tip goes on "
+                                  + "before it is lost beneath the next one, on book A p.8's "
+                                  + "zoom"),
+                unsettled: "calibrated against a photograph by eye, and **for a meaning this "
+                    + "figure no longer has**. Since the height became an even arc (the "
+                    + "author, 2026-09-20) two runs a cycle apart cross exactly halfway "
+                    + "between them, so a run shows for one cycle whatever this is, and what "
+                    + "it sets instead is how far down that crossing sits — the groove "
+                    + "between one bean and the next along its own lane — which is 0.67 of "
+                    + "the run's height here. **That groove is shallower than the "
+                    + "photograph's**, and it is the one way the even arc reads worse than "
+                    + "the lopsided hump it replaced. Deepening it means a shorter overlap, "
+                    + "which pulls the runs apart where they cross and re-opens the floor "
+                    + "Task 046 closed: measured on the real mesh, 0.15 shows the floor over "
+                    + "3.6 percent of the face against 0.3 percent here. Setting it again "
+                    + "would mean setting the belly figures again with it, which is the "
+                    + "author's to rule on"
             ),
             "where a run's belly begins, in cycles past its arrival": .declared(
                 Double(RoundTube8Bundle.standard.bellyStartCycles),
@@ -192,6 +213,21 @@ enum RoundTube8SurfaceMesh {
                 calibratedBy: "calibrated by eye against a photograph, not derived: how long "
                     + "a bean keeps its width before narrowing to its tip, on book A p.8's "
                     + "zoom (Task 046)"
+            ),
+            "how far a run stands over the valley floor, over the braid's radius": .declared(
+                Double(runHeightOverRadius),
+                basis: .fractionOf("the braid's outer radius"),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how much "
+                    + "a bean domes on book A p.8's zoom. The derived figure beside it is for "
+                    + "threads one to a column that do not overlap; these runs are wider than "
+                    + "a column and do overlap (Task 049's rework)"
+            ),
+            "where a run stands highest, in cycles past its arrival": BraidMeasurement(
+                Double(RoundTube8Bundle.standard.crestAtCycles),
+                source: .derived("the middle of the run: its height is a circular arc, even "
+                                 + "about the middle, so there is no figure to set here (the "
+                                 + "author's ruling on Task 049's rework: the swelling is not "
+                                 + "to be lopsided)")
             ),
             "radius on screen": .declared(
                 Double(defaultRadius),
@@ -239,6 +275,22 @@ enum RoundTube8SurfaceMesh {
     /// (`docs/tasks/025-5-adding-a-recipe.md`).
     static let crestHeightRatio: Float = 1 - 1 / (1 + .pi / 8)
 
+    /// How far a run stands above the valley floor, as a fraction of the braid's
+    /// outer radius — **the drawing's own depth since Task 049's rework**, and
+    /// no longer `crestHeightRatio`.
+    ///
+    /// `crestHeightRatio` is worked out for threads lying side by side, one to a
+    /// column, each standing half its own width proud. **The runs drawn here are
+    /// not that**: they are wider than a column (`widestHalfWidthInColumns`) and
+    /// they overlap, so a run 0.47 of the braid's width across stood 0.14 of it
+    /// tall and read as a flat tile (the author, 2026-09-20). This deepens the
+    /// valley between the runs so that one domes.
+    ///
+    /// **Calibrated by eye against a photograph, not derived, and not read off
+    /// the braid's outline** — measuring procedure 2 and Task 005J say the
+    /// outline of a round braid cannot give the grooves between its ridges.
+    static let runHeightOverRadius: Float = 0.44
+
     /// How far beneath the valley floor the cell under a run lies, as a
     /// fraction of the ridge. **Not a shape figure**: it only keeps the cell
     /// beneath from sharing the floor with the edges of the runs above it, so
@@ -262,17 +314,33 @@ enum RoundTube8SurfaceMesh {
     ///
     /// The fibre runs nearly along the thread, so the angle is small. Those five
     /// beans lean between 11 and 41 degrees either way, and the median of their
-    /// size is 14.9, which is where the eye had put it.
-    static let fibreStripeAngleDegrees: Float = 15
+    /// size is 14.9, which is where the eye first put it.
+    ///
+    /// **Eight since Task 049's rework.** At 15 the stripes crossed the run
+    /// plainly on screen, where the photograph's run nearly along the bean; the
+    /// figure is set by how the stripes lie on the drawn run, not by the reading
+    /// on the photograph alone.
+    static let fibreStripeAngleDegrees: Float = 8
     /// How many fibre stripes lie side by side across one thread's width.
     /// **Calibrated by eye against the same photograph, not derived** — counted
     /// across a thread, because the stripes run nearly along it and that is the
     /// way they can be counted.
     ///
-    /// The same five beans give 6.6 across. The stripes have to come back whole
-    /// at the end of a cell (`RoundTube8StrandTexture.stripesPerCell`), and at 15
-    /// degrees that allows 5.2 across or 7.8; this gives 7.8, which the eye kept.
-    static let fibreStripesAcrossThreadWidth: Float = 8
+    /// The same five beans give 6.6 across a thread, counted on the beans that
+    /// showed a readable period. **Fourteen since Task 049**: with the cycle
+    /// twice as long and a run about one cycle, eight across drew a handful of
+    /// broad ridges down each bean, where the photograph has a fine grain over
+    /// the whole of it. The stripes still have to come back whole at the end of
+    /// a run (`RoundTube8StrandTexture.stripesPerCell`).
+    static let fibreStripesAcrossThreadWidth: Float = 14
+
+    /// How far the fibre stripes stand out, as the sixteen-thread factory reads
+    /// it. **The eight-thread tube's own figure since Task 049**, lower than the
+    /// sixteen-thread tube's 0.005 it used to borrow: held beside book A p.8's
+    /// zoom at one braid width, the borrowed relief drew a few broad ridges
+    /// where the photograph has a fine, close grain. **The sixteen-thread side
+    /// is not touched** — the factory already takes the figure as an argument.
+    static let fibreStripeRelief: Float = 0.003
 
     /// Samples along one run and across it. Across resolves the round ridge;
     /// along resolves the shoulder and the tip, **packed towards both ends the
@@ -326,7 +394,7 @@ enum RoundTube8SurfaceMesh {
             return nil
         }
 
-        let floor = radius * (1 - crestHeightRatio)
+        let floor = radius * (1 - runHeightOverRadius)
         let repeatLength = tileLength / Float(patternRepeatCount)
         let beneath = floor - beneathClearanceOfRidge * (radius - floor)
 

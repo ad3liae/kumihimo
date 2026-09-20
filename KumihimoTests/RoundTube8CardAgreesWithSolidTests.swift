@@ -74,7 +74,19 @@ struct RoundTube8CardAgreesWithSolidTests {
 
         /// The outermost surface on the ray out from the axis at `x` along the
         /// tile and `turns` round, and how far out it is.
+        /// The outermost surface **belonging to one run**, if its triangles are
+        /// crossed at all: what the solid has for that run there, as its flat
+        /// triangles cut it.
+        func outermost(x: Float, turns: Float, of part: Part) -> Float? {
+            hits(x: x, turns: turns).filter { $0.0 == part }.map(\.1).max()
+        }
+
         func outermost(x: Float, turns: Float) -> (part: Part, radius: Float)? {
+            hits(x: x, turns: turns).max { $0.1 < $1.1 }
+        }
+
+        /// Every surface the ray out from the axis crosses, with how far out.
+        private func hits(x: Float, turns: Float) -> [(Part, Float)] {
             let angle = 2 * .pi * turns
             let origin = SIMD3<Float>(x, 0, 0)
             let direction = SIMD3<Float>(0, sin(angle), cos(angle))
@@ -82,8 +94,8 @@ struct RoundTube8CardAgreesWithSolidTests {
             var wrappedTurns = turns.truncatingRemainder(dividingBy: 1)
             if wrappedTurns < 0 { wrappedTurns += 1 }
             let br = Int((wrappedTurns * Float(Self.binsRound)).rounded(.down)) % Self.binsRound
-            guard (0..<Self.binsAlong).contains(bx) else { return nil }
-            var best: (Part, Float)?
+            guard (0..<Self.binsAlong).contains(bx) else { return [] }
+            var found = [(Part, Float)]()
             for t in bins[bx * Self.binsRound + br] {
                 let tri = triangles[t]
                 let a = mesh.positions[tri.x], b = mesh.positions[tri.y], c = mesh.positions[tri.z]
@@ -99,9 +111,9 @@ struct RoundTube8CardAgreesWithSolidTests {
                 guard v >= 0, u + v <= 1 else { continue }
                 let distance = dot(e2, q) / det
                 guard distance > 0 else { continue }
-                if best == nil || distance > best!.1, let part = owner[tri.x] { best = (part, distance) }
+                if let part = owner[tri.x] { found.append((part, distance)) }
             }
-            return best.map { (part: $0.0, radius: $0.1) }
+            return found
         }
     }
 
@@ -125,19 +137,24 @@ struct RoundTube8CardAgreesWithSolidTests {
         let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: drawn))
         let solid = Solid(mesh: mesh, cells: drawn.surface.segments.count)
         let rows = Float(drawn.rowCount)
-        let lane0 = try #require(drawn.surface.segments.firstIndex {
-            abs($0.centerlineStart.x - 0.5 / 8) < 1e-5 && abs($0.centerlineStart.y * rows + 0.75) < 1e-4
+        // Lane 0's first-row run: it began at -0.75 of a cycle while cells were
+        // drawn at their arrivals, and begins at its drawn phase since Task 048
+        // (-0.5 on S). The places are read from where it begins.
+        let start = drawn.drawnPhaseByColumn[0] - 1
+        // The run is there, where the drawn phase says it begins.
+        _ = try #require(drawn.surface.segments.firstIndex {
+            abs($0.centerlineStart.x - 0.5 / 8) < 1e-5 && abs($0.centerlineStart.y * rows - start) < 1e-4
         })
         for (past, back) in [(Float(1.10), Float(0.18)), (1.30, 0.42)] {
-            let along = (-0.75 + past) / rows          // in the second repeat
+            let along = (start + past) / rows          // in the second repeat
             let turns = (0.5 - back) / 8
             let seen = try #require(solid.outermost(x: x(mesh, along: 1 + along), turns: turns))
-            // The earlier run shows, on the solid.
-            #expect(seen.part == .run(repeatIndex: 1, segment: lane0),
-                    "\(past) cycles past: the solid shows \(seen.part) at radius \(seen.radius)")
-            // And the card's rule says the same.
+            // Whichever run the solid shows there, the card's rule says the same.
+            // (Until Task 048 it was lane 0's own run on its flank, the case the
+            // review found; the half-pitch stagger moved which run that is.)
             let top = try #require(drawn.runsStanding(atTurns: turns, along: along).first)
-            #expect(Solid.Part.run(repeatIndex: 1 + top.repeatOffset, segment: top.segment) == seen.part)
+            #expect(Solid.Part.run(repeatIndex: 1 + top.repeatOffset, segment: top.segment) == seen.part,
+                    "\(past) cycles past lane 0's start: the solid shows \(seen.part)")
         }
     }
 
@@ -178,7 +195,7 @@ struct RoundTube8CardAgreesWithSolidTests {
         let edgeSample = RoundTube8SurfaceMesh.crossSectionOffset(
             forSample: 1 - 1 / Float(RoundTube8SurfaceMesh.defaultAcrossSubdivisions)
         )
-        var compared = 0, letOff = 0
+        var compared = 0, letOff = 0, onAFloorBoundary = 0
         var disagreements = [String]()
         for row in stride(from: 0, to: map.height, by: 2) {
             for column in stride(from: 0, to: map.width, by: 2) {
@@ -207,7 +224,57 @@ struct RoundTube8CardAgreesWithSolidTests {
                 case .beneath(let offset, let segment)?: .beneath(repeatIndex: home + offset, segment: segment)
                 case nil: nil
                 }
+                // **A sample exactly on the line where two cells beneath meet**
+                // can fall either side; that is not the card disagreeing with
+                // the solid about what shows. Nothing else about the floor is
+                // let off: the two cells have to be the ones that meet there,
+                // and the sample has to be on their shared end within rounding
+                // (`meetOnTheirSharedEnd`).
+                if case .beneath(let mineRepeat, let mine)? = card,
+                   case .beneath(let theirsRepeat, let theirs) = seen.part,
+                   Self.meetOnTheirSharedEnd(
+                       mine: (mineRepeat - home, mine), theirs: (theirsRepeat - home, theirs),
+                       at: along, of: drawn
+                   ) {
+                    onAFloorBoundary += 1
+                    continue
+                }
                 compared += 1
+                if card != seen.part,
+                   case .run(let cardRepeat, let cardSegment)? = card,
+                   case .run(let solidRepeat, let solidSegment) = seen.part,
+                   let runnerUp = standing.dropFirst().first {
+                    // **Can the cut explain it?** The flat triangles lie inside
+                    // the surface they stand for, so the run the rule puts on
+                    // top can lose by as much as it loses to its own cut —
+                    // `loss` — and no more. It is let off only when
+                    //
+                    //   * the run the solid shows is the rule's runner-up, not
+                    //     some third run or another repeat, and
+                    //   * the rule's lead over that runner-up is no more than
+                    //     what the cut takes off the leader here.
+                    //
+                    // So a card that picked the wrong thread, or a point well
+                    // inside a run where the cut takes off almost nothing, is a
+                    // disagreement. (The check this replaced compared the
+                    // leader's own hit against the outermost hit of *all* runs,
+                    // which is never smaller, and so let every pair through —
+                    // Task 049's review.)
+                    let ridge = mesh.crestRadius - mesh.valleyFloorRadius
+                    let cut = solid.outermost(
+                        x: x(mesh, along: Float(home) + along), turns: turns,
+                        of: .run(repeatIndex: cardRepeat, segment: cardSegment)
+                    ).map { ($0 - mesh.valleyFloorRadius) / ridge }
+                    let loss = (standing.first?.height ?? 0) - (cut ?? 0)
+                    let shownIsRunnerUp = runnerUp.segment == solidSegment
+                        && runnerUp.repeatOffset == solidRepeat - home
+                    let lead = (standing.first?.height ?? 0) - runnerUp.height
+                    if Self.cutCanExplain(lead: lead, loss: loss, shownIsRunnerUp: shownIsRunnerUp) {
+                        compared -= 1
+                        letOff += 1
+                        continue
+                    }
+                }
                 if card != seen.part {
                     disagreements.append(String(format: "turns %.4f along %.4f", turns, along)
                         + ": card \(String(describing: card)), solid \(seen.part)")
@@ -217,8 +284,77 @@ struct RoundTube8CardAgreesWithSolidTests {
         #expect(disagreements.count == 0,
                 "\(disagreements.count) of \(compared): \(disagreements.prefix(8).joined(separator: "; "))")
         #expect(compared > 10_000)
-        // Bounded: the band the triangles cannot follow is a small part of the card.
-        #expect(letOff * 10 < compared + letOff, "let off \(letOff) of \(compared + letOff)")
+        // Bounded, and counted by reason: the band the flat triangles cannot
+        // follow, and samples on the line where two cells beneath meet.
+        let all = compared + letOff + onAFloorBoundary
+        #expect(letOff * 10 < all, "let off \(letOff) of \(all) for the triangles")
+        #expect(onAFloorBoundary * 100 < all, "let off \(onAFloorBoundary) of \(all) on a floor boundary")
+    }
+
+    /// How far a run stands at a place **as the mesh cuts it**, read off the run's
+    /// own grid of samples: the quad of the mesh that covers the place, and its
+    /// four corners blended. `nil` where the mesh's version of the run does not
+    /// reach the place at all — the flat triangles fall inside a curve that bends
+    /// away from them, so near a steep rise the cut run covers less than the
+    /// smooth one.
+    ///
+    /// This is the surface the solid actually shows, so a card that follows the
+    /// smooth rule can differ from it only here.
+    static func meshCutHeight(
+        of segment: BraidStrandSegment,
+        repeatOffset: Int,
+        leanDirection: Float,
+        atTurns turns: Float,
+        along: Float,
+        bundle: RoundTube8Bundle = .standard
+    ) -> Float? {
+        let alongSteps = RoundTube8SurfaceMesh.defaultAlongSubdivisions
+        let acrossSteps = RoundTube8SurfaceMesh.defaultAcrossSubdivisions
+        let cycle = segment.centerlineEnd.y - segment.centerlineStart.y
+        // The run's samples, in the surface's own coordinates: round the braid
+        // in turns, along it in repeats, and how far it stands.
+        func station(_ i: Int, _ j: Int) -> (turns: Float, along: Float, height: Float) {
+            let step = (1 + RoundTube8SurfaceMesh.crossSectionOffset(
+                forSample: Float(i) / Float(alongSteps))) / 2
+            let cycles = step * bundle.lengthInCycles
+            let across = RoundTube8SurfaceMesh.crossSectionOffset(
+                forSample: Float(j) / Float(acrossSteps))
+            let halfWidth = max(bundle.halfWidthInColumns(atCycles: cycles), 1e-3)
+            let turns = segment.centerlineStart.x
+                + (bundle.leanInColumns(atCycles: cycles, direction: leanDirection)
+                    + halfWidth * across) / 8
+            let along = segment.centerlineStart.y + Float(repeatOffset) + cycles * cycle
+            return (turns, along, bundle.standingFraction(atCycles: cycles, across: across))
+        }
+        // The quad that covers the place, as two triangles.
+        func inside(_ a: (Float, Float), _ b: (Float, Float), _ c: (Float, Float),
+                    _ p: (Float, Float)) -> (Float, Float, Float)? {
+            let d = (b.1 - c.1) * (a.0 - c.0) + (c.0 - b.0) * (a.1 - c.1)
+            guard abs(d) > 1e-12 else { return nil }
+            let u = ((b.1 - c.1) * (p.0 - c.0) + (c.0 - b.0) * (p.1 - c.1)) / d
+            let v = ((c.1 - a.1) * (p.0 - c.0) + (a.0 - c.0) * (p.1 - c.1)) / d
+            let w = 1 - u - v
+            guard u >= -1e-6, v >= -1e-6, w >= -1e-6 else { return nil }
+            return (u, v, w)
+        }
+        // Round the braid is a ring: bring the place to the run's own turn.
+        var place = (turns, along)
+        let middle = segment.centerlineStart.x
+        while place.0 - middle > 0.5 { place.0 -= 1 }
+        while place.0 - middle < -0.5 { place.0 += 1 }
+        for i in 0..<alongSteps {
+            for j in 0..<acrossSteps {
+                let corners = [station(i, j), station(i, j + 1), station(i + 1, j), station(i + 1, j + 1)]
+                let flat = corners.map { ($0.turns, $0.along) }
+                for triangle in [[0, 1, 2], [1, 3, 2]] {
+                    if let (u, v, w) = inside(flat[triangle[0]], flat[triangle[1]], flat[triangle[2]], place) {
+                        return u * corners[triangle[0]].height + v * corners[triangle[1]].height
+                            + w * corners[triangle[2]].height
+                    }
+                }
+            }
+        }
+        return nil
     }
 
     /// How far a run stands at a place **as the mesh cuts it**: the rule's height
@@ -247,6 +383,49 @@ struct RoundTube8CardAgreesWithSolidTests {
         let (j, v) = bracket(acrosses, across)
         func at(_ i: Int, _ j: Int) -> Float { bundle.standingFraction(atCycles: alongs[i], across: acrosses[j]) }
         return (1 - u) * ((1 - v) * at(i, j) + v * at(i, j + 1)) + u * ((1 - v) * at(i + 1, j) + v * at(i + 1, j + 1))
+    }
+
+    /// **Whether two cells beneath are the two that meet at this place**: the
+    /// same column, ends that are the same line along the braid, and the sample
+    /// on that line within rounding. Repeats are counted in, so the join
+    /// between two repeats is treated like any other.
+    ///
+    /// Anything else is a disagreement: two cells of one column that do not
+    /// touch, a sample inside a cell rather than on its end, or cells of
+    /// different columns.
+    static func meetOnTheirSharedEnd(
+        mine: (repeatOffset: Int, segment: Int),
+        theirs: (repeatOffset: Int, segment: Int),
+        at along: Float,
+        of pattern: RoundTube8SurfacePattern,
+        tolerance: Float = 1e-4
+    ) -> Bool {
+        let one = pattern.surface.segments[mine.segment]
+        let other = pattern.surface.segments[theirs.segment]
+        guard abs(one.centerlineStart.x - other.centerlineStart.x) < 1e-5 else { return false }
+        // Ends in the coordinate the sample is in: repeats along the braid.
+        let mineStart = one.centerlineStart.y + Float(mine.repeatOffset)
+        let mineEnd = one.centerlineEnd.y + Float(mine.repeatOffset)
+        let theirsStart = other.centerlineStart.y + Float(theirs.repeatOffset)
+        let theirsEnd = other.centerlineEnd.y + Float(theirs.repeatOffset)
+        // They must meet: one's end is the other's start.
+        let line: Float
+        if abs(mineEnd - theirsStart) < tolerance {
+            line = mineEnd
+        } else if abs(theirsEnd - mineStart) < tolerance {
+            line = theirsEnd
+        } else {
+            return false
+        }
+        // And the sample must be on that line.
+        return abs(along - line) < tolerance
+    }
+
+    /// **Whether the mesh's own cut can explain a disagreement**: only when the
+    /// run the solid shows is the rule's runner-up, and the rule's lead over it
+    /// is no bigger than what the flat triangles take off the leader there.
+    static func cutCanExplain(lead: Float, loss: Float, shownIsRunnerUp: Bool) -> Bool {
+        shownIsRunnerUp && lead <= loss + 1e-4
     }
 
     /// Where a place lies on a run: cycles past its arrival, and across its
@@ -340,9 +519,20 @@ struct RoundTube8CardAgreesWithSolidTests {
         #expect(Double(floor) / Double(floor + runs) < 0.01, "floor at \(floor) of \(floor + runs)")
     }
 
-    /// **A run ends beneath another run** (Task 046): near its tip, along its
-    /// crest, what the solid shows is some other thread's run — read off the real
-    /// mesh, whichever run that is, not assumed to be the next one at its place.
+    /// **A run ends beneath another run, at both ends** (Task 046; Task 049's
+    /// second rework made it both). Near its head and near its tail, along its
+    /// crest, what the solid shows is some other thread's run — read off the
+    /// real mesh, whichever run that is, not assumed to be the next one at its
+    /// place.
+    ///
+    /// **Why both ends.** The height is an even arc over the run's whole length,
+    /// so a run and the one a cycle behind it in the same lane are the same
+    /// curve offset by a cycle: they cross exactly halfway between them. A run
+    /// is therefore covered for the first `tuckedCycles / 2` and again from a
+    /// cycle and `tuckedCycles / 2`, and **shows for exactly one cycle in
+    /// between**. While the crest sat before the middle of the run it was the
+    /// tail alone that went under, and the head rose over its predecessor from
+    /// the start.
     @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
     func aRunEndsBeneathAnotherRun(recipe: BraidRecipe) throws {
         let drawn = try pattern(recipe)
@@ -351,8 +541,11 @@ struct RoundTube8CardAgreesWithSolidTests {
         let bundle = RoundTube8Bundle.standard
         var checked = 0
         var coveredBy = [String: Int]()
+        // Either side of where the two runs of a lane cross, by a quarter of the
+        // overlap, and the middle of the run where it must be showing itself.
+        let hidden = [bundle.tuckedCycles / 4, 1 + bundle.tuckedCycles * 0.75]
         for (index, segment) in drawn.surface.segments.enumerated() {
-            for cycles in [bundle.lengthInCycles - 0.2, bundle.lengthInCycles - 0.05] {
+            for cycles in hidden + [bundle.crestAtCycles] {
                 let crest = RoundTube8SurfaceMesh.frame(
                     of: segment, cycles: cycles, across: 0, leanDirection: drawn.leanDirection,
                     floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
@@ -365,6 +558,11 @@ struct RoundTube8CardAgreesWithSolidTests {
                     Issue.record("run \(index) ends over the floor at \(cycles)")
                     continue
                 }
+                guard hidden.contains(cycles) else {
+                    // The middle of a run is the run's own.
+                    #expect(other == index, "run \(index) is covered at its own crest")
+                    continue
+                }
                 #expect(other != index, "run \(index) still shows at \(cycles) cycles")
                 let lane = { (i: Int) in Int((drawn.surface.segments[i].centerlineStart.x * 8).rounded(.down)) }
                 coveredBy[lane(other) == lane(index) ? "same lane" : "another lane", default: 0] += 1
@@ -375,5 +573,87 @@ struct RoundTube8CardAgreesWithSolidTests {
         // Both kinds of cover happen: the next thread at its place, and a run
         // leaning in from beside.
         #expect(coveredBy.count >= 1)
+    }
+
+    /// **The floor-boundary let-off forgives the boundary and nothing else.**
+    /// Held up against the real pattern: two cells of one column that meet, a
+    /// sample on their line and samples either side of it, two cells of one
+    /// column that do not touch, and two cells of different columns.
+    @Test func onlyTheLineWhereTwoFloorCellsMeetIsLetOff() throws {
+        let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
+        let column = 0
+        let cells = drawn.surface.segments.indices
+            .filter { Int((drawn.surface.segments[$0].centerlineStart.x * 8).rounded(.down)) == column }
+            .sorted { drawn.surface.segments[$0].centerlineStart.y < drawn.surface.segments[$1].centerlineStart.y }
+        #expect(cells.count == drawn.rowCount)
+        let first = cells[0], second = cells[1], far = cells[3]
+        let line = drawn.surface.segments[first].centerlineEnd.y
+        func meets(_ a: Int, _ b: Int, at along: Float, offsets: (Int, Int) = (0, 0)) -> Bool {
+            Self.meetOnTheirSharedEnd(mine: (offsets.0, a), theirs: (offsets.1, b), at: along, of: drawn)
+        }
+        // On the line where the first two meet: let off.
+        #expect(meets(first, second, at: line))
+        #expect(meets(second, first, at: line))
+        // A hair either side of it, and well inside a cell: not let off.
+        #expect(!meets(first, second, at: line + 0.01))
+        #expect(!meets(first, second, at: line - 0.01))
+        let inside = (drawn.surface.segments[second].centerlineStart.y
+            + drawn.surface.segments[second].centerlineEnd.y) / 2
+        #expect(!meets(first, second, at: inside))
+        // Two cells of the same column that do not touch: not let off, wherever
+        // the sample is.
+        #expect(!meets(first, far, at: line))
+        #expect(!meets(first, far, at: drawn.surface.segments[far].centerlineStart.y))
+        // A cell of another column: not let off.
+        let elsewhere = try #require(drawn.surface.segments.indices.first {
+            Int((drawn.surface.segments[$0].centerlineStart.x * 8).rounded(.down)) == 1
+        })
+        #expect(!meets(first, elsewhere, at: line))
+        // The join between two repeats is a boundary like any other.
+        let last = cells[cells.count - 1]
+        let join = drawn.surface.segments[last].centerlineEnd.y
+        #expect(meets(last, cells[0], at: join, offsets: (0, 1)))
+        #expect(!meets(last, cells[0], at: join, offsets: (0, 0)))
+    }
+
+    /// **The let-off forgives the triangles' own cut and nothing else.** Fed
+    /// with places on the real braid: a point well inside a run, where the cut
+    /// takes off almost nothing, is a disagreement however the numbers are
+    /// dressed; and picking a run that is not the rule's runner-up — another
+    /// thread, or the same thread a repeat away — is never explained.
+    @Test func onlyTheTrianglesOwnCutIsLetOff() throws {
+        let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
+        let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: drawn))
+        let solid = Solid(mesh: mesh, cells: drawn.surface.segments.count)
+        let ridge = mesh.crestRadius - mesh.valleyFloorRadius
+
+        // A place well inside a run: on the crest of one, at its belly.
+        let bundle = RoundTube8Bundle.standard
+        let segment = drawn.surface.segments[0]
+        let belly = (bundle.bellyStartCycles + bundle.bellyEndCycles) / 2
+        let along = segment.centerlineStart.y
+            + belly * (segment.centerlineEnd.y - segment.centerlineStart.y)
+        let turns = segment.centerlineStart.x
+            + bundle.leanInColumns(atCycles: belly, direction: drawn.leanDirection) / 8
+        let standing = drawn.runsStanding(atTurns: turns, along: along)
+        let top = try #require(standing.first)
+        #expect(top.segment == 0)
+        // What the triangles take off the leader there is almost nothing.
+        let cut = try #require(solid.outermost(
+            x: -mesh.length / 2 + mesh.patternRepeatLength * (1 + along), turns: turns,
+            of: .run(repeatIndex: 1 + top.repeatOffset, segment: top.segment)
+        ))
+        let loss = top.height - (cut - mesh.valleyFloorRadius) / ridge
+        #expect(loss < 0.02, "the cut takes off \(loss) of the ridge on a crest")
+
+        // So a lead bigger than that is a disagreement, runner-up or not.
+        let lead = top.height - (standing.dropFirst().first?.height ?? 0)
+        #expect(lead > loss)
+        #expect(!Self.cutCanExplain(lead: lead, loss: loss, shownIsRunnerUp: true))
+        // And a run that is not the runner-up is never explained, however much
+        // the cut took off.
+        #expect(!Self.cutCanExplain(lead: 0, loss: 1, shownIsRunnerUp: false))
+        // What is explained: a lead inside the cut's own loss, to the runner-up.
+        #expect(Self.cutCanExplain(lead: 0.01, loss: 0.05, shownIsRunnerUp: true))
     }
 }

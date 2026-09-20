@@ -104,7 +104,7 @@ def main(states):
     os.makedirs(OUT, exist_ok=True)
     for recipe in ["s", "z"]:
         photo = photo_panel(recipe)
-        for colouring in ["plain", "book", "eight"]:
+        for colouring in os.environ.get("TASK045_COLOURINGS", "plain,book,eight").split(","):
             front = [render_panel(s, recipe, colouring, "roll0") for s in states]
             panels = [photo] + front
             labels = [f"photo {PHOTO_BRAIDS[recipe][0]}"] + [f"{s} {recipe} {colouring} 0deg" for s in states]
