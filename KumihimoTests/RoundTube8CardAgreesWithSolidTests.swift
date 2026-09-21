@@ -496,8 +496,9 @@ struct RoundTube8CardAgreesWithSolidTests {
     /// floor, on the real mesh — not dark pixels. It was 3.64% of the surface
     /// with a run widest just after its arrival and one column at most (Task
     /// 045); 1.78% with a lens of the same width; 0.32% with the lens's belly let
-    /// show a little wider than its column, which is what ships. The bound is a
-    /// guard against the floor coming back, not a target of zero.
+    /// show a little wider than its column (Task 046); 0 of 16,384 on S and Z
+    /// with Task 051's tails, which keep their width until they are covered.
+    /// The bound is a guard against the floor coming back, not a target of zero.
     @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
     func theFloorHardlyShows(recipe: BraidRecipe) throws {
         let drawn = try pattern(recipe)
@@ -519,60 +520,133 @@ struct RoundTube8CardAgreesWithSolidTests {
         #expect(Double(floor) / Double(floor + runs) < 0.01, "floor at \(floor) of \(floor + runs)")
     }
 
-    /// **A run ends beneath another run, at both ends** (Task 046; Task 049's
-    /// second rework made it both). Near its head and near its tail, along its
-    /// crest, what the solid shows is some other thread's run — read off the
-    /// real mesh, whichever run that is, not assumed to be the next one at its
-    /// place.
+    /// **A tail goes under the runs laid after it, with its width, and the
+    /// head shows** (Task 051). Read off the real mesh — the outermost surface
+    /// on the ray out from the axis — at **five places across the run's width**,
+    /// not its centreline alone, and on both sides of where it goes under:
     ///
-    /// **Why both ends.** The height is an even arc over the run's whole length,
-    /// so a run and the one a cycle behind it in the same lane are the same
-    /// curve offset by a cycle: they cross exactly halfway between them. A run
-    /// is therefore covered for the first `tuckedCycles / 2` and again from a
-    /// cycle and `tuckedCycles / 2`, and **shows for exactly one cycle in
-    /// between**. While the crest sat before the middle of the run it was the
-    /// tail alone that went under, and the head rose over its predecessor from
-    /// the start.
+    /// - **before**: across the crest, and at the head once it has rounded to
+    ///   its width, the run shows itself. The head was laid last, so it lies on
+    ///   top;
+    /// - **after**: across the tail past the end of the height's arc, where the
+    ///   tail is still most of the run's width, **another run shows, and it was
+    ///   laid after this one** (`isLaterRun`). Two places: just past the arc,
+    ///   where the tail is 0.81 of its width, and 0.08 of a cycle on, 0.70. Not the same run, not the same
+    ///   run a repeat away, not a run laid before it, and never the floor.
+    ///
+    /// Until Task 051 this checked that a run ended beneath another at both
+    /// ends, along its crest only; the lens's ends were points by then, so the
+    /// check said nothing about an end with width (the task's condition).
+    ///
+    /// **Who covers is recorded, by run, never by colour**: the eight threads
+    /// all have their own colour here, and the next lane's run has to be among
+    /// the covers — that is what the bend is for.
     @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
-    func aRunEndsBeneathAnotherRun(recipe: BraidRecipe) throws {
+    func aTailGoesUnderTheRunsLaidAfterItWithItsWidth(recipe: BraidRecipe) throws {
         let drawn = try pattern(recipe)
         let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: drawn))
         let solid = Solid(mesh: mesh, cells: drawn.surface.segments.count)
         let bundle = RoundTube8Bundle.standard
-        var checked = 0
+        let acrosses: [Float] = [-0.8, -0.4, 0, 0.4, 0.8]
+        let lane = { (i: Int) in Int((drawn.surface.segments[i].centerlineStart.x * 8).rounded(.down)) }
+        var shownItself = 0, covered = 0
         var coveredBy = [String: Int]()
-        // Either side of where the two runs of a lane cross, by a quarter of the
-        // overlap, and the middle of the run where it must be showing itself.
-        let hidden = [bundle.tuckedCycles / 4, 1 + bundle.tuckedCycles * 0.75]
+        var failures = [String]()
         for (index, segment) in drawn.surface.segments.enumerated() {
-            for cycles in hidden + [bundle.crestAtCycles] {
-                let crest = RoundTube8SurfaceMesh.frame(
-                    of: segment, cycles: cycles, across: 0, leanDirection: drawn.leanDirection,
+            // The run in the tile's second repeat, so what reaches it from
+            // either side is in the tile too.
+            let home = 1
+            func seen(_ cycles: Float, _ across: Float) -> Solid.Part? {
+                let point = RoundTube8SurfaceMesh.frame(
+                    of: segment, cycles: cycles, across: across, leanDirection: drawn.leanDirection,
                     floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
-                    base: -mesh.length / 2, repeatLength: mesh.patternRepeatLength
+                    base: -mesh.length / 2 + Float(home) * mesh.patternRepeatLength,
+                    repeatLength: mesh.patternRepeatLength
                 ).position
-                // Only where the tile holds everything that reaches this far.
-                guard abs(crest.x) < mesh.patternRepeatLength / 2 else { continue }
-                let seen = try #require(solid.outermost(x: crest.x, turns: atan2(crest.y, crest.z) / (2 * .pi)))
-                guard case let .run(_, other) = seen.part else {
-                    Issue.record("run \(index) ends over the floor at \(cycles)")
-                    continue
+                guard abs(point.x) < mesh.length / 2 - mesh.patternRepeatLength / 4 else { return nil }
+                return solid.outermost(x: point.x, turns: atan2(point.y, point.z) / (2 * .pi))?.part
+            }
+            // Before: the crest, across it, and the head's middle once it is wide.
+            for (cycles, acrossList) in [(bundle.crestAtCycles, [Float(-0.5), 0, 0.5]),
+                                         (bundle.headRoundingCycles + 0.1, [Float(0)])] {
+                for across in acrossList {
+                    guard let part = seen(cycles, across) else { continue }
+                    if part == .run(repeatIndex: home, segment: index) {
+                        shownItself += 1
+                    } else {
+                        failures.append("run \(index) does not show at \(cycles), \(across): \(part)")
+                    }
                 }
-                guard hidden.contains(cycles) else {
-                    // The middle of a run is the run's own.
-                    #expect(other == index, "run \(index) is covered at its own crest")
-                    continue
+            }
+            // After: past the arc, where the tail still has its width.
+            for cycles in [bundle.arcSpanCycles + 0.02, bundle.arcSpanCycles + 0.08] {
+                #expect(bundle.halfWidthInColumns(atCycles: cycles) > 0.66 * bundle.widestHalfWidthInColumns)
+                for across in acrosses {
+                    guard let part = seen(cycles, across) else { continue }
+                    guard case let .run(otherRepeat, other) = part else {
+                        failures.append("run \(index)'s tail is over the floor at \(cycles), \(across)")
+                        continue
+                    }
+                    guard Self.isLaterRun(
+                        (otherRepeat - home, other), than: (0, index), in: drawn
+                    ) else {
+                        failures.append("run \(index)'s tail at \(cycles), \(across) shows run \(other) "
+                                        + "of repeat \(otherRepeat), not one laid after it")
+                        continue
+                    }
+                    coveredBy[lane(other) == lane(index) ? "same lane" : "another lane", default: 0] += 1
+                    covered += 1
                 }
-                #expect(other != index, "run \(index) still shows at \(cycles) cycles")
-                let lane = { (i: Int) in Int((drawn.surface.segments[i].centerlineStart.x * 8).rounded(.down)) }
-                coveredBy[lane(other) == lane(index) ? "same lane" : "another lane", default: 0] += 1
-                checked += 1
             }
         }
-        #expect(checked > 20)
-        // Both kinds of cover happen: the next thread at its place, and a run
-        // leaning in from beside.
-        #expect(coveredBy.count >= 1)
+        #expect(failures.isEmpty, "\(failures.count): \(failures.prefix(6).joined(separator: "; "))")
+        #expect(shownItself > drawn.surface.segments.count)
+        #expect(covered > 5 * drawn.surface.segments.count)
+        // The next lane's run is among the covers: the tail bends under it.
+        #expect((coveredBy["another lane"] ?? 0) > 0, "\(coveredBy)")
+    }
+
+    /// **Whether a run was laid after another**: a different run whose arrival
+    /// is later. `repeatOffset` counts repeats along the braid from the same
+    /// origin for both. By run and arrival only — colour never enters.
+    static func isLaterRun(
+        _ other: (repeatOffset: Int, segment: Int),
+        than mine: (repeatOffset: Int, segment: Int),
+        in pattern: RoundTube8SurfacePattern
+    ) -> Bool {
+        let theirs = pattern.surface.segments[other.segment].centerlineStart.y + Float(other.repeatOffset)
+        let ours = pattern.surface.segments[mine.segment].centerlineStart.y + Float(mine.repeatOffset)
+        return !(other.repeatOffset == mine.repeatOffset && other.segment == mine.segment)
+            && theirs > ours + 1e-5
+    }
+
+    /// **`isLaterRun` rejects the wrong covers** (Task 051): the run itself,
+    /// the same run a repeat before, the run before it at its place, and a run
+    /// that arrived at the same instant. What it accepts is the next thread at
+    /// the run's place and the next lane's run half a cycle on.
+    @Test func onlyARunLaidAfterwardsCountsAsCoveringATail() throws {
+        let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
+        let segments = drawn.surface.segments
+        let lane = { (i: Int) in Int((segments[i].centerlineStart.x * 8).rounded(.down)) }
+        let cells = segments.indices.filter { lane($0) == 0 }
+            .sorted { segments[$0].centerlineStart.y < segments[$1].centerlineStart.y }
+        let mine = (repeatOffset: 0, segment: cells[1])
+        // Rejected.
+        #expect(!Self.isLaterRun(mine, than: mine, in: drawn))
+        #expect(!Self.isLaterRun((-1, cells[1]), than: mine, in: drawn))
+        #expect(!Self.isLaterRun((0, cells[0]), than: mine, in: drawn))
+        let level = try #require(segments.indices.first {
+            $0 != cells[1] && abs(segments[$0].centerlineStart.y - segments[cells[1]].centerlineStart.y) < 1e-5
+        })
+        #expect(!Self.isLaterRun((0, level), than: mine, in: drawn))
+        // Accepted: the next thread at its place, and the next lane's run that
+        // arrives half a cycle after it.
+        #expect(Self.isLaterRun((0, cells[2]), than: mine, in: drawn))
+        let rows = Float(drawn.rowCount)
+        let halfOn = try #require(segments.indices.first {
+            lane($0) == 1 && abs((segments[$0].centerlineStart.y - segments[cells[1]].centerlineStart.y) * rows - 0.5) < 1e-4
+        })
+        #expect(Self.isLaterRun((0, halfOn), than: mine, in: drawn))
     }
 
     /// **The floor-boundary let-off forgives the boundary and nothing else.**
@@ -630,7 +704,7 @@ struct RoundTube8CardAgreesWithSolidTests {
         // A place well inside a run: on the crest of one, at its belly.
         let bundle = RoundTube8Bundle.standard
         let segment = drawn.surface.segments[0]
-        let belly = (bundle.bellyStartCycles + bundle.bellyEndCycles) / 2
+        let belly = bundle.crestAtCycles
         let along = segment.centerlineStart.y
             + belly * (segment.centerlineEnd.y - segment.centerlineStart.y)
         let turns = segment.centerlineStart.x

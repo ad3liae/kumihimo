@@ -172,7 +172,7 @@ enum RoundTube8StrandTexture {
     // MARK: - The shading
 
     /// The shading at one place on a thread's run: `across` 0...1 over the
-    /// bitmap's rows, `along` 0...1 from the arrival to the tip.
+    /// bitmap's rows, `along` 0...1 from the arrival to the end of the tail.
     ///
     /// **Where the run touches something, and only there** (Task 045). It was the
     /// same trough on all four sides of a cell, which drew every cell as a
@@ -181,12 +181,15 @@ enum RoundTube8StrandTexture {
     ///
     /// - **its sides**, where it lies against the runs beside it or over the gap
     ///   down to the floor: the sixteen-thread tube's valley, as before;
-    /// - **its head is shaded only while it is still coming up** from among the
-    ///   runs around it, over the way to its belly;
-    /// - **its tail goes under the next thread** once that thread has grown
-    ///   halfway to its belly, and is under it by the time it has: it darkens to
-    ///   the valley's depth over that stretch (Task 046: where the lens-shaped
-    ///   runs hand over, from beside to beneath).
+    /// - **its head is shaded only over its rounding**, the short stretch where it
+    ///   comes up to its full width: the head lies on top (Task 051);
+    /// - **its tail goes under the runs laid after it** from where the next
+    ///   lane's run begins to cover its side to where the height's arc comes down
+    ///   to the floor: it darkens to the valley's depth over that stretch, the
+    ///   same width either side of where it begins to narrow. Measured on the
+    ///   shape (Task 051's record): the next lane covers the tail's side from
+    ///   about 0.85 of a cycle and its centreline from about 1.1, and the arc
+    ///   ends at 1.2.
     ///
     /// **No figure of its own**: the depth and reach are the sixteen-thread
     /// tube's, and where the run rises and where it goes under are the bundle's.
@@ -200,9 +203,10 @@ enum RoundTube8StrandTexture {
         let reach = RoundTube16StrandTextureFactory.valleyOcclusionWidth
         let sides = mix(depth, 1, smoothstep(0, reach, 1 - abs(offset)))
         let cycles = along * bundle.lengthInCycles
-        let belly = bundle.bellyStartCycles
-        let rising = mix(depth, 1, smoothstep(0, reach, cycles / belly))
-        let under = mix(1, depth, smoothstep(1 + belly / 2, 1 + belly, cycles))
+        let rising = mix(depth, 1, smoothstep(0, reach, cycles / bundle.headRoundingCycles))
+        let floor = bundle.arcSpanCycles
+        let begins = 2 * bundle.tailNarrowsFromCycles - floor
+        let under = mix(1, depth, smoothstep(begins, floor, cycles))
         return sides * rising * under
     }
 

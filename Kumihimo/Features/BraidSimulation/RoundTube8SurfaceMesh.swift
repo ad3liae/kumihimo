@@ -66,17 +66,18 @@ struct RoundTube8SurfaceMeshData: Sendable {
 /// is everything about crossings — the lift, the dip, the lap, the walls that
 /// seal a step — because on this braid nothing crosses.
 ///
-/// **A thread shows as a bundle that leans and sinks under the next one**
-/// (Task 045). Each cell of the pattern — the thread standing at its place from
-/// its arrival to the next thread's — is drawn as that thread's visible run
-/// (`RoundTube8Bundle`): widest and tallest just after it arrives, leaning round
-/// the braid the way the carry goes, narrowing and sinking as the next thread
-/// arrives, and going on beneath that thread to a point. Runs overlap, and
+/// **A thread shows as a bundle that leans, with a blunt head on top and a tail
+/// that goes under the runs laid after it** (Task 045, reshaped by Task 051).
+/// Each cell of the pattern — the thread standing at its place from its arrival
+/// to the next thread's — is drawn as that thread's visible run
+/// (`RoundTube8Bundle`): full width a short way after it arrives, leaning round
+/// the braid the way the carry goes, and past its middle bending into the next
+/// lane, where it goes under the side of the run laid half a cycle after it and
+/// under the next thread's head, and only then narrows. Runs overlap, and
 /// **whichever stands higher at a place is the one seen**: the depth test draws
-/// the line where two cross. Along the earlier run's crest, once the later has
-/// risen to its shoulder, that is the later; on the earlier run's flanks just
-/// past the next arrival it can be the earlier (Task 045 review). The card
-/// reads the same rule (`RoundTube8SurfacePattern.runsStanding`).
+/// the line where two cross, so where a tail stops showing is the covering
+/// run's own side. The card reads the same rule
+/// (`RoundTube8SurfacePattern.runsStanding`).
 ///
 /// **Beneath every cell lies the thread's own cell at the valley floor**, a hair
 /// below it, so that a gap between two runs shows the thread lying there rather
@@ -85,7 +86,9 @@ struct RoundTube8SurfaceMeshData: Sendable {
 ///
 /// It replaced a round-ended bead one column wide and one cycle long, square to
 /// the braid, with a groove of its own depth at each end (Task 033). That read
-/// as a cob of corn (the author, 2026-09-18).
+/// as a cob of corn (the author, 2026-09-18). Then a lens pointed at both ends
+/// under an arc over its whole length (Tasks 046-049), which read as closed
+/// ovals in a row (the author, 2026-09-21).
 ///
 /// **The fibre stripes and the valley shading are borrowed too**, from the
 /// sixteen-thread tube's maps (`RoundTube8StrandTexture`), and only they are set
@@ -181,38 +184,43 @@ enum RoundTube8SurfaceMesh {
                     + "not Task 032's 36 degrees, which is the step between neighbouring "
                     + "beans and not the lean of one"
             ),
-            "how far a run goes on beneath the next thread, in cycles": BraidMeasurement(
+            "how far a run goes on beneath the next thread, in cycles": .declared(
                 Double(RoundTube8Bundle.standard.tuckedCycles),
-                source: .declared("calibrated by eye against a photograph, not derived: how "
-                                  + "far past the next thread's arrival a bean's tip goes on "
-                                  + "before it is lost beneath the next one, on book A p.8's "
-                                  + "zoom"),
-                unsettled: "calibrated against a photograph by eye, and **for a meaning this "
-                    + "figure no longer has**. Since the height became an even arc (the "
-                    + "author, 2026-09-20) two runs a cycle apart cross exactly halfway "
-                    + "between them, so a run shows for one cycle whatever this is, and what "
-                    + "it sets instead is how far down that crossing sits — the groove "
-                    + "between one bean and the next along its own lane — which is 0.67 of "
-                    + "the run's height here. **That groove is shallower than the "
-                    + "photograph's**, and it is the one way the even arc reads worse than "
-                    + "the lopsided hump it replaced. Deepening it means a shorter overlap, "
-                    + "which pulls the runs apart where they cross and re-opens the floor "
-                    + "Task 046 closed: measured on the real mesh, 0.15 shows the floor over "
-                    + "3.6 percent of the face against 0.3 percent here. Setting it again "
-                    + "would mean setting the belly figures again with it, which is the "
-                    + "author's to rule on"
-            ),
-            "where a run's belly begins, in cycles past its arrival": .declared(
-                Double(RoundTube8Bundle.standard.bellyStartCycles),
                 calibratedBy: "calibrated by eye against a photograph, not derived: how far "
-                    + "past its pointed head a bean widens to its belly, on book A p.8's zoom "
-                    + "(Task 046)"
+                    + "past the next thread's arrival a run's tail goes on under the runs laid "
+                    + "after it, keeping its width until they cover it (Task 051). Since Task "
+                    + "051 it no longer sets the height, which has a span of its own"
             ),
-            "where a run's belly ends, in cycles past its arrival": .declared(
-                Double(RoundTube8Bundle.standard.bellyEndCycles),
-                calibratedBy: "calibrated by eye against a photograph, not derived: how long "
-                    + "a bean keeps its width before narrowing to its tip, on book A p.8's "
-                    + "zoom (Task 046)"
+            "how far a run's head is rounded, in cycles past its arrival": .declared(
+                Double(RoundTube8Bundle.standard.headRoundingCycles),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how soon a "
+                    + "bundle's head is at its full width, on book A p.8's zoom; short, so the "
+                    + "head is blunt where the photograph's bundles are (Task 051)"
+            ),
+            "over how much of a run its height's arc stands, in cycles": .declared(
+                Double(RoundTube8Bundle.standard.arcSpanCycles),
+                calibratedBy: "calibrated by eye against a photograph, not derived: the arc is "
+                    + "the author's form (even, semicircular); its span was set so that a run "
+                    + "is down on the floor where the runs laid after it cover its tail "
+                    + "(Task 051)"
+            ),
+            "how far a run's tail bends round the braid, in columns": .declared(
+                Double(RoundTube8Bundle.standard.tailBendColumns),
+                calibratedBy: "calibrated by eye against a photograph, not derived: how far a "
+                    + "tail goes into the next lane the way the run leans, so that it goes "
+                    + "under the side of the run laid half a cycle after it, on book A p.8's "
+                    + "zoom (Task 051). The same for every run; no neighbour is chosen"
+            ),
+            "where a run's tail begins to bend, in cycles past its arrival": .declared(
+                Double(RoundTube8Bundle.standard.tailBendFromCycles),
+                calibratedBy: "calibrated by eye against a photograph, not derived: past the "
+                    + "run's middle, so the belly stays where Task 048 put it (Task 051)"
+            ),
+            "where a run's tail begins to narrow, in cycles past its arrival": .declared(
+                Double(RoundTube8Bundle.standard.tailNarrowsFromCycles),
+                calibratedBy: "calibrated by eye against a photograph, not derived: the next "
+                    + "thread's arrival, so that a tail is still as wide as the run where it "
+                    + "goes under (Task 051)"
             ),
             "how far a run stands over the valley floor, over the braid's radius": .declared(
                 Double(runHeightOverRadius),
@@ -224,7 +232,7 @@ enum RoundTube8SurfaceMesh {
             ),
             "where a run stands highest, in cycles past its arrival": BraidMeasurement(
                 Double(RoundTube8Bundle.standard.crestAtCycles),
-                source: .derived("the middle of the run: its height is a circular arc, even "
+                source: .derived("the middle of the height's arc: it is a circular arc, even "
                                  + "about the middle, so there is no figure to set here (the "
                                  + "author's ruling on Task 049's rework: the swelling is not "
                                  + "to be lopsided)")
@@ -346,8 +354,8 @@ enum RoundTube8SurfaceMesh {
     /// along resolves the shoulder and the tip, **packed towards both ends the
     /// way the across samples are packed towards the edges**
     /// (`crossSectionOffset`), because that is where the run turns fastest. A
-    /// run is nearly two cycles long, so it has twice the samples along that a
-    /// one-cycle cell had.
+    /// run is about one and a half cycles long, so it has twice the samples
+    /// along that a one-cycle cell had.
     static let defaultAlongSubdivisions = 24
     static let defaultAcrossSubdivisions = 10
     static let minimumAlongSubdivisions = 4
@@ -385,9 +393,12 @@ enum RoundTube8SurfaceMesh {
             acrossSubdivisions >= minimumAcrossSubdivisions,
             bundle.leanColumnsPerCycle.isFinite,
             bundle.tuckedCycles >= 0,
-            bundle.bellyStartCycles > 0,
-            bundle.bellyStartCycles <= bundle.bellyEndCycles,
-            bundle.bellyEndCycles < bundle.lengthInCycles,
+            bundle.headRoundingCycles > 0,
+            bundle.arcSpanCycles > 0, bundle.arcSpanCycles <= bundle.lengthInCycles,
+            bundle.tailBendColumns.isFinite,
+            bundle.tailBendFromCycles >= 0, bundle.tailBendFromCycles < bundle.lengthInCycles,
+            bundle.tailNarrowsFromCycles > bundle.headRoundingCycles,
+            bundle.tailNarrowsFromCycles < bundle.lengthInCycles,
             bundle.widestHalfWidthInColumns > 0,
             !pattern.surface.segments.isEmpty
         else {

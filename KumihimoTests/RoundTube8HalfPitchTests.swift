@@ -39,7 +39,7 @@ struct RoundTube8HalfPitchTests {
     private func bundles(_ pattern: RoundTube8SurfacePattern, repeats: Int = 3) -> [Bundle] {
         let rows = Float(pattern.rowCount)
         let bundle = RoundTube8Bundle.standard
-        let belly = (bundle.bellyStartCycles + bundle.bellyEndCycles) / 2
+        let belly = bundle.crestAtCycles
         return (0..<repeats).flatMap { repeatIndex in
             pattern.surface.segments.map {
                 Bundle(place: Int(($0.centerlineStart.x * 8).rounded(.down)),

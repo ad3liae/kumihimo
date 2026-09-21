@@ -41,8 +41,10 @@ import SwiftUI
 ///                                      (fixture C's weft-only colouring, book A
 ///                                      p97's arrow feather and its ladder)
 ///     --yatsu-kongo-zoom=<factor>      zoomed in, as a pinch would (clamped)
-///     --yatsu-kongo-no-detail          maru and hira: no stripe, roughness or
+///     --yatsu-kongo-no-detail          no stripe, roughness or
 ///                                      shading maps, to read the shape alone
+///                                      (maru and hira; the eight-thread tube
+///                                      since Task 051)
 ///     --yatsu-kongo-roll=<degrees>     turned about the braid's own axis
 @MainActor
 enum YatsuKongoComparisonPreviewData {
