@@ -222,7 +222,14 @@ enum BraidSurfaceScene {
         let groups = surface.sortedColorGroups
         guard !groups.isEmpty else { throw SceneError.emptySurface }
 
+#if DEBUG
+        // Task 051's comparisons read the shape without the maps, as 047's do.
+        let maps = YatsuKongoComparisonPreviewData.drawsWithoutDetail
+            ? RoundTube8StrandTexture.Maps(occlusion: nil, roughness: nil, normal: nil)
+            : RoundTube8StrandTexture.maps
+#else
         let maps = RoundTube8StrandTexture.maps
+#endif
         var combinedIndices = [UInt32]()
         var faceMaterialIndices = [UInt32]()
         var materials = [PhysicallyBasedMaterial]()
