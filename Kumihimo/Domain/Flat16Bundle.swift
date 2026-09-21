@@ -57,9 +57,17 @@ struct Flat16BundleShape: Equatable, Sendable {
     /// out sideways from under the run covering it.
     let tipNarrowing: Float
 
-    /// **Set by eye against the two photographs**, and only these two figures
-    /// are: the form is a circular arc along the run and a half-ellipse across
-    /// it, and everything else here follows from `joinHeight`.
+    /// **Set by eye against the photographs — and there are eight of them, not
+    /// two.** `joinHeight`, `laneJoinHeight`, `endWidth`, `headLift`, `tailDip`,
+    /// `tipReach`, `buriedTipSink` and `tipNarrowing` are every one calibrated.
+    /// What is *not* chosen is the form — **one raised cosine, along the run and
+    /// across it alike** — and the two figures solved from the join heights,
+    /// `bellyHalfSpan` and `widthOverLane`.
+    ///
+    /// **Every one of them is in `Flat16SurfaceMesh.shape` with its own
+    /// standing**, and `BraidFamilyDrawingTests` counts the calibrated against
+    /// the worked-out so that a figure cannot move quietly from one to the
+    /// other.
     ///
     /// `joinHeight` 0.16 leaves the groove between two runs of a lane about five
     /// sixths of the way down to the valley. **It was tried at 0.45 first and
@@ -90,10 +98,10 @@ struct Flat16BundleShape: Equatable, Sendable {
     /// .longitudinalPhases`), so if the pinched width fell below one lane the
     /// four bundles would part along a line running right across the braid, and
     /// the floor would show through it as a ruled crosswise groove — worse than
-    /// the rectangles. `widthOverLane * endWidth` is 1.11, so they still overlap
-    /// where they are narrowest, and what parts them is a point rather than a
-    /// line. This was found by drawing it where the product is 0.83, and the line
-    /// is plain to see.
+    /// the rectangles. `widthOverLane * endWidth` is 1.694 × 0.62 = 1.050, so
+    /// they still overlap where they are narrowest, and what parts them is a
+    /// point rather than a line. This was found by drawing it where the product
+    /// is 0.83, and the line is plain to see.
     ///
     /// `headLift` and `tailDip` say which of two runs meeting in a lane shows at
     /// the join. **They are not free either**: the two threads of a body lane

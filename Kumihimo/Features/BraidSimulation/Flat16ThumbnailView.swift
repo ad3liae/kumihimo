@@ -54,7 +54,8 @@ struct Flat16ThumbnailView: View {
             // **The frame's height is one turn round the braid**, not one face of
             // it (Task 029). The ratio handed to the layout is therefore over the
             // turn, not over the width — measured on the outline the mesh draws
-            // (Task 050; Task 029 counted lanes and was eleven per cent out).
+            // (Task 050; Task 029 counted lanes instead, which drew every cell
+            // eleven per cent too short for its width).
             guard
                 let image,
                 let roundTheBraid = Flat16SurfaceMesh.patternAspectRatioRoundTheBraid,

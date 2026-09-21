@@ -455,11 +455,19 @@ struct BraidOrientationTests {
     /// something further in is seen instead. The round braid, which folds
     /// nowhere, is held to none at all.
     ///
-    /// **Winding by the plain outline was a fault, and was fixed.** The flat
-    /// braid used to wind every triangle to face out of the section, and a steep
-    /// part of a run does not face that way; that turned the dives inside out and
-    /// gave 94 to 129 of these. Winding by the run's own surface
-    /// (`Flat16SurfaceMesh.facing(of:metrics:)`) left only the folds.
+    /// **The grid this replaced had none**, because it folded nowhere either: a
+    /// ridge raised straight out of the section cannot turn over. **The folds
+    /// come with the bundles**, and they are the price of a run going under
+    /// another one. Task 050's first attempt at them wound every triangle to face
+    /// out of the plain section — which a steep part of a run does not — and that
+    /// turned the dives inside out and gave 94 to 129. Winding by the run's own
+    /// surface (`Flat16SurfaceMesh.facing(of:metrics:)`) left only the folds.
+    ///
+    /// **This is not the same question as `everyTriangleFacesOutward`**, which is
+    /// still a known issue for the flat braid and still counts about eleven
+    /// thousand triangles: that one asks whether a face points away from the
+    /// braid's *axis*, and the inboard flank of a bundle does not, however
+    /// correctly it is wound.
     ///
     /// **The check can see what it looks for**: the eight-thread braid with its
     /// winding turned round, as it was until Task 032, shows something behind the

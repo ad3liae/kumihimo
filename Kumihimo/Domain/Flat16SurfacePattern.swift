@@ -184,7 +184,9 @@ enum Flat16SurfacePatternGenerator {
     /// braid equals the arc of its front, and it does not: the front's arc is six
     /// thread widths where the width across is 2 × the half-width, and the section
     /// makes those 1.799 and 2 half-widths. The card drew a cell eleven per cent
-    /// too long for its width because of it.
+    /// **too short** for its width because of it — 2.199 where one step over one
+    /// thread is 2.445 — so putting it right lengthens the card's cells along the
+    /// braid.
     ///
     /// It now comes from the outline the mesh actually draws
     /// (`Flat16SurfaceMesh.patternAspectRatioRoundTheBraid`), so that a change to

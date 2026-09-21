@@ -92,6 +92,15 @@ enum Flat16SurfaceMesh {
             "how far a buried tip goes on, in steps": .declared(
                 Double(bundleShape.tipReach), calibratedBy: "only that the tip is buried"
             ),
+            "how far a buried tip sinks, in crests": .declared(
+                Double(bundleShape.buriedTipSink),
+                calibratedBy: "only that it ends below the floor beneath the cells"
+            ),
+            "how much a buried tip narrows": .declared(
+                Double(bundleShape.tipNarrowing),
+                calibratedBy: "only that it does not stand out sideways from under "
+                    + "the run covering it"
+            ),
             "the floor below a bundle's rim": .declared(
                 Double(floorSink),
                 calibratedBy: "only that it never shows through a bundle"
@@ -154,16 +163,23 @@ enum Flat16SurfaceMesh {
     /// carries an approximation: it treats the arc of one broad face as the width
     /// across the braid. The section says otherwise. The front's six lanes are six
     /// thread widths of arc, and a thread is one half-thickness wide, so the front
-    /// measures 6 / 3.3359 = 1.799 half-widths against a width of 2. The card was
-    /// drawing every cell eleven per cent too long for its width.
+    /// measures 6 / 3.3359 = 1.799 half-widths against a width of 2. **The card
+    /// was drawing every cell eleven per cent too short for its width**: a cell is
+    /// one step long over one thread high, which is 2.445, and the card drew
+    /// 2.199.
     ///
     /// **Taken on the plain outline, not on the drawn relief.** The cells are laid
     /// on the plain section and every lane's width is measured round it (stage
     /// 2.5c); the bundles stand proud of it by a crest that is not part of where a
     /// cell is. **This updates Task 029's decision to leave the figure alone**:
-    /// 0.54975 becomes 0.6113, and the card's cells grow eleven per cent shorter
-    /// along the braid. Task 047's handover about the two families' card densities
-    /// is narrowed by the same amount and is not closed by it.
+    /// 0.54975 becomes 0.6113, so at a given card height one repeat is drawn 11.2
+    /// per cent **longer** — 61.57 points becomes 68.47 on a card 112 high — and
+    /// every cell grows by as much along the braid.
+    ///
+    /// Task 047's handover compared **the two families' cards**, and this narrows
+    /// that comparison by the same amount, to 2.05 times (the round braid's 1.25
+    /// over this 0.6113). **Two braids' cards are not owed the same density**, so
+    /// what is left there is a comparison and not a fault.
     static var patternAspectRatioRoundTheBraid: Float? {
         guard
             let acrossTheWidth = Flat16SurfacePatternGenerator.patternAspectRatio,
@@ -210,6 +226,13 @@ enum Flat16SurfaceMesh {
     /// three crests gives a ripple exactly proportional to the crest —
     /// 1.15, 2.29 and 4.56 per cent at 0.12, 0.24 and 0.48 — so
     /// `sigma per cent = 9.55 * crest` inverts the measurement.
+    ///
+    /// **That calibration was taken on the shape this braid had before Task 050**
+    /// — a ridge filling each cell, dying to the valley at its edges. The surface
+    /// is drawn as overlapping bundles now, and **nobody has rendered the new one
+    /// and measured its silhouette's ripple again.** The figure is kept because
+    /// the reading it came from is unchanged, not because it has been checked
+    /// against what is drawn today.
     ///
     /// Three estimates, and this value is the middle of where they overlap:
     ///

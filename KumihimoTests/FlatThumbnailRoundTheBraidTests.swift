@@ -42,8 +42,10 @@ struct FlatThumbnailRoundTheBraidTests {
     /// places round the braid, and recorded that scaling by 6/16 treats the arc
     /// of one broad face as the width across the braid. It is not: a lane is one
     /// half-thickness of arc, so six of them are 6 / 3.3359 = 1.799 half-widths
-    /// against a width of 2. **This updates that decision**; the card's cells
-    /// were eleven per cent too long for their width.
+    /// against a width of 2. **This updates that decision**: the card's cells were
+    /// eleven per cent **too short** for their width, and putting it right
+    /// lengthens them along the braid — one repeat on a card 112 high goes from
+    /// 61.57 points to 68.47.
     @Test func theRatioIsMeasuredRoundTheOutlineTheMeshDraws() throws {
         let ratio = try Self.roundTheBraid
         let width = try Self.acrossTheWidth
@@ -77,8 +79,10 @@ struct FlatThumbnailRoundTheBraidTests {
         #expect(abs(tube - 1.25) < 1e-6)
         #expect(abs(flat - 0.6113) < 1e-3)
         // Task 050 measured the flat braid's on its own outline, which moved it
-        // eleven per cent towards the round braid's. **The two cards still
-        // differ by about two times, and closing that is not this task's.**
+        // eleven per cent towards the round braid's. **The two cards still differ
+        // by about two times — and this is a comparison between two braids'
+        // cards, not a mismatch inside either one.** Two braids are not owed the
+        // same density, so what is left here is a figure, not a fault.
         #expect(tube / flat > 1.9)
         #expect(tube / flat < 2.2)
     }

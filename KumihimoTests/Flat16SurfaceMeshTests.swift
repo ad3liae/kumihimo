@@ -365,18 +365,28 @@ struct HiraGenjiSurfaceMeshTests {
     }
 
     /// The crest is read off the finished braid in book A p96, not taken from the
-    /// round braid. This pins the value that reading gave and the ripple it has to
-    /// draw; a change to either has to face the measurement again.
+    /// round braid. This pins the value that reading gave and the ripple it had to
+    /// draw; a change to the value has to face the measurement again.
     ///
     /// Three estimates overlap over 0.41 to 0.50 — two readings of that edge at
     /// different heights in its blur, and one from the braid's own section that
     /// owes nothing to a photograph — and the value is the middle of the overlap.
     /// See `crestHeightRatio` for the working.
+    ///
+    /// **`sigma = 9.55 × crest` belongs to the shape this braid had before Task
+    /// 050**, where a ridge filled each cell and died to the valley at its edges.
+    /// The surface is overlapping bundles now, and **nobody has rendered the new
+    /// one and measured its silhouette's ripple again.** So this test passing says
+    /// the figure is still the one book A p96 gave — **it does not say the braid
+    /// as drawn today ripples by that much.** Re-measuring it is left open
+    /// (Task 050 §9). **The name is kept** so that Task 007E's record and Task
+    /// 050 §9 still point at it.
     @Test func theCrestIsWhatTheFinishedBraidsEdgeMeasures() {
         let crest = Flat16SurfaceMesh.crestHeightRatio
 
         #expect((0.41...0.50).contains(crest))
-        // Inverting the ripple the render draws: sigma per cent = 9.55 * crest.
+        // Inverting the ripple the *old* shape's render drew:
+        // sigma per cent = 9.55 * crest.
         let ripplePerCent = 9.55 * crest
         // Book A p96's edge, read the two ways, measures 5.29% and 3.9%.
         #expect(abs(ripplePerCent / 5.29 - 1) < 0.20)
