@@ -137,7 +137,8 @@ struct FlatThumbnailRoundTheBraidTests {
         #expect(abs(expected - 7.0) < 1e-9)
 
         // Measured down the frame, on the turned drawing: every lane of every
-        // region, from the top of the frame to the bottom.
+        // region, round the turn. The right edge is cut through its middle, so
+        // its lanes are taken round the wrap.
         var edges = [CGFloat]()
         for region in Flat16SurfaceRegion.allCases {
             let span = Flat16SurfaceMesh.arcSpan(of: region)
@@ -147,17 +148,20 @@ struct FlatThumbnailRoundTheBraidTests {
 
             let start = CGFloat(Self.drawnStart(of: region)) * layout.circumference
             for column in 0...columns {
-                edges.append(start + CGFloat(column) * lane)
+                let edge = (start + CGFloat(column) * lane)
+                    .truncatingRemainder(dividingBy: layout.circumference)
+                edges.append(edge < -1e-4 ? edge + layout.circumference : edge)
             }
         }
-        // Sixteen lanes end to end, each one thread wide, filling the frame.
-        let boundaries = edges.sorted().reduce(into: [CGFloat]()) { kept, edge in
-            if kept.last.map({ abs(edge - $0) > 1e-4 }) ?? true { kept.append(edge) }
-        }
-        #expect(boundaries.count == 17)
+        // Sixteen lanes end to end, each one thread wide, filling the frame: the
+        // top of the frame is a lane boundary, and so is every seventh point.
+        let boundaries = (edges.map { abs($0 - layout.circumference) < 1e-4 ? 0 : $0 })
+            .sorted().reduce(into: [CGFloat]()) { kept, edge in
+                if kept.last.map({ abs(edge - $0) > 1e-4 }) ?? true { kept.append(edge) }
+            }
+        #expect(boundaries.count == 16)
         #expect(abs((boundaries.first ?? -1)) < 1e-4)
-        #expect(abs((boundaries.last ?? -1) - layout.circumference) < 1e-4)
-        for (lower, upper) in zip(boundaries, boundaries.dropFirst()) {
+        for (lower, upper) in zip(boundaries, boundaries.dropFirst() + [layout.circumference]) {
             #expect(abs((upper - lower) - expected) < 1e-4)
         }
     }
@@ -222,31 +226,26 @@ struct FlatThumbnailRoundTheBraidTests {
 
         #expect(abs(spans.map(\.span.length).reduce(0, +) - 1) < 1e-6)
 
-        // Laid end to end **down the frame**, each region begins where the last
-        // ended, with no gap and no overlap and nothing hanging off either end.
+        // Laid end to end **round the turn the card shows**, each region begins
+        // where the last ended, with no gap and no overlap — the right edge
+        // carried round the frame's wrap, since the card is cut through it.
         let drawn = Flat16SurfaceRegion.allCases
             .map { (region: $0,
                     start: Self.drawnStart(of: $0),
                     length: Flat16SurfaceMesh.arcSpan(of: $0).length) }
             .sorted { $0.start < $1.start }
-        let first = try #require(drawn.first)
-        let last = try #require(drawn.last)
-        #expect(abs(first.start) < 1e-6)
-        #expect(abs(last.start + last.length - 1) < 1e-6)
-        for (earlier, later) in zip(drawn, drawn.dropFirst()) {
-            #expect(abs(earlier.start + earlier.length - later.start) < 1e-6,
-                    "\(earlier.region) does not meet \(later.region)")
+        for (earlier, later) in zip(drawn, drawn.dropFirst() + drawn.prefix(1)) {
+            var gap = (later.start - (earlier.start + earlier.length))
+                .truncatingRemainder(dividingBy: 1)
+            if gap > 0.5 { gap -= 1 }
+            if gap < -0.5 { gap += 1 }
+            #expect(abs(gap) < 1e-6, "\(earlier.region) does not meet \(later.region)")
         }
     }
 
     /// **The braid's own cut falls in the middle of the right edge**, because that
     /// is where `arcSpan` divides it, and `arcSpan` is the solid's cross-section.
     /// That has not moved and must not: it is the braid, not the drawing.
-    ///
-    /// What moved is where **this drawing** starts reading the turn. Task 029
-    /// recorded the split edge and left the choice open; the author ruled on
-    /// 2026-09-10 to turn the drawing so the four regions read in order, and Task
-    /// 029-2 did it in the view alone.
     @Test func theBraidsOwnCutFallsInTheMiddleOfTheRightEdge() {
         let edge = Flat16SurfaceMesh.arcSpan(of: .rightEdge)
         #expect(edge.start < 1)
@@ -255,28 +254,75 @@ struct FlatThumbnailRoundTheBraidTests {
         #expect(abs((1 - edge.start) - edge.length / 2) < 1e-6)
     }
 
-    /// **The drawing is turned by the half-edge that sits past the braid's cut**,
-    /// which brings the right edge's start to the top of the frame. Written from
-    /// `arcSpan`, so it follows the cross-section rather than repeating a number
-    /// that happens to equal one lane of sixteen.
-    @Test func theDrawingIsTurnedByTheHalfEdgePastTheCut() {
+    /// **The card is cut there too, since 2026-09-21** (the author: 「対称に見えず
+    /// 気持ちが悪い」). Task 029-2 had turned the drawing by half an edge so that
+    /// the cut fell on a region boundary; that left three lanes of edging at the
+    /// top of the card and one at the bottom. Cut through the middle of the edge,
+    /// the card reads the same from either end. Written from `arcSpan`, so it
+    /// follows the cross-section rather than repeating a number.
+    @Test func theCardIsCutThroughTheMiddleOfTheRightEdge() {
         let edge = Flat16SurfaceMesh.arcSpan(of: .rightEdge)
-        #expect(Flat16ThumbnailView.seamRotation == 1 - edge.start)
-        #expect(abs(Flat16ThumbnailView.seamRotation - edge.length / 2) < 1e-6)
-        // One lane of the sixteen, as it happens.
-        #expect(abs(Flat16ThumbnailView.seamRotation
-                    - 1 / Float(Flat16SurfacePatternGenerator.boardPositionCount)) < 1e-6)
+        let middle = (edge.start + edge.length / 2).truncatingRemainder(dividingBy: 1)
+        let drawnMiddle = (middle + Flat16ThumbnailView.seamRotation)
+            .truncatingRemainder(dividingBy: 1)
+        #expect(abs(drawnMiddle) < 1e-6 || abs(drawnMiddle - 1) < 1e-6)
+        // Which, for this braid, is the braid's own cut: no turning at all.
+        #expect(abs(Flat16ThumbnailView.seamRotation) < 1e-6)
     }
 
-    /// **Down the frame: edge, front, edge, back — each one whole.**
-    @Test func theRegionsComeDownTheFrameInOrder() throws {
-        let order = Flat16SurfaceRegion.allCases
-            .sorted { Self.drawnStart(of: $0) < Self.drawnStart(of: $1) }
-        #expect(order == [.rightEdge, .front, .leftEdge, .back])
+    /// **Down the card, lane by lane: two of edging, four of body, four of
+    /// edging, four of body, two of edging.** What the author asked for, read off
+    /// the weave rather than written as a picture: the body is the columns the
+    /// weave works along the braid, and the edging is everything else — the two
+    /// threads at each edge and the outermost column of each face beside them.
+    @Test func theCardReadsTheSameFromTopAndBottom() throws {
+        let weave = try #require(Flat16SurfacePatternGenerator.working.flatMap { derivation in
+            BraidConstruction.construct(
+                of: derivation.method, on: derivation.stand,
+                crossSection: derivation.crossSection, fold: derivation.fold,
+                cycles: derivation.repeatCycleCount + 1
+            ).flatMap {
+                Flat16WeaveFromWorking.pattern(
+                    from: derivation, construction: $0,
+                    assignments: BraidReferenceColourings.bookAP97Left
+                )
+            }
+        })
+        let body = weave.lengthwiseColumns
+        let lanes = Flat16SurfacePatternGenerator.boardPositionCount
+        let reading = (0..<lanes).map { lane -> String in
+            // The middle of the lane, carried back from the card to the braid.
+            let arc = (Float(lane) + 0.5) / Float(lanes) - Flat16ThumbnailView.seamRotation
+            for region in Flat16SurfaceRegion.allCases {
+                let span = Flat16SurfaceMesh.arcSpan(of: region)
+                var within = (arc - span.start).truncatingRemainder(dividingBy: 1)
+                if within < 0 { within += 1 }
+                guard within < span.length else { continue }
+                guard region == .front || region == .back else { return "edging" }
+                let columns = Flat16SurfacePatternGenerator.columnCount(in: region)
+                let column = min(Int(within / span.length * Float(columns)), columns - 1)
+                let weaveColumn = Flat16SurfacePatternGenerator.regionColumn(
+                    ofWeaveColumn: column, in: region
+                )
+                return body.contains(weaveColumn) ? "body" : "edging"
+            }
+            return "none"
+        }
+        let runs = reading.reduce(into: [(String, Int)]()) { runs, lane in
+            if runs.last?.0 == lane { runs[runs.count - 1].1 += 1 } else { runs.append((lane, 1)) }
+        }
+        #expect(runs.map(\.0) == ["edging", "body", "edging", "body", "edging"])
+        #expect(runs.map(\.1) == [2, 4, 4, 4, 2])
+        // The same read from the bottom up.
+        #expect(reading == reading.reversed())
+    }
 
+    /// **Down the frame, in the braid's own order round it**: half the right
+    /// edge, the front, the left edge, the back, and the right edge's other half.
+    @Test func theRegionsComeDownTheFrameInOrder() throws {
         let height = Self.iPhoneCard.height
         let expected: [(Flat16SurfaceRegion, CGFloat, CGFloat)] = [
-            (.rightEdge, 0, 14), (.front, 14, 56), (.leftEdge, 56, 70), (.back, 70, 112),
+            (.front, 7, 49), (.leftEdge, 49, 63), (.back, 63, 105),
         ]
         for (region, from, to) in expected {
             let start = CGFloat(Self.drawnStart(of: region)) * height
@@ -284,75 +330,55 @@ struct FlatThumbnailRoundTheBraidTests {
             #expect(abs(start - from) < 1e-4, "\(region) starts at \(start)")
             #expect(abs(end - to) < 1e-4, "\(region) ends at \(end)")
         }
+        // The right edge: one lane at the bottom of the frame and one at the top.
+        let edgeStart = CGFloat(Self.drawnStart(of: .rightEdge)) * height
+        let edgeLength = CGFloat(Flat16SurfaceMesh.arcSpan(of: .rightEdge).length) * height
+        #expect(abs(edgeStart - 105) < 1e-4)
+        #expect(abs(edgeStart + edgeLength - height - 7) < 1e-4)
     }
 
-    /// **Nothing straddles the frame any more.** The machinery that draws a
-    /// straddling region twice is still there and still asks the span; it simply
-    /// gets no for an answer now. A braid with other lane counts would straddle
-    /// again, so the question stays asked.
-    @Test func noRegionStraddlesTheFrameOnceTheDrawingIsTurned() {
+    /// **Only the right edge straddles the frame, and it is split evenly** — one
+    /// lane of thread at each end. Every other region lies whole inside it.
+    @Test func onlyTheRightEdgeStraddlesTheFrameAndEvenly() {
         for region in Flat16SurfaceRegion.allCases {
             let start = Self.drawnStart(of: region)
             let length = Flat16SurfaceMesh.arcSpan(of: region).length
             #expect(start >= -1e-6)
-            #expect(start + length <= 1 + 1e-6, "\(region) runs past the frame")
+            if region == .rightEdge {
+                #expect(start + length > 1)
+                #expect(abs((1 - start) - length / 2) < 1e-6)
+            } else {
+                #expect(start + length <= 1 + 1e-6, "\(region) runs past the frame")
+            }
         }
     }
 
-    // MARK: - 6. The right edge reads as one band
-
-    /// **One band, from the top of the frame down.** It used to arrive as two
-    /// halves, one at each end, because the braid's own cut runs through its middle
-    /// (Task 029). Turning the drawing puts the cut at a region boundary instead, so
-    /// the edge is whole and the frame's two ends are where the back meets it.
-    ///
-    /// The area is the check that nothing was doubled or lost in the turning: two
-    /// lanes of thread, which is what an edge is.
-    @Test func theRightEdgeIsOneBandFromTheTopOfTheFrame() throws {
-        let ratio = try Self.roundTheBraid
-        let layout = try #require(
-            UnrolledPatternThumbnailLayout(size: Self.iPhoneCard, aspectRatio: ratio)
-        )
-        let length = Flat16SurfaceMesh.arcSpan(of: .rightEdge).length
-        let start = CGFloat(Self.drawnStart(of: .rightEdge)) * layout.circumference
-        let end = start + CGFloat(length) * layout.circumference
-
-        #expect(abs(start) < 1e-9)
-        #expect(end < layout.circumference)
-        #expect(abs((end - start) - CGFloat(length) * layout.circumference) < 1e-9)
-        // Two lanes of thread, all of it inside the frame.
-        #expect(abs((end - start) - 2 * layout.circumference / 16) < 1e-9)
-
-        // The far end of the frame is the back's, not half an edge.
-        let backStart = CGFloat(Self.drawnStart(of: .back)) * layout.circumference
-        let backEnd = backStart
-            + CGFloat(Flat16SurfaceMesh.arcSpan(of: .back).length) * layout.circumference
-        #expect(abs(backEnd - layout.circumference) < 1e-9)
-    }
-
-    /// The whole surface is drawn, not one face of it: **every region's patches,
-    /// once each.** Task 029 drew the straddling region twice and reached 72; with
-    /// the cut moved to a region boundary nothing straddles, so it is 64 — the
-    /// pattern's own count, with nothing added and nothing dropped.
-    @Test func theCardDrawsEveryRegionOnce() throws {
+    /// **Every lane of the braid is on the card once.** Sixty-four places a
+    /// repeat, sixteen round the braid — and the card's rows, lane by lane, meet
+    /// each of the sixteen exactly once.
+    @Test func theCardShowsEveryLaneOnce() throws {
         let pattern = try #require(
             Flat16SurfacePatternGenerator.generate(assignments: BraidReferenceColourings.bookAP97Left)
         )
         #expect(pattern.patches.count == 64)
         #expect(pattern.patches(in: .front).count == 24)
 
-        let drawn = pattern.patches.reduce(0) { total, patch in
-            let start = Self.drawnStart(of: patch.region)
-            let length = Flat16SurfaceMesh.arcSpan(of: patch.region).length
-            return total + (start + length > 1 ? 2 : 1)
+        let lanes = Flat16SurfacePatternGenerator.boardPositionCount
+        var seen = [String: Int]()
+        for lane in 0..<lanes {
+            let arc = (Float(lane) + 0.5) / Float(lanes) - Flat16ThumbnailView.seamRotation
+            for region in Flat16SurfaceRegion.allCases {
+                let span = Flat16SurfaceMesh.arcSpan(of: region)
+                var within = (arc - span.start).truncatingRemainder(dividingBy: 1)
+                if within < 0 { within += 1 }
+                guard within < span.length else { continue }
+                let columns = Flat16SurfacePatternGenerator.columnCount(in: region)
+                let column = min(Int(within / span.length * Float(columns)), columns - 1)
+                seen["\(region) \(column)", default: 0] += 1
+            }
         }
-        // Sixty-four: one drawing per patch, because none straddles the frame.
-        #expect(drawn == 64)
-        #expect(drawn == pattern.patches.count)
-
-        // What a whole card holds, at seven repeats and at fourteen.
-        #expect(drawn * 7 == 448)
-        #expect(drawn * 14 == 896)
+        #expect(seen.count == lanes)
+        #expect(seen.values.allSatisfy { $0 == 1 })
     }
 
     /// **No straight join is mixed in among the leaning ones.**
@@ -404,9 +430,11 @@ struct FlatThumbnailRoundTheBraidTests {
                 let carried = start + corner.x * length
                 #expect(carried >= start - 1e-6)
                 #expect(carried <= start + length + 1e-6)
-                // And inside the frame, since nothing straddles it now.
-                #expect(carried >= -1e-6)
-                #expect(carried <= 1 + 1e-6)
+                // And inside the frame once taken round its wrap: the right edge
+                // is cut through its middle, so half of it lands at the top.
+                let onTheCard = carried.truncatingRemainder(dividingBy: 1)
+                #expect(onTheCard >= -1e-6)
+                #expect(onTheCard <= 1 + 1e-6)
             }
         }
     }

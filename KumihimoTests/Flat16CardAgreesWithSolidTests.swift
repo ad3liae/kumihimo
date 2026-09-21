@@ -233,9 +233,10 @@ struct Flat16CardAgreesWithSolidTests {
         #expect(checked > 100)
     }
 
-    /// **The four regions come down the card in order** — right edge, front,
-    /// left edge, back — which is what Task 029-2 settled, and every lane is
-    /// `pixelsPerLane` rows of it.
+    /// **The regions come down the card in the braid's own order round it** —
+    /// half the right edge, the front, the left edge, the back, and the right
+    /// edge's other half (the card is cut through the middle of the right edge
+    /// since 2026-09-21), and every lane is `pixelsPerLane` rows of it.
     @Test func theCardShowsTheWholeTurnInOrder() throws {
         let pattern = try #require(
             Flat16SurfacePatternGenerator.generate(assignments: Self.assignments)
@@ -256,8 +257,26 @@ struct Flat16CardAgreesWithSolidTests {
                 }
             }
         }
-        #expect(order == [.rightEdge, .front, .leftEdge, .back])
+        #expect(order == [.rightEdge, .front, .leftEdge, .back, .rightEdge])
         #expect(pattern.rowCount == 4)
+    }
+
+    /// **A picture the card no longer wants stops being drawn.** The work runs
+    /// detached, so the card's own cancellation has to be passed on to it; it
+    /// used to run to the last pixel of a colouring already left behind.
+    @Test func aDrawingThatIsNoLongerWantedStops() throws {
+        let pattern = try #require(
+            Flat16SurfacePatternGenerator.generate(assignments: Self.assignments)
+        )
+        var asked = 0
+        let stopped = Flat16CardImage.draw(pattern) {
+            asked += 1
+            return asked > 3
+        }
+        #expect(stopped == nil)
+        // It stopped a few columns in, not at the end.
+        #expect(asked == 4)
+        #expect(Flat16CardImage.draw(pattern) != nil)
     }
 
     /// The picture really is drawn, and the loader shows it only for the

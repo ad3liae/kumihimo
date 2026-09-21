@@ -348,7 +348,9 @@ struct Flat16Bundle: Equatable, Sendable {
     /// them shows is not this question but the next one, and it is settled the
     /// way everything else is: whichever stands higher (`Flat16SurfacePattern
     /// .standing`).
-    func places(atArc arc: Float, along y: Float, shape: Flat16BundleShape) -> [SIMD2<Float>] {
+    func placePair(
+        atArc arc: Float, along y: Float, shape: Flat16BundleShape
+    ) -> (SIMD2<Float>?, SIMD2<Float>?) {
         // The half-width's direction. It is the same at both ends of a cell —
         // what changes along a run is only how long it is, which is the lens,
         // and the lens divides out of the solve below.
@@ -388,25 +390,25 @@ struct Flat16Bundle: Equatable, Sendable {
         // it because it happened to be found first put a whole run's colour half
         // a braid away from where it belongs.
         //
-        // The two cannot be told apart by putting them back through the
-        // equations, because each satisfies the pair it was solved from. What
-        // tells them apart is **how far across the run they land**: a place the
-        // run really covers is within a half-width of its centreline, and a root
-        // of the wrong branch is not.
-        var candidates = [Float]()
-        if drawnInPerStep != 0, drawnInStart < 1 {
-            if let past = solved(
-                slope: arcCentre + drawnInPerStep, offset: -drawnInPerStep * drawnInStart
-            ), past >= drawnInStart {
-                candidates.append(past)
-            }
-            if let before = solved(slope: arcCentre, offset: 0), before <= drawnInStart {
-                candidates.append(before)
-            }
-        } else if let straight = solved(slope: arcCentre, offset: 0) {
-            candidates.append(straight)
+        // **No arrays**: this is asked millions of times for one card, and a
+        // debug build spends more on building and dropping small arrays than on
+        // the arithmetic (Task 050's card took five and a half seconds that way).
+        guard drawnInPerStep != 0, drawnInStart < 1 else {
+            return (solved(slope: arcCentre, offset: 0).flatMap(pair), nil)
         }
-        return candidates.compactMap(pair)
+        let past = solved(
+            slope: arcCentre + drawnInPerStep, offset: -drawnInPerStep * drawnInStart
+        ).flatMap { $0 >= drawnInStart ? pair($0) : nil }
+        let before = solved(slope: arcCentre, offset: 0)
+            .flatMap { $0 <= drawnInStart ? pair($0) : nil }
+        return (past, before)
+    }
+
+    /// Every place on this run a point of the braid falls at — none, one or two.
+    /// See `placePair(atArc:along:shape:)`, which this lists.
+    func places(atArc arc: Float, along y: Float, shape: Flat16BundleShape) -> [SIMD2<Float>] {
+        let found = placePair(atArc: arc, along: y, shape: shape)
+        return [found.0, found.1].compactMap { $0 }
     }
 
 }
@@ -464,10 +466,20 @@ extension Flat16SurfacePattern {
         shape: Flat16BundleShape = .standard
     ) -> Float? {
         // **The highest of them**, where a run covers a place more than once.
-        return bundle.places(atArc: arc, along: along - Float(repeatOffset), shape: shape)
-            .filter { $0.x >= shape.runStart && $0.x <= shape.runEnd && abs($0.y) <= 1 }
-            .map { bundle.standing(atAlong: $0.x, across: $0.y, shape: shape) }
-            .max()
+        let found = bundle.placePair(
+            atArc: arc, along: along - Float(repeatOffset), shape: shape
+        )
+        func height(_ place: SIMD2<Float>?) -> Float? {
+            guard let place, place.x >= shape.runStart, place.x <= shape.runEnd,
+                  abs(place.y) <= 1 else { return nil }
+            return bundle.standing(atAlong: place.x, across: place.y, shape: shape)
+        }
+        switch (height(found.0), height(found.1)) {
+        case let (first?, second?): return max(first, second)
+        case let (first?, nil): return first
+        case let (nil, second?): return second
+        case (nil, nil): return nil
+        }
     }
 
     /// The cell lying beneath a place: the thread the occupancy history has
