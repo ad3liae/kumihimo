@@ -339,7 +339,12 @@ struct RoundTube8SurfaceTests {
         // Then `0xcc3d_f13e_a529_f765` while that hump's crest sat before the
         // middle of the run, which read as a lopsided swelling (the author, the
         // same day): the height is an even circular arc now.
-        #expect(BraidMeshHashTests.hash(s.positions) == 0x4da8_5335_9b7e_b01d)
+        // Then `0x4da8_5335_9b7e_b01d` while a run was a lens under an arc over
+        // its whole length, and every run read as a closed oval (the author,
+        // 2026-09-21): the head is blunt, the tail keeps its width, bends into
+        // the next lane and goes under the runs laid after it, and the arc has
+        // its own span (Task 051). The vertex count did not change.
+        #expect(BraidMeshHashTests.hash(s.positions) == 0x7b20_db3a_0f1e_b941)
     }
 
     // MARK: - 6. Which of a pair goes first does not reach the drawing
@@ -446,8 +451,11 @@ struct RoundTube8SurfaceTests {
             "how far across a cell the valley shading reaches",
             "radius on screen",
             "valley shading at a cell's edge",
-            "where a run's belly begins, in cycles past its arrival",
-            "where a run's belly ends, in cycles past its arrival",
+            "how far a run's head is rounded, in cycles past its arrival",
+            "how far a run's tail bends round the braid, in columns",
+            "over how much of a run its height's arc stands, in cycles",
+            "where a run's tail begins to bend, in cycles past its arrival",
+            "where a run's tail begins to narrow, in cycles past its arrival",
         ] + (RoundTube8Bundle.standard.widestHalfWidthInColumns
             == RoundTube8Bundle.oneThreadHalfWidthInColumns ? [] : ["a run's widest half-width, in columns"]))
             .sorted())
@@ -478,101 +486,80 @@ struct RoundTube8SurfaceTests {
     // MARK: - Stage 3 of Task 032: the stripes and the shading
 
     /// **The shading is where the run touches something** (Task 045): the
-    /// sixteen-thread tube's valley at its two sides, the same depth where it
-    /// has gone under the next thread, and none on the shoulder it rises to,
-    /// which is on top; where the run goes under is where the next thread grows
-    /// to its belly (Task 046). It replaced a valley on all four sides of a cell alike
-    /// (Task 033), which fixed "四辺の陰が同じ"; the run is not the same end to
-    /// end, so its shading is not either.
+    /// sixteen-thread tube's valley at its two sides, the same depth where its
+    /// tail has gone under the runs laid after it, and none on the head, which
+    /// lies on top, once it has rounded to its width (Task 051). It replaced a
+    /// valley on all four sides of a cell alike (Task 033), which fixed
+    /// "四辺の陰が同じ"; the run is not the same end to end, so its shading is
+    /// not either.
+    ///
+    /// **Where the tail darkens is where it is covered on the real shape**
+    /// (Task 051's record: the next lane covers the tail's side from about 0.85
+    /// of a cycle and its centreline from about 1.1; the arc is down at 1.2).
     @Test func theShadingIsWhereTheRunTouchesSomething() {
         let valley = RoundTube16StrandTextureFactory.valleyOcclusion
         let bundle = RoundTube8Bundle.standard
         func at(_ row: Float, cycles: Float) -> Float {
             RoundTube8StrandTexture.shading(across: row, along: cycles / bundle.lengthInCycles)
         }
-        // On the crest at the belly: nothing touches it.
-        #expect(abs(at(0.5, cycles: bundle.bellyStartCycles) - 1) < 0.001)
+        // On the crest at the middle of the run: nothing touches it.
+        #expect(abs(at(0.5, cycles: bundle.crestAtCycles) - 1) < 0.001)
         // Its sides: the valley.
-        #expect(abs(at(0, cycles: bundle.bellyStartCycles) - valley) < 0.001)
-        #expect(abs(at(1, cycles: bundle.bellyStartCycles) - valley) < 0.001)
-        // Once the next thread has grown to its belly: under it.
-        #expect(abs(at(0.5, cycles: 1 + bundle.bellyStartCycles) - valley) < 0.001)
+        #expect(abs(at(0, cycles: bundle.crestAtCycles) - valley) < 0.001)
+        #expect(abs(at(1, cycles: bundle.crestAtCycles) - valley) < 0.001)
+        // The head lies on top: unshaded once it has its width.
+        #expect(abs(at(0.5, cycles: bundle.headRoundingCycles) - 1) < 0.001)
+        // The tail: light before the next lane reaches it, under from where the
+        // arc is down on the floor, and darkening across the hand-over.
+        #expect(abs(at(0.5, cycles: 0.75) - 1) < 0.001)
+        #expect(abs(at(0.5, cycles: bundle.arcSpanCycles) - valley) < 0.001)
         #expect(abs(at(0.5, cycles: bundle.lengthInCycles) - valley) < 0.001)
-        // Before the hand-over it is lighter than during it, and the two ends
-        // are not alike.
-        #expect(at(0.5, cycles: 0.7) > at(0.5, cycles: 1 + 0.75 * bundle.bellyStartCycles))
-        #expect(at(0.5, cycles: 0.2) != at(0.5, cycles: bundle.lengthInCycles - 0.2))
+        #expect(at(0.5, cycles: 0.85) > at(0.5, cycles: 1.1))
+        #expect(at(0.5, cycles: 1.1) > valley)
         // Still the same both sides of the crest.
         for value in stride(from: Float(0), through: 1, by: 0.05) {
             #expect(abs(at(value, cycles: 0.6) - at(1 - value, cycles: 0.6)) < 0.000_1)
         }
     }
 
-    /// **A thread's run goes on beneath the thread that arrives after it at the
-    /// same place: along the earlier run's crest, once the later has grown to its
-    /// belly, the later stands higher** (Task 045; the belly since Task 046 —
-    /// before that the two lie side by side, because runs lean). Read off the surfaces
-    /// themselves, **on the earlier run's crest only**. It is not "the later is
-    /// on top wherever they overlap": on the earlier run's flanks, just past the
-    /// next arrival, the earlier can stand higher and show, and the card shows it
-    /// there too (Task 045 review, `RoundTube8CardAgreesWithSolidTests`). Where
-    /// two runs cross is a drawing approximation, not a settled order of the real
-    /// braid.
+    /// **A run's form** (Task 051): a blunt head, a width it keeps until the
+    /// runs laid after it cover it, and a tail that bends into the next lane
+    /// the way it leans — under **an even circular arc** of height, the
+    /// author's form (Task 049's second rework), set over its own span.
     ///
-    /// **Decided by when each thread arrived, never by colour**: the check runs
-    /// over every cell with the book's colouring, which puts the same colour next
-    /// to itself.
-    @Test func aRunSinksBeneathTheNextThreadAtItsPlace() throws {
-        let drawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
-        let mesh = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
+    /// **Where the tail is actually covered is read off the real mesh**, width
+    /// by width, in `RoundTube8CardAgreesWithSolidTests
+    /// .aTailGoesUnderTheRunsLaidAfterItWithItsWidth`; this holds the form those
+    /// readings rest on.
+    @Test func aRunHasABluntHeadAndATailThatKeepsItsWidth() throws {
         let bundle = RoundTube8Bundle.standard
-        func point(_ segment: BraidStrandSegment, _ cycles: Float, _ across: Float) -> SIMD3<Float> {
-            RoundTube8SurfaceMesh.frame(
-                of: segment, cycles: cycles, across: across,
-                leanDirection: drawn.leanDirection,
-                floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
-                base: 0, repeatLength: mesh.patternRepeatLength
-            ).position
-        }
-        func radius(_ point: SIMD3<Float>) -> Float { (point.y * point.y + point.z * point.z).squareRoot() }
-        func angle(_ point: SIMD3<Float>) -> Float { atan2(point.y, point.z) }
+        let widest = bundle.widestHalfWidthInColumns
 
-        var checked = 0
-        var pairs = 0
-        for segment in drawn.surface.segments {
-            guard let later = drawn.surface.segments.first(where: {
-                abs($0.centerlineStart.x - segment.centerlineStart.x) < 1e-5
-                    && abs($0.centerlineStart.y - segment.centerlineEnd.y) < 1e-5
-            }) else { continue }
-            pairs += 1
-            // The earlier run past the later one's belly, along its crest.
-            for cycles in stride(from: 1 + bundle.bellyStartCycles, to: bundle.lengthInCycles, by: 0.02) {
-                let under = point(segment, cycles, 0)
-                // The later run's section at the same place along the braid.
-                let section = (0...200).map { point(later, cycles - 1, Float($0) / 100 - 1) }
-                guard let over = section.min(by: {
-                    abs(angle($0) - angle(under)) < abs(angle($1) - angle(under))
-                }), abs(angle(over) - angle(under)) < 0.01 else { continue }
-                #expect(radius(over) > radius(under), "cycle \(cycles) past the earlier arrival")
-                checked += 1
-            }
-        }
-        #expect(pairs == 7 * 8)
-        #expect(checked > pairs)
-
-        // It ends in a point at both ends and is widest across its belly.
+        // The head is blunt: nothing at the arrival, the full width a short
+        // rounding after it — and not the lens's quarter cycle and more.
         #expect(bundle.halfWidthInColumns(atCycles: 0) == 0)
-        #expect(bundle.halfWidthInColumns(atCycles: bundle.lengthInCycles) < 1e-6)
-        for cycles in [bundle.bellyStartCycles, bundle.bellyEndCycles] {
-            #expect(abs(bundle.halfWidthInColumns(atCycles: cycles) - bundle.widestHalfWidthInColumns) < 1e-6)
+        #expect(abs(bundle.halfWidthInColumns(atCycles: bundle.headRoundingCycles) - widest) < 1e-6)
+        #expect(bundle.headRoundingCycles <= 0.15)
+        // Full width through the run and up to the next thread's arrival: the
+        // tail is as wide as the run where it goes under.
+        for cycles in stride(from: bundle.headRoundingCycles, through: bundle.tailNarrowsFromCycles, by: 0.05) {
+            #expect(abs(bundle.halfWidthInColumns(atCycles: cycles) - widest) < 1e-6, "\(cycles)")
         }
-        // **The height is an even circular arc, not the width's plateau and not
-        // a lopsided hump** (Task 049's two reworks): zero at both ends, one in
-        // the middle, and the same either side of it.
-        #expect(bundle.crestAtCycles == bundle.lengthInCycles / 2)
+        #expect(bundle.tailNarrowsFromCycles >= 1)
+        // Then it narrows, and ends.
+        #expect(bundle.halfWidthInColumns(atCycles: bundle.lengthInCycles) < 1e-6)
+        #expect(bundle.halfWidthInColumns(atCycles: bundle.lengthInCycles + 0.01) == 0)
+
+        // **The height is an even circular arc**: zero at the arrival and at the
+        // end of its span, one in the middle, the same either side of it, and
+        // on the floor past the span.
+        #expect(bundle.crestAtCycles == bundle.arcSpanCycles / 2)
         #expect(abs(bundle.heightFraction(atCycles: bundle.crestAtCycles) - 1) < 1e-6)
         #expect(bundle.heightFraction(atCycles: 0) == 0)
-        #expect(bundle.heightFraction(atCycles: bundle.lengthInCycles) < 1e-6)
+        #expect(bundle.heightFraction(atCycles: bundle.arcSpanCycles) < 1e-6)
+        for cycles in stride(from: bundle.arcSpanCycles, through: bundle.lengthInCycles, by: 0.05) {
+            #expect(bundle.heightFraction(atCycles: cycles) < 1e-6)
+        }
         for step in stride(from: Float(0.05), to: bundle.crestAtCycles, by: 0.05) {
             let head = bundle.heightFraction(atCycles: bundle.crestAtCycles - step)
             let tail = bundle.heightFraction(atCycles: bundle.crestAtCycles + step)
@@ -582,10 +569,36 @@ struct RoundTube8SurfaceTests {
             let onACircle = (1 - pow(step / bundle.crestAtCycles, 2)).squareRoot()
             #expect(abs(head - onACircle) < 1e-6)
         }
+        // **The arc's span is its own**: how far the tail goes on under the
+        // others does not move the crest.
+        let longer = RoundTube8Bundle(
+            leanColumnsPerCycle: bundle.leanColumnsPerCycle, tuckedCycles: bundle.tuckedCycles + 0.2,
+            headRoundingCycles: bundle.headRoundingCycles, arcSpanCycles: bundle.arcSpanCycles,
+            tailBendColumns: bundle.tailBendColumns, tailBendFromCycles: bundle.tailBendFromCycles,
+            tailNarrowsFromCycles: bundle.tailNarrowsFromCycles,
+            widestHalfWidthInColumns: bundle.widestHalfWidthInColumns
+        )
+        #expect(longer.crestAtCycles == bundle.crestAtCycles)
+
+        // **The tail bends the way the run leans, and only the tail**: the
+        // centreline is the lean's straight line up to where the bend begins,
+        // hardly off it at the crest, and further round by the bend at the end.
+        for direction: Float in [1, -1] {
+            for cycles in stride(from: Float(0), through: bundle.tailBendFromCycles, by: 0.05) {
+                let straight = direction * bundle.leanColumnsPerCycle * (cycles - 0.5)
+                #expect(abs(bundle.leanInColumns(atCycles: cycles, direction: direction) - straight) < 1e-6)
+            }
+            let atCrest = bundle.leanInColumns(atCycles: bundle.crestAtCycles, direction: direction)
+                - direction * bundle.leanColumnsPerCycle * (bundle.crestAtCycles - 0.5)
+            #expect(abs(atCrest) < 0.01)
+            let atEnd = bundle.leanInColumns(atCycles: bundle.lengthInCycles, direction: direction)
+                - direction * bundle.leanColumnsPerCycle * (bundle.lengthInCycles - 0.5)
+            #expect(abs(atEnd - direction * bundle.tailBendColumns) < 1e-5)
+        }
         // A thread is one column wide: that is half a column, and a run may show
-        // wider than that (Task 046) but never narrower at its belly.
+        // wider than that (Task 046) but never narrower across its middle.
         #expect(RoundTube8Bundle.oneThreadHalfWidthInColumns == 0.5)
-        #expect(bundle.widestHalfWidthInColumns >= RoundTube8Bundle.oneThreadHalfWidthInColumns)
+        #expect(widest >= RoundTube8Bundle.oneThreadHalfWidthInColumns)
     }
 
     /// **A run leans the way its thread is carried**, so S and Z lean opposite
@@ -608,9 +621,14 @@ struct RoundTube8SurfaceTests {
                 ).position
                 return atan2(point.y, point.z) / (2 * .pi)
             }
-            let moved = (turns(1) - turns(0)) * 8
+            // Over the part of the run before its tail bends (Task 051): the
+            // bend is the tail's, and is held by `aRunHasABluntHeadAndATailThatKeepsItsWidth`.
+            let span = bundle.tailBendFromCycles
+            let moved = (turns(span) - turns(0)) * 8 / span
             #expect(abs(moved - drawn.leanDirection * bundle.leanColumnsPerCycle) < 1e-4,
-                    "\(recipe.id): \(moved) columns over one cycle")
+                    "\(recipe.id): \(moved) columns a cycle")
+            // And the tail goes on round the same way.
+            #expect((turns(bundle.lengthInCycles) - turns(span)) * drawn.leanDirection > 0)
         }
     }
 

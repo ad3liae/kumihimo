@@ -105,7 +105,8 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
 }
 
 /// **What a thread's visible run looks like on the eight-thread tube: a bundle
-/// that lies at a slant and sinks under the next one** (Task 045).
+/// with a blunt head that lies on top, and a tail that keeps its width and goes
+/// on under the runs that come after it** (Task 045, reshaped by Task 051).
 ///
 /// **A drawing approximation calibrated against a photograph, not a derivation.**
 /// The cell a thread holds — one column wide, from its arrival to the next
@@ -116,79 +117,76 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
 /// - **it leans.** Its centreline moves round the braid as it goes along it, the
 ///   way the carry goes (`RoundTube8SurfacePattern.leanDirection`) — so S and Z
 ///   are mirrors because their tables are;
-/// - **it is a lens with a belly** (Task 046): pointed where it arrives, widening
-///   to a belly that it holds for a while, and narrowing to a point again. The
-///   belly is what lies between its neighbours and keeps the floor from showing;
-///   the pointed ends are what slide in beside the runs around it;
-/// - **it goes on past the next arrival and ends beneath another run**. Because
-///   runs lean, a run's tail and the head of the next thread at its place lie
-///   side by side for a while; then the later one, grown to its belly, stands
-///   higher over the earlier one's tail, which sinks a little sooner than a head
-///   rises, and ends there. The later thread is laid on the earlier one and
-///   pressed down onto it (`docs/architecture.md`, 組み台の力学); this is how
-///   the drawing shows that, not a derivation of it. The end is where the run
-///   stops *showing*, not where the thread is cut.
+/// - **its head is blunt**: full width a short rounding after the arrival. The
+///   head is where the thread was laid last, so it lies on top of what was laid
+///   before it (`docs/architecture.md`, 組み台の力学: 後に置いた糸が上), and
+///   its own outline is what shows there;
+/// - **its tail keeps its width until it is covered.** From the middle of the
+///   run on, the centreline bends further the way it leans, into the next lane,
+///   where the run laid half a cycle after it is at its belly; the tail goes on
+///   under that run's side and under the next thread's head at its own place,
+///   and only narrows once it is under them. **The line where it stops showing
+///   is the covering run's own side**, not the tail's outline (Task 051: 幅の
+///   ある端が隣の下へ続く).
+///
+/// Until Task 051 a run was a lens — pointed at both ends, widest across a belly
+/// — under a height that closed to nothing at both ends, and every run read as
+/// a closed oval, one after another (the author, 2026-09-21: 「楕円の丸いもの
+/// が何個も繋がってるだけに見える」).
 ///
 /// **What shows at a place is the run standing highest there** — nothing else
-/// decides it (`RoundTube8SurfacePattern.runsStanding`). That is not "the later
-/// is on top everywhere": where a tail and the next head lie side by side, and
-/// on the flanks of a run, the earlier can stand higher and show (Task 045
-/// review). The line where two runs meet is a drawing approximation, not a
-/// settled order of the real braid. **The solid and the card both read this one
-/// rule.**
+/// decides it (`RoundTube8SurfacePattern.runsStanding`). The line where two runs
+/// meet is a drawing approximation, not a settled order of the real braid. **The
+/// solid and the card both read this one rule.**
 ///
 /// **Nothing is decided by colour.** Every run of every thread has the same
 /// shape, and which one shows is decided by where they stand, by run and thread,
-/// never by what colour they are.
+/// never by what colour they are. The bend is the same for every run; it does
+/// not look for a neighbour, let alone one of the same colour.
 ///
-/// **The figures, each with a unit, are all set by eye against book A p.8's
-/// zoom.** The form is not: the width is a lens (a quarter sine up to the belly,
-/// a quarter cosine down from it) and **the height is a circular arc over the
-/// whole run**, even about its middle, with a half-ellipse across it. The run's
-/// widest half-width is `widestHalfWidthInColumns`: half a
-/// column is what the thread count gives (a thread is one column wide, the
-/// relation `crestHeightRatio` rests on); **a run is allowed to show wider than
-/// the column its thread holds**, keeping the thread it belongs to.
+/// **The figures, each with a unit, are set by eye against book A p.8's zoom.**
+/// The height is still **a circular arc, even about its middle** (the author on
+/// Task 049: 「偏りのある膨らみではない。円弧というか半円状で良い」), with a
+/// half-ellipse across the run; since Task 051 it is set over its own span and
+/// no longer over the run's whole length, so how long a run goes on under the
+/// others no longer moves its crest.
 struct RoundTube8Bundle: Equatable, Sendable {
     /// How far the run's centreline moves round the braid over one cycle along
     /// it, **in columns per cycle**. Unsigned; the table gives the sign.
     let leanColumnsPerCycle: Float
-    /// How far the run goes on past the next thread's arrival, **in cycles**.
-    ///
-    /// **Since the height became an even arc this no longer sets how long a bean
-    /// shows** (the author, 2026-09-20): two runs a cycle apart are the same
-    /// curve offset by a cycle, so they cross exactly halfway between them and
-    /// **a run shows for exactly one cycle whatever this is** — hidden at its
-    /// head for half of it and lost at its tail from a cycle and half of it.
-    /// What it sets is **how far down that crossing sits**, which is the groove
-    /// between one bean and the next along its own lane: `sqrt(1 - 1/(1+t)^2)`
-    /// of the run's height, 0.67 at 0.35. **The figure is still the one Task 046
-    /// set for the old meaning**; see `RoundTube8SurfaceMesh.shape` for what it
-    /// costs to set it again.
+    /// How far the run goes on past the next thread's arrival, **in cycles**:
+    /// the tail under the runs laid after it.
     let tuckedCycles: Float
-    /// Where the run's belly begins and ends, **in cycles past its arrival**.
-    let bellyStartCycles: Float
-    let bellyEndCycles: Float
-    /// Half the run's width across its belly, **in columns**.
+    /// How far past its arrival the head is rounded to its full width, **in
+    /// cycles**: short, so the head is blunt.
+    let headRoundingCycles: Float
+    /// Over how much of the run the height's arc stands, from the arrival, **in
+    /// cycles**. Past it the run lies on the valley floor.
+    let arcSpanCycles: Float
+    /// How far the tail's centreline bends round the braid, beyond the lean, by
+    /// the run's end, **in columns**, the way the run leans.
+    let tailBendColumns: Float
+    /// Where the bend begins, **in cycles past the arrival**.
+    let tailBendFromCycles: Float
+    /// Where the tail begins to narrow, **in cycles past the arrival**: the next
+    /// thread's arrival, so the tail is as wide as the run where it goes under.
+    let tailNarrowsFromCycles: Float
+    /// Half the run's width, **in columns**.
     let widestHalfWidthInColumns: Float
 
-    /// **Set against the photograph with a cycle of `pitchOverDiameter`**, so
-    /// the figures moved when the cycle did (Task 048's rework doubled it): a
-    /// run is about one cycle long and a little wider than its column, which is
-    /// the size of a bean on book A p.8's zoom.
-    ///
-    /// **Measured again on the finished drawing** (Task 049): a bean on the
-    /// photograph shows 0.67 of the braid's width long and 0.30 across, its long
-    /// axis within a few degrees of the braid's own. The belly was widened along
-    /// the run (0.25 to 0.75 of a cycle) and the tail shortened so that a run
-    /// shows for most of a cycle instead of two thirds of one, and the lean was
-    /// taken from 0.35 to 0.2 columns a cycle, which is where the photograph's
-    /// beans lie.
+    /// **Set against the photograph by eye** (Task 051), keeping Task 049's lean
+    /// and width. The arc's span and the tail were set so that a run's head
+    /// shows blunt and its tail goes under the next lane's run with its width;
+    /// on the real mesh the floor shows at none of 16,384 places over a repeat,
+    /// S and Z (`RoundTube8CardAgreesWithSolidTests.theFloorHardlyShows`).
     static let standard = RoundTube8Bundle(
         leanColumnsPerCycle: 0.2,
-        tuckedCycles: 0.35,
-        bellyStartCycles: 0.25,
-        bellyEndCycles: 0.75,
+        tuckedCycles: 0.55,
+        headRoundingCycles: 0.12,
+        arcSpanCycles: 1.2,
+        tailBendColumns: 0.55,
+        tailBendFromCycles: 0.5,
+        tailNarrowsFromCycles: 1,
         widestHalfWidthInColumns: 0.6
     )
 
@@ -198,42 +196,55 @@ struct RoundTube8Bundle: Equatable, Sendable {
     /// A thread is one column wide: the half-width the thread count gives.
     static let oneThreadHalfWidthInColumns: Float = 0.5
 
-    /// Half the run's width at `cycles` past its arrival, in columns.
+    /// Half the run's width at `cycles` past its arrival, in columns: rounded
+    /// over `headRoundingCycles` at the head, full through the run, and
+    /// narrowing from `tailNarrowsFromCycles` to nothing at the end.
     func halfWidthInColumns(atCycles cycles: Float) -> Float {
-        widestHalfWidthInColumns * lens(atCycles: cycles).rising
-            * lens(atCycles: cycles).falling
+        guard cycles >= 0, cycles <= lengthInCycles else { return 0 }
+        var fraction: Float = 1
+        if headRoundingCycles > 0, cycles < headRoundingCycles {
+            let toGo = 1 - cycles / headRoundingCycles
+            fraction = max(0, 1 - toGo * toGo).squareRoot()
+        }
+        let tail = lengthInCycles - tailNarrowsFromCycles
+        if tail > 0, cycles > tailNarrowsFromCycles {
+            fraction *= cos(.pi / 2 * min((cycles - tailNarrowsFromCycles) / tail, 1))
+        }
+        return widestHalfWidthInColumns * fraction
     }
 
     /// Where the run stands highest, **in cycles past its arrival**: the middle
-    /// of the run, because the height is a circular arc. **This is not a figure
-    /// set by eye** — it follows from the form, and there is nothing to tune.
-    var crestAtCycles: Float { lengthInCycles / 2 }
+    /// of the arc. **Not a figure set by eye** — it follows from the form.
+    var crestAtCycles: Float { arcSpanCycles / 2 }
 
     /// How tall the run stands at `cycles` past its arrival, 0...1 of the ridge:
-    /// **a circular arc over the run's whole length** — zero at both ends, one
-    /// in the middle, and even about it (the author's ruling, Task 049's second
-    /// rework: 「偏りのある膨らみではない。円弧というか半円状で良い」).
+    /// **a circular arc over `arcSpanCycles`** — zero at the arrival and at the
+    /// end of the span, one in the middle, even about it (the author's ruling,
+    /// Task 049's second rework). Past the span the run lies on the floor, under
+    /// the runs laid after it.
     ///
-    /// Two shapes were tried before it and both were wrong. It first held the
-    /// width's plateau — half a cycle, about 0.4 of the braid's width, all at
-    /// one height — which read as flat tiles (「鱗もしくは平らなお餅が並んでいる
-    /// ように見える」). Then a hump with its crest a little before the middle,
-    /// which read as a lopsided swelling. **The run is even end to end**: what
-    /// makes its two ends differ is the width's lens and where the neighbours
-    /// cover it, not the height.
+    /// Two shapes were tried before the arc and both were wrong: the width's
+    /// plateau at one height, which read as flat tiles, and a hump with its
+    /// crest before the middle, which read as a lopsided swelling. **The run is
+    /// even end to end in height**; what makes its ends differ is the width and
+    /// where the other runs cover it.
     ///
     /// Across the run it is a half-ellipse as well (`standingFraction`), so a
     /// run domes both ways.
     func heightFraction(atCycles cycles: Float) -> Float {
-        guard cycles >= 0, cycles <= lengthInCycles, lengthInCycles > 0 else { return 0 }
-        let fromTheMiddle = 2 * cycles / lengthInCycles - 1
+        guard cycles >= 0, cycles <= lengthInCycles, arcSpanCycles > 0 else { return 0 }
+        let fromTheMiddle = 2 * cycles / arcSpanCycles - 1
         return max(0, 1 - fromTheMiddle * fromTheMiddle).squareRoot()
     }
 
     /// How far round the braid the centreline has moved from the middle of the
-    /// thread's own cell, in columns, signed by `direction`.
+    /// thread's own cell, in columns, signed by `direction`: the lean, and past
+    /// `tailBendFromCycles` the tail's bend, growing as the square of the way
+    /// to the end so it leaves the lean without a kink.
     func leanInColumns(atCycles cycles: Float, direction: Float) -> Float {
-        direction * leanColumnsPerCycle * (cycles - 0.5)
+        let reach = lengthInCycles - tailBendFromCycles
+        let bent = reach > 0 ? max(0, cycles - tailBendFromCycles) / reach : 0
+        return direction * (leanColumnsPerCycle * (cycles - 0.5) + tailBendColumns * bent * bent)
     }
 
     /// How far the run stands at `cycles` past its arrival and `across` its
@@ -243,18 +254,6 @@ struct RoundTube8Bundle: Equatable, Sendable {
     func standingFraction(atCycles cycles: Float, across: Float) -> Float {
         let clamped = min(max(across, -1), 1)
         return heightFraction(atCycles: cycles) * max(0, 1 - clamped * clamped).squareRoot()
-    }
-
-    /// The lens: 0 at both ends and 1 across the belly, as a rising part before
-    /// the belly and a falling part after it (each 1 elsewhere).
-    private func lens(atCycles cycles: Float) -> (rising: Float, falling: Float) {
-        guard cycles >= 0, cycles <= lengthInCycles else { return (0, 0) }
-        let rising = bellyStartCycles > 0
-            ? sin(.pi / 2 * min(cycles / bellyStartCycles, 1)) : 1
-        let tail = lengthInCycles - bellyEndCycles
-        let falling = tail > 0
-            ? cos(.pi / 2 * min(max((cycles - bellyEndCycles) / tail, 0), 1)) : 1
-        return (rising, falling)
     }
 }
 
@@ -510,7 +509,7 @@ enum RoundTube8SurfacePatternGenerator {
         return nil
     }
 
-    /// The way round the ring from one slot to another, signed, taking whichever    /// The way round the ring from one slot to another, signed, taking whichever
+    /// The way round the ring from one slot to another, signed, taking whichever
     /// way is shorter. A half turn has no shorter way and comes back positive.
     static func shortestWayRound(from: Int, to: Int, around count: Int) -> Int {
         let forward = ((to - from) % count + count) % count
