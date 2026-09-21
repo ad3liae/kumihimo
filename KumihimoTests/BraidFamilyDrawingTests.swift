@@ -134,7 +134,8 @@ struct BraidFamilyDrawingTests {
         // how far it laps and tucks, how wide it is, how it narrows at each end,
         // and how its buried tip and the floor sink are set by eye against the
         // photographs, as are the cross-section and the fibre count.
-        // Sixteen since Task 052: the crest joined them, drawn rounder by eye.
-        #expect(tube.calibratedByEye.count == 16)
+        // Seventeen since Task 052: the crest joined them, drawn rounder by eye,
+        // and so did how softly the cross-section meets its rim.
+        #expect(tube.calibratedByEye.count == 17)
     }
 }

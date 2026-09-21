@@ -237,17 +237,23 @@ struct MaruGenjiSurfaceMeshTests {
         }
     }
 
-    /// **A bundle's face turns into its shoulder before a neighbour covers it**
-    /// (Task 052). At mid-span, 0.81 of the way to the rim — the last sample
-    /// before its neighbours lie over it, from 0.87 (`bundleWidthOverCell`) —
-    /// the face has turned about 43 degrees from facing straight out; at 0.12 it
-    /// had turned 29, a broad face the author read as a flat tile. A third of the
-    /// way out it has turned less than half as far, so the belly is round rather
-    /// than a ridge down a flat roof.
-    @Test func aBundlesFaceTurnsIntoItsShoulderBeforeItIsCovered() throws {
+    /// **A bundle's face turns into its shoulder, and lies down again at its
+    /// rim** (Task 052). Measured at mid-span, as the angle between the face and
+    /// straight out, a third, three fifths, four fifths and nineteen twentieths
+    /// of the way to the rim: 26, 39, 40, 28 degrees.
+    ///
+    /// - The shoulder turns about 40. At a crest of 0.12 it turned under 30, a
+    ///   broad face the author read as a flat tile.
+    /// - The belly turns less than the shoulder, so it is round rather than a
+    ///   ridge down a flat roof.
+    /// - **Near the rim it lies down again** — a bundle of threads does not stand
+    ///   in a cliff (the author). The plain parabola turned 49 there, steepest at
+    ///   the rim, and read as a cut wall wherever one bundle lay over another.
+    /// - But not flat: laid down to 12 the bundle read as a spindle.
+    @Test func aBundlesFaceTurnsIntoItsShoulderAndLiesDownAtItsRim() throws {
         let mesh = try makeMesh()
-        func turn(at across: Float) -> [Float] {
-            mesh.positions.indices.compactMap { index in
+        func turn(at across: Float) -> Float? {
+            let turns = mesh.positions.indices.compactMap { index -> Float? in
                 let strand = mesh.strandCoordinates[index]
                 guard
                     !mesh.vertexIsBeneath[index],
@@ -258,15 +264,16 @@ struct MaruGenjiSurfaceMeshTests {
                 let outwards = simd_normalize(SIMD3<Float>(0, position.y, position.z))
                 return acos(min(simd_dot(mesh.normals[index], outwards), 1)) * 180 / .pi
             }.sorted()
+            return turns.isEmpty ? nil : turns[turns.count / 2]
         }
-        let shoulder = turn(at: 0.809)
-        let belly = turn(at: 0.309)
-        #expect(!shoulder.isEmpty && !belly.isEmpty)
-        let shoulderTurn = shoulder[shoulder.count / 2]
-        let bellyTurn = belly[belly.count / 2]
-        #expect(shoulderTurn > 38, "the shoulder has turned \(shoulderTurn) degrees")
-        #expect(shoulderTurn < 55, "the shoulder has turned \(shoulderTurn) degrees")
-        #expect(bellyTurn < shoulderTurn / 1.8, "belly \(bellyTurn), shoulder \(shoulderTurn)")
+        // The cross-section's own samples: sin(pi/2 (2k/10 - 1)).
+        let belly = try #require(turn(at: 0.309))
+        let shoulder = max(try #require(turn(at: 0.588)), try #require(turn(at: 0.809)))
+        let rim = try #require(turn(at: 0.951))
+        #expect((36...46).contains(shoulder), "the shoulder turns \(shoulder) degrees")
+        #expect(belly < shoulder / 1.3, "belly \(belly), shoulder \(shoulder)")
+        #expect(rim < shoulder * 0.8, "rim \(rim), shoulder \(shoulder)")
+        #expect(rim > shoulder * 0.5, "rim \(rim), shoulder \(shoulder)")
     }
 
     @Test func radiusStaysInsideTheConfiguredReliefRange() throws {

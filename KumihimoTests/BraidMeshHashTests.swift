@@ -60,12 +60,13 @@ struct BraidMeshHashTests {
     /// **Changed on purpose again in Task 052.** `0x4bd9_d069_9c8f_9734` until
     /// then, over the same 303,840 vertices: the crest was raised from 0.12 to
     /// 0.20 and the valley lowered from 0.03 to 0.11, so a bundle's face turns
-    /// into its shoulder and the outline stays where it was.
+    /// into its shoulder and the outline stays where it was; and the
+    /// cross-section lies down again at its rim (`crestRimSoftness` 1.5).
     @Test func theRoundBraidsMeshIsTheShapeItWas() throws {
         let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.maruGenji16Colouring))
         let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
         #expect(mesh.positions.count == 303_840)
-        #expect(Self.hash(mesh.positions) == 0xb6d4_b5be_7fa7_0394)
+        #expect(Self.hash(mesh.positions) == 0xacef_2c2d_bd7c_60e9)
     }
 }

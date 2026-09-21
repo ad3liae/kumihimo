@@ -202,6 +202,12 @@ enum RoundTube16SurfaceMesh {
                     Double(crestProfilePower),
                     calibratedBy: "a flattened bundle rather than a tube (Task 047)"
                 ),
+            "how softly the cross-section meets its rim, as the power of the whole":
+                .declared(
+                    Double(crestRimSoftness),
+                    calibratedBy: "a bundle of threads lies down at its edge rather than "
+                        + "standing in a cliff (Task 052, the author)"
+                ),
             "how far a buried tip sinks, in crests": .declared(
                 Double(buriedTipSink), calibratedBy: "only that it is buried"
             ),
@@ -260,10 +266,10 @@ enum RoundTube16SurfaceMesh {
     /// a third of its half-width proud, and where its neighbour covers its
     /// flank (0.87 of its half-width, `bundleWidthOverCell`) its face had turned
     /// only 30 degrees: a broad, nearly flat face the author read as a tile. At
-    /// 0.20 it has turned about 45 there, and the belly shades down into the
-    /// shoulder. The cross-section's own shape was tried first and kept
-    /// (`crestProfilePower`): a raised cosine drew a ridge line down a flat roof,
-    /// and a half-ellipse a flatter belly with a hard shoulder.
+    /// 0.20 it turns about 40 at the shoulder, and the belly shades down into it.
+    /// A raised cosine drew a ridge line down a flat roof, and a half-ellipse a
+    /// flatter belly with a hard shoulder; the parabola is kept, softened at its
+    /// rim (`crestRimSoftness`).
     static let crestHeightRatio: Float = 0.20
     /// Valley floor below the nominal radius, as a fraction of it. **Moved down
     /// with the crest** (Task 052), so the crest line — the outline, and with it
@@ -447,13 +453,22 @@ enum RoundTube16SurfaceMesh {
         return progress * progress * (3 - 2 * progress)
     }
 
-    /// How the cross-section falls to the rim: `1 - |across|^power`.
+    /// How the cross-section falls to the rim: `(1 - |across|^power)^softness`.
     static let crestProfilePower: Float = 2
+    /// **How softly a bundle's face meets its rim** (Task 052, the author: a
+    /// bundle of threads does not stand up in a cliff). Above 1 the face lies
+    /// down again before the rim, as a bundle's fibres spread there, instead of
+    /// meeting it at its steepest. At mid-span the face turns about 40 degrees at
+    /// the shoulder and back to 28 near the rim (0.95 of the way out); the plain
+    /// parabola (1) turned 49 there and read as a cut wall wherever one bundle
+    /// lay over another, and 2 laid it down so far (12) that the bundle read as a
+    /// spindle.
+    static let crestRimSoftness: Float = 1.5
 
     /// Cross-section: 1 on the crest, 0 at the rim.
     static func crestProfile(across: Float) -> Float {
         let clamped = min(abs(across), 1)
-        return max(0, 1 - pow(clamped, crestProfilePower))
+        return pow(max(0, 1 - pow(clamped, crestProfilePower)), crestRimSoftness)
     }
 
     /// Peaks at both ends of a cell, where it meets the cells running the other
