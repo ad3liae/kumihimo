@@ -150,12 +150,12 @@ enum RoundTube16SurfaceMesh {
     /// changed by saying so.**
     static var shape: BraidFamilyShape {
         BraidFamilyShape(family: family, values: [
-            "crest over nominal radius": BraidMeasurement(
+            "crest over nominal radius": .declared(
                 Double(crestHeightRatio),
-                basis: .fractionOf("the tube's nominal radius"),
-                source: .observed("Task 005J"),
-                unsettled: "only the product with the pattern's aspect ratio is held by "
-                    + "the photographs, and it is not in thread diameters"
+                calibratedBy: "how round a bundle's belly and shoulders look (Task 052, "
+                    + "the author: too flat, like tiles); chosen by eye, not measured. "
+                    + "Task 005J's 0.12 was held only as a product with the aspect "
+                    + "ratio and is not in thread diameters"
             ),
             "one repeat over one turn": BraidMeasurement(
                 Double(RoundTube16SurfacePatternGenerator.patternAspectRatio),
@@ -167,7 +167,9 @@ enum RoundTube16SurfaceMesh {
                     + "held by the outline"
             ),
             "valley below the nominal radius": .declared(
-                Double(valleyDepthRatio), calibratedBy: "how deep the groove looks"
+                Double(valleyDepthRatio),
+                calibratedBy: "set with the crest so the outline stays where it was "
+                    + "(Task 052: 0.03 + 0.12 then, 0.11 + 0.20 now, the crest at 1.09 radii)"
             ),
             "extra crest at the end that passes over": .declared(
                 Double(overCrossingLift), calibratedBy: "how far the over end stands up"
@@ -253,9 +255,20 @@ enum RoundTube16SurfaceMesh {
     static let minimumAcrossStrandSubdivisions = 6
 
     /// Ridge crest above the valley floor, as a fraction of the nominal radius.
-    static let crestHeightRatio: Float = 0.12
-    /// Valley floor below the nominal radius, as a fraction of it.
-    static let valleyDepthRatio: Float = 0.03
+    ///
+    /// **A drawing choice, made by eye** (Task 052). At 0.12 a bundle stood about
+    /// a third of its half-width proud, and where its neighbour covers its
+    /// flank (0.87 of its half-width, `bundleWidthOverCell`) its face had turned
+    /// only 30 degrees: a broad, nearly flat face the author read as a tile. At
+    /// 0.20 it has turned about 45 there, and the belly shades down into the
+    /// shoulder. The cross-section's own shape was tried first and kept
+    /// (`crestProfilePower`): a raised cosine drew a ridge line down a flat roof,
+    /// and a half-ellipse a flatter belly with a hard shoulder.
+    static let crestHeightRatio: Float = 0.20
+    /// Valley floor below the nominal radius, as a fraction of it. **Moved down
+    /// with the crest** (Task 052), so the crest line — the outline, and with it
+    /// the braid's width and the chevrons' spacing over it — stays at 1.09 radii.
+    static let valleyDepthRatio: Float = 0.11
     /// Extra crest for the strand passing over a crossing.
     static let overCrossingLift: Float = 0.16
     /// Crest removed from the strand passing under a crossing.

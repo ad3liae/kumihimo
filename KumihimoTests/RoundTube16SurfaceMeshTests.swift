@@ -103,11 +103,15 @@ struct MaruGenjiSurfaceMeshTests {
         let vsPerBraidWidth = 8 * mesh.visibleWidth / mesh.patternRepeatLength
 
         // The author's own braid reads 2.13 Vs a braid width top-down and 2.27 close
-        // up. The band is those two readings widened by 10 per cent either way. At
-        // the current crest of 0.12 this reads 2.22. The crest and the pattern's
+        // up. The band is those two readings widened by 10 per cent either way. It
+        // reads 2.22 with the crest line at 1.09 radii. The crest and the pattern's
         // aspect ratio are still not separable from a photograph (see
         // `docs/architecture.md`「畝の高さと模様の縦横比は写真からは分離できない」).
         #expect((1.9...2.5).contains(vsPerBraidWidth))
+        // **Task 052 raised the crest and lowered the valley by the same 0.08**, so
+        // the outline, and the density over it, did not move. Held here, so that a
+        // rounder bundle cannot quietly fatten the braid and thin its chevrons.
+        #expect(abs(mesh.crestRadius / mesh.baseRadius - 1.09) < 0.000_1)
     }
 
     @Test(arguments: [
@@ -218,12 +222,51 @@ struct MaruGenjiSurfaceMeshTests {
             let edges = vertices.filter { abs(mesh.strandCoordinates[$0].y) > 1 - 0.000_1 }
             #expect(!crest.isEmpty)
             #expect(!edges.isEmpty)
-            #expect(crest.allSatisfy { radius(of: mesh, at: $0) > base + tolerance })
+            // Above its own rim by at least the crest left where it passes under.
+            // **Not above `base` any more** (Task 052): the valley was moved down
+            // with the crest, so the sunk end of a bundle lies below the nominal
+            // radius, beneath the bundle passing over it.
+            let lowestCrest = mesh.valleyFloorRadius + base
+                * RoundTube16SurfaceMesh.crestHeightRatio
+                * (1 - RoundTube16SurfaceMesh.underCrossingDip)
+            #expect(crest.allSatisfy { radius(of: mesh, at: $0) > lowestCrest - tolerance })
             #expect(edges.allSatisfy { radius(of: mesh, at: $0) <= base + tolerance })
             #expect(edges.allSatisfy {
                 abs(radius(of: mesh, at: $0) - mesh.valleyFloorRadius) < tolerance
             })
         }
+    }
+
+    /// **A bundle's face turns into its shoulder before a neighbour covers it**
+    /// (Task 052). At mid-span, 0.81 of the way to the rim — the last sample
+    /// before its neighbours lie over it, from 0.87 (`bundleWidthOverCell`) —
+    /// the face has turned about 43 degrees from facing straight out; at 0.12 it
+    /// had turned 29, a broad face the author read as a flat tile. A third of the
+    /// way out it has turned less than half as far, so the belly is round rather
+    /// than a ridge down a flat roof.
+    @Test func aBundlesFaceTurnsIntoItsShoulderBeforeItIsCovered() throws {
+        let mesh = try makeMesh()
+        func turn(at across: Float) -> [Float] {
+            mesh.positions.indices.compactMap { index in
+                let strand = mesh.strandCoordinates[index]
+                guard
+                    !mesh.vertexIsBeneath[index],
+                    abs(strand.x - 0.5) < 0.000_1,
+                    abs(abs(strand.y) - across) < 0.01
+                else { return nil }
+                let position = mesh.positions[index]
+                let outwards = simd_normalize(SIMD3<Float>(0, position.y, position.z))
+                return acos(min(simd_dot(mesh.normals[index], outwards), 1)) * 180 / .pi
+            }.sorted()
+        }
+        let shoulder = turn(at: 0.809)
+        let belly = turn(at: 0.309)
+        #expect(!shoulder.isEmpty && !belly.isEmpty)
+        let shoulderTurn = shoulder[shoulder.count / 2]
+        let bellyTurn = belly[belly.count / 2]
+        #expect(shoulderTurn > 38, "the shoulder has turned \(shoulderTurn) degrees")
+        #expect(shoulderTurn < 55, "the shoulder has turned \(shoulderTurn) degrees")
+        #expect(bellyTurn < shoulderTurn / 1.8, "belly \(bellyTurn), shoulder \(shoulderTurn)")
     }
 
     @Test func radiusStaysInsideTheConfiguredReliefRange() throws {
