@@ -29,12 +29,32 @@ struct Flat16SurfacePatch: Equatable, Sendable {
 
 struct Flat16SurfacePattern: Equatable, Sendable {
     let patches: [Flat16SurfacePatch]
+    /// **The visible run of each patch's thread**, in the same order as
+    /// `patches`, so anything drawn can be taken back to the place it came from.
+    ///
+    /// **The cell says what colour is where; the bundle says what the thread
+    /// looks like** (Task 050). They are kept apart on purpose: a colouring check
+    /// reads the patches, and the shape reads the bundles, and neither can be
+    /// mistaken for the other.
+    let bundles: [Flat16Bundle]
     /// Steps along the braid in one repeat.
     let rowCount: Int
     /// Length of one repeat divided by the braid's width. The mesh derives its
     /// length from this and the cross-section rather than carrying a length of
     /// its own, so a stitch cannot come out the wrong shape.
     let aspectRatio: Float
+
+    init(
+        patches: [Flat16SurfacePatch],
+        bundles: [Flat16Bundle] = [],
+        rowCount: Int,
+        aspectRatio: Float
+    ) {
+        self.patches = patches
+        self.bundles = bundles
+        self.rowCount = rowCount
+        self.aspectRatio = aspectRatio
+    }
 
     func patches(in region: Flat16SurfaceRegion) -> [Flat16SurfacePatch] {
         patches.filter { $0.region == region }
@@ -157,23 +177,21 @@ enum Flat16SurfacePatternGenerator {
     /// Length of one repeat over **one turn round the braid**, which is what a
     /// drawing of the whole surface unrolled is measured in.
     ///
-    /// `patternAspectRatio` is over the braid's *width*, which is the six columns
-    /// of one broad face. A turn round the braid is all sixteen places — front
-    /// six, edge two, back six, edge two — so the same repeat is a smaller
-    /// fraction of it, in the ratio of those two counts. Both counts come from the
-    /// working-out, not from here.
+    /// **Moved to the drawing and measured rather than counted** (Task 050).
+    /// `patternAspectRatio` is over the braid's *width*; a turn round the braid is
+    /// all sixteen places. Task 029 took the two counts — six lanes to a face,
+    /// sixteen round — and scaled by 6/16, which is right only if the width of the
+    /// braid equals the arc of its front, and it does not: the front's arc is six
+    /// thread widths where the width across is 2 × the half-width, and the section
+    /// makes those 1.799 and 2 half-widths. The card drew a cell eleven per cent
+    /// **too short** for its width because of it — 2.199 where one step over one
+    /// thread is 2.445 — so putting it right lengthens the card's cells along the
+    /// braid.
     ///
-    /// This is the same quantity the round braid's pattern declares, which is why
-    /// the two families' thumbnails come out at the same density.
-    ///
-    /// **`patternAspectRatio` itself must not move**: the mesh takes its length
-    /// from it, and the length is over the width.
-    static var patternAspectRatioRoundTheBraid: Float? {
-        guard boardPositionCount > 0, broadFaceColumnCount > 0 else { return nil }
-        return patternAspectRatio.map {
-            $0 * Float(broadFaceColumnCount) / Float(boardPositionCount)
-        }
-    }
+    /// It now comes from the outline the mesh actually draws
+    /// (`Flat16SurfaceMesh.patternAspectRatioRoundTheBraid`), so that a change to
+    /// the section carries through. **`patternAspectRatio` itself has not moved**:
+    /// the mesh takes its length from it, and the length is over the width.
 
     static func generate(assignments: [ThreadAssignment]) -> Flat16SurfacePattern? {
         guard
@@ -198,6 +216,7 @@ enum Flat16SurfacePatternGenerator {
         }
 
         var patches = [Flat16SurfacePatch]()
+        var bundles = [Flat16Bundle]()
         for region in Flat16SurfaceRegion.allCases {
             let columnCount = columnCount(in: region)
             let offsets = stitchBoundaryOffsets(region: region, columnCount: columnCount)
@@ -214,32 +233,183 @@ enum Flat16SurfacePatternGenerator {
                     else {
                         return nil
                     }
-                    patches.append(Flat16SurfacePatch(
+                    let corners = corners(
+                        column: column,
+                        row: row,
+                        rowCount: rowCount,
+                        columnCount: columnCount,
+                        lean: offsets,
+                        phase: phases
+                    )
+                    let patch = Flat16SurfacePatch(
                         region: region,
                         threadRole: place.role,
                         threadPosition: place.threadPosition,
                         colorID: place.colorID,
                         widthColumn: column,
                         row: row,
-                        corners: corners(
-                            column: column,
-                            row: row,
-                            rowCount: rowCount,
-                            columnCount: columnCount,
-                            lean: offsets,
-                            phase: phases
-                        )
-                    ))
+                        corners: corners
+                    )
+                    patches.append(patch)
+                    bundles.append(bundle(for: patch, of: weave, course: place.course))
                 }
             }
         }
 
-        guard patches.count == patchCount else { return nil }
+        guard patches.count == patchCount, bundles.count == patches.count else { return nil }
         return Flat16SurfacePattern(
             patches: patches,
+            bundles: bundles,
             rowCount: rowCount,
             aspectRatio: aspectRatio
         )
+    }
+
+    // MARK: - The visible runs
+
+    /// Where each region starts and how far it reaches, as a fraction of the way
+    /// round the cross-section **by arc length**.
+    ///
+    /// The braid is sixteen threads round: six across the front, two at the right
+    /// edge, six across the back and two at the left. So the outline divides
+    /// 6 : 2 : 6 : 2, measured along itself. The regions are centred on the
+    /// middles of the two faces and the two edges, which is where the symmetry
+    /// puts them.
+    ///
+    /// **The counts are the working-out's**, not this file's. The mesh reads the
+    /// same spans (`Flat16SurfaceMesh.arcSpan`) so the solid, the card and the
+    /// checks all place a lane in one place.
+    static func arcSpan(of region: Flat16SurfaceRegion) -> (start: Float, length: Float) {
+        let round = Float(boardPositionCount)
+        guard round > 0 else { return (0, 0) }
+        let face = Float(broadFaceColumnCount) / round
+        let edge = Float(edgeColumnCount) / round
+        switch region {
+        // Centred on the right-hand end of the width, so it straddles the wrap.
+        case .rightEdge: return (1 - edge / 2, edge)
+        case .front: return (edge / 2, face)
+        case .leftEdge: return (edge / 2 + face, edge)
+        case .back: return (edge + face + edge / 2, face)
+        }
+    }
+
+    /// One lane's share of the way round the cross-section. Every lane of every
+    /// region is one thread wide, so this is the same number everywhere.
+    static func laneArc(in region: Flat16SurfaceRegion) -> Float {
+        let count = columnCount(in: region)
+        guard count > 0 else { return 0 }
+        return arcSpan(of: region).length / Float(count)
+    }
+
+    /// Where a patch's own coordinates fall round the cross-section.
+    static func arc(of region: Flat16SurfaceRegion, regionU: Float) -> Float {
+        let span = arcSpan(of: region)
+        return span.start + regionU * span.length
+    }
+
+    /// The visible run of the thread standing at one place.
+    ///
+    /// **The cell is not changed, and neither is the colouring.** The run is laid
+    /// on the cell: its centreline is the cell's own, and the only thing that
+    /// moves it is the bend a thread carried across makes as it leaves the face —
+    /// and that bend is read off the move rules, not chosen. See
+    /// `drawnIn(from:of:course:)`.
+    private static func bundle(
+        for patch: Flat16SurfacePatch,
+        of weave: Flat16WeavePattern,
+        course: Flat16ThreadCourseKind
+    ) -> Flat16Bundle {
+        // The cell's corners are leading-low, leading-high, trailing-high,
+        // trailing-low across its width, so the two ends along the braid are the
+        // pairs (0, 3) and (1, 2).
+        let leadingLow = SIMD2<Float>(arc(of: patch.region, regionU: patch.corners[0].x),
+                                      patch.corners[0].y)
+        let leadingHigh = SIMD2<Float>(arc(of: patch.region, regionU: patch.corners[3].x),
+                                       patch.corners[3].y)
+        let trailingLow = SIMD2<Float>(arc(of: patch.region, regionU: patch.corners[1].x),
+                                       patch.corners[1].y)
+        let trailingHigh = SIMD2<Float>(arc(of: patch.region, regionU: patch.corners[2].x),
+                                        patch.corners[2].y)
+        let bend = drawnIn(from: patch, of: weave, course: course)
+        return Flat16Bundle(
+            threadPosition: patch.threadPosition,
+            colorID: patch.colorID,
+            region: patch.region,
+            widthColumn: patch.widthColumn,
+            row: patch.row,
+            course: course,
+            leadingCentre: (leadingLow + leadingHigh) / 2,
+            trailingCentre: (trailingLow + trailingHigh) / 2,
+            leadingHalfLane: (leadingHigh - leadingLow) / 2,
+            trailingHalfLane: (trailingHigh - trailingLow) / 2,
+            drawnInPerStep: bend.perStep,
+            drawnInStart: bend.start
+        )
+    }
+
+    /// **The bend a thread carried across makes where it leaves the face**, taken
+    /// from the move rules (Task 007J's correction 3, the author's own account of
+    /// the braid: 「この左右端を形成しているラインが内側中央に引き込まれて」).
+    ///
+    /// Three things, and all three are read rather than set:
+    ///
+    /// - **where** it starts: where that thread's own crossing starts, which is
+    ///   the end of the step it rests for;
+    /// - **which way** it goes: towards the first column the crossing passes;
+    /// - **how fast**: the crossing passes its columns in one step, so the run
+    ///   moves one lane in one column's share of a step.
+    ///
+    /// Nothing at all for a thread that holds its lane, and nothing at an edge,
+    /// where the thread turns back instead of diving in.
+    private static func drawnIn(
+        from patch: Flat16SurfacePatch,
+        of weave: Flat16WeavePattern,
+        course: Flat16ThreadCourseKind
+    ) -> (perStep: Float, start: Float) {
+        guard
+            course == .carriedAcross,
+            patch.region == .front || patch.region == .back,
+            let crossing = weave.weftCrossings.first(where: {
+                $0.threadPosition == patch.threadPosition && $0.row == patch.row
+            }),
+            let firstPassed = crossing.passedColumns.first
+        else {
+            return (0, 0)
+        }
+        let lanesPerStep = Float(crossing.passedColumns.count + 1)
+        guard lanesPerStep > 0 else { return (0, 0) }
+        let here = Float(patch.widthColumn)
+        let towards = Float(regionColumn(ofWeaveColumn: firstPassed, in: patch.region))
+        let direction: Float = towards > here ? 1 : -1
+        return (
+            perStep: direction * laneArc(in: patch.region) * lanesPerStep,
+            start: 1 - 1 / lanesPerStep
+        )
+    }
+
+    /// Where a point of a patch's own cell lands on the unrolled braid: `x`
+    /// the fraction of the way round the cross-section, `y` the distance along
+    /// the braid in repeats. `local` is `(across the lane, along the step)`.
+    static func surfacePoint(
+        of patch: Flat16SurfacePatch,
+        local: SIMD2<Float>
+    ) -> SIMD2<Float> {
+        let leading = simd_mix(patch.corners[0], patch.corners[1],
+                               SIMD2<Float>(repeating: local.y))
+        let trailing = simd_mix(patch.corners[3], patch.corners[2],
+                                SIMD2<Float>(repeating: local.y))
+        let inTheRegion = simd_mix(leading, trailing, SIMD2<Float>(repeating: local.x))
+        return SIMD2<Float>(arc(of: patch.region, regionU: inTheRegion.x), inTheRegion.y)
+    }
+
+    /// A region's lane for a column of the weave. The front's lanes run against
+    /// the weave's columns and the back's run with them — the same
+    /// correspondence `occupant(of:region:column:row:)` uses, read the other way.
+    ///
+    /// **It is its own inverse**, on both faces, so the same call carries a lane
+    /// back to a column of the weave.
+    static func regionColumn(ofWeaveColumn column: Int, in region: Flat16SurfaceRegion) -> Int {
+        region == .front ? broadFaceColumnCount - 1 - column : column
     }
 
     static func columnCount(in region: Flat16SurfaceRegion) -> Int {
@@ -253,6 +423,10 @@ enum Flat16SurfacePatternGenerator {
         let threadPosition: Int
         let colorID: ThreadColorID
         let role: HiraGenjiThreadRole
+        /// What the thread does over the length of the braid. The role says how
+        /// it is drawn; this says what the weave has it doing, which is what the
+        /// bundle's bend is read from.
+        let course: Flat16ThreadCourseKind
     }
 
     /// Which thread the weave puts at one place in one region.
@@ -284,7 +458,8 @@ enum Flat16SurfacePatternGenerator {
             return Occupant(
                 threadPosition: patch.threadPosition,
                 colorID: patch.colorID,
-                role: patch.course == .lengthwise ? .inner : .outer
+                role: patch.course == .lengthwise ? .inner : .outer,
+                course: patch.course
             )
         case .leftEdge, .rightEdge:
             let edge: Flat16BraidEdge = region == .leftEdge ? .left : .right
@@ -304,7 +479,8 @@ enum Flat16SurfacePatternGenerator {
             return Occupant(
                 threadPosition: place.threadPosition,
                 colorID: place.colorID,
-                role: .outer
+                role: .outer,
+                course: .carriedAcross
             )
         }
     }

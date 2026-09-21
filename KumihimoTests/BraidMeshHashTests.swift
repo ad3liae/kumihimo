@@ -24,17 +24,31 @@ struct BraidMeshHashTests {
         return out
     }
 
-    /// **Changed once, on purpose** (Task 030). It was
-    /// `0x78b4_526d_00e7_4a38` while the stitch lean was dropped at the two ends of
-    /// the tile, which left one join in every four running straight at an edge. The
-    /// lean now applies at every join, so every vertex on an edge join at rows 0 and
-    /// 4 moved. **The vertex count did not change** — the same surface, tipped.
+    /// **Changed twice, on purpose.**
+    ///
+    /// It was `0x78b4_526d_00e7_4a38` while the stitch lean was dropped at the
+    /// two ends of the tile, which left one join in every four running straight
+    /// at an edge; Task 030 let the lean out at every join and it became
+    /// `0x53c4_4c9b_835a_e598`, with the vertex count unchanged — the same
+    /// surface, tipped.
+    ///
+    /// **Task 050 drew a different surface**, so both moved: each cell is now a
+    /// bundle wider than its lane and longer than its step, with the floor of
+    /// its own cell beneath it. 366,552 vertices became 361,350 — about the same
+    /// count for three times the surface, because a bundle is drawn at a third
+    /// of the old density along its own length.
+    ///
+    /// **What this pins and what it does not.** It says the shape has not
+    /// changed since it was last looked at; it says nothing about whether the
+    /// shape is right. What the old value was holding — the lean at every join,
+    /// the tile's ends meeting — is held by the tests that state those things,
+    /// not by the digits here.
     @Test func theFlatBraidsMeshIsTheShapeItWas() throws {
         let pattern = try #require(Flat16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.hiraGenji16Colouring))
         let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
-        #expect(mesh.positions.count == 366_552)
-        #expect(Self.hash(mesh.positions) == 0x53c4_4c9b_835a_e598)
+        #expect(mesh.positions.count == 361_350)
+        #expect(Self.hash(mesh.positions) == 0x2df5_8dcc_177c_b981)
     }
 
     /// **Changed on purpose in Task 047.** `0xe3fc_af47_ceea_d34e` over 294,936

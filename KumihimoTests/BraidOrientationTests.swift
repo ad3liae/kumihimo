@@ -443,18 +443,41 @@ struct BraidOrientationTests {
     /// faces by default and nothing here changes that — it is what let the
     /// eight-thread braid be seen through — so this is the view the app draws.
     ///
-    /// **The flat braid passes although some ten thousand of its triangles wind
-    /// inward** (`everyTriangleFacesOutward`): every one of them lies behind a face
-    /// turned the right way, on every line of sight. **Not because its material is
-    /// two-sided; it is not.** That is why the inward winding is left as a known
-    /// issue rather than made a task of its own.
+    /// **No braid shows the background through itself, on any line of sight.**
+    /// That is the fault this is about, and both drawers pass it.
+    ///
+    /// **A nearest surface turned away is not the same fault**, and the flat
+    /// braid has a few of them since Task 050: 13 to 37 lines of sight in 5,760,
+    /// under one in a hundred. A run leaving a face bends in across the width and
+    /// dives under the body, so its surface turns right over — and looked at from
+    /// outside, the nearest thing on such a line really is the back of that fold,
+    /// with the body behind it showing through. Nothing is missing there;
+    /// something further in is seen instead. The round braid, which folds
+    /// nowhere, is held to none at all.
+    ///
+    /// **The grid this replaced had none**, because it folded nowhere either: a
+    /// ridge raised straight out of the section cannot turn over. **The folds
+    /// come with the bundles**, and they are the price of a run going under
+    /// another one. Task 050's first attempt at them wound every triangle to face
+    /// out of the plain section — which a steep part of a run does not — and that
+    /// turned the dives inside out and gave 94 to 129. Winding by the run's own
+    /// surface (`Flat16SurfaceMesh.facing(of:metrics:)`) left only the folds.
+    ///
+    /// **This is not the same question as `everyTriangleFacesOutward`**, which is
+    /// still a known issue for the flat braid and still counts about eleven
+    /// thousand triangles: that one asks whether a face points away from the
+    /// braid's *axis*, and the inboard flank of a bundle does not, however
+    /// correctly it is wound.
     ///
     /// **The check can see what it looks for**: the eight-thread braid with its
     /// winding turned round, as it was until Task 032, shows something behind the
     /// near surface on nearly every line of sight.
     @Test func aCameraThatDiscardsBackFacesFindsNoHole() throws {
         let sides = [SIMD3<Float>(0, 0, -1), SIMD3(0, 0, 1), SIMD3(0, -1, 0), SIMD3(0, 1, 0)]
-        for drawer in ["flat sixteen", "round eight"] {
+        // How many lines of sight may find a fold rather than a hole, per
+        // thousand. The flat braid's runs dive under one another; the round
+        // braid's do not fold at all.
+        for (drawer, foldsPerThousand) in [("flat sixteen", 10), ("round eight", 0)] {
             let mesh = try Self.mesh(drawer)
             for look in sides {
                 // Clear of the tile's ends by fifteen per cent of its half-length,
@@ -463,8 +486,10 @@ struct BraidOrientationTests {
                 let view = CulledView(positions: mesh.positions, indices: mesh.indices,
                                       tileEndX: mesh.tileEnd, looking: look)
                 #expect(view.rays > 5_000)
-                #expect(view.background == 0 && view.deeper == 0,
-                        "\(drawer) looking \(look): \(view.background) background, \(view.deeper) behind, of \(view.rays)")
+                #expect(view.background == 0,
+                        "\(drawer) looking \(look): \(view.background) background of \(view.rays)")
+                #expect(view.deeper * 1_000 <= foldsPerThousand * view.rays,
+                        "\(drawer) looking \(look): \(view.deeper) behind, of \(view.rays)")
             }
         }
 

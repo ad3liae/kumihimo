@@ -15,6 +15,10 @@ struct HiraGenjiSurfaceMeshTests {
         #expect(mesh.positions.count == mesh.textureCoordinates.count)
         #expect(mesh.positions.count == mesh.boundaryDistances.count)
         #expect(mesh.positions.count == mesh.surfaceVertexPatchIndices.count)
+        #expect(mesh.positions.count == mesh.surfaceVertexIsFloor.count)
+        // The floor is laid under every cell and is a small part of the whole.
+        #expect(mesh.surfaceVertexIsFloor.contains(true))
+        #expect(mesh.surfaceVertexIsFloor.contains(false))
         #expect(mesh.surfaceVertexPatchIndices.allSatisfy { pattern.patches.indices.contains($0) })
         #expect(mesh.normals.allSatisfy { abs(simd_length($0) - 1) < 0.001 })
         #expect(mesh.colorGroups.values.allSatisfy { !$0.isEmpty })
@@ -67,99 +71,131 @@ struct HiraGenjiSurfaceMeshTests {
         #expect(abs(scaled / (3 * threadWidth) - 16) < 0.01)
     }
 
-    // MARK: - Stage 3: the crossings
+    // MARK: - The visible run's own shape (Task 050)
 
-    /// A thread's run is one cell, not a length of band: its bulge peaks at the
-    /// middle of its step and dies at both ends, where it dives under the pick.
-    @Test func aThreadsRunRisesAndDiesWithinItsOwnStep() throws {
-        let crest = Flat16SurfaceMesh.crestHeightRatio
-        let middleOfTheLane: Float = 0.5
+    /// A bundle's swell is even about the middle of its own cell, and it does not
+    /// die there: it meets the run before and the run after at `joinHeight`, so
+    /// the two part in a groove rather than sharing a floor.
+    @Test func aRunSwellsEvenlyAndMeetsItsNeighboursAboveTheValley() throws {
+        let shape = Flat16SurfaceMesh.bundleShape
 
-        let top = Flat16SurfaceMesh.crossingRelief(
-            SIMD2<Float>(middleOfTheLane, 0.5)
-        )
-        #expect(abs(top - crest) < 0.000_1)
-
-        // Falling away from it into a valley before the pick takes over, so the
-        // lane is not one length of band but a run of separate cells.
-        let along = stride(from: Float(0.5), through: 1, by: 0.01).map {
-            Flat16SurfaceMesh.crossingRelief(SIMD2<Float>(middleOfTheLane, $0))
+        #expect(shape.belly(atAlong: 0.5) == 1)
+        // Even about the middle, which is the author's ruling on the round
+        // braid's bundles (Task 049) applied here.
+        for offset in stride(from: Float(0.05), through: 0.6, by: 0.05) {
+            #expect(abs(shape.belly(atAlong: 0.5 + offset)
+                - shape.belly(atAlong: 0.5 - offset)) < 0.000_1)
         }
-        let valley = try #require(along.min())
-        #expect(valley < crest * 0.4)
-        #expect(valley < crest * (1 - RoundTube16SurfaceMesh.underCrossingDip))
-        // The thread's own bulge falls away all the way; what rises again at the
-        // very end is the pick, not the thread.
-        let bulge = stride(from: Float(0.5), through: 1, by: 0.01).map { v -> Float in
-            let along = sin(.pi * v)
-            return crest * along * along
-        }
-        #expect(zip(bulge, bulge.dropFirst()).allSatisfy { $0 >= $1 - 0.000_1 })
-        // The two ends of a step are the same height, so instanced tiles meet.
-        let head = Flat16SurfaceMesh.crossingRelief(SIMD2<Float>(middleOfTheLane, 0))
-        let tail = Flat16SurfaceMesh.crossingRelief(SIMD2<Float>(middleOfTheLane, 1))
-        #expect(abs(head - tail) < 0.000_1)
+        // And it is solved so that the cell's own ends stand at `joinHeight`.
+        #expect(abs(shape.belly(atAlong: 0) - shape.joinHeight) < 0.000_5)
+        #expect(abs(shape.belly(atAlong: 1) - shape.joinHeight) < 0.000_5)
+        // Monotone from the crest out to either end of the swell.
+        let falling = stride(from: Float(0.5), through: 0.5 + shape.bellyHalfSpan, by: 0.02)
+            .map { shape.belly(atAlong: $0) }
+        #expect(zip(falling, falling.dropFirst()).allSatisfy { $0 >= $1 - 0.000_1 })
+        #expect(abs(falling.last ?? 1) < 0.01)
+
+        // **Nothing here is a grid.** The drawing this replaced took the surface
+        // all the way down to the valley at both ends of every cell and at both
+        // sides of every lane.
+        #expect(shape.joinHeight > 0.05)
+        #expect(shape.laneJoinHeight > 0.05)
     }
 
-    /// What is left at the join is the pick, and it runs right across the braid:
-    /// the same height in every lane, so it reads as one thread lying across
-    /// rather than as a seam between cells.
-    @Test func thePickLiesRightAcrossTheBraidAtEveryJoin() {
-        let crest = Flat16SurfaceMesh.crestHeightRatio
-        let sunk = crest * (1 - RoundTube16SurfaceMesh.underCrossingDip)
+    /// The two reaches are solved from the two join heights, not chosen: the
+    /// swell's own profile, inverted.
+    @Test func theReachAndTheWidthAreSolvedFromTheTwoJoins() {
+        let shape = Flat16SurfaceMesh.bundleShape
 
-        let acrossTheJoin = stride(from: Float(0), through: 1, by: 0.05).map {
-            Flat16SurfaceMesh.crossingRelief(SIMD2<Float>($0, 0))
-        }
-        #expect(acrossTheJoin.allSatisfy { abs($0 - sunk) < 0.000_1 })
+        // Half a step from the middle of a cell is where the next cell begins.
+        #expect(abs(Flat16BundleShape.swell(atPlace: 0.5 / shape.bellyHalfSpan)
+            - shape.joinHeight) < 0.000_5)
+        // Half a lane from the middle of a lane is where the next lane's crest
+        // is a whole lane away.
+        #expect(abs(Flat16BundleShape.swell(atPlace: 1 / shape.widthOverLane)
+            - shape.laneJoinHeight) < 0.000_5)
 
-        // Sunk well below the top of a run, so the face breaks into cells.
-        #expect(sunk < crest * 0.5)
-        // And it never stands above one.
-        for u in stride(from: Float(0), through: 1, by: 0.05) {
-            for v in stride(from: Float(0), through: 1, by: 0.05) {
-                let relief = Flat16SurfaceMesh.crossingRelief(SIMD2<Float>(u, v))
-                #expect(relief <= crest + 0.000_1)
-                #expect(relief >= -0.000_1)
-            }
+        // A bundle lies over its neighbours' flanks, and still does where the
+        // lens pinches it — otherwise every step would open a slot right across
+        // the braid and the floor would show through it.
+        #expect(shape.widthOverLane > 1)
+        #expect(shape.widthOverLane * shape.endWidth > 1)
+        #expect(shape.endWidth < 1)
+    }
+
+    /// At the join in a lane the run arriving lies on the run leaving. Which is
+    /// which is not a matter of taste: one thread is coming from the other face
+    /// and one is going to it.
+    @Test func theRunArrivingLiesOnTheRunLeaving() {
+        let shape = Flat16SurfaceMesh.bundleShape
+        let head = shape.belly(atAlong: 0) * shape.endFactor(atAlong: 0)
+        let tail = shape.belly(atAlong: 1) * shape.endFactor(atAlong: 1)
+
+        #expect(head > tail)
+        #expect(abs(shape.endFactor(atAlong: 0.5) - 1) < 0.000_1)
+        // And the lift and the dip touch nothing at mid-span, so the swell keeps
+        // its crest exactly where stage 2 put it.
+        #expect(abs(shape.standing(atAlong: 0.5, across: 0) - 1) < 0.000_1)
+        for along in stride(from: Float(0), through: 1, by: 0.02) {
+            #expect(shape.standing(atAlong: along, across: 0) <= 1.000_1)
         }
     }
 
-    /// The pick is one yarn wide, so it takes up as much of a step as a yarn's
-    /// width is of a step's length — which is the aspect ratio stage 2.5a
-    /// measured, not a figure of its own.
-    @Test func thePickIsOneYarnWide() {
-        let stepInYarns = Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth
-            * Float(Flat16SurfacePatternGenerator.broadFaceColumnCount)
-        #expect(abs(Flat16SurfaceMesh.pickHalfSpan * 2 * stepInYarns - 1) < 0.000_1)
-        #expect((0.2...0.3).contains(Flat16SurfaceMesh.pickHalfSpan))
+    /// A tip past the swell is buried: below the valley floor, so it cannot show
+    /// between the runs covering it.
+    @Test func aTipPastTheSwellIsBuried() {
+        let shape = Flat16SurfaceMesh.bundleShape
+
+        #expect(shape.standing(atAlong: shape.runEnd, across: 0) < 0)
+        #expect(shape.standing(atAlong: shape.runStart, across: 0) < 0)
+        #expect(abs(shape.standing(atAlong: shape.runEnd, across: 0)
+            + shape.buriedTipSink) < 0.000_1)
+        // And it is below the floor the mesh lays under every cell, in the same
+        // units: the floor is a fraction of the half-thickness, the tip a
+        // fraction of the crest.
+        #expect(shape.buriedTipSink * Flat16SurfaceMesh.crestHeightRatio
+            > Flat16SurfaceMesh.floorSink)
     }
 
     /// Read on the drawn mesh rather than on the formula: down the middle of a
-    /// lane the surface rises and falls once per step, and the low points sit at
-    /// the joins between steps.
-    @Test func theDrawnSurfaceFallsAtEveryJoinBetweenSteps() throws {
+    /// lane the surface rises and falls once per step — **and the low point is
+    /// well above the valley**, which is what parts the face into beads instead
+    /// of cutting a grid into it.
+    @Test func theDrawnSurfaceFallsAtEveryJoinWithoutReachingTheValley() throws {
         let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
         let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let shape = Flat16SurfaceMesh.bundleShape
         let crest = Flat16SurfaceMesh.defaultHalfThickness
             * Flat16SurfaceMesh.crestHeightRatio
 
-        // Vertices down the middle of a front lane, in order along the braid.
+        // Vertices down the middle of a front bundle, which is where its texture
+        // coordinate reads a half across. **The runs that dive under the body are
+        // left out**: they take their own height down with them where they go
+        // under, so their low points say nothing about a join between two runs of
+        // one lane.
         let middle = mesh.positions.indices.filter { index in
             mesh.surfaceVertexRegions[index] == .front
+                && !mesh.surfaceVertexIsFloor[index]
+                && pattern.bundles[mesh.surfaceVertexPatchIndices[index]].drawnInPerStep == 0
                 && abs(mesh.textureCoordinates[index].x - 0.5) < 0.01
         }
         #expect(middle.count > 200)
         let reliefs = middle.map { reliefFromThePlainOutline(mesh.positions[$0]) }
         #expect(reliefs.max() ?? 0 > crest * 0.9)
-        // Every step has a low point, and it is well under the top of a run.
-        let atJoins = middle.enumerated().filter {
-            let v = mesh.textureCoordinates[$0.element].y
-            return v < 0.01 || v > 0.99
+
+        // Where a bundle's own cell ends, the surface has fallen to the join and
+        // no further. The texture runs over the whole run, so the cell's ends sit
+        // where `runStart` and `runEnd` put them.
+        let span = shape.runEnd - shape.runStart
+        let atTheCellsEnd = middle.filter { index in
+            let along = shape.runStart + span * mesh.textureCoordinates[index].y
+            return abs(along) < 0.02 || abs(along - 1) < 0.02
         }
-        #expect(!atJoins.isEmpty)
-        let joinRelief = atJoins.map { reliefFromThePlainOutline(mesh.positions[$0.element]) }
-        #expect(joinRelief.allSatisfy { $0 < crest * 0.6 })
+        #expect(!atTheCellsEnd.isEmpty)
+        let joins = atTheCellsEnd.map { reliefFromThePlainOutline(mesh.positions[$0]) }
+        // Below the crest, and above the valley by a clear margin.
+        #expect(joins.allSatisfy { $0 < crest * 0.7 })
+        #expect(joins.allSatisfy { $0 > crest * shape.joinHeight * 0.5 })
     }
 
     // MARK: - Stage 2.5c: the outline is divided by arc, not by angle
@@ -305,38 +341,52 @@ struct HiraGenjiSurfaceMeshTests {
 
     // MARK: - Stage 2: a rounded ridge per thread
 
-    /// The cross-section a strand is given across its own width: a semi-ellipse,
-    /// full height on the crest and nothing at all in the valleys it shares with
-    /// the strands either side of it.
-    @Test func theRidgeIsSemiEllipticalAndVanishesInTheSharedValleys() {
-        let profile = Flat16SurfaceMesh.crestProfile(across:)
+    /// The section a bundle is given across its own width: full height on the
+    /// crest, nothing at either rim, and **half way down at half its reach** —
+    /// which is what a circle's own section does not do, and why a bundle drawn
+    /// with one read as a flat tile (Task 050).
+    @Test func theSectionFallsFromTheCrestFromTheStart() {
+        let profile = Flat16SurfaceMesh.bundleShape.crestProfile(across:)
 
         #expect(profile(0) == 1)
-        #expect(profile(-1) == 0)
-        #expect(profile(1) == 0)
-        #expect(abs(profile(0.5) - 0.866_025) < 0.000_01)
+        #expect(abs(profile(-1)) < 0.000_001)
+        #expect(abs(profile(1)) < 0.000_001)
+        #expect(abs(profile(0.5) - 0.5) < 0.000_01)
         #expect(profile(-0.5) == profile(0.5))
+        // A circle would be 0.866 there, and a parabola 0.75. Both leave the
+        // middle of the bundle almost flat.
+        #expect(profile(0.5) < 0.75)
         // Off the ends it stays at the valley floor rather than turning back up.
-        #expect(profile(-2) == 0)
-        #expect(profile(2) == 0)
-        // Monotone from the crest out to either valley.
+        #expect(abs(profile(-2)) < 0.000_001)
+        #expect(abs(profile(2)) < 0.000_001)
+        // Monotone from the crest out to either rim.
         let samples = stride(from: Float(0), through: 1, by: 0.05).map(profile)
         #expect(zip(samples, samples.dropFirst()).allSatisfy { $0 >= $1 })
     }
 
     /// The crest is read off the finished braid in book A p96, not taken from the
-    /// round braid. This pins the value that reading gave and the ripple it has to
-    /// draw; a change to either has to face the measurement again.
+    /// round braid. This pins the value that reading gave and the ripple it had to
+    /// draw; a change to the value has to face the measurement again.
     ///
     /// Three estimates overlap over 0.41 to 0.50 — two readings of that edge at
     /// different heights in its blur, and one from the braid's own section that
     /// owes nothing to a photograph — and the value is the middle of the overlap.
     /// See `crestHeightRatio` for the working.
+    ///
+    /// **`sigma = 9.55 × crest` belongs to the shape this braid had before Task
+    /// 050**, where a ridge filled each cell and died to the valley at its edges.
+    /// The surface is overlapping bundles now, and **nobody has rendered the new
+    /// one and measured its silhouette's ripple again.** So this test passing says
+    /// the figure is still the one book A p96 gave — **it does not say the braid
+    /// as drawn today ripples by that much.** Re-measuring it is left open
+    /// (Task 050 §9). **The name is kept** so that Task 007E's record and Task
+    /// 050 §9 still point at it.
     @Test func theCrestIsWhatTheFinishedBraidsEdgeMeasures() {
         let crest = Flat16SurfaceMesh.crestHeightRatio
 
         #expect((0.41...0.50).contains(crest))
-        // Inverting the ripple the render draws: sigma per cent = 9.55 * crest.
+        // Inverting the ripple the *old* shape's render drew:
+        // sigma per cent = 9.55 * crest.
         let ripplePerCent = 9.55 * crest
         // Book A p96's edge, read the two ways, measures 5.29% and 3.9%.
         #expect(abs(ripplePerCent / 5.29 - 1) < 0.20)
@@ -370,7 +420,7 @@ struct HiraGenjiSurfaceMeshTests {
         #expect(flatPerYarn / roundPerYarn < 3.5)
     }
 
-    /// The ridge is given to all four regions. An edge left flat would read as a
+    /// The swell is given to all four regions. An edge left flat would read as a
     /// cut side rather than as the yarn turning back on itself.
     ///
     /// **This had an allowance of its own from 2026-09-09 to 2026-09-12, and no
@@ -414,22 +464,41 @@ struct HiraGenjiSurfaceMeshTests {
             // Reaches the crest, within the sampling the mesh actually carries.
             #expect(seen.high > crest * 0.9)
             #expect(seen.high < crest * 1.2)
-            // And comes back down to the valley the neighbouring strand shares.
-            #expect(seen.low < crest * 0.05)
+            // And comes back down past the valley, where a buried tip ends.
+            #expect(seen.low < 0)
         }
     }
 
     /// The plain cross-section's outline, sampled once for the whole suite: every
-    /// region in `allCases` order, 257 steps each.
+    /// region in `allCases` order, 257 steps each — **and sorted into bins by the
+    /// angle they stand at**, so a point being measured looks at the few that
+    /// could be nearest instead of all 1028.
     ///
     /// **It does not depend on the point being measured**, and that is the whole
-    /// reason it is here (Task 018). `reliefFromThePlainOutline` used to build all
-    /// 1028 of these points again for every vertex handed to it, and
+    /// reason it is built once (Task 018). `reliefFromThePlainOutline` used to
+    /// build all 1028 of these points again for every vertex handed to it, and
     /// `crossSectionPoint` is not cheap — it walks an arc-length table each call.
-    /// Over a whole mesh that is the four minutes.
+    /// Over a whole mesh that was four minutes; building it once brought it to
+    /// twenty-three seconds.
     ///
-    /// **The order is the order the two nested loops had**, so the nearest point is
-    /// the same one down to which of two equally near points wins.
+    /// **The bins are the second half of the same lesson** (Task 050). The mesh
+    /// grew by a third when every cell became a bundle, and a test that walks
+    /// every vertex past every outline point grows with the product: twenty-three
+    /// seconds became thirty-five. The cost is `vertices × 1028`, and only the
+    /// second factor was ever anyone's to choose. The outline is star-shaped
+    /// about the middle of the braid, so the nearest point to a vertex stands at
+    /// nearly the same angle, and a window of bins holds it.
+    ///
+    /// **And when it does not, the walk falls back to all of them.** The outline
+    /// turns very unevenly — it is a superellipse of exponent 5 — so a window
+    /// wide enough almost always is not wide enough always, and a narrow one
+    /// quietly answers with the wrong point. If the nearest found lies against
+    /// the edge of the window, something outside it may be nearer, and the whole
+    /// outline is walked. **The answer is the full walk's, every time**; the bins
+    /// only save the walking.
+    ///
+    /// **Within the candidates the order is the order the two nested loops had**,
+    /// so which of two equally near points wins is unchanged.
     private static let plainOutline: [SIMD2<Float>] = {
         var points = [SIMD2<Float>]()
         points.reserveCapacity(Flat16SurfaceRegion.allCases.count * 257)
@@ -446,18 +515,57 @@ struct HiraGenjiSurfaceMeshTests {
         return points
     }()
 
+    private static let outlineBins = 256
+    /// How many bins either side of a point's own are looked at first.
+    private static let outlineWindow = 6
+
+    private static func bin(of point: SIMD2<Float>) -> Int {
+        let turn = atan2(point.y, point.x) / (2 * .pi)
+        let wrapped = turn - turn.rounded(.down)
+        return min(Int(wrapped * Float(outlineBins)), outlineBins - 1)
+    }
+
+    /// Which outline points stand in each angular bin, in the order they were
+    /// built.
+    private static let outlineByBin: [[Int]] = {
+        var bins = [[Int]](repeating: [], count: outlineBins)
+        for (index, point) in plainOutline.enumerated() {
+            bins[bin(of: point)].append(index)
+        }
+        return bins
+    }()
+
     /// How far a point stands out of the plain cross-section the braid would have
-    /// with no ridge at all. Measured against the outline the generator draws,
+    /// with no swell at all. Measured against the outline the generator draws,
     /// not against a formula for it.
     private func reliefFromThePlainOutline(_ position: SIMD3<Float>) -> Float {
         let point = SIMD2<Float>(position.y, position.z)
+        let middle = Self.bin(of: point)
         var nearest = Float.greatestFiniteMagnitude
+        var nearestBin = middle
         var nearestPoint = SIMD2<Float>.zero
-        for outline in Self.plainOutline {
-            let distance = simd_distance(outline, point)
-            if distance < nearest {
-                nearest = distance
-                nearestPoint = outline
+        for step in -Self.outlineWindow...Self.outlineWindow {
+            let bin = ((middle + step) % Self.outlineBins + Self.outlineBins) % Self.outlineBins
+            for index in Self.outlineByBin[bin] {
+                let outline = Self.plainOutline[index]
+                let distance = simd_distance(outline, point)
+                if distance < nearest {
+                    nearest = distance
+                    nearestBin = bin
+                    nearestPoint = outline
+                }
+            }
+        }
+        // Against the edge of the window, or nothing found in it: walk all of it.
+        let reach = (nearestBin - middle + Self.outlineBins) % Self.outlineBins
+        let fromTheMiddle = min(reach, Self.outlineBins - reach)
+        if nearest == .greatestFiniteMagnitude || fromTheMiddle >= Self.outlineWindow {
+            for outline in Self.plainOutline {
+                let distance = simd_distance(outline, point)
+                if distance < nearest {
+                    nearest = distance
+                    nearestPoint = outline
+                }
             }
         }
         return simd_length(point) >= simd_length(nearestPoint) ? nearest : -nearest

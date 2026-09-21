@@ -1,10 +1,11 @@
 import Foundation
 import simd
 
-/// How the twist stripes run across one stitch of the flat braid.
+/// How the twist stripes run across one run of the flat braid.
 ///
-/// `along` is 0...1 down the stitch and `across` is 0...1 over its width, so the
-/// phase is affine in both and the stripes never break inside a stitch.
+/// `along` is 0...1 down the whole run and `across` is 0...1 over the bundle's
+/// width, so the phase is affine in both and the stripes never break inside a
+/// run.
 struct Flat16StitchTwist: Equatable, Sendable {
     let phasePerAlong: Float
     let phasePerAcross: Float
@@ -31,29 +32,28 @@ struct Flat16StitchTwist: Equatable, Sendable {
 /// cycle. No frame is sheared and they are all alike, so one pair serves them
 /// all. `groups` measures that rather than assuming it.
 enum Flat16StitchTwistGrouping {
-    /// Stripes over one stitch.
+    /// Stripes over one whole run.
     ///
     /// Not chosen. The round braid draws `fiberCount` stripes over a strand
     /// segment "roughly four times as long as it is wide" — the shape of its own
-    /// texture — so its stripes stand half a yarn width apart. The flat braid's
-    /// stitch is `stitchPitchPerBraidWidth` of the braid's width long, which is
-    /// that many yarn widths, so the same yarn asks for that many stripes: 4.4.
+    /// texture — so its stripes stand half a yarn width apart. A flat braid's run
+    /// is `runLengthInYarns` yarn widths long, so the same yarn asks for that
+    /// many stripes.
     ///
-    /// **Rounded to a whole number.** The map is drawn over one stitch and read
-    /// again on the next, so the phase has to come back to where it started at
-    /// the end of a stitch or the stripes break at every join. The round braid's
-    /// own count is a whole number for the same reason. Four leaves the stripes
-    /// nine per cent further apart than the round braid's, which is closer than
-    /// three or five would be.
-    static var stripesPerStitch: Float {
-        max(1, stripesPerStitchBeforeRounding.rounded())
+    /// **No longer rounded to a whole number** (Task 050). It was, because the
+    /// map was drawn over one stitch and read again on the next, so the phase had
+    /// to come back to where it started or the stripes broke at every join.
+    /// **A bundle is one thread's run and the next run in its lane is a different
+    /// thread**, so there is no join for the stripes to cross and nothing to come
+    /// back to; the yarn's own count is what is wanted.
+    static var stripesPerRun: Float {
+        max(1, stripesPerYarnWidth * runLengthInYarns)
     }
 
-    static var stripesPerStitchBeforeRounding: Float {
+    static var stripesPerYarnWidth: Float {
         let roundSegmentInYarns = Float(RoundTube16StrandTextureFactory.width)
             / Float(RoundTube16StrandTextureFactory.height)
-        let perYarn = Float(RoundTube16SurfaceMesh.fiberCount) / roundSegmentInYarns
-        return perYarn * stitchLengthInYarns
+        return Float(RoundTube16SurfaceMesh.fiberCount) / roundSegmentInYarns
     }
 
     /// One step along the braid, in yarn widths.
@@ -62,9 +62,20 @@ enum Flat16StitchTwistGrouping {
             * Float(Flat16SurfacePatternGenerator.broadFaceColumnCount)
     }
 
-    /// Phase turned over one stitch. Fixed, so every stitch shows the same
-    /// number of stripes.
-    static var phasePerAlong: Float { -2 * .pi * stripesPerStitch }
+    /// One whole run, in yarn widths: a run reaches past both ends of its own
+    /// cell, and the map spans all of it.
+    static var runLengthInYarns: Float {
+        stitchLengthInYarns * runSpanInSteps
+    }
+
+    /// How many steps along the braid one run covers.
+    static var runSpanInSteps: Float {
+        Flat16SurfaceMesh.bundleShape.runEnd - Flat16SurfaceMesh.bundleShape.runStart
+    }
+
+    /// Phase turned over one run. Fixed, so every run shows the same number of
+    /// stripes.
+    static var phasePerAlong: Float { -2 * .pi * stripesPerRun }
 
     /// The coefficients one region's stitches need.
     ///
@@ -82,7 +93,7 @@ enum Flat16StitchTwistGrouping {
         guard sine != 0 else { return nil }
 
         let along = stitchLength(halfWidth: halfWidth, halfThickness: halfThickness)
-        let across = laneWidth(
+        let across = bundleWidth(
             in: region,
             halfWidth: halfWidth,
             halfThickness: halfThickness
@@ -135,7 +146,7 @@ enum Flat16StitchTwistGrouping {
         halfThickness: Float = Flat16SurfaceMesh.defaultHalfThickness
     ) -> Float? {
         let along = stitchLength(halfWidth: halfWidth, halfThickness: halfThickness)
-        let across = laneWidth(in: region, halfWidth: halfWidth, halfThickness: halfThickness)
+        let across = bundleWidth(in: region, halfWidth: halfWidth, halfThickness: halfThickness)
         guard along > 0, across > 0, twist.phasePerAcross != 0 else { return nil }
         // A line of constant phase runs where the phase does not change.
         let slope = -(twist.phasePerAlong / along) / (twist.phasePerAcross / across)
@@ -148,9 +159,10 @@ enum Flat16StitchTwistGrouping {
         (twist.phasePerAlong * twist.phasePerAcross).sign
     }
 
-    /// One step along the braid, in world units.
+    /// One whole run along the braid, in world units. **The map spans the run,
+    /// not the step**, so this is what the stripe angle is solved against.
     static func stitchLength(halfWidth: Float, halfThickness: Float) -> Float {
-        2 * halfWidth * Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth
+        2 * halfWidth * Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth * runSpanInSteps
     }
 
     /// One lane of a region, measured round the outline, in world units. Every
@@ -166,5 +178,17 @@ enum Flat16StitchTwistGrouping {
             halfThickness: halfThickness
         )
         return perimeter * span / Float(Flat16SurfacePatternGenerator.columnCount(in: region))
+    }
+
+    /// One bundle across, in world units. **This is what the stripes are solved
+    /// against, not the lane**: the map is drawn over the bundle, and a bundle is
+    /// `widthOverLane` of a lane (Task 050).
+    static func bundleWidth(
+        in region: Flat16SurfaceRegion,
+        halfWidth: Float,
+        halfThickness: Float
+    ) -> Float {
+        laneWidth(in: region, halfWidth: halfWidth, halfThickness: halfThickness)
+            * Flat16SurfaceMesh.bundleShape.widthOverLane
     }
 }

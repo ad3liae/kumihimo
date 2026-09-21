@@ -51,7 +51,7 @@ struct BraidScreenChoosesByFamilyTests {
         let flatPattern = try #require(Flat16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.hiraGenji16Colouring))
         let flatMesh = try #require(Flat16SurfaceMesh.generate(pattern: flatPattern))
-        #expect(BraidMeshHashTests.hash(flatMesh.positions) == 0x53c4_4c9b_835a_e598)
+        #expect(BraidMeshHashTests.hash(flatMesh.positions) == 0x2df5_8dcc_177c_b981)
 
         let tube = try #require(BraidMethodCatalog.recipe(for: .maruGenji16))
         #expect(BraidFamilyDrawing.drawer(for: tube, on: BraidMethodCatalog.stand16)

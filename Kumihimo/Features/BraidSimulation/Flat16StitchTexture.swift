@@ -4,26 +4,27 @@ import RealityKit
 import simd
 import os
 
-/// The shading of one stitch, baked once and shared by every thread and colour.
+/// The shading of one run, baked once and shared by every thread and colour.
 ///
-/// The mesh carries each stitch's own coordinates — 0 to 1 across the lane and 0
-/// to 1 along the braid — so one map covers a stitch wherever it is drawn.
+/// The mesh carries each run's own coordinates — 0 to 1 across the bundle and 0
+/// to 1 along its whole run, the buried tips included — so one map covers a run
+/// wherever it is drawn.
 ///
-/// It replaces the two-material painting the flat braid used to have, where the
-/// band within `boundaryWidth` of a patch edge was drawn in a second, darker
-/// colour. That gave the surface one hard step and nothing else; this gives it
-/// the shading a valley between two yarns actually has.
+/// **The shading follows the run's own shape, not the edges of a rectangle**
+/// (Task 050). It used to darken all four sides of a stitch and both of its ends
+/// by their distance from the edge, which was the right thing when a cell was a
+/// ridge filling exactly its own cell: the edge of the rectangle *was* the
+/// valley. A bundle's rim is not: it lies past the groove, under the run beside
+/// it, where nothing can be seen — so that shading darkened what is hidden and
+/// left the groove bare, and the face lost the very partings the new shape gives
+/// it.
 ///
-/// **The figures are the round braid's, used for what they mean.** A stitch has a
-/// valley on all four sides: two where it lies against the lanes either side of
-/// it, and two where it meets the stitch before and after it along the braid.
-/// All four are the trough between two yarns, so all four take `valleyOcclusion`
-/// and `valleyOcclusionWidth`.
-///
-/// The two ends of a run carry a second shadow on top of that one, and it is a
-/// different occluder: the pick tucks under the thread along exactly that line.
-/// That is what `crossingOcclusion` and `crossingOcclusionLength` describe on the
-/// round braid, so they are used here for the same thing.
+/// What it reads instead is `Flat16BundleShape.standing`, the height of the run
+/// at that place: **a place that sits low is a place in a groove**, and it is
+/// dark for that reason and no other. The two figures are the round braid's and
+/// are used for what they mean — `valleyOcclusion` for the trough between two
+/// yarns, and `crossingOcclusion` for the contact shadow where a run goes under
+/// the next, which on this braid is its trailing end.
 ///
 /// The valley is darker than the drawn relief alone would cast, on both braids.
 /// The drawn crest is a fraction of a yarn's own roundness, so the geometry
@@ -69,26 +70,37 @@ enum Flat16StitchTexture {
 
     @MainActor static var occlusion: TextureResource? { maps.occlusion }
 
-    /// Shading at one place in a stitch: 0 to 1 across the lane, 0 to 1 along the
-    /// braid. Exposed so a test can read it without a renderer.
+    /// Shading at one place on a run: 0 to 1 across the bundle, 0 to 1 along its
+    /// whole run. Exposed so a test can read it without a renderer.
     static func shading(across: Float, along: Float) -> Float {
-        let valleyDepth = RoundTube16StrandTextureFactory.valleyOcclusion
-        let reach = RoundTube16StrandTextureFactory.valleyOcclusionWidth
-        // Distance from the nearest edge, in half-widths, on each axis.
-        let fromTheSides = 1 - abs(2 * across - 1)
-        let fromTheJoins = 1 - abs(2 * along - 1)
-        let sides = mix(valleyDepth, 1, smoothstep(0, reach, fromTheSides))
-        let joins = mix(valleyDepth, 1, smoothstep(0, reach, fromTheJoins))
-        let underThePick = mix(
+        let shape = Flat16SurfaceMesh.bundleShape
+        let span = shape.runEnd - shape.runStart
+        let runAlong = shape.runStart + span * along
+        let runAcross = 2 * across - 1
+
+        // How high the run stands here, as a fraction of its own crest. Zero in
+        // the groove it shares with the run beside it, and below zero where its
+        // tip is buried.
+        // **Read straight off the height, not stepped at a width.** The round
+        // braid's `valleyOcclusionWidth` says how far in from a rim the shading
+        // reaches, which is a figure for a rim that is the valley; a bundle's is
+        // not. Taking the height itself shades the whole dome, and a dome shaded
+        // only at its very edge is what read as a flat tile.
+        let standing = shape.standing(atAlong: runAlong, across: runAcross)
+        let valley = mix(
+            RoundTube16StrandTextureFactory.valleyOcclusion,
+            1,
+            min(max(standing, 0), 1)
+        )
+        // And the contact shadow where the run goes under the next one, which is
+        // the end past its cell's trailing edge.
+        let past = max(0, runAlong - 1) / max(0.000_1, shape.runEnd - 1)
+        let underTheNext = mix(
             RoundTube16StrandTextureFactory.crossingOcclusion,
             1,
-            smoothstep(
-                0,
-                RoundTube16StrandTextureFactory.crossingOcclusionLength,
-                min(along, 1 - along)
-            )
+            smoothstep(0, 1, 1 - past)
         )
-        return sides * joins * underThePick
+        return valley * underTheNext
     }
 
     /// How much the twist darkens the yarn where a stripe turns away. Small: the

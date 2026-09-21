@@ -10,6 +10,10 @@ struct Flat16SurfaceMeshData: Sendable {
     let boundaryColorGroups: [ThreadColorID: [UInt32]]
     let surfaceVertexPatchIndices: [Int]
     let surfaceVertexRegions: [Flat16SurfaceRegion]
+    /// The floor laid beneath every cell, as against the bundle drawn over it.
+    /// A floor vertex is not part of any run, so its run coordinates mean
+    /// nothing and anything measuring the shape has to leave it out.
+    let surfaceVertexIsFloor: [Bool]
 
     var allTriangleIndices: [UInt32] {
         (Array(colorGroups.values) + Array(boundaryColorGroups.values)).flatMap { $0 }
@@ -52,13 +56,54 @@ enum Flat16SurfaceMesh {
                 calibratedBy: "the shape of the section as drawn; set against the "
                     + "photographs by eye, not derived"
             ),
-            "boundary width": .declared(
-                Double(boundaryWidth),
-                calibratedBy: "how wide the dark line between threads looks"
+            "how high two runs of one lane meet, in crests": .declared(
+                Double(bundleShape.joinHeight),
+                calibratedBy: "the groove between two beads on book A p.72 and on the "
+                    + "author's own braid, by eye (Task 050; the drawing before it "
+                    + "took every groove all the way down to the valley)"
             ),
-            "boundary depth": .declared(
-                Double(boundaryDepthRatio),
-                calibratedBy: "how deep the dark line between threads looks"
+            "how high two lanes' bundles meet, in crests": .declared(
+                Double(bundleShape.laneJoinHeight),
+                calibratedBy: "the parting between two lanes, which the braid leaves "
+                    + "shallower than the one along it: along a lane two threads cross "
+                    + "over, across it they only press together"
+            ),
+            "a bundle's width at its cell's ends, over its widest": .declared(
+                Double(bundleShape.endWidth),
+                calibratedBy: "the lens; enough of one that four bundles part at a "
+                    + "point, and never so much that they part along a line"
+            ),
+            "a bundle's width over its lane's": BraidMeasurement(
+                Double(bundleShape.widthOverLane),
+                source: .derived("solved from how high two lanes' bundles meet")
+            ),
+            "a bundle's swell, in steps either side of its cell's middle":
+                BraidMeasurement(
+                    Double(bundleShape.bellyHalfSpan),
+                    source: .derived("solved from how high two runs of one lane meet")
+                ),
+            "extra height at the end that laps over": .declared(
+                Double(bundleShape.headLift),
+                calibratedBy: "how plainly the run arriving lies on the one leaving"
+            ),
+            "height lost at the end that passes under": .declared(
+                Double(bundleShape.tailDip), calibratedBy: "the same join, read the other way"
+            ),
+            "how far a buried tip goes on, in steps": .declared(
+                Double(bundleShape.tipReach), calibratedBy: "only that the tip is buried"
+            ),
+            "how far a buried tip sinks, in crests": .declared(
+                Double(bundleShape.buriedTipSink),
+                calibratedBy: "only that it ends below the floor beneath the cells"
+            ),
+            "how much a buried tip narrows": .declared(
+                Double(bundleShape.tipNarrowing),
+                calibratedBy: "only that it does not stand out sideways from under "
+                    + "the run covering it"
+            ),
+            "the floor below a bundle's rim": .declared(
+                Double(floorSink),
+                calibratedBy: "only that it never shows through a bundle"
             ),
             "half width on screen": .declared(
                 Double(defaultHalfWidth),
@@ -108,6 +153,45 @@ enum Flat16SurfaceMesh {
         2 * halfWidth * aspectRatio * Float(patternRepeatCount)
     }
 
+    /// **Length of one repeat over one turn round the braid**, which is what a
+    /// drawing of the whole surface unrolled is measured in — the card's own
+    /// ratio.
+    ///
+    /// **Measured on the outline this file draws** (Task 050), not counted from
+    /// the lanes. Task 029 scaled `patternAspectRatio` — which is over the
+    /// braid's *width* — by six lanes over sixteen places, and recorded that this
+    /// carries an approximation: it treats the arc of one broad face as the width
+    /// across the braid. The section says otherwise. The front's six lanes are six
+    /// thread widths of arc, and a thread is one half-thickness wide, so the front
+    /// measures 6 / 3.3359 = 1.799 half-widths against a width of 2. **The card
+    /// was drawing every cell eleven per cent too short for its width**: a cell is
+    /// one step long over one thread high, which is 2.445, and the card drew
+    /// 2.199.
+    ///
+    /// **Taken on the plain outline, not on the drawn relief.** The cells are laid
+    /// on the plain section and every lane's width is measured round it (stage
+    /// 2.5c); the bundles stand proud of it by a crest that is not part of where a
+    /// cell is. **This updates Task 029's decision to leave the figure alone**:
+    /// 0.54975 becomes 0.6113, so at a given card height one repeat is drawn 11.2
+    /// per cent **longer** — 61.57 points becomes 68.47 on a card 112 high — and
+    /// every cell grows by as much along the braid.
+    ///
+    /// Task 047's handover compared **the two families' cards**, and this narrows
+    /// that comparison by the same amount, to 2.05 times (the round braid's 1.25
+    /// over this 0.6113). **Two braids' cards are not owed the same density**, so
+    /// what is left there is a comparison and not a fault.
+    static var patternAspectRatioRoundTheBraid: Float? {
+        guard
+            let acrossTheWidth = Flat16SurfacePatternGenerator.patternAspectRatio,
+            defaultHalfWidth > 0
+        else { return nil }
+        let perimeter = perimeter(
+            halfWidth: defaultHalfWidth, halfThickness: defaultHalfThickness
+        )
+        guard perimeter > 0 else { return nil }
+        return acrossTheWidth * 2 * defaultHalfWidth / perimeter
+    }
+
     /// Zero when the move rules cannot be read, which `generate` rejects.
     static var defaultLength: Float {
         length(
@@ -123,8 +207,10 @@ enum Flat16SurfaceMesh {
     static let defaultPatternRepeatCount = 6
     static let widthSubdivisionsPerPatch = 4
     static let longitudinalSubdivisionsPerPatch = 24
+    /// How near the rim of its own run a triangle has to be to be drawn in the
+    /// second group. **A grouping, not a shape**: both groups take the same
+    /// material, and what parts one bundle from the next is the geometry.
     static let boundaryWidth: Float = 0.035
-    static let boundaryDepthRatio: Float = 0.012
     /// Ridge crest above the valley floor, as a fraction of the half-thickness.
     ///
     /// Read off the finished braid's own silhouette, not borrowed. The braid's
@@ -140,6 +226,13 @@ enum Flat16SurfaceMesh {
     /// three crests gives a ripple exactly proportional to the crest —
     /// 1.15, 2.29 and 4.56 per cent at 0.12, 0.24 and 0.48 — so
     /// `sigma per cent = 9.55 * crest` inverts the measurement.
+    ///
+    /// **That calibration was taken on the shape this braid had before Task 050**
+    /// — a ridge filling each cell, dying to the valley at its edges. The surface
+    /// is drawn as overlapping bundles now, and **nobody has rendered the new one
+    /// and measured its silhouette's ripple again.** The figure is kept because
+    /// the reading it came from is unchanged, not because it has been checked
+    /// against what is drawn today.
     ///
     /// Three estimates, and this value is the middle of where they overlap:
     ///
@@ -169,6 +262,33 @@ enum Flat16SurfaceMesh {
     static let crestHeightRatio: Float = 0.45
     static let superellipseExponent: Float = 5
 
+    /// The shape every visible run is drawn with.
+    static let bundleShape = Flat16BundleShape.standard
+
+    /// Samples down one bundle's own span, per step along the braid.
+    ///
+    /// **Ten, where the drawing this replaced took twenty-four a step.** A run
+    /// covers a little under two steps and a step is 2.2 yarn widths, so this is
+    /// a sample every sixth of a yarn width, and the swell along a run is a slow
+    /// cosine. A bundle covers about three cells' worth of surface, so drawing
+    /// them at the old density would have trebled the mesh; at ten the vertex
+    /// count comes out within two per cent of the grid's, and the whole unit
+    /// suite within a few seconds of it.
+    static let alongBundleSubdivisions = 10
+    /// Samples across one bundle. Resolves the rounded section.
+    static let acrossBundleSubdivisions = 8
+    /// Samples the floor of one cell takes.
+    static let floorSubdivisions = 2
+    /// How far below the plain outline the floor of a cell lies, as a fraction
+    /// of the half-thickness.
+    ///
+    /// **It is not the shape and must never be read as it** (Task 050): the
+    /// bundles meet above it everywhere except at the four-cornered points where
+    /// two lanes and two steps come together, and there it stops the background
+    /// showing between them. Deep enough to stay under every bundle's rim, and
+    /// no deeper.
+    static let floorSink: Float = 0.02
+
     static func generate(
         pattern: Flat16SurfacePattern,
         halfWidth: Float = defaultHalfWidth,
@@ -182,6 +302,7 @@ enum Flat16SurfaceMesh {
         )
         guard
             pattern.patches.count == Flat16SurfacePatternGenerator.patchCount,
+            pattern.bundles.count == pattern.patches.count,
             halfWidth.isFinite,
             halfThickness.isFinite,
             pattern.aspectRatio.isFinite,
@@ -198,26 +319,30 @@ enum Flat16SurfaceMesh {
             return nil
         }
 
+        let metrics = Metrics(
+            halfWidth: halfWidth,
+            halfThickness: halfThickness,
+            length: length,
+            repeatCount: patternRepeatCount
+        )
+        let alongSamples = bundleAlongSamples()
+        let acrossSamples = bundleAcrossSamples()
+
         var builder = MeshBuilder()
-        let uSamples = subdivisionSamples(count: widthSubdivisionsPerPatch)
-        let vSamples = subdivisionSamples(count: longitudinalSubdivisionsPerPatch)
-        // One repeat either side of the tile as well. A column shifted along its
-        // own length leaves the tile at one end and is wanted at the other, and
-        // the pattern repeats, so the material that falls off the end is exactly
-        // the material missing at the start. Everything outside the tile is cut
-        // away in `append`, so these two extra passes contribute only that.
+        // One repeat either side of the tile as well. A bundle reaches past its
+        // own cell at both ends, and the lanes are not all in step along the
+        // braid, so what falls off one end of the tile is exactly what is missing
+        // at the other. Everything outside the tile is cut away in `append`.
         for repeatIndex in -1...patternRepeatCount {
-            for (patchIndex, patch) in pattern.patches.enumerated() {
-                append(
-                    patch: patch,
-                    patchIndex: patchIndex,
+            for (index, bundle) in pattern.bundles.enumerated() {
+                appendBundle(
+                    bundle,
+                    patch: pattern.patches[index],
+                    patchIndex: index,
                     repeatIndex: repeatIndex,
-                    repeatCount: patternRepeatCount,
-                    halfWidth: halfWidth,
-                    halfThickness: halfThickness,
-                    length: length,
-                    uSamples: uSamples,
-                    vSamples: vSamples,
+                    metrics: metrics,
+                    alongSamples: alongSamples,
+                    acrossSamples: acrossSamples,
                     builder: &builder
                 )
             }
@@ -232,6 +357,7 @@ enum Flat16SurfaceMesh {
             builder.positions.count == builder.boundaryDistances.count,
             builder.positions.count == builder.surfaceVertexPatchIndices.count,
             builder.positions.count == builder.surfaceVertexRegions.count,
+            builder.positions.count == builder.surfaceVertexIsFloor.count,
             indices.allSatisfy({ Int($0) < builder.positions.count }),
             builder.positions.allSatisfy(isFinite),
             builder.normals.allSatisfy(isFinite),
@@ -249,7 +375,8 @@ enum Flat16SurfaceMesh {
             colorGroups: builder.colorGroups,
             boundaryColorGroups: builder.boundaryColorGroups,
             surfaceVertexPatchIndices: builder.surfaceVertexPatchIndices,
-            surfaceVertexRegions: builder.surfaceVertexRegions
+            surfaceVertexRegions: builder.surfaceVertexRegions,
+            surfaceVertexIsFloor: builder.surfaceVertexIsFloor
         )
     }
 
@@ -262,241 +389,370 @@ enum Flat16SurfaceMesh {
         var boundaryColorGroups = [ThreadColorID: [UInt32]]()
         var surfaceVertexPatchIndices = [Int]()
         var surfaceVertexRegions = [Flat16SurfaceRegion]()
+        var surfaceVertexIsFloor = [Bool]()
     }
 
-    private static func append(
+    /// How large the braid is drawn and how much of it, shared by every vertex.
+    private struct Metrics {
+        let halfWidth: Float
+        let halfThickness: Float
+        let length: Float
+        let repeatCount: Int
+    }
+
+    /// A point being assembled. `surface` is where it lands on the unrolled
+    /// braid — `x` round the cross-section by arc, `y` along it in repeats — and
+    /// `bundle` is `(along, across)` in the run's own terms. `onTheFloor` marks
+    /// the floor laid beneath a cell as against the bundle drawn over it.
+    struct SurfacePoint {
+        let surface: SIMD2<Float>
+        let bundle: SIMD2<Float>
+        /// How far the run stands here, in crests. Carried rather than worked out
+        /// again from `bundle`, because a run that dives under the body takes its
+        /// own height down with it and only the run knows that.
+        let standing: Float
+        let onTheFloor: Bool
+    }
+
+    /// One cell's bundle, then the floor of the same cell beneath it.
+    private static func appendBundle(
+        _ bundle: Flat16Bundle,
         patch: Flat16SurfacePatch,
         patchIndex: Int,
         repeatIndex: Int,
-        repeatCount: Int,
-        halfWidth: Float,
-        halfThickness: Float,
-        length: Float,
-        uSamples: [Float],
-        vSamples: [Float],
+        metrics: Metrics,
+        alongSamples: [Float],
+        acrossSamples: [Float],
         builder: inout MeshBuilder
     ) {
-        // Where the tile's two ends fall inside this patch, one edge of the patch
-        // at a time. A patch that runs past an end of the tile is not drawn whole
-        // and then cut: **the part of it that is inside is what gets divided up.**
-        // The cut is then always a line of the grid, so it never leaves a sliver
-        // to be dropped, and dropping one is what would leave a hole.
-        //
-        // Solved rather than searched for: where a patch sits along the braid is
-        // affine in its own coordinates, so the tile's ends are straight lines
-        // there and each is one division.
-        // Where the patch is wholly outside the tile the range closes to nothing
-        // rather than being dropped, so the piece that is inside tapers to a
-        // corner instead of ending at a hole. The triangles of zero area that
-        // leaves are dropped below.
-        func insideRange(atU u: Float) -> (low: Float, high: Float) {
-            let low = simd_mix(patch.corners[0].y, patch.corners[3].y, u)
-            let high = simd_mix(patch.corners[1].y, patch.corners[2].y, u)
-            let span = high - low
-            guard abs(span) > 1e-12 else { return (0, 1) }
-            let starts = (-Float(repeatIndex) - low) / span
-            let ends = (Float(repeatCount - repeatIndex) - low) / span
-            let lower = max(0, min(starts, ends))
-            let upper = min(1, max(starts, ends))
-            guard upper > lower else {
-                let closed = min(max(0.5 * (lower + upper), 0), 1)
-                return (closed, closed)
+        // **Which way the run's own surface faces, decided once for the whole
+        // run.** The sampling's handedness does not change along a bundle, so one
+        // reading at mid-span settles it — and settling it per vertex against the
+        // plain outline instead is what turned the steep parts of a diving tail
+        // inside out.
+        let sense = facing(of: bundle, metrics: metrics)
+        for alongIndex in 0..<(alongSamples.count - 1) {
+            for acrossIndex in 0..<(acrossSamples.count - 1) {
+                let corners = [
+                    SIMD2<Float>(alongSamples[alongIndex], acrossSamples[acrossIndex]),
+                    SIMD2<Float>(alongSamples[alongIndex + 1], acrossSamples[acrossIndex]),
+                    SIMD2<Float>(alongSamples[alongIndex + 1], acrossSamples[acrossIndex + 1]),
+                    SIMD2<Float>(alongSamples[alongIndex], acrossSamples[acrossIndex + 1]),
+                ].map { point(of: bundle, atAlong: $0.x, across: $0.y) }
+                append(
+                    polygon: corners, bundle: bundle, sense: sense,
+                    patch: patch, patchIndex: patchIndex,
+                    repeatIndex: repeatIndex, metrics: metrics, builder: &builder
+                )
             }
-            return (lower, upper)
         }
-        let ranges = uSamples.map(insideRange(atU:))
-        guard ranges.contains(where: { $0.high > $0.low }) else { return }
 
-        for vIndex in 0..<(vSamples.count - 1) {
-            for uIndex in 0..<(uSamples.count - 1) {
-                let left = ranges[uIndex], right = ranges[uIndex + 1]
-                func at(_ side: (low: Float, high: Float), _ sample: Float) -> Float {
-                    side.low + (side.high - side.low) * sample
+        // The floor: the cell's own four corners, in the cell's own thread
+        // colour, a hair below every bundle's rim.
+        let floor = floorSamples()
+        for alongIndex in 0..<(floor.count - 1) {
+            for acrossIndex in 0..<(floor.count - 1) {
+                let corners = [
+                    SIMD2<Float>(floor[alongIndex], floor[acrossIndex]),
+                    SIMD2<Float>(floor[alongIndex + 1], floor[acrossIndex]),
+                    SIMD2<Float>(floor[alongIndex + 1], floor[acrossIndex + 1]),
+                    SIMD2<Float>(floor[alongIndex], floor[acrossIndex + 1]),
+                ].map { sample -> SurfacePoint in
+                    SurfacePoint(
+                        surface: Flat16SurfacePatternGenerator.surfacePoint(
+                            of: patch, local: SIMD2<Float>(sample.y, sample.x)
+                        ),
+                        bundle: SIMD2<Float>(sample.x, 2 * sample.y - 1),
+                        standing: 0,
+                        onTheFloor: true
+                    )
                 }
-                let locals = [
-                    SIMD2<Float>(uSamples[uIndex], at(left, vSamples[vIndex])),
-                    SIMD2<Float>(uSamples[uIndex + 1], at(right, vSamples[vIndex])),
-                    SIMD2<Float>(uSamples[uIndex], at(left, vSamples[vIndex + 1])),
-                    SIMD2<Float>(uSamples[uIndex + 1], at(right, vSamples[vIndex + 1])),
-                ]
-                for triangleLocals in [[locals[0], locals[1], locals[2]],
-                                       [locals[1], locals[3], locals[2]]] {
-                    let center = triangleLocals.reduce(.zero, +) / 3
-                    let isBoundary = boundaryDistance(center) < boundaryWidth
-                    // A cut that grazes a corner leaves a sliver of no area. It
-                    // would draw nothing and would fail the mesh's own check that
-                    // every triangle has some, so it is dropped rather than
-                    // emitted — measured on the drawn surface, by the same
-                    // criterion that check uses.
-                    let drawn = triangleLocals.map { local in
-                        surfacePosition(
-                            patch: patch,
-                            localCoordinate: local,
-                            repeatIndex: repeatIndex,
-                            repeatCount: repeatCount,
-                            halfWidth: halfWidth,
-                            halfThickness: halfThickness,
-                            length: length
-                        )
-                    }
-                    // Where the patch tapers to a corner two of the three fall
-                    // together. Such a triangle draws nothing and would leave the
-                    // mesh with a repeated corner, so it is not emitted.
-                    // Two corners closer together than the tolerance a reader
-                    // would merge them at count as one corner, not two.
-                    let merged = coincidentCornerDistance * coincidentCornerDistance
-                    guard simd_distance_squared(drawn[0], drawn[1]) > merged,
-                          simd_distance_squared(drawn[1], drawn[2]) > merged,
-                          simd_distance_squared(drawn[2], drawn[0]) > merged,
-                          simd_length_squared(
-                              simd_cross(drawn[1] - drawn[0], drawn[2] - drawn[0])
-                          ) > 0.000_000_000_001
-                    else { continue }
-                    // Nor a triangle lying wholly in the cut. It would be a cap
-                    // across the tile's end, which is not part of the surface.
-                    let end = length / 2
-                    guard !drawn.allSatisfy({ abs(abs($0.x) - end) < 0.000_001 })
-                    else { continue }
-                    let firstIndex = UInt32(builder.positions.count)
-                    for local in triangleLocals {
-                        let position = surfacePosition(
-                            patch: patch,
-                            localCoordinate: local,
-                            repeatIndex: repeatIndex,
-                            repeatCount: repeatCount,
-                            halfWidth: halfWidth,
-                            halfThickness: halfThickness,
-                            length: length
-                        )
-                        let normal = surfaceNormal(
-                            patch: patch,
-                            localCoordinate: local,
-                            repeatIndex: repeatIndex,
-                            repeatCount: repeatCount,
-                            halfWidth: halfWidth,
-                            halfThickness: halfThickness,
-                            length: length
-                        ) ?? fallbackNormal(
-                            patch: patch,
-                            localCoordinate: local,
-                            halfWidth: halfWidth,
-                            halfThickness: halfThickness
-                        )
-                        builder.positions.append(position)
-                        builder.normals.append(normal)
-                        builder.textureCoordinates.append(local)
-                        builder.boundaryDistances.append(boundaryDistance(local))
-                        builder.surfaceVertexPatchIndices.append(patchIndex)
-                        builder.surfaceVertexRegions.append(patch.region)
-                    }
-                    let indices = [firstIndex, firstIndex + 1, firstIndex + 2]
-                    if isBoundary {
-                        builder.boundaryColorGroups[patch.colorID, default: []]
-                            .append(contentsOf: indices)
-                    } else {
-                        builder.colorGroups[patch.colorID, default: []]
-                            .append(contentsOf: indices)
-                    }
-                }
+                append(
+                    polygon: corners, bundle: nil, sense: 1,
+                    patch: patch, patchIndex: patchIndex,
+                    repeatIndex: repeatIndex, metrics: metrics, builder: &builder
+                )
             }
         }
     }
 
-    private static func surfacePosition(
+    private static func point(
+        of bundle: Flat16Bundle,
+        atAlong along: Float,
+        across: Float
+    ) -> SurfacePoint {
+        SurfacePoint(
+            surface: bundle.point(atAlong: along, across: across, shape: bundleShape),
+            bundle: SIMD2<Float>(along, across),
+            standing: bundle.standing(atAlong: along, across: across, shape: bundleShape),
+            onTheFloor: false
+        )
+    }
+
+    /// Cuts the polygon to the tile and emits what is left, wound outwards.
+    private static func append(
+        polygon: [SurfacePoint],
+        bundle: Flat16Bundle?,
+        sense: Float,
         patch: Flat16SurfacePatch,
-        localCoordinate: SIMD2<Float>,
+        patchIndex: Int,
         repeatIndex: Int,
-        repeatCount: Int,
-        halfWidth: Float,
-        halfThickness: Float,
-        length: Float
+        metrics: Metrics,
+        builder: inout MeshBuilder
+    ) {
+        // Cut in the repeat's own terms, so a bundle cut at one end of the tile
+        // and the same bundle cut at the other are cut by the same arithmetic.
+        let clipped = clip(
+            polygon: polygon,
+            minimumV: -Float(repeatIndex),
+            maximumV: Float(metrics.repeatCount - repeatIndex)
+        )
+        guard clipped.count >= 3 else { return }
+
+        for index in 1..<(clipped.count - 1) {
+            var triangle = [clipped[0], clipped[index], clipped[index + 1]]
+            var drawn = triangle.map {
+                position(of: $0, repeatIndex: repeatIndex, metrics: metrics)
+            }
+            let merged = coincidentCornerDistance * coincidentCornerDistance
+            guard simd_distance_squared(drawn[0], drawn[1]) > merged,
+                  simd_distance_squared(drawn[1], drawn[2]) > merged,
+                  simd_distance_squared(drawn[2], drawn[0]) > merged
+            else { continue }
+            let face = simd_cross(drawn[1] - drawn[0], drawn[2] - drawn[0])
+            guard simd_length_squared(face) > 0.000_000_000_001 else { continue }
+            // **Wound to face the way the surface itself faces.** The braid is
+            // drawn with back faces dropped, so a triangle wound the other way is
+            // a hole. Held against the run's own normal rather than against the
+            // plain outline: where a tail dives under the body its surface turns
+            // right over, and asking the outline there winds it inside out.
+            let normals = triangle.map {
+                normal(of: $0, bundle: bundle, sense: sense,
+                       repeatIndex: repeatIndex, metrics: metrics)
+            }
+            let facing = normals.reduce(SIMD3<Float>.zero, +)
+            if simd_dot(face, facing) < 0 {
+                triangle.swapAt(1, 2)
+                drawn.swapAt(1, 2)
+            }
+
+            let firstIndex = UInt32(builder.positions.count)
+            var isBoundary = true
+            for (point, drawnPosition) in zip(triangle, drawn) {
+                let texture = textureCoordinate(of: point)
+                let distance = boundaryDistance(texture)
+                if distance >= boundaryWidth { isBoundary = false }
+                builder.positions.append(drawnPosition)
+                builder.normals.append(normal(
+                    of: point, bundle: bundle, sense: sense,
+                    repeatIndex: repeatIndex, metrics: metrics
+                ))
+                builder.textureCoordinates.append(texture)
+                builder.boundaryDistances.append(distance)
+                builder.surfaceVertexPatchIndices.append(patchIndex)
+                builder.surfaceVertexRegions.append(patch.region)
+                builder.surfaceVertexIsFloor.append(point.onTheFloor)
+            }
+            let indices = [firstIndex, firstIndex + 1, firstIndex + 2]
+            if isBoundary {
+                builder.boundaryColorGroups[patch.colorID, default: []]
+                    .append(contentsOf: indices)
+            } else {
+                builder.colorGroups[patch.colorID, default: []].append(contentsOf: indices)
+            }
+        }
+    }
+
+    private static func position(
+        of point: SurfacePoint,
+        repeatIndex: Int,
+        metrics: Metrics
     ) -> SIMD3<Float> {
-        let surface = interpolate(corners: patch.corners, local: localCoordinate)
-        let longitudinal = (surface.y + Float(repeatIndex)) / Float(repeatCount)
         let base = crossSectionPoint(
-            region: patch.region,
-            regionU: surface.x,
-            halfWidth: halfWidth,
-            halfThickness: halfThickness
+            atArcFraction: point.surface.x,
+            halfWidth: metrics.halfWidth,
+            halfThickness: metrics.halfThickness
         )
         let outward = crossSectionNormal(
-            point: base,
-            halfWidth: halfWidth,
-            halfThickness: halfThickness
+            point: base, halfWidth: metrics.halfWidth, halfThickness: metrics.halfThickness
         )
-        let relief = reliefOffset(localCoordinate: localCoordinate, scale: halfThickness)
+        let height = point.onTheFloor
+            ? -metrics.halfThickness * floorSink
+            : metrics.halfThickness * crestHeightRatio * point.standing
+        let longitudinal = (point.surface.y + Float(repeatIndex)) / Float(metrics.repeatCount)
         return SIMD3<Float>(
-            -length / 2 + length * longitudinal,
-            base.x + outward.x * relief,
-            base.y + outward.y * relief
+            -metrics.length / 2 + metrics.length * longitudinal,
+            base.x + outward.x * height,
+            base.y + outward.y * height
         )
     }
 
-    /// The relief is geometry, so its gradient must also affect the normal. Using
-    /// the flat cross-section normal hid the yarn crown and fibre grooves even
-    /// though their vertices existed in the mesh.
-    private static func surfaceNormal(
-        patch: Flat16SurfacePatch,
-        localCoordinate: SIMD2<Float>,
-        repeatIndex: Int,
-        repeatCount: Int,
-        halfWidth: Float,
-        halfThickness: Float,
-        length: Float
-    ) -> SIMD3<Float>? {
-        let epsilon: Float = 0.002
-        // Patch joins are recessed yarn boundaries. Keep their normal aligned to
-        // the braid surface so the first and last repeat share an exact lighting
-        // seam; the relief gradient resumes immediately inside the stitch.
-        guard localCoordinate.y > epsilon, localCoordinate.y < 1 - epsilon else {
-            return nil
-        }
-        let lowerU = max(0, localCoordinate.x - epsilon)
-        let upperU = min(1, localCoordinate.x + epsilon)
-        let lowerV = max(0, localCoordinate.y - epsilon)
-        let upperV = min(1, localCoordinate.y + epsilon)
-        guard upperU > lowerU, upperV > lowerV else { return nil }
+    private static func outwardDirection(atArc arc: Float, metrics: Metrics) -> SIMD2<Float> {
+        let base = crossSectionPoint(
+            atArcFraction: arc, halfWidth: metrics.halfWidth, halfThickness: metrics.halfThickness
+        )
+        return crossSectionNormal(
+            point: base, halfWidth: metrics.halfWidth, halfThickness: metrics.halfThickness
+        )
+    }
 
-        func position(_ u: Float, _ v: Float) -> SIMD3<Float> {
-            surfacePosition(
-                patch: patch,
-                localCoordinate: SIMD2<Float>(u, v),
+    /// Measured on the bundle's own shape by finite differences, so a tail
+    /// sloping in under the body is lit as a slope rather than as the face it
+    /// left. The floor faces straight out.
+    private static func normal(
+        of vertex: SurfacePoint,
+        bundle: Flat16Bundle?,
+        sense: Float,
+        repeatIndex: Int,
+        metrics: Metrics
+    ) -> SIMD3<Float> {
+        let outward = outwardDirection(atArc: vertex.surface.x, metrics: metrics)
+        let flat = SIMD3<Float>(0, outward.x, outward.y)
+        guard !vertex.onTheFloor, let bundle else { return flat }
+        guard let measured = surfaceNormal(
+            of: bundle, atAlong: vertex.bundle.x, across: vertex.bundle.y,
+            repeatIndex: repeatIndex, metrics: metrics
+        ) else { return flat }
+        return sense < 0 ? -measured : measured
+    }
+
+    /// The run's surface normal from its own shape, in the sampling's own
+    /// handedness — which way round that is, `facing(of:metrics:)` settles once
+    /// for the whole run.
+    private static func surfaceNormal(
+        of bundle: Flat16Bundle,
+        atAlong along: Float,
+        across: Float,
+        repeatIndex: Int,
+        metrics: Metrics
+    ) -> SIMD3<Float>? {
+        let epsilon: Float = 0.004
+        func sampled(along: Float, across: Float) -> SIMD3<Float> {
+            position(
+                of: point(of: bundle, atAlong: along, across: across),
                 repeatIndex: repeatIndex,
-                repeatCount: repeatCount,
-                halfWidth: halfWidth,
-                halfThickness: halfThickness,
-                length: length
+                metrics: metrics
             )
         }
+        let lowAlong = max(bundleShape.runStart, along - epsilon)
+        let highAlong = min(bundleShape.runEnd, along + epsilon)
+        let lowAcross = max(-1, across - epsilon)
+        let highAcross = min(1, across + epsilon)
+        guard highAlong > lowAlong, highAcross > lowAcross else { return nil }
 
-        let tangentU = position(upperU, localCoordinate.y)
-            - position(lowerU, localCoordinate.y)
-        let tangentV = position(localCoordinate.x, upperV)
-            - position(localCoordinate.x, lowerV)
-        let cross = simd_cross(tangentU, tangentV)
+        let alongStep = sampled(along: highAlong, across: across)
+            - sampled(along: lowAlong, across: across)
+        let acrossStep = sampled(along: along, across: highAcross)
+            - sampled(along: along, across: lowAcross)
+        let cross = simd_cross(alongStep, acrossStep)
         guard simd_length_squared(cross) > 0.000_000_000_001 else { return nil }
         return simd_normalize(cross)
     }
 
-    private static func fallbackNormal(
-        patch: Flat16SurfacePatch,
-        localCoordinate: SIMD2<Float>,
-        halfWidth: Float,
-        halfThickness: Float
-    ) -> SIMD3<Float> {
-        let surface = interpolate(corners: patch.corners, local: localCoordinate)
-        let base = crossSectionPoint(
-            region: patch.region,
-            regionU: surface.x,
-            halfWidth: halfWidth,
-            halfThickness: halfThickness
+    /// Which way round a run's own sampling faces: `+1` if it already points out
+    /// of the braid at mid-span, `-1` if it points in. **One reading a run**, so
+    /// that every part of it agrees with every other.
+    private static func facing(of bundle: Flat16Bundle, metrics: Metrics) -> Float {
+        guard let measured = surfaceNormal(
+            of: bundle, atAlong: 0.5, across: 0, repeatIndex: 0, metrics: metrics
+        ) else { return 1 }
+        let outward = outwardDirection(
+            atArc: bundle.centre(atAlong: 0.5).x, metrics: metrics
         )
-        let outward = crossSectionNormal(
-            point: base,
-            halfWidth: halfWidth,
-            halfThickness: halfThickness
+        return simd_dot(measured, SIMD3<Float>(0, outward.x, outward.y)) < 0 ? -1 : 1
+    }
+
+    /// Where a point of a run falls in the stitch's map: `x` across the bundle
+    /// and `y` along its whole run, the laps and the buried tips included, so
+    /// the stripes run on into them instead of smearing at the ends.
+    static func textureCoordinate(of point: SurfacePoint) -> SIMD2<Float> {
+        let span = bundleShape.runEnd - bundleShape.runStart
+        let along = span > 0
+            ? min(max((point.bundle.x - bundleShape.runStart) / span, 0), 1)
+            : 0
+        return SIMD2<Float>(min(max((point.bundle.y + 1) / 2, 0), 1), along)
+    }
+
+    /// How near a point is to the rim of its own bundle or to the end of its
+    /// run, in its texture's own units.
+    private static func boundaryDistance(_ texture: SIMD2<Float>) -> Float {
+        min(texture.x, 1 - texture.x, texture.y, 1 - texture.y)
+    }
+
+    /// A bundle's samples along it: its whole run, at about the same spacing as
+    /// `alongBundleSubdivisions` gives one step.
+    static func bundleAlongSamples() -> [Float] {
+        let span = bundleShape.runEnd - bundleShape.runStart
+        let steps = max(2, Int((span * Float(alongBundleSubdivisions)).rounded(.up)))
+        return (0...steps).map {
+            bundleShape.runStart + span * Float($0) / Float(steps)
+        }
+    }
+
+    /// Samples across a bundle, gathered towards the two rims, where the rounded
+    /// section turns fastest.
+    static func bundleAcrossSamples() -> [Float] {
+        (0...acrossBundleSubdivisions).map { step in
+            sin(.pi / 2 * (2 * Float(step) / Float(acrossBundleSubdivisions) - 1))
+        }
+    }
+
+    private static func floorSamples() -> [Float] {
+        (0...floorSubdivisions).map { Float($0) / Float(floorSubdivisions) }
+    }
+
+    // MARK: - Cutting the tile
+
+    private static func clip(
+        polygon: [SurfacePoint],
+        minimumV: Float,
+        maximumV: Float
+    ) -> [SurfacePoint] {
+        let above = clip(polygon: polygon) { $0.surface.y >= minimumV }
+            intersection: { intersection($0, $1, atV: minimumV) }
+        return clip(polygon: above) { $0.surface.y <= maximumV }
+            intersection: { intersection($0, $1, atV: maximumV) }
+    }
+
+    private static func clip(
+        polygon: [SurfacePoint],
+        isInside: (SurfacePoint) -> Bool,
+        intersection: (SurfacePoint, SurfacePoint) -> SurfacePoint
+    ) -> [SurfacePoint] {
+        guard var previous = polygon.last else { return [] }
+        var result = [SurfacePoint]()
+        var previousIsInside = isInside(previous)
+        for current in polygon {
+            let currentIsInside = isInside(current)
+            if currentIsInside != previousIsInside {
+                result.append(intersection(previous, current))
+            }
+            if currentIsInside { result.append(current) }
+            previous = current
+            previousIsInside = currentIsInside
+        }
+        return result
+    }
+
+    private static func intersection(
+        _ one: SurfacePoint,
+        _ other: SurfacePoint,
+        atV boundaryV: Float
+    ) -> SurfacePoint {
+        // The same edge is cut from either side at the two ends of the tile;
+        // ordering its ends first makes both cuts the same arithmetic.
+        let swap = (one.surface.y, one.surface.x) > (other.surface.y, other.surface.x)
+        let first = swap ? other : one
+        let second = swap ? one : other
+        let span = second.surface.y - first.surface.y
+        let progress = span == 0 ? 0 : (boundaryV - first.surface.y) / span
+        let blend = SIMD2<Float>(repeating: progress)
+        return SurfacePoint(
+            surface: simd_mix(first.surface, second.surface, blend),
+            bundle: simd_mix(first.bundle, second.bundle, blend),
+            standing: first.standing + (second.standing - first.standing) * progress,
+            onTheFloor: first.onTheFloor
         )
-        return SIMD3<Float>(0, outward.x, outward.y)
     }
 
     /// Distance right round the cross-section, measured on the outline this file
@@ -534,11 +790,11 @@ enum Flat16SurfaceMesh {
     /// Where each region starts and how far it reaches, as a fraction of the way
     /// round the cross-section **by arc length**.
     ///
-    /// The braid is sixteen threads round: six across the front, two at the right
-    /// edge, six across the back and two at the left. So the outline divides
-    /// 6 : 2 : 6 : 2, measured along itself. The regions are centred on the
-    /// middles of the two faces and the two edges, which is where the symmetry
-    /// puts them.
+    /// **Worked out once, by the pattern**
+    /// (`Flat16SurfacePatternGenerator.arcSpan`), and read here so that the
+    /// solid, the card and the checks all put a lane in one place. The counts it
+    /// divides by are the working-out's: how many places round the braid, how
+    /// many lanes a face has, how many threads turn at an edge.
     ///
     /// This replaced quarter-angles. Cutting the outline at ±π/4 gave the front
     /// 36.4 per cent of the perimeter and each edge 13.6, which is 5.83 and 2.17
@@ -546,18 +802,7 @@ enum Flat16SurfaceMesh {
     /// edge thread 1.09. The braid is worked in one thickness of thread, so that
     /// cannot be right.
     static func arcSpan(of region: Flat16SurfaceRegion) -> (start: Float, length: Float) {
-        // The cross-section's own counts: how many places round the braid, how
-        // many columns a face, how many threads turn at an edge.
-        let round = Float(Flat16SurfacePatternGenerator.boardPositionCount)
-        let face = Float(Flat16SurfacePatternGenerator.broadFaceColumnCount) / round
-        let edge = Float(Flat16SurfacePatternGenerator.edgeColumnCount) / round
-        switch region {
-        // Centred on the right-hand end of the width, so it straddles the wrap.
-        case .rightEdge: return (1 - edge / 2, edge)
-        case .front: return (edge / 2, face)
-        case .leftEdge: return (edge / 2 + face, edge)
-        case .back: return (edge + face + edge / 2, face)
-        }
+        Flat16SurfacePatternGenerator.arcSpan(of: region)
     }
 
     /// A point on the outline. `regionU` runs 0...1 across the region **in arc
@@ -570,8 +815,26 @@ enum Flat16SurfaceMesh {
         halfThickness: Float
     ) -> SIMD2<Float> {
         let span = arcSpan(of: region)
+        return crossSectionPoint(
+            atArcFraction: span.start + regionU * span.length,
+            halfWidth: halfWidth,
+            halfThickness: halfThickness
+        )
+    }
+
+    /// The same point, from the fraction of the way round alone.
+    ///
+    /// **A bundle is wider than its lane and may be drawn in across the width,
+    /// so it reaches past its own region** — a run leaving the face passes out
+    /// of the front and under the lanes beside it. The outline is one closed
+    /// curve, so this asks it directly rather than through a region.
+    static func crossSectionPoint(
+        atArcFraction fraction: Float,
+        halfWidth: Float,
+        halfThickness: Float
+    ) -> SIMD2<Float> {
         let arcs = arcLengths(forRatio: halfWidth / halfThickness)
-        let angle = arcs.angle(atArcFraction: span.start + regionU * span.length)
+        let angle = arcs.angle(atArcFraction: fraction)
         let power = 2 / superellipseExponent
         return SIMD2<Float>(
             halfWidth * signedPower(cos(angle), power),
@@ -688,66 +951,6 @@ enum Flat16SurfaceMesh {
         (value < 0 ? -1 : 1) * pow(abs(value), exponent)
     }
 
-    /// The whole of the surface's relief: the groove between one lane and the
-    /// next, and the two yarns that meet at every place.
-    ///
-    /// The twist is not here. It is carried by the normal and roughness maps, as
-    /// it is on the round braid, because a mesh at this subdivision would moire.
-    /// What used to be here leaned one way for the threads worked lengthwise and
-    /// the other for those worked across, which is two hands of yarn in one
-    /// braid; `Flat16StitchTwistGrouping` gives them one.
-    private static func reliefOffset(
-        localCoordinate: SIMD2<Float>,
-        scale: Float
-    ) -> Float {
-        // The groove marks the join between one lane and the next. The join along
-        // the braid is a crossing, drawn by `crossingRelief`, not a seam to cut.
-        let acrossBlend = smoothstep(
-            0,
-            boundaryWidth,
-            min(localCoordinate.x, 1 - localCoordinate.x)
-        )
-        let boundary = -scale * boundaryDepthRatio * (1 - acrossBlend)
-        return boundary + scale * crossingRelief(localCoordinate)
-    }
-
-    /// How far the surface stands proud at one place, in crest heights: the two
-    /// yarns that meet there, whichever of them is on top.
-    ///
-    /// A thread on a face is seen for one step along the braid. It comes up over
-    /// the pick laid at the start of that step, rides across it, and dives under
-    /// the next — so its own bulge dies away at both ends of its run and the run
-    /// reads as one leaf-shaped cell rather than as a length of band.
-    ///
-    /// What shows at the join is the pick, lying right across the braid. It goes
-    /// under every thread of the face, so it is sunk by the round braid's
-    /// `underCrossingDip`, which is that figure's own meaning — the crest taken
-    /// off a strand passing underneath.
-    ///
-    /// Nothing here raises the surface above what stage 2 set: the top of a run
-    /// is still exactly `crestHeightRatio`.
-    static func crossingRelief(_ local: SIMD2<Float>) -> Float {
-        let alongTheRun = sin(.pi * local.y)
-        let thread = crestHeightRatio
-            * crestProfile(across: 2 * local.x - 1)
-            * alongTheRun * alongTheRun
-        let fromTheJoin = min(local.y, 1 - local.y) / pickHalfSpan
-        let pick = crestHeightRatio
-            * (1 - RoundTube16SurfaceMesh.underCrossingDip)
-            * crestProfile(across: min(fromTheJoin, 1))
-        return max(thread, pick)
-    }
-
-    /// Half a pick's width, as a fraction of one step along the braid.
-    ///
-    /// A pick is one yarn wide and a step is `stitchPitchPerBraidWidth` of the
-    /// braid's width, which is six yarns. Derived, so it follows the aspect ratio
-    /// measured in stage 2.5a rather than standing on its own.
-    static var pickHalfSpan: Float {
-        0.5 / (Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth
-            * Float(Flat16SurfacePatternGenerator.broadFaceColumnCount))
-    }
-
     /// Semi-elliptical cross-section: 1 on the crest, 0 at either side.
     ///
     /// `across` is -1 and 1 in the valleys the strand shares with the strands
@@ -757,20 +960,6 @@ enum Flat16SurfaceMesh {
     static func crestProfile(across: Float) -> Float {
         let clamped = min(max(across, -1), 1)
         return (max(0, 1 - clamped * clamped)).squareRoot()
-    }
-
-    private static func boundaryDistance(_ local: SIMD2<Float>) -> Float {
-        min(local.x, 1 - local.x, local.y, 1 - local.y)
-    }
-
-    private static func subdivisionSamples(count: Int) -> [Float] {
-        var samples = (0...count).map { Float($0) / Float(count) }
-        samples.append(contentsOf: [boundaryWidth, 1 - boundaryWidth])
-        return samples.sorted().reduce(into: []) { result, value in
-            if result.last.map({ abs($0 - value) > 0.000_001 }) ?? true {
-                result.append(value)
-            }
-        }
     }
 
     /// Where a point of a patch sits across the braid and along it, in the
