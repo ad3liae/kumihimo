@@ -22,19 +22,30 @@ struct Flat16ThumbnailView: View {
     /// How far the whole drawing is turned round the braid before it is laid out.
     ///
     /// **This is where the figure is cut open, not where the braid is.** A tube of
-    /// surface has to be cut somewhere to be drawn flat, and the mesh's own cut
-    /// falls in the middle of one edge — so that edge arrived as two half-bands, one
-    /// at each end of the frame, while the other three regions read whole. Turning
-    /// the drawing by the half-edge that sits past the cut moves the cut to the
-    /// boundary between two regions instead, and all four read in order: edge,
-    /// front, edge, back.
+    /// surface has to be cut somewhere to be drawn flat. **The cut goes through
+    /// the middle of the right edge**, so the card reads the same from its top and
+    /// its bottom: half the edge and the outermost lane beside it, a broad face,
+    /// the whole of the other edge with a lane of each face either side of it, the
+    /// other broad face, and the other half of the first edge — two, four, four,
+    /// four and two lanes of edging and body in turn.
     ///
-    /// **The braid is not turned.** `Flat16SurfaceMesh.arcSpan` is untouched and the
-    /// solid is drawn exactly as before; what moved is where this drawing starts
-    /// reading it.
+    /// **This updates Task 029-2** (the author, 2026-09-21: 「対称に見えず気持ちが
+    /// 悪い」). 029-2 turned the drawing half an edge so that the cut fell on a
+    /// region boundary and every region read whole, in the order edge, front,
+    /// edge, back; that put three lanes of edging at the top and one at the
+    /// bottom. **The sixteen places round the braid are all still shown, once
+    /// each, in the same order round it** — only where the card begins has moved,
+    /// by one lane.
+    ///
+    /// **The braid is not turned.** `Flat16SurfaceMesh.arcSpan` is untouched and
+    /// the solid is drawn exactly as before; what moved is where this drawing
+    /// starts reading it.
     /// Arithmetic on the cross-section, so it belongs to no actor.
     nonisolated static var seamRotation: Float {
-        1 - Flat16SurfaceMesh.arcSpan(of: .rightEdge).start
+        let edge = Flat16SurfaceMesh.arcSpan(of: .rightEdge)
+        let middle = edge.start + edge.length / 2
+        let turn = 1 - middle
+        return turn - turn.rounded(.down)
     }
 
     let assignments: [ThreadAssignment]
@@ -97,8 +108,11 @@ struct Flat16ThumbnailView: View {
 /// colour.
 enum Flat16CardImage {
     /// Pixels round the braid for one lane. The card is 112 points round and
-    /// sixteen lanes, so 24 a lane is over three times a point.
-    static let pixelsPerLane = 24
+    /// sixteen lanes, so a lane is 7 points: 14 pixels on a 2× screen, 21 on a
+    /// 3× one. **Sixteen**, not the 24 the card was first drawn at, which asked
+    /// for more than twice the pixels either screen shows; the line where two
+    /// runs meet is one pixel of the picture and still under two of the screen.
+    static let pixelsPerLane = 16
 
     /// How much a cell beneath is darkened: the valley shading the solid gives
     /// it (`RoundTube16StrandTextureFactory.valleyOcclusion`).
@@ -110,9 +124,9 @@ enum Flat16CardImage {
     /// How many lanes there are round the braid.
     static var lanes: Int { Flat16SurfacePatternGenerator.boardPositionCount }
 
-    /// **Round the braid, down the card, cut at a region boundary.** Row 0 is the
-    /// top, and the four regions come down the frame in order — right edge,
-    /// front, left edge, back — which is what Task 029-2 settled.
+    /// **Round the braid, down the card, cut through the middle of the right
+    /// edge.** Row 0 is the top: half the right edge, the front, the left edge,
+    /// the back, and the other half of the right edge (see `seamRotation`).
     static func arc(atRow row: Float, rows: Int) -> Float {
         (row + 0.5) / Float(rows) - Flat16ThumbnailView.seamRotation
     }
@@ -146,48 +160,104 @@ enum Flat16CardImage {
         for pattern: Flat16SurfacePattern,
         shape: Flat16BundleShape = Flat16SurfaceMesh.bundleShape
     ) -> (shown: [Shown?], width: Int, height: Int) {
+        map(for: pattern, shape: shape, isCancelled: { false }) ?? ([], 0, 0)
+    }
+
+    /// How far one run can reach, worked out once so that a pixel asks only the
+    /// runs that could stand over it.
+    ///
+    /// **A bound, never a guess**: every point the run's surface has lies inside
+    /// it. Along the braid the centreline is straight and the half-width can
+    /// carry a point at most `widthOverLane` of the lane's own lean further; round
+    /// the braid the centre is straight until the bend and straight after it, so
+    /// the three ends of those two pieces bound it, widened by the half-width.
+    private struct Reach {
+        let along: ClosedRange<Float>
+        /// Round the braid, as offsets from the run's own leading centre, so a
+        /// run straddling the wrap needs nothing special.
+        let round: ClosedRange<Float>
+        let origin: Float
+
+        init(_ bundle: Flat16Bundle, shape: Flat16BundleShape) {
+            let lean = abs(bundle.leadingHalfLane.y) * shape.widthOverLane
+            let ends = [shape.runStart, shape.runEnd].map { bundle.centre(atAlong: $0).y }
+            along = (ends.min() ?? 0) - lean - 1e-4...(ends.max() ?? 0) + lean + 1e-4
+
+            var turns = [shape.runStart, shape.runEnd]
+            if bundle.drawnInPerStep != 0,
+               (shape.runStart...shape.runEnd).contains(bundle.drawnInStart) {
+                turns.append(bundle.drawnInStart)
+            }
+            origin = bundle.leadingCentre.x
+            let offsets = turns.map {
+                Flat16SurfacePattern.wrappedArc(bundle.centre(atAlong: $0).x - bundle.leadingCentre.x)
+            }
+            let width = abs(bundle.leadingHalfLane.x) * shape.widthOverLane
+            round = (offsets.min() ?? 0) - width - 1e-4...(offsets.max() ?? 0) + width + 1e-4
+        }
+    }
+
+    /// `nil` if `isCancelled` says so part way: a card whose colouring has moved
+    /// on does not want the rest of the old picture worked out.
+    static func map(
+        for pattern: Flat16SurfacePattern,
+        shape: Flat16BundleShape,
+        isCancelled: () -> Bool
+    ) -> (shown: [Shown?], width: Int, height: Int)? {
         let lanes = max(1, self.lanes)
         let height = lanes * pixelsPerLane
         let ratio = Flat16SurfaceMesh.patternAspectRatioRoundTheBraid ?? pattern.aspectRatio
         let width = max(1, Int((Float(height) * ratio).rounded()))
         var shown = [Shown?](repeating: nil, count: width * height)
+        let reaches = pattern.bundles.map { Reach($0, shape: shape) }
+        let seam = Flat16ThumbnailView.seamRotation
 
+        var best = [Float](repeating: 0, count: height)
+        var owner = [Int](repeating: -1, count: height)
         for column in 0..<width {
+            if isCancelled() { return nil }
             let along = (Float(column) + 0.5) / Float(width)
-            // The runs reaching this far along, before looking round the braid.
-            var reaching = [(offset: Int, bundle: Int)]()
-            for (index, bundle) in pattern.bundles.enumerated() {
-                for offset in -1...1 {
-                    // Roughly: the centreline alone, widened by the lean a run
-                    // may carry, so nothing that could reach this far along is
-                    // left out. `standing` settles it exactly.
-                    guard let place = bundle.along(atLengthwise: along - Float(offset)),
-                          place >= shape.runStart - 0.5, place <= shape.runEnd + 0.5
-                    else { continue }
-                    reaching.append((offset, index))
+            for row in 0..<height { best[row] = 0; owner[row] = -1 }
+
+            // **The same runs in the same order as asking every one of them**, so
+            // where two stand exactly as high the same one wins — only the runs
+            // that cannot reach this pixel are left out.
+            var candidates = [(offset: Int, bundle: Int)]()
+            for (index, reach) in reaches.enumerated() {
+                for offset in -1...1 where reach.along.contains(along - Float(offset)) {
+                    candidates.append((offset, index))
                 }
             }
-            for row in 0..<height {
-                let arc = self.arc(atRow: Float(row), rows: height)
-                var best: (offset: Int, bundle: Int, height: Float)?
-                for candidate in reaching {
+            for (slot, candidate) in candidates.enumerated() {
+                let reach = reaches[candidate.bundle]
+                let first = Int(((reach.origin + reach.round.lowerBound + seam)
+                    * Float(height) - 0.5).rounded(.down))
+                let last = Int(((reach.origin + reach.round.upperBound + seam)
+                    * Float(height) - 0.5).rounded(.up))
+                for step in first...max(first, min(last, first + height - 1)) {
+                    let row = (step % height + height) % height
                     guard let standing = pattern.standing(
                         pattern.bundles[candidate.bundle],
                         repeatOffset: candidate.offset,
-                        atArc: arc, along: along, shape: shape
+                        atArc: arc(atRow: Float(row), rows: height), along: along, shape: shape
                     ), standing > 0 else { continue }
-                    if best == nil || standing > best!.height {
-                        best = (candidate.offset, candidate.bundle, standing)
+                    // Strictly higher only: where two stand level, the one earlier
+                    // in the list keeps the pixel, as it would asking them all.
+                    if standing > best[row] {
+                        best[row] = standing
+                        owner[row] = slot
                     }
                 }
-                if let best {
-                    shown[row * width + column] = .run(
-                        repeatOffset: best.offset, bundle: best.bundle
-                    )
-                } else if let cell = pattern.cellBeneath(atArc: arc, along: along) {
-                    shown[row * width + column] = .beneath(
-                        repeatOffset: cell.repeatOffset, bundle: cell.bundle
-                    )
+            }
+            for row in 0..<height {
+                let index = row * width + column
+                if owner[row] >= 0 {
+                    let winner = candidates[owner[row]]
+                    shown[index] = .run(repeatOffset: winner.offset, bundle: winner.bundle)
+                } else if let cell = pattern.cellBeneath(
+                    atArc: arc(atRow: Float(row), rows: height), along: along
+                ) {
+                    shown[index] = .beneath(repeatOffset: cell.repeatOffset, bundle: cell.bundle)
                 }
             }
         }
@@ -237,15 +307,32 @@ enum Flat16CardImage {
     }
     static let sharedCache = Cache()
 
-    /// Draws the picture off the main thread.
+    /// Draws the picture off the main thread — **and stops when the card no
+    /// longer wants it.**
+    ///
+    /// The work runs detached, so cancelling the card's own task would not reach
+    /// it by itself: a picture for a colouring already left went on being worked
+    /// out to the last pixel, and every change of colour stacked another one up
+    /// behind the one that was wanted. The cancellation is passed on, and the
+    /// drawing checks for it once a column.
     @Sendable static func drawOffTheMainThread(_ pattern: Flat16SurfacePattern) async -> CGImage? {
-        await Task.detached(priority: .userInitiated) {
-            draw(pattern)
-        }.value
+        let work = Task.detached(priority: .userInitiated) {
+            draw(pattern, isCancelled: { Task.isCancelled })
+        }
+        return await withTaskCancellationHandler {
+            await work.value
+        } onCancel: {
+            work.cancel()
+        }
     }
 
-    static func draw(_ pattern: Flat16SurfacePattern) -> CGImage? {
-        let (shown, width, height) = shownMap(for: pattern)
+    static func draw(
+        _ pattern: Flat16SurfacePattern,
+        isCancelled: () -> Bool = { false }
+    ) -> CGImage? {
+        guard let (shown, width, height) = map(
+            for: pattern, shape: Flat16SurfaceMesh.bundleShape, isCancelled: isCancelled
+        ) else { return nil }
         var pixels = [UInt8](repeating: 0, count: width * height * 4)
         func colour(_ bundle: Int) -> SIMD3<Float> {
             let id = pattern.bundles[bundle].colorID
