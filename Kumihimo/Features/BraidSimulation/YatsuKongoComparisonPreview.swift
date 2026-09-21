@@ -12,10 +12,13 @@ import SwiftUI
 ///
 ///     --ui-testing-yatsu-kongo-solid   the solid, full screen
 ///     --ui-testing-yatsu-kongo-card    the card, as the results list lays it out
-///     --yatsu-kongo-recipe=s|z|maru    which braid (default s). `maru` is the
+///     --yatsu-kongo-recipe=s|z|maru|hira
+///                                      which braid (default s). `maru` is the
 ///                                      sixteen-thread maru-genji, added for
-///                                      Task 047's comparisons; the launch
-///                                      arguments keep their first name
+///                                      Task 047's comparisons, and `hira` the
+///                                      sixteen-thread flat braid, added for
+///                                      Task 050's; the launch arguments keep
+///                                      their first name
 ///     --yatsu-kongo-colouring=plain|book|eight|author|redblue|one
 ///                                      one colour, book A p.54's, all eight
 ///                                      told apart, the author's 青青赤赤青青赤赤
@@ -32,8 +35,13 @@ import SwiftUI
 ///                                      painted as the author's coloured sketch
 ///                                      paints them (Task 047 rework), the rest
 ///                                      natural
+///                              hira only: plain|weft|arrow|ladder — natural
+///                                      throughout, and the three reference
+///                                      colourings the editor already carries
+///                                      (fixture C's weft-only colouring, book A
+///                                      p97's arrow feather and its ladder)
 ///     --yatsu-kongo-zoom=<factor>      zoomed in, as a pinch would (clamped)
-///     --yatsu-kongo-no-detail          maru only: no stripe, roughness or
+///     --yatsu-kongo-no-detail          maru and hira: no stripe, roughness or
 ///                                      shading maps, to read the shape alone
 ///     --yatsu-kongo-roll=<degrees>     turned about the braid's own axis
 @MainActor
@@ -45,6 +53,7 @@ enum YatsuKongoComparisonPreviewData {
         switch value(of: "--yatsu-kongo-recipe") {
         case "z": return BraidMethodCatalog.yatsuKongoZ8Recipe
         case "maru": return BraidMethodCatalog.maruGenji16Recipe
+        case "hira": return BraidMethodCatalog.hiraGenji16Recipe
         default: return BraidMethodCatalog.yatsuKongoS8Recipe
         }
     }
@@ -52,6 +61,9 @@ enum YatsuKongoComparisonPreviewData {
     static var assignments: [ThreadAssignment] {
         if recipe.id == BraidMethodCatalog.maruGenji16Recipe.id {
             return maruGenjiAssignments
+        }
+        if recipe.id == BraidMethodCatalog.hiraGenji16Recipe.id {
+            return flatAssignments
         }
         switch value(of: "--yatsu-kongo-colouring") {
         case "book":
@@ -86,6 +98,23 @@ enum YatsuKongoComparisonPreviewData {
             }
         default:
             return (1...8).map {
+                ThreadAssignment(position: $0, colorID: ThreadColorColorIDs.natural)
+            }
+        }
+    }
+
+    /// **The colourings the flat braid already has**, and nothing new: the three
+    /// the editor's own previews carry, which are book A p97's two controlled
+    /// samples and the weft-only fixture, plus every thread natural for reading
+    /// the shape alone. Task 020 forbids inventing a colour experiment, and
+    /// Task 050 asks for the references' own colourings.
+    private static var flatAssignments: [ThreadAssignment] {
+        switch value(of: "--yatsu-kongo-colouring") {
+        case "weft": return ProjectEditorPreviewData.hiraGenjiSurfaceFixtureC
+        case "arrow": return ProjectEditorPreviewData.hiraGenjiSurfaceArrowFeather
+        case "ladder": return ProjectEditorPreviewData.hiraGenjiSurfaceLadder
+        default:
+            return (1...16).map {
                 ThreadAssignment(position: $0, colorID: ThreadColorColorIDs.natural)
             }
         }

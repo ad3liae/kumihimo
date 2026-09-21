@@ -114,7 +114,16 @@ struct BraidFamilyDrawingTests {
         #expect(tube.measured["one repeat over one turn"]?.value
                 == Double(RoundTube16SurfacePatternGenerator.patternAspectRatio))
         // And the ones calibrated by eye are kept, and counted, not hidden.
-        #expect(flat.calibratedByEye.count == 4)
+        // **Nine since the Task 050 rework**: every cell is drawn as a bundle,
+        // and how high two of them meet along the braid and across it, how the
+        // lens pinches, how much the end that laps over stands up and the end
+        // that goes under sinks, how far a buried tip goes on and how far the
+        // floor lies below a rim are set by eye against the photographs, as are
+        // the outline's exponent and the size on screen.
+        #expect(flat.calibratedByEye.count == 9)
+        // Two more are solved from those rather than set: how wide a bundle is,
+        // and how far its swell reaches.
+        #expect(flat.workedOut.count == 2)
         // Fifteen since the Task 047 rework: every cell is drawn as a bundle, and
         // how far it laps and tucks, how wide it is, how it narrows at each end,
         // and how its buried tip and the floor sink are set by eye against the

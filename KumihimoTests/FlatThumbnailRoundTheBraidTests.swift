@@ -19,7 +19,7 @@ struct FlatThumbnailRoundTheBraidTests {
     private static let iPadCard = CGSize(width: 754, height: 112)
 
     private static var roundTheBraid: Float {
-        get throws { try #require(Flat16SurfacePatternGenerator.patternAspectRatioRoundTheBraid) }
+        get throws { try #require(Flat16SurfaceMesh.patternAspectRatioRoundTheBraid) }
     }
 
     private static var acrossTheWidth: Float {
@@ -35,19 +35,30 @@ struct FlatThumbnailRoundTheBraidTests {
 
     // MARK: - 1. The ratio handed to the layout
 
-    /// **Over the turn, not over the width.** The two counts are the working-out's
-    /// own — six columns to a broad face, sixteen places round the braid — so the
-    /// ratio is not a number chosen for the card.
-    @Test func theRatioIsTheWidthsOneScaledByTheCountsRoundTheBraid() throws {
-        let face = Flat16SurfacePatternGenerator.broadFaceColumnCount
-        let round = Flat16SurfacePatternGenerator.boardPositionCount
-        #expect(face == 6)
-        #expect(round == 16)
-
+    /// **Over the turn, not over the width — and measured on the outline the
+    /// mesh draws** (Task 050).
+    ///
+    /// Task 029 took the two counts, six lanes to a broad face against sixteen
+    /// places round the braid, and recorded that scaling by 6/16 treats the arc
+    /// of one broad face as the width across the braid. It is not: a lane is one
+    /// half-thickness of arc, so six of them are 6 / 3.3359 = 1.799 half-widths
+    /// against a width of 2. **This updates that decision**; the card's cells
+    /// were eleven per cent too long for their width.
+    @Test func theRatioIsMeasuredRoundTheOutlineTheMeshDraws() throws {
         let ratio = try Self.roundTheBraid
         let width = try Self.acrossTheWidth
-        #expect(abs(ratio - width * Float(face) / Float(round)) < 1e-6)
-        #expect(abs(ratio - 0.54975) < 1e-4)
+        let halfWidth = Flat16SurfaceMesh.defaultHalfWidth
+        let perimeter = Flat16SurfaceMesh.perimeter(
+            halfWidth: halfWidth, halfThickness: Flat16SurfaceMesh.defaultHalfThickness
+        )
+
+        #expect(abs(ratio - width * 2 * halfWidth / perimeter) < 1e-6)
+        #expect(abs(ratio - 0.6113) < 1e-3)
+        // What Task 029 had, and how far out it was.
+        let counted = width * Float(Flat16SurfacePatternGenerator.broadFaceColumnCount)
+            / Float(Flat16SurfacePatternGenerator.boardPositionCount)
+        #expect(abs(counted - 0.54975) < 1e-4)
+        #expect(abs(ratio / counted - 1) > 0.10)
 
         // The width's own ratio is untouched: the mesh takes its length from it.
         #expect(abs(width - 1.466) < 1e-3)
@@ -64,22 +75,27 @@ struct FlatThumbnailRoundTheBraidTests {
         let flat = try Self.roundTheBraid
         let tube = RoundTube16SurfacePatternGenerator.patternAspectRatio
         #expect(abs(tube - 1.25) < 1e-6)
-        #expect(abs(flat - 0.54975) < 1e-4)
+        #expect(abs(flat - 0.6113) < 1e-3)
+        // Task 050 measured the flat braid's on its own outline, which moved it
+        // eleven per cent towards the round braid's. **The two cards still
+        // differ by about two times, and closing that is not this task's.**
+        #expect(tube / flat > 1.9)
+        #expect(tube / flat < 2.2)
     }
 
     // MARK: - 2. What the card comes out at
 
     @Test(arguments: [
         (CGSize(width: 361, height: 112), 7),
-        (CGSize(width: 754, height: 112), 14),
+        (CGSize(width: 754, height: 112), 13),
     ])
-    func theCardHoldsSevenRepeatsAndFourteen(_ size: CGSize, _ repeats: Int) throws {
+    func theCardHoldsSevenRepeatsAndThirteen(_ size: CGSize, _ repeats: Int) throws {
         let ratio = try Self.roundTheBraid
         let layout = try #require(
             UnrolledPatternThumbnailLayout(size: size, aspectRatio: ratio)
         )
         #expect(layout.circumference == size.height)
-        #expect(abs(layout.repeatLength - 61.572) < 1e-3)
+        #expect(abs(layout.repeatLength - 68.466) < 0.01)
         #expect(layout.repeatCount == repeats)
     }
 
@@ -153,24 +169,31 @@ struct FlatThumbnailRoundTheBraidTests {
         let rows = try #require(Flat16SurfacePatternGenerator.rowCount)
         #expect(rows == 4)
 
-        let width = try Self.acrossTheWidth
         let ratio = try Self.roundTheBraid
-        let before = width
-            * Float(Flat16SurfacePatternGenerator.broadFaceColumnCount) / Float(rows)
-        let after = ratio
-            * Float(Flat16SurfacePatternGenerator.boardPositionCount) / Float(rows)
-        #expect(abs(before - after) < 1e-6)
-        #expect(abs(after - 2.199) < 1e-3)
+
+        // **What a cell's proportion really is**, from the braid and not from
+        // the card: one step is `stitchPitchPerBraidWidth` of the braid's width,
+        // and one lane is one thread, which is one half-thickness.
+        let step = Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth
+            * 2 * Flat16SurfaceMesh.defaultHalfWidth
+        let lane = Flat16SurfaceMesh.defaultHalfThickness
+        #expect(abs(step / lane - 2.445) < 1e-3)
 
         // The same thing measured off the card: one step long over one lane high.
         let layout = try #require(
             UnrolledPatternThumbnailLayout(size: Self.iPhoneCard, aspectRatio: ratio)
         )
-        let step = layout.repeatLength / CGFloat(rows)
-        let lane = layout.circumference / 16
-        #expect(abs(step - 15.393) < 1e-3)
-        #expect(abs(lane - 7.0) < 1e-9)
-        #expect(abs(Float(step / lane) - 2.199) < 1e-3)
+        let cardStep = layout.repeatLength / CGFloat(rows)
+        let cardLane = layout.circumference / 16
+        #expect(abs(cardStep - 17.117) < 0.01)
+        #expect(abs(cardLane - 7.0) < 1e-9)
+        #expect(abs(Float(cardStep / cardLane) - 2.445) < 1e-3)
+
+        // **Task 029's card drew it at 2.199**, which is the same step measured
+        // against a sixth of the braid's width rather than against a thread.
+        let counted = Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth
+            * Float(Flat16SurfacePatternGenerator.broadFaceColumnCount)
+        #expect(abs(counted - 2.199) < 1e-3)
     }
 
     // MARK: - 5. The four regions cover the turn exactly

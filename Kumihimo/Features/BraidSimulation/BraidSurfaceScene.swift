@@ -364,13 +364,21 @@ enum BraidSurfaceScene {
                     count: indices.count / 3
                 )
             )
-            let maps = Flat16StitchTexture.maps
+#if DEBUG
+            // Task 050's comparisons read the shape without the maps, as Task
+            // 047's do on the round braid.
+            let maps = YatsuKongoComparisonPreviewData.drawsWithoutDetail
+                ? nil
+                : Flat16StitchTexture.maps
+#else
+            let maps: Flat16StitchTexture.Maps? = Flat16StitchTexture.maps
+#endif
             materials.append(
                 material(
                     color: threadColor.uiColor,
-                    occlusion: maps.occlusion,
-                    roughness: maps.roughness,
-                    normal: maps.normal
+                    occlusion: maps?.occlusion,
+                    roughness: maps?.roughness,
+                    normal: maps?.normal
                 )
             )
         }

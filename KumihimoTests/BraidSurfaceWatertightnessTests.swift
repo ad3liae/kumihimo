@@ -21,10 +21,22 @@ import Testing
 /// reported fault actually breaks: **no line of sight inside the braid's own
 /// outline reaches the background.**
 ///
-/// The flat braid's mesh is a conforming grid and today satisfies the strong
-/// invariant as well: every edge inside the tile belongs to exactly two
-/// triangles, and every patch rim is a vertex of the patch next to it. That is
-/// worth keeping, because it is what a hole breaks first.
+/// **The flat braid's mesh was a conforming grid and is not one any more**
+/// (Task 050). Each cell is now drawn as a bundle wider than its lane and longer
+/// than its step, lying over its neighbours' flanks and diving under them where
+/// a thread leaves the face, with the floor of each cell beneath. So it is the
+/// same kind of thing the round braid's is, and it is held to the same weaker
+/// invariant. The two strong ones — every interior edge used twice, every rim a
+/// vertex of the neighbour — were true of the grid and say nothing about a shell
+/// of overlapping runs; they are not weakened here but replaced by the one they
+/// were standing in for.
+///
+/// **And the line of sight is taken inside the braid's own plain outline, not
+/// out to the furthest thing the mesh draws.** A finished braid's silhouette
+/// ripples once a stitch as each yarn rises and falls — that ripple is what
+/// `crestHeightRatio` was measured from (Task 007E) — so a ray passing between
+/// two crests really does see the background, and requiring otherwise would be
+/// requiring the braid not to have the shape it was measured to have.
 struct BraidSurfaceWatertightnessTests {
     @Test func maruGenjiSurfaceIsOpaqueFromEveryLineOfSight() throws {
         let pattern = try #require(
@@ -45,58 +57,49 @@ struct BraidSurfaceWatertightnessTests {
         }
     }
 
-    @Test func hiraGenjiSurfaceIsOpaqueFromEveryLineOfSight() throws {
+    @Test func hiraGenjiSurfaceIsOpaqueInsideItsOwnOutline() throws {
         let pattern = try #require(
             Flat16SurfacePatternGenerator.generate(assignments: fixture)
         )
         let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        // The plain cross-section the cells are laid on: everything inside it is
+        // braid, and the crests stand out of it.
+        let halfWidth = Flat16SurfaceMesh.defaultHalfWidth
+        let halfThickness = Flat16SurfaceMesh.defaultHalfThickness
 
         for axis in SurfaceOpacityAudit.Axis.allCases {
+            let reach = axis == .faceOn ? halfWidth : halfThickness
             let audit = SurfaceOpacityAudit(
                 positions: mesh.positions,
                 indices: mesh.allTriangleIndices,
                 tileEndX: Flat16SurfaceMesh.defaultLength / 2,
-                axis: axis
+                axis: axis,
+                bounds: (low: -reach, high: reach)
             )
             #expect(audit.rays > 1_000)
-            #expect(audit.raysReachingTheBackground == 0)
-            #expect(audit.raysMeetingOneSurfaceOnly == 0)
+            #expect(audit.raysReachingTheBackground == 0,
+                    "first gap at \(String(describing: audit.firstGap))")
+            #expect(audit.raysMeetingOneSurfaceOnly == 0,
+                    "first gap at \(String(describing: audit.firstGap))")
         }
     }
 
-    @Test func hiraGenjiSurfaceIsEdgeWatertightAwayFromItsTileEnds() throws {
+    /// **And the crests outside that outline are what the ripple is**, so the
+    /// mesh does reach further than the plain section right round: the check
+    /// above is about the braid's inside, not a looser version of one about its
+    /// silhouette.
+    @Test func hiraGenjiStandsProudOfThePlainOutlineRightRound() throws {
         let pattern = try #require(
             Flat16SurfacePatternGenerator.generate(assignments: fixture)
         )
         let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
-        let audit = SurfaceEdgeAudit(
-            positions: mesh.positions,
-            indices: mesh.allTriangleIndices,
-            tileEndX: Flat16SurfaceMesh.defaultLength / 2
-        )
+        let crest = Flat16SurfaceMesh.defaultHalfThickness
+            * Flat16SurfaceMesh.crestHeightRatio
 
-        #expect(audit.trianglesWithARepeatedCorner == 0)
-        #expect(audit.edgesUsedMoreThanTwice == 0)
-        #expect(audit.interiorBoundaryEdges == 0)
-        // The cut across the braid is expected to leave an open rim; the next
-        // tile closes it.
-        #expect(audit.tileEndBoundaryEdges > 0)
-    }
-
-    @Test func hiraGenjiPatchesMeetTheirNeighboursOnTheirSharedEdges() throws {
-        let pattern = try #require(
-            Flat16SurfacePatternGenerator.generate(assignments: fixture)
-        )
-        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
-        let audit = SharedRimAudit(
-            positions: mesh.positions,
-            groupOfVertex: mesh.surfaceVertexPatchIndices,
-            isOnARim: mesh.textureCoordinates.map { $0.x < 0.001 || $0.x > 0.999 },
-            tileEndX: Flat16SurfaceMesh.defaultLength / 2
-        )
-
-        #expect(audit.checkedVertices > 1_000)
-        #expect(audit.verticesWithNoNeighbour == 0)
+        let widest = mesh.positions.map { abs($0.y) }.max() ?? 0
+        let thickest = mesh.positions.map { abs($0.z) }.max() ?? 0
+        #expect(widest > Flat16SurfaceMesh.defaultHalfWidth + crest * 0.8)
+        #expect(thickest > Flat16SurfaceMesh.defaultHalfThickness + crest * 0.8)
     }
 
     private var fixture: [ThreadAssignment] {
@@ -142,7 +145,16 @@ struct SurfaceOpacityAudit {
     let raysMeetingOneSurfaceOnly: Int
     let firstGap: SIMD2<Float>?
 
-    init(positions: [SIMD3<Float>], indices: [UInt32], tileEndX: Float, axis: Axis) {
+    /// `bounds` fixes how far across the braid the rays are spread. Given, they
+    /// are the caller's — the braid's own plain outline, say; left out, they are
+    /// taken from the triangles the column holds, inset by `inset`.
+    init(
+        positions: [SIMD3<Float>],
+        indices: [UInt32],
+        tileEndX: Float,
+        axis: Axis,
+        bounds: (low: Float, high: Float)? = nil
+    ) {
         self.axis = axis
         // The two ends of the tile are open by design, so stay clear of them.
         let low = -tileEndX + tileEndX * 0.15
@@ -179,9 +191,9 @@ struct SurfaceOpacityAudit {
             let corners = crossing.flatMap {
                 [axis.across(of: $0.a), axis.across(of: $0.b), axis.across(of: $0.c)]
             }
-            let bottom = corners.min() ?? 0
-            let top = corners.max() ?? 0
-            let margin = (top - bottom) * Self.inset
+            let bottom = bounds?.low ?? (corners.min() ?? 0)
+            let top = bounds?.high ?? (corners.max() ?? 0)
+            let margin = bounds == nil ? (top - bottom) * Self.inset : 0
             guard top - bottom > 2 * margin else { continue }
 
             for step in 0..<Self.acrossSteps {

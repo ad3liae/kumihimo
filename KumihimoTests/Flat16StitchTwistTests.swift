@@ -52,36 +52,39 @@ struct Flat16StitchTwistTests {
     }
 
     /// The stripes stand about as far apart as the round braid's do, measured
-    /// against the yarn rather than against the patch they are drawn on — and
-    /// there are a whole number of them, so they meet at every join.
+    /// against the yarn rather than against the patch they are drawn on.
     /// "The round braid's" is `fiberCount`, the value this braid borrowed; since
     /// Task 047 maru-genji itself draws finer ones (`strandFibreCount`).
+    ///
+    /// **They are no longer rounded to a whole number** (Task 050). They were,
+    /// because the map was drawn over one stitch and read again on the next; a
+    /// bundle is one thread's run and the run after it in the same lane is a
+    /// different thread, so there is no join for the stripes to cross.
     @Test func theStripesStandAboutAsFarApartAsTheRoundBraids() {
         let roundSegmentInYarns = Float(RoundTube16StrandTextureFactory.width)
             / Float(RoundTube16StrandTextureFactory.height)
         let roundPerYarn = Float(RoundTube16SurfaceMesh.fiberCount) / roundSegmentInYarns
-        let flatPerYarn = Flat16StitchTwistGrouping.stripesPerStitch
-            / Flat16StitchTwistGrouping.stitchLengthInYarns
+        let flatPerYarn = Flat16StitchTwistGrouping.stripesPerRun
+            / Flat16StitchTwistGrouping.runLengthInYarns
 
         #expect(abs(roundPerYarn - 2) < 0.000_1)
-        #expect(abs(flatPerYarn / roundPerYarn - 1) < 0.12)
-        // A whole number, so the phase closes over a stitch.
-        let count = Flat16StitchTwistGrouping.stripesPerStitch
-        #expect(count == count.rounded())
-        #expect(abs(count - Flat16StitchTwistGrouping.stripesPerStitchBeforeRounding) <= 0.5)
+        #expect(abs(flatPerYarn / roundPerYarn - 1) < 0.001)
+        // A run is longer than the step its cell occupies, because a bundle
+        // reaches past both of its ends.
+        #expect(Flat16StitchTwistGrouping.runSpanInSteps > 1)
+        #expect(abs(Flat16StitchTwistGrouping.runLengthInYarns
+            - Flat16StitchTwistGrouping.stitchLengthInYarns
+            * Flat16StitchTwistGrouping.runSpanInSteps) < 0.001)
     }
 
-    /// The phase runs the whole turn over one stitch, so a stitch shows the same
+    /// The phase runs the whole turn over one run, so a run shows the same
     /// stripes wherever it is drawn.
-    @Test func thePhaseTurnsOnceAStitchAlongTheBraid() throws {
+    @Test func thePhaseTurnsOnceARunAlongTheBraid() throws {
         let twist = try #require(Flat16StitchTwistGrouping.groups().first)
         let turned = twist.phase(along: 1, across: 0.5) - twist.phase(along: 0, across: 0.5)
 
-        #expect(abs(turned / (2 * .pi) + Flat16StitchTwistGrouping.stripesPerStitch) < 0.001)
-        // A whole turn, so the stripes of one stitch meet the next one's.
-        #expect(abs(cos(twist.phase(along: 0, across: 0.5))
-            - cos(twist.phase(along: 1, across: 0.5))) < 0.001)
-        // And across the stitch the phase moves too, which is the lean.
+        #expect(abs(turned / (2 * .pi) + Flat16StitchTwistGrouping.stripesPerRun) < 0.001)
+        // And across the run the phase moves too, which is the lean.
         #expect(twist.phasePerAcross != 0)
     }
 
@@ -103,7 +106,7 @@ struct Flat16StitchTwistTests {
         // The twist barely tints; it is carried by the normal and roughness maps.
         #expect(1 - brightest.value < 0.001)
         let floor = Flat16StitchTexture.twistTint(twist, 0.5, roughest.along + 0.5
-            / Flat16StitchTwistGrouping.stripesPerStitch)
+            / Flat16StitchTwistGrouping.stripesPerRun)
         #expect(1 - floor <= RoundTube16StrandTextureFactory.twistTint + 0.001)
     }
 }
