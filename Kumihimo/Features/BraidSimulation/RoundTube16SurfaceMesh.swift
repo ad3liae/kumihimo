@@ -150,12 +150,12 @@ enum RoundTube16SurfaceMesh {
     /// changed by saying so.**
     static var shape: BraidFamilyShape {
         BraidFamilyShape(family: family, values: [
-            "crest over nominal radius": BraidMeasurement(
+            "crest over nominal radius": .declared(
                 Double(crestHeightRatio),
-                basis: .fractionOf("the tube's nominal radius"),
-                source: .observed("Task 005J"),
-                unsettled: "only the product with the pattern's aspect ratio is held by "
-                    + "the photographs, and it is not in thread diameters"
+                calibratedBy: "how round a bundle's belly and shoulders look (Task 052, "
+                    + "the author: too flat, like tiles); chosen by eye, not measured. "
+                    + "Task 005J's 0.12 was held only as a product with the aspect "
+                    + "ratio and is not in thread diameters"
             ),
             "one repeat over one turn": BraidMeasurement(
                 Double(RoundTube16SurfacePatternGenerator.patternAspectRatio),
@@ -167,7 +167,9 @@ enum RoundTube16SurfaceMesh {
                     + "held by the outline"
             ),
             "valley below the nominal radius": .declared(
-                Double(valleyDepthRatio), calibratedBy: "how deep the groove looks"
+                Double(valleyDepthRatio),
+                calibratedBy: "set with the crest so the outline stays where it was "
+                    + "(Task 052: 0.03 + 0.12 then, 0.11 + 0.20 now, the crest at 1.09 radii)"
             ),
             "extra crest at the end that passes over": .declared(
                 Double(overCrossingLift), calibratedBy: "how far the over end stands up"
@@ -200,6 +202,22 @@ enum RoundTube16SurfaceMesh {
                     Double(crestProfilePower),
                     calibratedBy: "a flattened bundle rather than a tube (Task 047)"
                 ),
+            "how softly the cross-section meets its rim, as the power of the whole":
+                .declared(
+                    Double(crestRimSoftness),
+                    calibratedBy: "a bundle of threads lies down at its edge rather than "
+                        + "standing in a cliff (Task 052, the author)"
+                ),
+            "how high the rim towards the previous row stands, in crests": .declared(
+                Double(shingleRimHeight),
+                calibratedBy: "so each row rests on the previous one's flank, as book A "
+                    + "and the author's sketch have it, without a hard step (Task 052)"
+            ),
+            "how much of the lap keeps its height before it sinks": .declared(
+                Double(overTipHold),
+                calibratedBy: "so the end lying over the other arm of a V shows as a "
+                    + "point rather than a straight cut (Task 052, the author's sketch)"
+            ),
             "how far a buried tip sinks, in crests": .declared(
                 Double(buriedTipSink), calibratedBy: "only that it is buried"
             ),
@@ -253,9 +271,20 @@ enum RoundTube16SurfaceMesh {
     static let minimumAcrossStrandSubdivisions = 6
 
     /// Ridge crest above the valley floor, as a fraction of the nominal radius.
-    static let crestHeightRatio: Float = 0.12
-    /// Valley floor below the nominal radius, as a fraction of it.
-    static let valleyDepthRatio: Float = 0.03
+    ///
+    /// **A drawing choice, made by eye** (Task 052). At 0.12 a bundle stood about
+    /// a third of its half-width proud, and where its neighbour covers its
+    /// flank (0.87 of its half-width, `bundleWidthOverCell`) its face had turned
+    /// only 30 degrees: a broad, nearly flat face the author read as a tile. At
+    /// 0.20 it turns about 40 at the shoulder, and the belly shades down into it.
+    /// A raised cosine drew a ridge line down a flat roof, and a half-ellipse a
+    /// flatter belly with a hard shoulder; the parabola is kept, softened at its
+    /// rim (`crestRimSoftness`).
+    static let crestHeightRatio: Float = 0.20
+    /// Valley floor below the nominal radius, as a fraction of it. **Moved down
+    /// with the crest** (Task 052), so the crest line — the outline, and with it
+    /// the braid's width and the chevrons' spacing over it — stays at 1.09 radii.
+    static let valleyDepthRatio: Float = 0.11
     /// Extra crest for the strand passing over a crossing.
     static let overCrossingLift: Float = 0.16
     /// Crest removed from the strand passing under a crossing.
@@ -264,6 +293,16 @@ enum RoundTube16SurfaceMesh {
     /// as a fraction of its length: over the leading end of the bundle there,
     /// and on until it sinks beneath the bundles beyond.
     static let overCrossingLap: Float = 0.3
+    /// How much of that lap keeps its height before it starts to sink, as a
+    /// fraction of the lap (Task 052). The lap narrows to a point
+    /// (`overTipNarrowing` 1), and it has to stay on top while it does, or the
+    /// point is lost under the bundle it lies over and the end reads as cut
+    /// straight along the column boundary, which the author drew as wrong.
+    static let overTipHold: Float = 0.5
+    /// Samples past the end a bundle passes over, as a multiple of the ordinary
+    /// spacing. Its point is narrow and sinks within about one ordinary step,
+    /// and at that spacing its outline showed the facets.
+    static let lapRefinement = 3
     /// How far past its leading end, where it passes under, a bundle goes on,
     /// sinking, so its end is buried rather than cut.
     static let underCrossingTuck: Float = 0.15
@@ -272,8 +311,10 @@ enum RoundTube16SurfaceMesh {
     static let bundleWidthOverCell: Float = 1.15
     /// How much narrower a bundle is at its leading end, where it passes under.
     static let underEndNarrowing: Float = 0.6
-    /// How much narrower a bundle is at the tip past its trailing end.
-    static let overTipNarrowing: Float = 0.55
+    /// How much narrower a bundle is at the tip past its trailing end. **1 since
+    /// Task 052**: the end lying over the other arm of a V comes to a point, as
+    /// the author drew it, instead of ending straight along the column boundary.
+    static let overTipNarrowing: Float = 1
     /// How far below its rim a buried tip ends, in crest heights.
     static let buriedTipSink: Float = 0.08
     /// The floor beneath every cell, below a bundle's rim, as a fraction of the
@@ -396,8 +437,9 @@ enum RoundTube16SurfaceMesh {
     /// valley floor. Past either end the bundle sinks, and ends buried below the
     /// floor.
     static func strandRadius(along: Float, across: Float, radius: Float) -> Float {
-        let reach = along < 0 ? underCrossingTuck : overCrossingLap
-        let sinking = smoothstep(0, reach, pastTheEnd(along))
+        let sinking = along < 0
+            ? smoothstep(0, underCrossingTuck, -along)
+            : smoothstep(overTipHold * overCrossingLap, overCrossingLap, along - 1)
         let crest = crossingCrestFactor(along: along)
             * crestProfile(across: across)
             * (1 - sinking)
@@ -434,13 +476,32 @@ enum RoundTube16SurfaceMesh {
         return progress * progress * (3 - 2 * progress)
     }
 
-    /// How the cross-section falls to the rim: `1 - |across|^power`.
+    /// How the cross-section falls to the rim: `(1 - |across|^power)^softness`.
     static let crestProfilePower: Float = 2
+    /// **How softly a bundle's face meets its rim** (Task 052, the author: a
+    /// bundle of threads does not stand up in a cliff). Above 1 the face lies
+    /// down again before the rim, as a bundle's fibres spread there, instead of
+    /// meeting it at its steepest. At mid-span the face turns about 40 degrees at
+    /// the shoulder and back to 28 near the rim (0.95 of the way out); the plain
+    /// parabola (1) turned 49 there and read as a cut wall wherever one bundle
+    /// lay over another, and 2 laid it down so far (12) that the bundle read as a
+    /// spindle.
+    static let crestRimSoftness: Float = 1.5
+    /// **Shingled rows** (Task 052, the author's sketch and book A): the rim
+    /// towards the previous row (`across` −1, towards −v) stands this far up, in
+    /// crests, so it rests on that row's flank; the other rim goes in beneath the
+    /// next row. At 0.8 the rims stood as hard steps and the outline showed gaps;
+    /// 0.4 just clears the neighbour.
+    static let shingleRimHeight: Float = 0.4
 
-    /// Cross-section: 1 on the crest, 0 at the rim.
+    /// Cross-section: 1 on the crest, 0 at the rim towards the next row and
+    /// `shingleRimHeight` at the rim towards the previous one. The crest does not
+    /// move, so neither does the outline.
     static func crestProfile(across: Float) -> Float {
         let clamped = min(abs(across), 1)
-        return max(0, 1 - pow(clamped, crestProfilePower))
+        let plain = pow(max(0, 1 - pow(clamped, crestProfilePower)), crestRimSoftness)
+        let towardsPrevious = (1 - min(max(across, -1), 1)) / 2
+        return plain + shingleRimHeight * towardsPrevious * (1 - plain)
     }
 
     /// Peaks at both ends of a cell, where it meets the cells running the other
@@ -1020,7 +1081,7 @@ enum RoundTube16SurfaceMesh {
             from: -underCrossingTuck, to: 0, count: steps(underCrossingTuck)
         ).dropLast()
         let after = subdivisionSamples(
-            from: 1, to: 1 + overCrossingLap, count: steps(overCrossingLap)
+            from: 1, to: 1 + overCrossingLap, count: steps(overCrossingLap) * lapRefinement
         ).dropFirst()
         return Array(before) + subdivisionSamples(from: 0, to: 1, count: count) + Array(after)
     }

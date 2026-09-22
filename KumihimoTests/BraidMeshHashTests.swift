@@ -56,11 +56,20 @@ struct BraidMeshHashTests {
     /// every bundle alike, that reaches past its cell and overlaps its
     /// neighbours, with a floor beneath and no walls; and the repeat is 1.25 turns
     /// long rather than 0.65.
+    ///
+    /// **Changed on purpose again in Task 052.** `0x4bd9_d069_9c8f_9734` until
+    /// then, over the same 303,840 vertices: the crest was raised from 0.12 to
+    /// 0.20 and the valley lowered from 0.03 to 0.11, so a bundle's face turns
+    /// into its shoulder and the outline stays where it was; the cross-section
+    /// lies down again at its rim (`crestRimSoftness` 1.5); each row rests on the
+    /// previous one (`shingleRimHeight`); and the end lying over the other arm of
+    /// a V comes to a point, sampled three times as finely (`lapRefinement`),
+    /// which is why there are 419,184 vertices now.
     @Test func theRoundBraidsMeshIsTheShapeItWas() throws {
         let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.maruGenji16Colouring))
         let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
-        #expect(mesh.positions.count == 303_840)
-        #expect(Self.hash(mesh.positions) == 0x4bd9_d069_9c8f_9734)
+        #expect(mesh.positions.count == 419_184)
+        #expect(Self.hash(mesh.positions) == 0x13ed_1478_75ce_cc9e)
     }
 }

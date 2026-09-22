@@ -103,11 +103,15 @@ struct MaruGenjiSurfaceMeshTests {
         let vsPerBraidWidth = 8 * mesh.visibleWidth / mesh.patternRepeatLength
 
         // The author's own braid reads 2.13 Vs a braid width top-down and 2.27 close
-        // up. The band is those two readings widened by 10 per cent either way. At
-        // the current crest of 0.12 this reads 2.22. The crest and the pattern's
+        // up. The band is those two readings widened by 10 per cent either way. It
+        // reads 2.22 with the crest line at 1.09 radii. The crest and the pattern's
         // aspect ratio are still not separable from a photograph (see
         // `docs/architecture.md`「畝の高さと模様の縦横比は写真からは分離できない」).
         #expect((1.9...2.5).contains(vsPerBraidWidth))
+        // **Task 052 raised the crest and lowered the valley by the same 0.08**, so
+        // the outline, and the density over it, did not move. Held here, so that a
+        // rounder bundle cannot quietly fatten the braid and thin its chevrons.
+        #expect(abs(mesh.crestRadius / mesh.baseRadius - 1.09) < 0.000_1)
     }
 
     @Test(arguments: [
@@ -159,8 +163,11 @@ struct MaruGenjiSurfaceMeshTests {
         )
         let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
 
+        // Grouped once, so the cost is the vertices once over rather than once per
+        // strand: 64 walks of 419,184 vertices took 20 seconds (Task 052).
+        let vertices = verticesBySegment(of: mesh)
         let angles = try pattern.patches.indices.map { index in
-            try crestAngleToAxisInDegrees(of: mesh, segmentIndex: index)
+            try crestAngleToAxisInDegrees(of: mesh, segmentIndex: index, vertices: vertices[index] ?? [])
         }
 
         #expect(angles.count == RoundTube16SurfacePatternGenerator.patchCount)
@@ -204,26 +211,85 @@ struct MaruGenjiSurfaceMeshTests {
         let base = RoundTube16SurfaceMesh.defaultRadius
         let tolerance: Float = 0.000_1
 
+        // Grouped once rather than walked once per strand (Task 052; see
+        // `everyRidgeLeansAtTheAngleTheDeclaredAspectImplies`).
+        let bySegment = verticesBySegment(of: mesh)
         for index in pattern.patches.indices {
             // Excludes the walls sealing a crossing and the lap past a strand's own
             // ends, which both sit at or below the valley floor by design.
-            let vertices = mesh.positions.indices.filter {
-                mesh.vertexSegmentIndices[$0] == index
-                    && !mesh.vertexIsBeneath[$0]
+            let vertices = (bySegment[index] ?? []).filter {
+                !mesh.vertexIsBeneath[$0]
                     && (0...1).contains(mesh.strandCoordinates[$0].x)
             }
             #expect(!vertices.isEmpty)
 
             let crest = vertices.filter { abs(mesh.strandCoordinates[$0].y) < 0.000_1 }
-            let edges = vertices.filter { abs(mesh.strandCoordinates[$0].y) > 1 - 0.000_1 }
+            // The rim towards the next row. The one towards the previous row
+            // stands on that row since Task 052 (`shingleRimHeight`).
+            let edges = vertices.filter { mesh.strandCoordinates[$0].y > 1 - 0.000_1 }
+            let restingEdges = vertices.filter { mesh.strandCoordinates[$0].y < -1 + 0.000_1 }
             #expect(!crest.isEmpty)
             #expect(!edges.isEmpty)
-            #expect(crest.allSatisfy { radius(of: mesh, at: $0) > base + tolerance })
+            // Above its own rim by at least the crest left where it passes under.
+            // **Not above `base` any more** (Task 052): the valley was moved down
+            // with the crest, so the sunk end of a bundle lies below the nominal
+            // radius, beneath the bundle passing over it.
+            let lowestCrest = mesh.valleyFloorRadius + base
+                * RoundTube16SurfaceMesh.crestHeightRatio
+                * (1 - RoundTube16SurfaceMesh.underCrossingDip)
+            #expect(crest.allSatisfy { radius(of: mesh, at: $0) > lowestCrest - tolerance })
             #expect(edges.allSatisfy { radius(of: mesh, at: $0) <= base + tolerance })
             #expect(edges.allSatisfy {
                 abs(radius(of: mesh, at: $0) - mesh.valleyFloorRadius) < tolerance
             })
+            #expect(!restingEdges.isEmpty)
+            #expect(restingEdges.allSatisfy { radius(of: mesh, at: $0) > mesh.valleyFloorRadius })
         }
+    }
+
+    /// **A bundle's face turns into its shoulder, and lies down again at its
+    /// rims** (Task 052). Measured at mid-span, as the angle between the face
+    /// and straight out, at the cross-section's own samples.
+    ///
+    /// Towards the next row, a third, three fifths, four fifths and nineteen
+    /// twentieths of the way to the rim: 23, 38, 42, 33 degrees.
+    /// - The shoulder turns about 40. At a crest of 0.12 it turned under 30, a
+    ///   broad face the author read as a flat tile.
+    /// - The belly turns less than the shoulder, so it is round rather than a
+    ///   ridge down a flat roof.
+    /// - **Near the rim it lies down again** — a bundle of threads does not stand
+    ///   in a cliff (the author). The plain parabola turned 49 there, steepest at
+    ///   the rim, and read as a cut wall wherever one bundle lay over another.
+    ///   But not flat: laid down to 12 the bundle read as a spindle.
+    ///
+    /// Towards the previous row, where it rests on that row: 19, 26, 23, 11. It
+    /// lies on the row it rests on rather than standing off it.
+    @Test func aBundlesFaceTurnsIntoItsShoulderAndLiesDownAtItsRims() throws {
+        let mesh = try makeMesh()
+        func turn(at across: Float) -> Float? {
+            let turns = mesh.positions.indices.compactMap { index -> Float? in
+                let strand = mesh.strandCoordinates[index]
+                guard
+                    !mesh.vertexIsBeneath[index],
+                    abs(strand.x - 0.5) < 0.000_1,
+                    abs(strand.y - across) < 0.01
+                else { return nil }
+                let position = mesh.positions[index]
+                let outwards = simd_normalize(SIMD3<Float>(0, position.y, position.z))
+                return acos(min(simd_dot(mesh.normals[index], outwards), 1)) * 180 / .pi
+            }.sorted()
+            return turns.isEmpty ? nil : turns[turns.count / 2]
+        }
+        // The cross-section's own samples: sin(pi/2 (2k/10 - 1)).
+        let belly = try #require(turn(at: 0.309))
+        let shoulder = max(try #require(turn(at: 0.588)), try #require(turn(at: 0.809)))
+        let rim = try #require(turn(at: 0.951))
+        #expect((36...46).contains(shoulder), "the shoulder turns \(shoulder) degrees")
+        #expect(belly < shoulder / 1.3, "belly \(belly), shoulder \(shoulder)")
+        #expect(rim < shoulder * 0.85, "rim \(rim), shoulder \(shoulder)")
+        #expect(rim > shoulder * 0.5, "rim \(rim), shoulder \(shoulder)")
+        let resting = try #require(turn(at: -0.951))
+        #expect(resting < shoulder / 2, "resting rim \(resting), shoulder \(shoulder)")
     }
 
     @Test func radiusStaysInsideTheConfiguredReliefRange() throws {
@@ -263,11 +329,18 @@ struct MaruGenjiSurfaceMeshTests {
             #expect(under >= floor - 0.000_1)
         }
         for along in [Float(0), Float(0.5), Float(1)] {
-            for across in [Float(-1), Float(1)] {
-                #expect(abs(RoundTube16SurfaceMesh.strandRadius(
-                    along: along, across: across, radius: radius
-                ) - floor) < 0.000_01)
-            }
+            // The rim towards the next row lies on the floor; the one towards the
+            // previous row stands `shingleRimHeight` of the crest there above it
+            // (Task 052), so it rests on that row's flank.
+            #expect(abs(RoundTube16SurfaceMesh.strandRadius(
+                along: along, across: 1, radius: radius
+            ) - floor) < 0.000_01)
+            let resting = floor + radius * RoundTube16SurfaceMesh.crestHeightRatio
+                * RoundTube16SurfaceMesh.crossingCrestFactor(along: along)
+                * RoundTube16SurfaceMesh.shingleRimHeight
+            #expect(abs(RoundTube16SurfaceMesh.strandRadius(
+                along: along, across: -1, radius: radius
+            ) - resting) < 0.000_01)
         }
     }
 
@@ -689,11 +762,20 @@ struct MaruGenjiSurfaceMeshTests {
 
     /// Angle between one strand's crest line and the braid axis, measured on the
     /// generated geometry: axial distance against arc length around the braid.
+    /// Every vertex index, by the strand it belongs to.
+    private func verticesBySegment(of mesh: RoundTube16SurfaceMeshData) -> [Int: [Int]] {
+        Dictionary(grouping: mesh.positions.indices) { mesh.vertexSegmentIndices[$0] }
+    }
+
     private func crestAngleToAxisInDegrees(
         of mesh: RoundTube16SurfaceMeshData,
-        segmentIndex: Int
+        segmentIndex: Int,
+        vertices: [Int]? = nil
     ) throws -> Float {
-        let crest = mesh.positions.indices.filter {
+        let candidates = vertices ?? mesh.positions.indices.filter {
+            mesh.vertexSegmentIndices[$0] == segmentIndex
+        }
+        let crest = candidates.filter {
             mesh.vertexSegmentIndices[$0] == segmentIndex
                 && !mesh.vertexIsBeneath[$0]
                 && abs(mesh.strandCoordinates[$0].y) < 0.000_1

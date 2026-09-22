@@ -279,11 +279,12 @@ enum BraidMethodCatalog {
     /// product** — Task 005J could separate neither from the photographs — so each
     /// carries that on its face rather than in a comment.
     static let maruGenji16Shape = BraidShapeValues(
-        // **Not carried into the construction.** The generator's 0.12 is a
-        // fraction of the tube's nominal radius, not of a thread's diameter
-        // (`RoundTube16SurfaceMesh.crestHeightRatio`), so it cannot be
-        // compared with a crest measured in diameters. The round braid keeps the
-        // derived d/2, and that is unverified against a photograph.
+        // **Not carried into the construction.** Task 005J's 0.12 is a
+        // fraction of the tube's nominal radius, not of a thread's diameter, so
+        // it cannot be compared with a crest measured in diameters. The round
+        // braid keeps the derived d/2, and that is unverified against a
+        // photograph. The surface drawing no longer uses it: since Task 052 it
+        // draws a crest chosen by eye (`RoundTube16SurfaceMesh.crestHeightRatio`).
         crestHeight: .observed(
             0.12, basis: .fractionOf("the tube's nominal radius"),
             from: "Task 005J, as a fraction of the nominal radius",

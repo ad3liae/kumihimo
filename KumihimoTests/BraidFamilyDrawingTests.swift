@@ -94,8 +94,9 @@ struct BraidFamilyDrawingTests {
         }
     }
 
-    /// The measured ones are the five the record names, at the values they have
-    /// always had. **Nothing is changed by saying where it came from.**
+    /// The measured ones are the ones the record names, at the values they have
+    /// always had. **Nothing is changed by saying where it came from.** The
+    /// round braid's crest left them in Task 052, when it was redrawn by eye.
     @Test func theMeasuredValuesAreTheOnesTheRecordNames() throws {
         let flat = Flat16SurfaceMesh.shape
         let tube = RoundTube16SurfaceMesh.shape
@@ -109,7 +110,9 @@ struct BraidFamilyDrawingTests {
                 == Double(Flat16SurfacePatternGenerator.stitchPitchPerBraidWidth))
         #expect(flat.measured["crest over half thickness"]?.value
                 == Double(Flat16SurfaceMesh.crestHeightRatio))
-        #expect(tube.measured["crest over nominal radius"]?.value
+        // **Chosen by eye since Task 052**, so it is no longer among the measured.
+        #expect(tube.measured["crest over nominal radius"] == nil)
+        #expect(tube.calibratedByEye["crest over nominal radius"]?.value
                 == Double(RoundTube16SurfaceMesh.crestHeightRatio))
         #expect(tube.measured["one repeat over one turn"]?.value
                 == Double(RoundTube16SurfacePatternGenerator.patternAspectRatio))
@@ -131,6 +134,10 @@ struct BraidFamilyDrawingTests {
         // how far it laps and tucks, how wide it is, how it narrows at each end,
         // and how its buried tip and the floor sink are set by eye against the
         // photographs, as are the cross-section and the fibre count.
-        #expect(tube.calibratedByEye.count == 15)
+        // Nineteen since Task 052: the crest joined them, drawn rounder by eye,
+        // and so did how softly the cross-section meets its rim, how high the rim
+        // resting on the previous row stands, and how long the end lying over the
+        // other arm of a V keeps its height.
+        #expect(tube.calibratedByEye.count == 19)
     }
 }

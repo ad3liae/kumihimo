@@ -398,13 +398,16 @@ struct HiraGenjiSurfaceMeshTests {
 
     /// **The two braids' crests are not the same figure, and need not be.**
     ///
-    /// The round braid's 0.12 is a fraction of its nominal radius and was never
+    /// The round braid's crest is a fraction of its nominal radius and was never
     /// checked against a photographed braid; the flat braid's is read off one.
     /// This test used to assert they agreed per yarn width, which fixed an
     /// assumption nothing had verified. It now records the gap so that closing it
     /// is a decision someone takes, not something that happens quietly.
     ///
-    /// Task 005J is to measure the round braid's crest the same way.
+    /// Task 005J could not measure the round braid's crest. **Task 052 raised it
+    /// by eye from 0.12 to 0.20** (the author: too flat), which narrowed the gap
+    /// from about three times to under two. That is a drawing choice, not a
+    /// measurement closing it.
     @Test func theRoundBraidsCrestIsStillTheUnmeasuredOne() {
         let flatPerYarn = Flat16SurfaceMesh.crestHeightRatio
         let roundYarnWidth = 2 * Float.pi * RoundTube16SurfaceMesh.defaultRadius
@@ -412,12 +415,12 @@ struct HiraGenjiSurfaceMeshTests {
         let roundPerYarn = RoundTube16SurfaceMesh.defaultRadius
             * RoundTube16SurfaceMesh.crestHeightRatio / roundYarnWidth
 
-        #expect(abs(roundPerYarn - 0.153) < 0.005)
+        #expect(abs(roundPerYarn - 0.255) < 0.005)
         // The flat braid's yarn is one half-thickness wide, so its ratio is also
-        // its crest in yarn widths. The round braid's stands about a third as
-        // proud of its own yarn — the gap Task 005J is to look at.
-        #expect(flatPerYarn / roundPerYarn > 2.5)
-        #expect(flatPerYarn / roundPerYarn < 3.5)
+        // its crest in yarn widths. The round braid's stands a little over half
+        // as proud of its own yarn (about a third before Task 052).
+        #expect(flatPerYarn / roundPerYarn > 1.5)
+        #expect(flatPerYarn / roundPerYarn < 2.1)
     }
 
     /// The swell is given to all four regions. An edge left flat would read as a
