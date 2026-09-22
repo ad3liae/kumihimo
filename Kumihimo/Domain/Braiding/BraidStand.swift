@@ -124,4 +124,20 @@ enum BraidStands {
             BraidGroup(name: "west", positions: [7, 6]),
         ]
     )
+
+    /// The four-position round stand, one thread to a group (Task 054).
+    ///
+    /// **Counted the way `round16` and `round8` are**: north at the mark, then
+    /// round clockwise. With one position a group there is no outermost to
+    /// list first.
+    static let round4 = round(
+        id: "round-4",
+        positionCount: 4,
+        groups: [
+            BraidGroup(name: "north", positions: [1]),
+            BraidGroup(name: "east", positions: [2]),
+            BraidGroup(name: "south", positions: [3]),
+            BraidGroup(name: "west", positions: [4]),
+        ]
+    )
 }

@@ -11,9 +11,10 @@ import Foundation
 enum BraidMethodCatalog {
     static let stand16 = BraidStands.round16
     static let stand8 = BraidStands.round8
+    static let stand4 = BraidStands.round4
 
     /// The stands this app ships.
-    static let stands: [BraidStand] = [stand16, stand8]
+    static let stands: [BraidStand] = [stand16, stand8, stand4]
 
     /// The stand a recipe is worked on.
     ///
@@ -42,6 +43,18 @@ enum BraidMethodCatalog {
     /// that a position's number and its notch run the same way round.
     static let diskRestingNotchesForEight: [Int: Int] = [
         1: 1, 5: 2, 9: 3, 13: 4, 17: 5, 21: 6, 25: 7, 29: 8,
+    ]
+
+    /// Four threads on the same thirty-two notch disk rest eight notches apart:
+    /// position *p* at notch *8p - 7* (Task 054).
+    ///
+    /// **Not read off a printed figure**, for the reason
+    /// `diskRestingNotchesForEight` is not: book A is a book of the round stand
+    /// (丸台) and draws no disk, and book C has no figure for this braid. So this
+    /// numbering is this repository's own, chosen so that a position's number and
+    /// its notch run the same way round.
+    static let diskRestingNotchesForFour: [Int: Int] = [
+        1: 1, 9: 2, 17: 3, 25: 4,
     ]
 
     private static func disk(_ source: String, _ moves: [(Int, Int)]) -> BraidDiskNotation {
@@ -520,9 +533,84 @@ enum BraidMethodCatalog {
         orderRoundTheBraid: yatsuKongo8CrossSection
     )
 
+    // MARK: - Maru-yotsu (Task 054)
+
+    /// **Maru-yotsu (丸四つ組), book A p.56, set down in the disk notation.**
+    ///
+    /// The book prints two steps and 「1〜2をくり返す」: in 1 the right hand takes
+    /// the upper thread and the left hand the lower, and the two go to each
+    /// other's places, one passing left of the middle and one right; in 2 the
+    /// right hand takes the left thread and the left hand the right, and the
+    /// flat pair is swapped the same way. So one cycle swaps the upright pair
+    /// (north and south) and then the flat pair (west and east).
+    ///
+    /// **Written the way the book A tables always wrote a landing and its tidy**:
+    /// each thread is carried to the notch just past the other's resting notch,
+    /// and after the step both are tidied one notch on into place. The carries
+    /// are fifteen notches and the tidies one, so `isRepositioning` tells them
+    /// apart by distance as it does for every other table. Worked through, the
+    /// threads are carried 1, 3, 2, 4, end at 1→3, 3→1, 2→4, 4→2, and the closing
+    /// is empty (`MaruYotsuTests`).
+    ///
+    /// **A printed step is one instant** (`diskOfEight`'s reading): the book
+    /// prints the right hand and the left for each step and does not say which
+    /// goes first, and book C has no figure of this braid.
+    static let maruYotsuDisk = BraidDiskNotation(
+        source: "book A p.56, its two printed steps set down in this repository's disk notation",
+        notchCount: 32,
+        standPositionByRestingNotch: diskRestingNotchesForFour,
+        moves: [
+            (1, 18), (17, 2), (18, 17), (2, 1),      // printed step 1: the upright pair
+            (9, 26), (25, 10), (26, 25), (10, 9),    // printed step 2: the flat pair
+        ].map(BraidMove.init(from:to:)),
+        threadsPerStep: 2,
+        stepReading: .oneStepAnInstant
+    )
+
+    /// Book A prints two steps and does not name them; these say which pair each
+    /// one swaps. **The derivation never reads them.**
+    static let maruYotsuStepNames = ["uprightPair", "flatPair"]
+
+    static let maruYotsu4: BraidMethod = {
+        guard let method = maruYotsuDisk.method(
+            id: "maru-yotsu-4", standID: stand4.id, stepNames: maruYotsuStepNames
+        ) else {
+            preconditionFailure("book A p.56's table does not run as a cycle of the four-place stand")
+        }
+        return method
+    }()
+
+    /// **Book A p.56's colouring b, upright 163 and flat 148, set on the
+    /// catalogue's nearest colour names** — a reading, not a measurement: the page prints
+    /// 163 pale and 148 a greyish lilac, and p.10's photograph b is white and
+    /// mauve, so 163 is `white` and 148 is `purple`, the catalogue's only
+    /// violet, which is more saturated than the thread.
+    ///
+    /// **b because it can be judged**: p.10's photograph b is the one whose two
+    /// pairs part most plainly. The page prints three: a (147 upright, 169 flat,
+    /// both pale — white and pink in the photograph), b, and c (124 alone, one
+    /// colour, which shows no pattern to judge).
+    static let maruYotsu4Colouring = colouring(on: stand4, [
+        "north": ["white"],     // 163
+        "east": ["purple"],     // 148
+        "south": ["white"],     // 163
+        "west": ["purple"],     // 148
+    ])
+
+    /// **The measured values are empty: nothing has been measured for the
+    /// recipe.** What the drawing rests on belongs to the family's drawer
+    /// (`RoundTube4SurfaceMesh.shape`), as the eight-thread braids' does.
+    static let maruYotsu4Recipe = BraidRecipe(
+        id: "maru-yotsu-4",
+        name: "丸四つ組",
+        notation: maruYotsuDisk,
+        colouring: maruYotsu4Colouring,
+        shape: BraidShapeValues()
+    )
+
     static let recipes: [BraidRecipe] = [
         maruGenji16Recipe, hiraGenji16Recipe, yatsuKongoS8Recipe, yatsuKongoZ8Recipe,
-        yatsuKongoGaeshi8Recipe,
+        yatsuKongoGaeshi8Recipe, maruYotsu4Recipe,
     ]
 
     /// The recipe a preset stands for.

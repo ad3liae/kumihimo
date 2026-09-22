@@ -27,15 +27,17 @@ struct BraidFamilyDrawingTests {
         guard let drawing = BraidFamilyDrawing.drawing(for: recipe, on: stand) else {
             #expect(BraidFamilyDrawing.shape(of: family) == nil)
             let nothing = BraidFamilyDrawing.mesh(for: recipe, on: stand)
-            #expect(nothing.flat == nil && nothing.tube == nil && nothing.tubeOfEight == nil)
+            #expect(nothing.flat == nil && nothing.tube == nil && nothing.tubeOfEight == nil
+                    && nothing.tubeOfFour == nil)
             return
         }
         let shape = try #require(BraidFamilyDrawing.shape(of: drawing.family))
         #expect(!shape.values.isEmpty)
         let mesh = BraidFamilyDrawing.mesh(for: recipe, on: stand)
-        // **Exactly one drawer made it.** Three families are drawn now, and a
-        // recipe belongs to one of them.
-        let made = [mesh.flat != nil, mesh.tube != nil, mesh.tubeOfEight != nil]
+        // **Exactly one drawer made it.** Four families are drawn now (the tube
+        // of four since Task 054), and a recipe belongs to one of them.
+        let made = [mesh.flat != nil, mesh.tube != nil, mesh.tubeOfEight != nil,
+                    mesh.tubeOfFour != nil]
         #expect(made.filter { $0 }.count == 1)
     }
 

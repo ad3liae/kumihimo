@@ -34,6 +34,7 @@ extension BraidPresetID {
     static let yatsuKongoS8 = BraidPresetID(rawValue: "yatsu-kongo-s-8")
     static let yatsuKongoZ8 = BraidPresetID(rawValue: "yatsu-kongo-z-8")
     static let yatsuKongoGaeshi8 = BraidPresetID(rawValue: "yatsu-kongo-gaeshi-8")
+    static let maruYotsu4 = BraidPresetID(rawValue: "maru-yotsu-4")
 }
 
 enum BraidPresetCatalog {
@@ -93,7 +94,19 @@ enum BraidPresetCatalog {
         prototypeNotice: "手順表は組ひもディスクの本（8S&Z-スパイラル）から写した試作です。Sを6段、Zを6段で1工程です。折り返しの見え方は小さな写真にしか照らしていない描画上の近似です。"
     )
 
-    static let presets = [maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ, yatsuKongoGaeshi]
+    /// 丸四つ組 (Task 054), the first braid of four threads. **Read off book A
+    /// p.56's picture**, which prints each step's two threads, one to a hand,
+    /// and not which goes first; book C has no figure of it.
+    static let maruYotsu = BraidPreset(
+        id: .maruYotsu4,
+        displayName: "丸四つ",
+        supportedThreadCounts: [4],
+        crossSectionProfile: .round,
+        verificationLevel: .movementRules,
+        prototypeNotice: "手順表はbookA p.56から写した試作です。bookCに図が無く、対の2本のどちらが先かは読めません。立体は写真に合わせた描画上の近似です。"
+    )
+
+    static let presets = [maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ, yatsuKongoGaeshi, maruYotsu]
 
     static func availablePresets(threadCount: Int) -> [BraidPreset] {
         presets.filter { $0.supports(threadCount: threadCount) }
