@@ -1,6 +1,6 @@
 # Task 054: 丸四つ組（4本）を足す
 
-- 状態: **指示書**（2026-09-22）。**worker へそのまま渡す。承認待ちの段は挟まない**（042 以降の型）
+- 状態: **実装済み・作者の確認待ち**（2026-09-22）。結果は末尾の「結果」。指示書として出したのは同日（042 以降の型）
 - 前提（先に読むこと）: `docs/tasks/025-5-adding-a-recipe.md`（レシピを1つ足す手順）、
   `docs/tasks/049-yatsu-kongo-appearance-and-source-closure.md` の 2.3 節（帯の向きの食い違い）、
   `docs/tasks/053-yatsu-kongo-gaeshi.md`、`docs/architecture.md`「正本の読み方」
@@ -193,3 +193,82 @@ c は1色なので模様の判定に使えない。
 - **八つ金剛には触れない**（段階0 は取り下げ）。
 - 物理の線（036〜044）は止めたまま。
 - 049 の形状の申し送り（腹の高さ、見かけの傾き17°、網目の質感）は今回の外。
+
+---
+
+## 結果（2026-09-22、worker）
+
+### 段階1: 台と手順表
+
+- `BraidStands.round4`、`BraidMethodCatalog.stand4`・`diskRestingNotchesForFour`・`maruYotsuDisk`・`maruYotsu4`（stepNames `uprightPair`・`flatPair`）。
+- **検算**: `worked(on: round4)` は通る。手は `[[1→3, 3→1], [2→4, 4→2]]`、`closing` は空、組みの手は全て15ノッチ。
+  **1サイクルで全糸が2場所進み、反復は2サイクル**（`MaruYotsuTests.everyThreadGoesTwoPlacesACycle`）。
+  積みは1サイクル2層（`BraidStacking`）、族は `.roundTube(threads: 4)`、`faceColumns` は nil（閉じが空なので）。
+- **対の中の先後: 届かない（数で）。** 4通り（刷られた順／対の中を入れ替え × `.oneStepAnInstant`／`.oneThreadAnInstant`）で
+  - 占有履歴（全糸の場所の並び）: **4通りとも同一**
+  - 断面: 4通りとも台の縁の順 `[1, 2, 3, 4]`
+  - 模様図の形: 4通りとも同一
+  - メッシュ: **4通りとも 4,560 頂点、ハッシュ同一、頂点の最大移動 0.0**
+  - 違うのは `.oneThreadAnInstant` のときの置いた手番（どちらが上か）だけで、描くものは誰もそれを読まない。
+  - `passingsWithinOneInstant` は 0 件。**注意**: `runsMustPassEachOther` は端を共有する弦（互いの場所へ行く2本）を
+    「すれ違う」と数えない。本の図では2本は左右に振り分けて通る（実物では交差する）が、導出はそれを交差として持っていない。
+  - 届かないので `unsettled` は付けていない。プリセットの注記には「対の2本のどちらが先かは読めません」と書いた。
+  - 固定した試験: `whichThreadOfAPairGoesFirstDoesNotReachTheDrawing`。
+
+### 段階2: レシピとプリセット
+
+- `maruYotsu4Recipe`（`maru-yotsu-4`、「丸四つ組」）、`BraidPresetCatalog.maruYotsu`（「丸四つ」、`[4]`、`.round`、`.movementRules`）。
+- **配色の読み替え**: bookA p.56 の b、**縦 163 → `white`、横 148 → `purple`**。頁の 163 は淡色、148 は灰みの藤、p.10 の写真 b は白と藤。
+  カタログに藤が無いので最も近い `purple`（写真より彩度が高い）。糸番号は doc comment に残した。**読みであって測定ではない。**
+- 測った形の値は空（`BraidShapeValues()`）。
+- **4本で「この本数の組み方はまだありません」が出なくなった。** 12本は空のまま。
+  これに合わせて既存の試験2か所を直した: `MaruGenjiSimulationTests.presetIsAvailableOnlyForSixteenThreads`（4本の一覧が空という期待）と、
+  UIテスト `testNoCompatiblePresetStillShowsUndecidedSelection`（新規エディタの既定4本で空状態を見ていたので、12本を選んでから見る）。
+  **UIテストは回していない。**
+
+### 段階3: 4本の描き手
+
+- 新規: `Kumihimo/Domain/RoundTube4SurfacePattern.swift`（`RoundTube4SurfacePattern`・`RoundTube4Bundle`・生成器）、
+  `Features/BraidSimulation/RoundTube4SurfaceMesh.swift`・`RoundTube4StrandTexture.swift`・`RoundTube4ThumbnailView.swift`。
+  8本の描き手を写して族の数を持たせた。**8本側は1行も変えていない**（共通化していない）。
+- つないだ所: `BraidFamilyDrawing`（`Drawing.roundTubeOfFour`、`families`、`mesh` の戻り値に `tubeOfFour`）、`BraidSurfaceScene`、
+  `BraidPreviewForFamily`（立体は筒の同じビュー、カードは `RoundTube4ThumbnailView`）。`BraidFamily.family(of:)` は触っていない。
+- 組み目は 051・053 のもの（鈍い頭が上、尾は幅を保って隣の列へ曲がり、後の束の下へ潜る。傾きは運ぶ向きの符号から取らない）。
+- **予言との照合**
+  - 「展開図の斜めは8本より急」: **配色 b では外れた——斜めが無い。** c = 2、s = 2 なので場所はずっと同じ色で、色は紐に沿って
+    まっすぐな4本の帯（白・藤・白・藤）になる。写真 b も藤の列が紐に沿ってまっすぐ通っており、**こちらは写真と合う。**
+    4本の糸を別の色にすれば、1サイクルで半周回る螺旋が出るはず（見ていない）。
+  - 「縦の対と横の対が半サイクルずれて交替」: **当たった**（`drawnPhaseByColumn == [0.5, 1, 0.5, 1]`）。
+- **写真との差**（`.build/task054/sheets/v1.png`・`v2.png`、写真 b と iPad の立体を同じ紐幅に揃えて上下に並べた）
+  - **1サイクル÷幅（測り方6、ただし色でなく組み目の周期。`docs/measurement-procedures.md` 6 の追記）**:
+    写真 b **0.80**、描いたもの **0.97**（周期 183 px、輪郭 189 px）。描いた輪郭は山の直径の約 0.83 しかないため。**寄せていない。**
+  - 束の傾き: 写真 b の藤の束は紐に対し約 23°、右上がりで、尾は上の白の列の下へ入る。描いたものは右上がりにした（下の `stitchLean`）が、
+    写真ほど尖った楕円にはならず、頭が鈍い（051 の決まり）。
+  - 太さ: 写真の藤の束は紐幅の約6割。描いたものはやや細い。
+- **`.declared` にした数**（`RoundTube4SurfaceMesh.shape`）:
+  束の傾き 0.3 列/サイクル、尾の曲がり 0.5 列、束の半幅 0.62 列、潜る長さ 0.55・頭の丸め 0.12・弧の長さ 1.2・曲がり始め 0.5・細り始め 1（以上5つは8本の値のまま、サイクル単位なので）、
+  谷からの高さ 0.44（半径比）、繊維の縞の角 8°・本数 24・起伏 0.003、谷の陰 2つ（16本の値を借用）、画面上の半径 0.48。
+  `.observed` は 1サイクル÷直径 0.80（幅 0.77〜0.80、上の差と「測り方6の解像度に届かない」を `unsettled` に書いた）、`.derived` は半糸の高さと山の位置。
+- **`stitchLean` は +1（8本は −1）。** 画面で組み点を右にして束が右上がり、尾が上の列の下へ入るのが写真 b と合う向き。
+  **8本と逆向きになった理由は分かっていない**——p.10 の紐のどちらの端が組み点かは分からず、049 2.3 の鏡の問題がここへ届くかも見ていない。
+
+### 段階4: 検証
+
+- **全件1回**（`.build/test-results/task054-full.xcresult`、iPhone 16、`-only-testing:KumihimoTests`）:
+  **479件中 成功474・失敗1・スキップ4**（`DRAW_SHEETS` のシート、機体に変数なし）、**テスト段階 272.6 秒**（呼び出し全体 301 秒）。**打ち切りは無い。**
+  失敗1件は上の `presetIsAvailableOnlyForSixteenThreads`（4本の一覧が空という古い期待）。直して単独で通過（`task054-fix.xcresult`）。**直したあとの全件は回していない。**
+- 丸源氏・平源氏・八つ金剛（S・Z・返し）の形状ハッシュの試験はすべて通過（不変）。
+- `BraidRecipeIsThreeThingsTests`・`BraidFamilyDrawingTests` は導出・図・積みに手を入れずに通過（後者は `mesh` の戻り値に1つ足した分だけ直した）。
+- `sh Scripts/check-braiding-is-general.sh` 通過。
+- 足した試験は `MaruYotsuTests` の9件（合計 0.2 秒）。
+- **手動**（iPad Pro 11 M4、ライト・標準文字）: 新しく編む → 4本 → 丸四つのカード → 色を b に → カード → 立体 → 模様図。
+  すべて出た（`.build/task054/manual/`）。保存はしていない。**落ちなかった**（`.ips` なし）。
+  途中、機体に14時台から残っていた古いアプリのプロセスが新しいビルドの起動を妨げていたので、一度終了して起動し直した。
+- 対象外: iPhone の手動、ダーク、大きな文字、実機、VoiceOver、UIテスト一式。
+
+### 読めなかったもの・判断が要るもの
+
+- **対の中の先後**（bookA は右手・左手だけ、bookC に図が無い）。いまの描き方には届かない。
+- **`stitchLean` の向きが8本と逆**。写真に合わせたが、なぜ逆になるかは説明できていない。
+- **1サイクル÷幅の差**（写真 0.80 に対して描いたもの 0.97）。直すなら「紐の直径」を輪郭で数えるかどうかの判断が要り、八つ金剛にも関わる。
+- 配色 b の 148 に合う色がカタログに無い（`purple` は写真より鮮やか）。
