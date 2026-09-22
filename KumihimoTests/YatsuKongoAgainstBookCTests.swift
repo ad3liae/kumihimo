@@ -25,6 +25,9 @@ import Testing
 /// - and in Japanese: 基本の金剛組。ディスクを90°ずつ左回転させながら組む。
 ///   スロットの番号は順にずれていく。
 ///
+/// **Since Task 053 the app braids the disk book's tables**, which agree with
+/// this figure (`bookCIsTheAppsZ`).
+///
 /// **What had to be read into it.** The figure prints three lines and "and so
 /// on"; the rest of a cycle is inferred from the rule the three lines follow —
 /// each line works the two *opposite* pairs, moving the clockwise-later thread
@@ -113,37 +116,65 @@ struct YatsuKongoAgainstBookCTests {
                 == Self.printedMoves.prefix(4).map { "\($0.0)-\($0.1)" })
     }
 
-    /// **Book C's braid carries a thread to the opposite pair — four places a
-    /// cycle — and the app's table carries it three.** The transcription and the
-    /// implementation disagree, and this holds that difference down thread by
-    /// thread rather than papering over it.
+    /// **Book C's braid is the app's Z since Task 053.** Counted with the pairs
+    /// drifting round the disk, as `cycle()` counts, book C carries a thread to
+    /// the opposite pair, four places a cycle. Counted on the stand's places,
+    /// which do not drift — the order of the threads round the braid — it is two,
+    /// and so is the disk book's p.36, which the app now braids
+    /// (`BraidMethodCatalog.yatsuKongoZDisk`). **The two books agree move for
+    /// move** once each is read into the stand the same way: Fig.129's first two
+    /// lines are one dan, its third line is the next dan's start one notch back,
+    /// and the method they make is the app's Z with the places named from a
+    /// different starting pair.
     ///
-    /// Book C: every thread crosses to the pair opposite (place `p` to `p + 4`),
-    /// and the whole arrangement drifts two notches (a quarter of a place)
-    /// round the disk each cycle, which is the "slot numbers shift" of the note.
-    /// The app's Z table carries `+3` (`RoundTube8SurfacePattern.columnsCarried`).
-    ///
-    /// **Nothing here changes the app's table** (Task 049's rule): the
-    /// disagreement is recorded for the author to rule on.
-    @Test func bookCCarriesFourPlacesWhereTheTableCarriesThree() throws {
+    /// **Book A p.54's table, which the app braided until Task 053, carried
+    /// three**, and that is still not what book C does.
+    @Test func bookCIsTheAppsZ() throws {
         let (_, endsAt) = Self.cycle()
         for place in 1...8 {
             #expect(endsAt[place] == (place + 4 - 1) % 8 + 1,
                     "book C moves the thread at place \(place) to \(endsAt[place] ?? 0)")
         }
 
-        let stand = BraidMethodCatalog.stand8
-        let recipe = BraidMethodCatalog.yatsuKongoZ8Recipe
-        let worked = try #require(recipe.worked(on: stand))
-        let derivation = try #require(BraidDerivation.derive(
-            stand: stand, method: worked.method, crossSection: worked.section
+        // Fig.129 read into the stand: 1・2 is the top pair, places 8 and 1.
+        let bookC = try #require(BookDiskKongo.cycle(
+            source: "book C Fig.129",
+            placeOneOnward: [2, 9, 10, 17, 18, 25, 26, 1],
+            printedDan: Array(Self.printedMoves.prefix(4)),
+            driftPerDan: -1
         ))
-        for course in derivation.courses {
-            let from = course.slots[0], to = course.slots[1]
-            #expect((to - from + 8) % 8 == 3, "the table moves slot \(from) to \(to)")
-            // And that is not what book C's figure does.
-            #expect((to - from + 8) % 8 != 4)
+        let stand = BraidMethodCatalog.stand8
+        let fig129 = try #require(bookC.method(
+            id: "yatsu-kongo-z-8-book-c", standID: stand.id,
+            stepNames: BraidMethodCatalog.yatsuKongoDiskStepNames
+        ))
+        // The third printed line is the next dan, one notch back.
+        let nextDan = Self.printedMoves.prefix(2).map { ((($0.0 - 2) % 32 + 32) % 32 + 1, (($0.1 - 2) % 32 + 32) % 32 + 1) }
+        #expect(Set(nextDan.map { "\($0.0)-\($0.1)" }) == Set(Self.printedMoves.suffix(2).map { "\($0.0)-\($0.1)" }))
+
+        let app = BraidMethodCatalog.yatsuKongoZ8
+        #expect(fig129.steps.count == app.steps.count)
+        // The same method, with the places named from another pair: one turn of
+        // the names carries every dan of the one onto the other. Inside a dan the
+        // two books work opposite pairs in different orders, which does not
+        // reach the drawing (`RoundTube8SurfaceTests
+        // .swappingTheOrderInsideADanDoesNotMoveTheMesh`).
+        func dan(_ steps: [BraidStep], _ index: Int, shift: Int) -> Set<BraidMove> {
+            Set(steps[(4 * index)..<(4 * index + 4)].flatMap(\.moves).map {
+                BraidMove(from: ($0.from - 1 + shift) % 8 + 1, to: ($0.to - 1 + shift) % 8 + 1)
+            })
         }
+        let turn = (0..<8).first { shift in
+            (0..<2).allSatisfy { dan(fig129.steps, $0, shift: shift) == dan(app.steps, $0, shift: 0) }
+        }
+        #expect(turn != nil, "book C Fig.129 is not the app's Z under any naming of the places")
+        for step in app.steps { for move in step.moves { #expect((move.to - move.from + 8) % 8 == 2) } }
+
+        let bookA = try #require(BraidMethodCatalog.yatsuKongoBookAP54Disk.reflected(
+            about: 30, source: "book A p.55, reflected"
+        )?.method(id: "yatsu-kongo-z-8-book-a", standID: stand.id,
+                  stepNames: BraidMethodCatalog.yatsuKongoStepNames))
+        for step in bookA.steps { for move in step.moves { #expect((move.to - move.from + 8) % 8 == 3) } }
     }
 
     /// **What the figure settles about the order inside a printed pair: nothing.**

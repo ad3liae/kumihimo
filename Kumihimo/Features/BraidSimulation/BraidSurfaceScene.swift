@@ -56,6 +56,9 @@ enum BraidSurfaceScene {
     struct Table {
         let stand: BraidStand
         let method: BraidMethod
+        /// Every table the braid is worked with, in turn (Task 053): `method`
+        /// alone for a braid of one.
+        let rounds: [BraidMethod]
         let crossSection: BraidCrossSection
     }
 
@@ -67,7 +70,10 @@ enum BraidSurfaceScene {
             let stand = BraidMethodCatalog.stand(for: recipe),
             let worked = recipe.worked(on: stand)
         else { return nil }
-        return Table(stand: stand, method: worked.method, crossSection: worked.section)
+        return Table(
+            stand: stand, method: worked.method, rounds: worked.derivation.rounds,
+            crossSection: worked.section
+        )
     }
 
     enum SceneError: Error {
@@ -213,7 +219,7 @@ enum BraidSurfaceScene {
         table: Table
     ) throws -> Model {
         guard let pattern = RoundTube8SurfacePatternGenerator.generate(
-            stand: table.stand, method: table.method,
+            stand: table.stand, rounds: table.rounds,
             crossSection: table.crossSection, assignments: assignments
         ) else { throw SceneError.patternGenerationFailed }
         guard let surface = RoundTube8SurfaceMesh.generate(pattern: pattern)

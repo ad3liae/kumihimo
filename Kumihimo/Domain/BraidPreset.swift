@@ -33,6 +33,7 @@ extension BraidPresetID {
     static let hiraGenji16 = BraidPresetID(rawValue: "hira-genji-16")
     static let yatsuKongoS8 = BraidPresetID(rawValue: "yatsu-kongo-s-8")
     static let yatsuKongoZ8 = BraidPresetID(rawValue: "yatsu-kongo-z-8")
+    static let yatsuKongoGaeshi8 = BraidPresetID(rawValue: "yatsu-kongo-gaeshi-8")
 }
 
 enum BraidPresetCatalog {
@@ -56,19 +57,18 @@ enum BraidPresetCatalog {
 
     /// The eight-bobbin braids, S and Z.
     ///
-    /// **The notice is longer than the others because more is open.** The move
-    /// table is not a copy of a printed table — it is book A p54–55's picture read
-    /// with the author's ruling on where a carried thread lands — and the solid is
-    /// drawn from rules rather than from a transcribed cell figure (Task 031), its
-    /// colour diagonal coming out some eight degrees shallower than the
-    /// photographs. What is settled is the colouring, book A p.54 and p.55's a.
+    /// **The notice is longer than the others because more is open.** Since Task
+    /// 053 the tables are a disk book's p.36-37, photographed — not the source of
+    /// record, though book C Fig.129 prints the same Z — and the solid is drawn
+    /// from rules rather than from a transcribed cell figure (Task 031). What is
+    /// settled is the colouring, book A p.54 and p.55's a.
     static let yatsuKongoS = BraidPreset(
         id: .yatsuKongoS8,
         displayName: "八つ金剛S",
         supportedThreadCounts: [8],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順表はbookA p54の絵と、運ばれた糸の着地についての判定から起こした試作です。立体は写真に合わせた描画上の近似で、糸束の傾きは実物写真よりやや強く出ます。bookC Fig.129とは1サイクルの糸の進み方が食い違っており、どちらを採るかは未判定です。"
+        prototypeNotice: "手順表は組ひもディスクの本（8S-スパイラル）から写した試作です。bookC Fig.129のZと同じ進み方になります。立体は写真に合わせた描画上の近似です。"
     )
 
     static let yatsuKongoZ = BraidPreset(
@@ -77,10 +77,23 @@ enum BraidPresetCatalog {
         supportedThreadCounts: [8],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "八つ金剛Sの手順表を盤の上で鏡に写したものです。立体は写真に合わせた描画上の近似で、糸束の傾きは実物写真よりやや強く出ます。bookC Fig.129とは1サイクルの糸の進み方が食い違っており、どちらを採るかは未判定です。"
+        prototypeNotice: "手順表は組ひもディスクの本（8Z-スパイラル）から写した試作で、bookC Fig.129と同じ進み方です。立体は写真に合わせた描画上の近似です。"
     )
 
-    static let presets = [maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ]
+    /// 八つ金剛返し組 (Task 053): six dan of S, then six of Z, from the disk
+    /// book's p.38. **More is open than for S and Z**: the finished braid's
+    /// photographs are small, and how the drawing lays the turn is its own
+    /// reading.
+    static let yatsuKongoGaeshi = BraidPreset(
+        id: .yatsuKongoGaeshi8,
+        displayName: "八つ金剛返し",
+        supportedThreadCounts: [8],
+        crossSectionProfile: .round,
+        verificationLevel: .movementRules,
+        prototypeNotice: "手順表は組ひもディスクの本（8S&Z-スパイラル）から写した試作です。Sを6段、Zを6段で1工程です。折り返しの見え方は小さな写真にしか照らしていない描画上の近似です。"
+    )
+
+    static let presets = [maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ, yatsuKongoGaeshi]
 
     static func availablePresets(threadCount: Int) -> [BraidPreset] {
         presets.filter { $0.supports(threadCount: threadCount) }

@@ -58,13 +58,10 @@ struct RoundTube8SurfaceTests {
         for row in 0..<drawn.rowCount {
             for place in 0..<8 {
                 let shape = try #require(figure.appearance(atColumn: place, row: row))
-                // **The figure is by place on the stand; the solid is by column
-                // of the finished braid**, and the braid turns one column a
-                // cycle (Task 048's rework). The cell to read is the one in the
-                // column this place has turned to.
-                let column = RoundTube8SurfacePatternGenerator.drawnColumn(
-                    ofSlot: place, cycle: row, lean: Int(drawn.leanDirection)
-                )
+                // **The figure is by place on the stand, and so is the solid**
+                // since Task 053: a column is a place (the drawing no longer
+                // turns the braid a column a cycle).
+                let column = place
                 let middle = (Float(column) + 0.5) / 8
                 let along = Float(row) / Float(drawn.rowCount)
                 let cell = try #require(drawn.surface.segments.first {
@@ -79,69 +76,53 @@ struct RoundTube8SurfaceTests {
         }
     }
 
-    // MARK: - 2. S and Z are mirrors
+    // MARK: - 2. S, Z and S&Z share one stitch
 
-    /// **Mirroring Z gives S.** Reflecting the braid in a plane through its axis
-    /// turns one into the other, and it is checked on the vertices themselves:
-    /// the same number of them, and the same set of positions once one is
-    /// reflected.
+    /// **S, Z and S&Z are drawn with one stitch; only their colour's spiral
+    /// differs** (the author, 2026-09-22: 「スパイラルの向きが逆になるだけで、基本の
+    /// 組み目の形は変わらないはず。同様にS&Zの組み目も全て同じになるはず。組み上げ
+    /// 方向は変わらないから」). Every run of each leans `stitchLean`, and the bare
+    /// geometry of S and Z — every vertex, whatever colour — is the same.
     ///
-    /// The reflection used is the one the tables are mirrors under — position `p`
-    /// to `9 - p` round the stand — which on the drawn tube is the angle `a` going
-    /// to `-a` plus the turn that lines the two numberings up.
-    @Test func theZBraidIsTheMirrorOfTheSBraid() throws {
+    /// Until then Z was drawn as S's mirror, vertex for vertex, because a run
+    /// leaned the way its table carried.
+    @Test func sZAndSAndZShareOneStitch() throws {
+        let stand = BraidMethodCatalog.stand8
+        for recipe in [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe,
+                       BraidMethodCatalog.yatsuKongoGaeshi8Recipe] {
+            let worked = try #require(recipe.worked(on: stand))
+            let drawn = try #require(RoundTube8SurfacePatternGenerator.generate(
+                stand: stand, rounds: worked.derivation.rounds,
+                crossSection: worked.section, assignments: recipe.colouring
+            ))
+            #expect(drawn.leanBySegment.allSatisfy { $0 == RoundTube8SurfacePatternGenerator.stitchLean },
+                    "\(recipe.id)")
+        }
+        // The spiral still turns opposite ways: that is the tables'.
+        let sCarry = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe).columnsCarried
+        let zCarry = try pattern(BraidMethodCatalog.yatsuKongoZ8Recipe).columnsCarried
+        #expect(sCarry == -zCarry)
+
+        // **One lattice**: every cell a cycle long, and the half-pitch stagger the
+        // same once the braid is turned so the two numberings line up — Z's
+        // first dan works the other parity of place from S's, which is a turn of
+        // one column, not another stitch.
+        let sDrawn = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe)
+        let zDrawn = try pattern(BraidMethodCatalog.yatsuKongoZ8Recipe)
+        for drawn in [sDrawn, zDrawn] {
+            let rows = Float(drawn.rowCount)
+            #expect(drawn.surface.segments.allSatisfy {
+                abs(($0.centerlineEnd.y - $0.centerlineStart.y) * rows - 1) < 1e-4
+            })
+        }
+        let turn = (0..<8).first { shift in
+            (0..<8).allSatisfy { zDrawn.drawnPhaseByColumn[$0] == sDrawn.drawnPhaseByColumn[($0 + shift) % 8] }
+        }
+        #expect(turn != nil)
         let s = try mesh(BraidMethodCatalog.yatsuKongoS8Recipe)
         let z = try mesh(BraidMethodCatalog.yatsuKongoZ8Recipe)
         #expect(s.positions.count == z.positions.count)
-        #expect(s.triangleCount == z.triangleCount)
         #expect(abs(s.length - z.length) < 1e-5)
-
-        // Place p becomes place 9 - p. A place spans the angles from
-        // 2*pi*(p-1)/8 to 2*pi*p/8, and negating the angle sends that span to the
-        // span of 9 - p exactly — **so the mirror is simply the angle reversed**,
-        // with no turn to line the two numberings up. The ring is laid out as
-        // `(sin, cos)` in `y` and `z`, so reversing the angle is `y` to `-y`.
-        func mirrored(_ point: SIMD3<Float>) -> SIMD3<Float> {
-            SIMD3(point.x, -point.y, point.z)
-        }
-        // **Compared colour by colour**, which is the whole of the claim now. A
-        // cell stands still, so both braids are the same eight straight lanes and
-        // comparing the bare geometry would pass whatever the tables did. What
-        // mirrors is *which colour is standing where*, cycle by cycle.
-        func key(_ point: SIMD3<Float>) -> [Int32] {
-            [Int32((point.x * 2048).rounded()),
-             Int32((point.y * 2048).rounded()),
-             Int32((point.z * 2048).rounded())]
-        }
-        func painted(_ mesh: RoundTube8SurfaceMeshData,
-                     _ move: (SIMD3<Float>) -> SIMD3<Float>) -> [ThreadColorID: Set<[Int32]>] {
-            var out = [ThreadColorID: Set<[Int32]>]()
-            for (colour, indices) in mesh.colorGroups {
-                out[colour] = Set(indices.map { key(move(mesh.positions[Int($0)])) })
-            }
-            return out
-        }
-        let mine = painted(s) { $0 }
-        let theirs = painted(z, mirrored)
-        #expect(!mine.isEmpty)
-        #expect(Set(mine.keys) == Set(theirs.keys))
-        // **Within one step of the grid, not on it.** A point that falls on a
-        // grid line in one braid can round to the next cell in the other; the
-        // mirror is only exact to the last bit of a float. So every point must
-        // have a match in its own cell or a neighbouring one, both ways round.
-        func matched(_ places: Set<[Int32]>, in other: Set<[Int32]>) -> Int {
-            places.filter { key in
-                !(-1...1).contains { dx in (-1...1).contains { dy in (-1...1).contains { dz in
-                    other.contains([key[0] + Int32(dx), key[1] + Int32(dy), key[2] + Int32(dz)])
-                } } }
-            }.count
-        }
-        for (colour, places) in mine {
-            let other = theirs[colour] ?? []
-            #expect(matched(places, in: other) == 0, "\(colour.rawValue): S points with no Z point")
-            #expect(matched(other, in: places) == 0, "\(colour.rawValue): Z points with no S point")
-            #expect(abs(places.count - other.count) <= places.count / 100)
-        }
     }
 
     // MARK: - 3. One repeat closes
@@ -317,7 +298,8 @@ struct RoundTube8SurfaceTests {
         // thread now shows as a run that leans the carry's way and goes on
         // beneath the next thread, 25 by 11 samples, with its own cell lying
         // beneath at the valley floor, 2 by 5 (Task 045).
-        #expect(s.positions.count == 128 * (25 * 11 + 2 * 5))
+        #expect(s.positions.count == 128 * (25 * 11 + 2 * 5)
+                / 2)
         // Then `0xfbb4_48c0_8f4a_7fdd` while a run was widest at a shoulder just
         // after its arrival and narrowed all the way to its tip, one column at
         // most: a lens with a belly now, pointed at both ends and a little wider
@@ -344,23 +326,27 @@ struct RoundTube8SurfaceTests {
         // 2026-09-21): the head is blunt, the tail keeps its width, bends into
         // the next lane and goes under the runs laid after it, and the arc has
         // its own span (Task 051). The vertex count did not change.
-        #expect(BraidMeshHashTests.hash(s.positions) == 0x7b20_db3a_0f1e_b941)
+        // Then `0x7b20_db3a_0f1e_b941` (36,480 vertices) while the table was
+        // book A p.54's, which comes round in eight cycles: the disk book's comes
+        // round in four, so a repeat has half the cells (Task 053). The drawing
+        // turned the braid a column a cycle then and does not now; **what shows
+        // on the front is pixel for pixel the same** (Task 053's record).
+        #expect(BraidMeshHashTests.hash(s.positions) == 0x4ba0_4e68_e894_23ed)
     }
 
-    // MARK: - 6. Which of a pair goes first does not reach the drawing
+    // MARK: - 6. The order inside a dan does not reach the drawing
 
-    /// **The one thing Task 008 left open must not be showing.** Which thread of a
-    /// printed pair is carried first is not settled, so a drawing that depended on
-    /// it would be a drawing resting on a guess.
+    /// **The order of the moves inside a dan must not be showing** (Task 053).
+    /// The disk book and book C print the moves of a dan in different orders —
+    /// which of two opposite pairs is worked first — so a drawing that depended
+    /// on it would rest on which book was copied.
     ///
-    /// It does not, and the reason is stronger than a tolerance: **a printed pair
-    /// is one instant** (the author, 2026-09-11), so the two threads of a pair
-    /// arrive together, and nothing the drawing reads — which thread stands where,
-    /// and when it arrived — has a place for their order. Nothing crosses either,
-    /// so there is no over and under for the order to decide. While the pair was
-    /// split into two instants the arrival phase did carry the order onto the
-    /// face, and this test is what stopped it going in.
-    @Test func swappingWhichOfAPairGoesFirstDoesNotMoveTheMesh() throws {
+    /// It does not: a place's cells begin in the half of the cycle its thread
+    /// arrives in, and the dan is that half whatever order its four moves come
+    /// in. Nothing crosses, so there is no over and under for the order to
+    /// decide. (Until Task 053 this asked the same of which thread of a printed
+    /// pair went first, under book A's table.)
+    @Test func swappingTheOrderInsideADanDoesNotMoveTheMesh() throws {
         let recipe = BraidMethodCatalog.yatsuKongoS8Recipe
         let worked = try #require(recipe.worked(on: stand))
         let swapped = BraidMethod(
@@ -383,16 +369,14 @@ struct RoundTube8SurfaceTests {
                 == BraidMeshHashTests.hash(asIs.positions))
     }
 
-    /// The steps of one cycle with the two threads of each printed pair listed
-    /// the other way round. Book A prints two threads to a step and book C's order
-    /// inside the pair is what is not known for this braid.
-    ///
-    /// **A printed step is one step now** (the author, 2026-09-11), so the pair is
-    /// turned round inside it. Until then each thread of a pair was a step of its
-    /// own and this swapped neighbouring steps; swapping neighbours now would swap
-    /// two different printed steps, which is not the question this test asks.
+    /// The steps of one cycle with neighbouring figures of each dan swapped:
+    /// the order book C prints its lines in against the disk book's.
     private func swappingPairs(of steps: [BraidStep]) -> [BraidStep] {
-        steps.map { BraidStep(name: $0.name, moves: $0.moves.reversed()) }
+        var swapped = steps
+        for index in stride(from: 0, to: steps.count - 1, by: 2) {
+            swapped.swapAt(index, index + 1)
+        }
+        return swapped
     }
 
     // MARK: - 7. It draws no other family
@@ -425,10 +409,11 @@ struct RoundTube8SurfaceTests {
         let z = try pattern(BraidMethodCatalog.yatsuKongoZ8Recipe)
         #expect(s.columnsCarried == -RoundTube8SurfacePatternGenerator.columnsCarriedPerCycle)
         #expect(z.columnsCarried == RoundTube8SurfacePatternGenerator.columnsCarriedPerCycle)
-        #expect(s.rowCount == 8)
-        // Sixty-four cells, every one whole: the first row's begin in the repeat
-        // before and are drawn from there, not cut at the tile's edge.
-        #expect(s.surface.segments.count == 64)
+        #expect(s.rowCount == 4)
+        // Thirty-two cells, every one whole: the first row's begin in the repeat
+        // before and are drawn from there, not cut at the tile's edge. (Sixty-four
+        // with book A's table, which came round in eight cycles.)
+        #expect(s.surface.segments.count == 32)
     }
 
     /// Every number the drawing rests on says where it came from, and the one that
@@ -601,21 +586,27 @@ struct RoundTube8SurfaceTests {
         #expect(widest >= RoundTube8Bundle.oneThreadHalfWidthInColumns)
     }
 
-    /// **A run leans the way its thread is carried**, so S and Z lean opposite
-    /// ways because their tables carry opposite ways — the sign is read off the
-    /// courses, never written in. Along the run, towards the braiding point, the
-    /// crest moves round the braid by the declared lean per cycle.
-    @Test func aRunLeansTheWayTheCarryGoes() throws {
+    /// **A run leans the stitch's way, the same for S and Z** (the author,
+    /// 2026-09-22), whichever way the table carries — the carry's sign is the
+    /// spiral's, read off the courses. Along the run, towards the braiding
+    /// point, the crest moves round the braid by the declared lean per cycle,
+    /// read off the mesh's own frame at the lean the pattern hands it.
+    ///
+    /// Until then a run leaned the way its thread was carried, and S and Z leaned
+    /// opposite ways.
+    @Test func aRunLeansTheStitchsWayWhateverTheCarry() throws {
         let bundle = RoundTube8Bundle.standard
+        let stitch = RoundTube8SurfacePatternGenerator.stitchLean
         for recipe in [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe] {
             let drawn = try pattern(recipe)
             let mesh = try mesh(recipe)
             #expect(drawn.leanDirection == Float(drawn.columnsCarried.signum()))
+            #expect(drawn.leanBySegment[0] == stitch)
             let segment = drawn.surface.segments[0]
             func turns(_ cycles: Float) -> Float {
                 let point = RoundTube8SurfaceMesh.frame(
                     of: segment, cycles: cycles, across: 0,
-                    leanDirection: drawn.leanDirection,
+                    leanDirection: drawn.leanBySegment[0],
                     floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
                     base: 0, repeatLength: mesh.patternRepeatLength
                 ).position
@@ -625,10 +616,10 @@ struct RoundTube8SurfaceTests {
             // bend is the tail's, and is held by `aRunHasABluntHeadAndATailThatKeepsItsWidth`.
             let span = bundle.tailBendFromCycles
             let moved = (turns(span) - turns(0)) * 8 / span
-            #expect(abs(moved - drawn.leanDirection * bundle.leanColumnsPerCycle) < 1e-4,
+            #expect(abs(moved - stitch * bundle.leanColumnsPerCycle) < 1e-4,
                     "\(recipe.id): \(moved) columns a cycle")
             // And the tail goes on round the same way.
-            #expect((turns(bundle.lengthInCycles) - turns(span)) * drawn.leanDirection > 0)
+            #expect((turns(bundle.lengthInCycles) - turns(span)) * stitch > 0)
         }
     }
 

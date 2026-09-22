@@ -99,7 +99,7 @@ enum BraidFigureBuilder {
         // It is asked here rather than worked out again from the courses, so the
         // figure and the readings answer out of one object.
         guard let occupancy = BraidOccupancy.history(
-            of: derivation.method, on: derivation.stand,
+            ofRounds: derivation.rounds, on: derivation.stand,
             crossSection: derivation.crossSection, cycles: rowCount
         ) else { return nil }
         var slotOfThread = [[Int: Int]]()
@@ -305,7 +305,7 @@ extension BraidFigureBuilder {
 
         guard
             let occupancy = BraidOccupancy.history(
-                of: derivation.method, on: derivation.stand,
+                ofRounds: derivation.rounds, on: derivation.stand,
                 crossSection: derivation.crossSection, cycles: rowCount
             ),
             let slots = occupancy.columns(.landing),

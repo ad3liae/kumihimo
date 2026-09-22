@@ -38,7 +38,13 @@ struct BraidThreadCourse: Equatable, Sendable {
 /// squashed: none of that follows from the moves, so none of it appears here.
 struct BraidDerivation: Equatable, Sendable {
     let stand: BraidStand
+    /// The table of the first cycle — **the** table, for a braid of one.
     let method: BraidMethod
+    /// The tables worked in turn, cycle by cycle: `rounds[i % rounds.count]`
+    /// braids cycle `i` (Task 053). A braid of one table has one. Everything
+    /// counted per cycle — the courses, the laying instants — is counted over
+    /// the whole list.
+    let rounds: [BraidMethod]
     let crossSection: BraidCrossSection
 
     /// Cycles to one repeat. Worked out by braiding until the stand comes back to
@@ -47,6 +53,7 @@ struct BraidDerivation: Equatable, Sendable {
 
     /// Steps of one cycle plus the closing. A place that receives its thread at
     /// the third of them takes its new appearance three of these along the row.
+    /// **The first table's**, when there are several.
     let instantsPerCycle: Int
 
     let courses: [BraidThreadCourse]
@@ -185,16 +192,29 @@ struct BraidDerivation: Equatable, Sendable {
         crossSection: BraidCrossSection? = nil,
         repeatLimit: Int = 64
     ) -> BraidDerivation? {
+        derive(stand: stand, rounds: [method], crossSection: crossSection, repeatLimit: repeatLimit)
+    }
+
+    /// **Several tables worked in turn** (Task 053): cycle `i` with
+    /// `rounds[i % rounds.count]`. The repeat is a whole number of times through
+    /// the list. Nothing here knows what the tables are for.
+    static func derive(
+        stand: BraidStand,
+        rounds: [BraidMethod],
+        crossSection: BraidCrossSection? = nil,
+        repeatLimit: Int = 64
+    ) -> BraidDerivation? {
         let section = crossSection ?? .tube(of: stand)
         guard
+            let method = rounds.first,
             stand.isWellFormed,
-            method.standID == stand.id,
+            rounds.allSatisfy({ $0.standID == stand.id }),
             section.isWellFormed,
             Set(section.order) == Set(stand.positionIDs),
             let repeatCount = BraidWorking.repeatCycleCount(
-                of: method, on: stand, limit: repeatLimit
+                ofRounds: rounds, on: stand, limit: repeatLimit
             ),
-            let cycles = BraidWorking.cycles(of: method, on: stand, count: repeatCount)
+            let cycles = BraidWorking.cycles(ofRounds: rounds, on: stand, count: repeatCount)
         else {
             return nil
         }
@@ -249,6 +269,7 @@ struct BraidDerivation: Equatable, Sendable {
         return BraidDerivation(
             stand: stand,
             method: method,
+            rounds: rounds,
             crossSection: section,
             repeatCycleCount: repeatCount,
             instantsPerCycle: method.instantCount,

@@ -4,28 +4,26 @@ import Testing
 
 /// Task 008: the eight-bobbin yatsu-kongo braids, S and Z.
 ///
-/// **The move table is not a copy of a printed table.** Book C's figure for this
-/// braid is not to hand; the table is book A p54's picture read with the author's
-/// ruling of 2026-09-10 on where a carried thread lands (`docs/architecture.md`,
-/// 詰め直しの入り方). What that ruling settles is the net move: **every thread ends
-/// three places anticlockwise of where it began**, so the braid turns, rather than
-/// the diagonal pairs simply swapping, which would leave it standing still.
+/// **Since Task 053 the tables are the disk book's p.37 (S) and p.36 (Z)**, each
+/// transcribed from its own figure (`BookDiskKongo`): **every thread ends two
+/// places round the stand a cycle**, back for S and on for Z. Until then they
+/// were book A p.54's picture read with the author's ruling of 2026-09-10, which
+/// carried three (`BraidMethodCatalog.yatsuKongoBookAP54Disk`, kept for the
+/// comparison).
 ///
-/// These tests hold that reading up against the two reference colourings recorded
-/// in `docs/tasks/008-yatsu-kongo-8.md` — a checkerboard and a diagonal — and
-/// against the alternative it displaced. **Those two are not what the braids
-/// ship**: the recipes carry book A p.54's own colouring, and the fixtures stay in
-/// `BraidReferenceColourings` because it is the *table* they hold up, not the
-/// braid's appearance.
+/// **The two reference colourings of Task 008 are no longer reproduced.** They
+/// are a black-box simulator's output: a checkerboard needs an odd carry, and the
+/// disk book's is even. They are kept, with what the table now makes of them,
+/// and with book A's table still making the checkerboard — the disagreement is
+/// recorded, not hidden (`docs/tasks/053-yatsu-kongo-gaeshi.md`).
 @MainActor
 struct YatsuKongoTests {
     private var stand: BraidStand { BraidMethodCatalog.stand8 }
 
     // MARK: - The table runs
 
-    /// **1.** The table is a cycle of the eight-place stand: eight braiding moves
-    /// read as four instants, one a printed step (the author, 2026-09-11), and a
-    /// closing.
+    /// **1.** The table is a cycle of the eight-place stand: eight braiding moves,
+    /// one a figure of the book and so one an instant (Task 053), and a closing.
     ///
     /// The closing is empty here, and that is right: every thread is braided every
     /// cycle, so nothing is left over to be tidied back into place. The tidying
@@ -37,9 +35,9 @@ struct YatsuKongoTests {
         #expect(worked.derivation.threadCount == 8)
         #expect(recipe.notation.braidingMoves.count == 8)
         #expect(recipe.notation.repositioningMoves.count == 8)
-        #expect(worked.method.instantCount == 5)
-        #expect(worked.method.steps.count == 4)
-        #expect(worked.method.steps.allSatisfy { $0.moves.count == 2 })
+        #expect(worked.method.instantCount == 9)
+        #expect(worked.method.steps.count == 8)
+        #expect(worked.method.steps.allSatisfy { $0.moves.count == 1 })
         #expect(worked.method.closing.moves.isEmpty)
         // **Nothing is lost by laying a pair at once**: its two threads never have
         // to pass each other, so there is no over and under for an order to decide.
@@ -51,14 +49,29 @@ struct YatsuKongoTests {
         #expect(BraidMethodCatalog.stand(for: recipe) == stand)
     }
 
-    /// **2.** The net move: every thread three places anticlockwise for S, and three
-    /// clockwise for Z. **Fixed place by place**, because "it turns" is the claim
-    /// the whole table rests on.
-    @Test func everyThreadEndsThreePlacesRoundTheStand() throws {
-        let anticlockwise = try netMove(of: BraidMethodCatalog.yatsuKongoS8Recipe)
-        let clockwise = try netMove(of: BraidMethodCatalog.yatsuKongoZ8Recipe)
-        #expect(anticlockwise == [1: 6, 2: 7, 3: 8, 4: 1, 5: 2, 6: 3, 7: 4, 8: 5])
-        #expect(clockwise == [1: 4, 2: 5, 3: 6, 4: 7, 5: 8, 6: 1, 7: 2, 8: 3])
+    /// **2.** The net move: every thread two places back for S, and two on for Z
+    /// (Task 053). **Fixed place by place**, because "it turns" is the claim the
+    /// whole table rests on.
+    @Test func everyThreadEndsTwoPlacesRoundTheStand() throws {
+        let back = try netMove(of: BraidMethodCatalog.yatsuKongoS8Recipe)
+        let on = try netMove(of: BraidMethodCatalog.yatsuKongoZ8Recipe)
+        #expect(back == [1: 7, 2: 8, 3: 1, 4: 2, 5: 3, 6: 4, 7: 5, 8: 6])
+        #expect(on == [1: 3, 2: 4, 3: 5, 4: 6, 5: 7, 6: 8, 7: 1, 8: 2])
+        // **A dan moves one thread of every pair** (the book: 1段 = four figures):
+        // the first four figures move the threads of one parity of place, the
+        // last four the other.
+        for recipe in [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe] {
+            let worked = try #require(recipe.worked(on: stand))
+            let firstDan = worked.method.steps.prefix(4).flatMap(\.moves).map(\.from)
+            let secondDan = worked.method.steps.suffix(4).flatMap(\.moves).map(\.from)
+            #expect(Set(firstDan.map { $0 % 2 }).count == 1, "\(firstDan)")
+            #expect(Set(secondDan.map { $0 % 2 }).count == 1, "\(secondDan)")
+            #expect(firstDan[0] % 2 != secondDan[0] % 2)
+        }
+        // And book A p.54's table, which the app shipped until Task 053, carried
+        // three.
+        let bookA = try bookAP54Method()
+        for step in bookA.steps { for move in step.moves { #expect((move.to - move.from + 8) % 8 == 5) } }
     }
 
     /// **3.** One cycle drops no thread and makes no second copy of one.
@@ -78,52 +91,40 @@ struct YatsuKongoTests {
 
     // MARK: - The two reference colourings
 
-    /// **4.** The checkerboard colouring comes out a checkerboard and the diagonal
-    /// one comes out a diagonal — **as the derivation works them out**, not as the
-    /// task document worked them out by hand.
-    ///
-    /// **The colourings are the reference simulator's, not the braid's own.** What
-    /// the recipes ship is book A p.54's two colours; these two are the fixtures
-    /// the reading of the table was settled against, and they stay here because
-    /// that is the claim they hold up.
-    ///
-    /// The rows here run the other way from the grid printed in
-    /// `docs/tasks/008-yatsu-kongo-8.md` for S and the same way for Z, which is the
-    /// freedom a tube has and nothing more: it has no origin and no printed
-    /// direction, so which way up it is held is not fixed
-    /// (`docs/architecture.md`, 一致は偶然ではない).
-    @Test func theCheckerboardColouringComesOutACheckerboard() throws {
-        let grid = try colourGrid(
-            method: BraidMethodCatalog.yatsuKongoS8,
-            colouring: BraidReferenceColourings.yatsuKongoChecker
-        )
-        #expect(grid == [
-            ["white", "blue", "white", "pink", "white", "blue", "white", "pink"],
-            ["pink", "white", "blue", "white", "pink", "white", "blue", "white"],
-            ["white", "pink", "white", "blue", "white", "pink", "white", "blue"],
-            ["blue", "white", "pink", "white", "blue", "white", "pink", "white"],
-            ["white", "blue", "white", "pink", "white", "blue", "white", "pink"],
-            ["pink", "white", "blue", "white", "pink", "white", "blue", "white"],
-            ["white", "pink", "white", "blue", "white", "pink", "white", "blue"],
-            ["blue", "white", "pink", "white", "blue", "white", "pink", "white"],
-        ])
+    /// **4. The reference simulator's colourings (Task 008), and what they now
+    /// show.** The checkerboard colouring came out a checkerboard under book A's
+    /// table and still does; **under the disk book's it comes out in stripes along
+    /// the braid** — white at every second place, blue and pink changing places
+    /// each cycle — because a carry of two keeps a place's parity and a carry of
+    /// three flips it. The simulator is a black box; the author chose the book
+    /// (Task 053), and this records the disagreement rather than dropping it.
+    @Test func theCheckerboardColouringNowComesOutInStripes() throws {
+        let checker = BraidReferenceColourings.yatsuKongoChecker
+        let grid = try colourGrid(method: BraidMethodCatalog.yatsuKongoS8, colouring: checker)
+        #expect(grid.count == 4)
+        for row in grid {
+            // White holds one parity of place, row after row.
+            #expect((0..<8).allSatisfy { (row[$0] == "white") == (grid[0][$0] == "white") }, "\(grid)")
+        }
+        #expect(grid[1] != grid[0])
+        // Book A's table still makes the simulator's checkerboard.
+        let bookA = try colourGrid(method: try bookAP54Method(), colouring: checker)
+        #expect(bookA[0] == ["white", "blue", "white", "pink", "white", "blue", "white", "pink"])
+        #expect(bookA[1] == ["pink", "white", "blue", "white", "pink", "white", "blue", "white"])
     }
 
+    /// The diagonal colouring still comes out a diagonal: every row is the one
+    /// before it turned two places round.
     @Test func theDiagonalColouringComesOutADiagonal() throws {
         let grid = try colourGrid(
             method: BraidMethodCatalog.yatsuKongoZ8,
             colouring: BraidReferenceColourings.yatsuKongoDiagonal
         )
-        #expect(grid == [
-            ["green", "yellow", "white", "white", "green", "yellow", "white", "white"],
-            ["yellow", "white", "white", "green", "yellow", "white", "white", "green"],
-            ["white", "white", "green", "yellow", "white", "white", "green", "yellow"],
-            ["white", "green", "yellow", "white", "white", "green", "yellow", "white"],
-            ["green", "yellow", "white", "white", "green", "yellow", "white", "white"],
-            ["yellow", "white", "white", "green", "yellow", "white", "white", "green"],
-            ["white", "white", "green", "yellow", "white", "white", "green", "yellow"],
-            ["white", "green", "yellow", "white", "white", "green", "yellow", "white"],
-        ])
+        #expect(grid.count == 4)
+        for (row, next) in zip(grid, grid.dropFirst() + [grid[0]]) {
+            #expect(next == (0..<8).map { row[($0 + 6) % 8] }, "\(grid)")
+        }
+        #expect(grid[1] != grid[0])
     }
 
     /// **5. The guard.** Swap the diagonals instead of turning the braid — every
@@ -152,29 +153,32 @@ struct YatsuKongoTests {
     // MARK: - Z is the mirror of S
 
     /// **6.** Z is S reflected: every move of every step goes from `9 - from` to
-    /// `9 - to`, in the same order. **Nothing here was transcribed twice**, which is
-    /// the point of making Z by reflecting the table rather than writing it out.
+    /// `9 - to`, in the same order. **Since Task 053 each was transcribed from its
+    /// own figure** (p.37 and p.36), so this is a check on the two transcriptions,
+    /// where it used to be how Z was made.
     @Test func zIsTheMirrorOfS() {
         let s = BraidMethodCatalog.yatsuKongoS8
         let z = BraidMethodCatalog.yatsuKongoZ8
         #expect(s.steps.count == z.steps.count)
-        for (mine, theirs) in zip(s.steps, z.steps) {
-            #expect(theirs.moves == mine.moves.map {
+        // Dan by dan. **Inside a dan the two books print opposite pairs in
+        // different orders** — p.37 starts S with the left and right pairs'
+        // mirror images the other way round — and the order inside a dan does not
+        // reach the drawing (`RoundTube8SurfaceTests
+        // .swappingTheOrderInsideADanDoesNotMoveTheMesh`).
+        for dan in 0..<2 {
+            let mine = Set(s.steps[(4 * dan)..<(4 * dan + 4)].flatMap(\.moves).map {
                 BraidMove(from: 9 - $0.from, to: 9 - $0.to)
             })
+            let theirs = Set(z.steps[(4 * dan)..<(4 * dan + 4)].flatMap(\.moves))
+            #expect(mine == theirs, "dan \(dan + 1)")
         }
         #expect(z.closing.moves == s.closing.moves.map {
             BraidMove(from: 9 - $0.from, to: 9 - $0.to)
         })
-        // And on the disk the two tables are the same table, reflected.
-        #expect(BraidMethodCatalog.yatsuKongoZDisk.moves
-                == BraidMethodCatalog.yatsuKongoSDisk.moves.map {
-                    BraidMove(from: notchAcross($0.from), to: notchAcross($0.to))
-                })
     }
 
-    /// **7.** The two lean opposite ways. The pattern walks round the braid three
-    /// slots a cycle for S and three the other way for Z — **the sign of the shift
+    /// **7.** The two lean opposite ways. The pattern walks round the braid two
+    /// slots a cycle for S and two the other way for Z — **the sign of the shift
     /// in the occupancy grid**, read off the threads themselves so no colouring can
     /// hide it.
     @Test func theDiagonalsOfSAndZLeanOppositeWays() throws {
@@ -182,8 +186,8 @@ struct YatsuKongoTests {
         let zShift = try rowShift(of: BraidMethodCatalog.yatsuKongoZ8Recipe)
         let s = try #require(sShift)
         let z = try #require(zShift)
-        #expect(s == 3)
-        #expect(z == 8 - 3)
+        #expect(s == 2)
+        #expect(z == 8 - 2)
         #expect((s + z) % 8 == 0)
     }
 
@@ -191,10 +195,12 @@ struct YatsuKongoTests {
     @Test func theyAreOfferedOnlyForEightThreads() {
         for count in [4, 12, 16] {
             #expect(!BraidPresetCatalog.availablePresets(threadCount: count)
-                .contains { $0.id == .yatsuKongoS8 || $0.id == .yatsuKongoZ8 })
+                .contains { [.yatsuKongoS8, .yatsuKongoZ8, .yatsuKongoGaeshi8].contains($0.id) })
         }
+        // 返し組 beside them since Task 053 (`YatsuKongoGaeshiTests`).
         #expect(BraidPresetCatalog.availablePresets(threadCount: 8)
-                == [BraidPresetCatalog.yatsuKongoS, BraidPresetCatalog.yatsuKongoZ])
+                == [BraidPresetCatalog.yatsuKongoS, BraidPresetCatalog.yatsuKongoZ,
+                    BraidPresetCatalog.yatsuKongoGaeshi])
     }
 
     /// **The figure needs no drawer.** It was the whole of what this braid could
@@ -211,7 +217,7 @@ struct YatsuKongoTests {
             return
         }
         #expect(figure.columns.count == 8)
-        #expect(figure.rowCount == 8)
+        #expect(figure.rowCount == 4)
         #expect(!figure.unsettled.isEmpty)
     }
 
@@ -238,11 +244,12 @@ struct YatsuKongoTests {
                 == BraidMethodCatalog.yatsuKongoZ8Recipe.colouring)
     }
 
-    /// What is open is said, not hidden: which thread of a pair goes first.
+    /// What is open is said, not hidden: the tables' source is not the source of
+    /// record.
     @Test func whatIsNotSettledIsCarriedOnTheBraid() throws {
         let section = BraidMethodCatalog.yatsuKongoS8Recipe.crossSection(on: stand)
         let note = try #require(section.unsettled)
-        #expect(note.contains("carried first"))
+        #expect(note.contains("not the source of record"))
         // Nothing about the shape has been measured, and nothing pretends otherwise.
         #expect(BraidMethodCatalog.yatsuKongoS8Recipe.shape.all.isEmpty)
         #expect(BraidMethodCatalog.yatsuKongoZ8Recipe.shape.all.isEmpty)
@@ -310,10 +317,11 @@ struct YatsuKongoTests {
         )
     }
 
-    /// Notch `n` reflected in the line through the mark, which is what carries
-    /// position `p` to position `9 - p`.
-    private func notchAcross(_ notch: Int) -> Int {
-        let raw = (30 - notch) % 32
-        return raw <= 0 ? raw + 32 : raw
+    /// Book A p.54's table, which the app shipped until Task 053.
+    private func bookAP54Method() throws -> BraidMethod {
+        try #require(BraidMethodCatalog.yatsuKongoBookAP54Disk.method(
+            id: "yatsu-kongo-s-8-book-a-p54", standID: stand.id,
+            stepNames: BraidMethodCatalog.yatsuKongoStepNames
+        ))
     }
 }

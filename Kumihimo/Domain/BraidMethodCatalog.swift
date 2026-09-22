@@ -89,29 +89,67 @@ enum BraidMethodCatalog {
         (2, 1), (3, 2), (5, 6), (4, 5),
     ])
 
-    /// Yatsu-kongo S, written for the disk from book A p54.
+    /// **Yatsu-kongo S, transcribed from the disk book's p.37 (8S-スパイラル)**
+    /// (Task 053; the author chose it over book A p.54's reading, 2026-09-22).
     ///
-    /// **This is not a copy of book C.** Book C's figure for this braid is not to
-    /// hand (`docs/tasks/008-yatsu-kongo-8.md`). It is book A p54's picture — four
-    /// printed steps of two threads each, the upright pair and the flat pair
-    /// alternating, every thread ending three places anticlockwise of where it
-    /// began — set down in this repository's disk notation, with the landing places
-    /// settled by the author's ruling of 2026-09-10 (`docs/architecture.md`,
-    /// 詰め直しの入り方): **a carried thread comes in on the outside of the group it
-    /// joins, and the cycle ends with tidying moves that put it on its standard
-    /// notch.**
+    /// The book prints one dan (段) — four figures of one move each — from slits
+    /// 4・5, 12・13, 20・21, 28・29, and says the slit numbers then stand one notch
+    /// further anticlockwise: 「スリット番号は【組みはじめ】から反時計回りに一つずれ
+    /// ます」. **A dan moves four threads**, the anticlockwise one of each pair; the
+    /// next dan moves the other four. So one cycle of this repository — every
+    /// thread braided once — is two dan.
     ///
-    /// The first eight moves are the braiding, in book A's printed order: the
-    /// upright pair (8 and 4), the flat pair (2 and 6), the upright pair again
-    /// (1 and 5), the flat pair again (7 and 3). Each is eleven or thirteen notches;
-    /// each of the eight tidies that follow is one notch, which is how
-    /// `isRepositioning` tells the two apart.
+    /// **The book's drifting slit numbers are the disk's, not the braid's.** What
+    /// the braid keeps is the order of the eight threads round it: a thread leaves
+    /// its pair and joins the pair opposite, beside the one that stays, in the place
+    /// that pair's other thread has just left. Read in that order on the stand's
+    /// eight evenly spaced places, **every thread goes two places back each cycle**
+    /// (`YatsuKongoTests`), and the threads that stay do not move. Task 035's "+4"
+    /// for book C is the same braid counted with the pairs drifting.
     ///
-    /// **Where a thread waits is free and does not reach the result.** What the
-    /// table carries into the method is the order the threads were braided in and
-    /// where each ends up; the parking notch between the two is only what makes the
-    /// cycle run on a disk that holds one thread to a notch.
-    static let yatsuKongoSDisk = diskOfEight(
+    /// **Not book A p.54's table**, which the app shipped until Task 053: that was
+    /// read off book A's pictures and carried every thread three places. Book C
+    /// Fig.129 and this book agree with each other and not with it
+    /// (`YatsuKongoAgainstBookCTests`).
+    static let yatsuKongoSDisk: BraidDiskNotation = {
+        guard let disk = BookDiskKongo.cycle(
+            source: "the disk book p.37 (8S-スパイラル), one printed dan and its drift",
+            // The slits of the starting diagram in the order of the stand's
+            // places 1-8: 12・13 is the top pair (the upright pair, pink in the
+            // book), and `round8` puts its places 8 and 1 at the top.
+            placeOneOnward: [13, 20, 21, 28, 29, 4, 5, 12],
+            printedDan: [(20, 6), (4, 22), (12, 30), (28, 14)],
+            driftPerDan: 1
+        ) else {
+            preconditionFailure("the disk book's 8S table does not run as a cycle of the eight-place stand")
+        }
+        return disk
+    }()
+
+    /// **Yatsu-kongo Z, transcribed from the disk book's p.36 (8Z-スパイラル)**,
+    /// not reflected from S (Task 053). The same starting slits; one dan moves the
+    /// clockwise thread of each pair, and the slits then stand one notch further
+    /// clockwise. **That Z is S's mirror is now a check** (`YatsuKongoTests`),
+    /// where until Task 053 it was how Z was made — there is a figure for each.
+    static let yatsuKongoZDisk: BraidDiskNotation = {
+        guard let disk = BookDiskKongo.cycle(
+            source: "the disk book p.36 (8Z-スパイラル), one printed dan and its drift",
+            placeOneOnward: [13, 20, 21, 28, 29, 4, 5, 12],
+            printedDan: [(5, 19), (21, 3), (29, 11), (13, 27)],
+            driftPerDan: -1
+        ) else {
+            preconditionFailure("the disk book's 8Z table does not run as a cycle of the eight-place stand")
+        }
+        return disk
+    }()
+
+    /// Book A p.54's picture read into the disk notation — **the table the app
+    /// shipped until Task 053**, kept so the difference stays visible
+    /// (`YatsuKongoAgainstBookCTests`). Four printed steps of two threads each,
+    /// every thread ending three places anticlockwise, the landing places settled
+    /// by the author's ruling of 2026-09-10 (a carried thread comes in on the
+    /// outside of the group it joins; the cycle ends with tidying moves).
+    static let yatsuKongoBookAP54Disk = diskOfEight(
         "book A p54, its picture set down in this repository's disk notation",
         [
             (29, 18), (13, 2),          // 8 -> 5, 4 -> 1
@@ -123,36 +161,22 @@ enum BraidMethodCatalog {
         ]
     )
 
-    /// Yatsu-kongo Z: **the S table reflected, never transcribed.**
-    ///
-    /// Book A p54 and p55 print the two as mirror images of each other, down to the
-    /// hands in the speech bubbles — S takes the far thread with the left hand, Z
-    /// with the right. So Z is made by reflecting S across the disk rather than
-    /// written out again, and "Z is the mirror of S" is then something a test can
-    /// check instead of something a transcription might quietly break.
-    ///
-    /// The axis is the line through the mark: notch *n* goes to notch *30 - n*,
-    /// which carries position *p* to position *9 - p*. **Book A p55's picture is for
-    /// checking this, not for producing it.**
-    static let yatsuKongoZDisk: BraidDiskNotation = {
-        guard let reflected = yatsuKongoSDisk.reflected(
-            about: 30,
-            source: "book A p55, made by reflecting the p54 table across the disk"
-        ) else {
-            preconditionFailure("the eight-place resting notches are not carried onto themselves")
-        }
-        return reflected
-    }()
-
     /// Book A prints four steps and does not name them; these say which pair each
-    /// one works. **The derivation never reads them.**
+    /// one works. **The derivation never reads them.** Kept for book A p.54's
+    /// table (`yatsuKongoBookAP54Disk`).
     static let yatsuKongoStepNames = [
         "uprightPairOuter", "flatPairOuter", "uprightPairInner", "flatPairInner",
     ]
 
+    /// The disk book prints a dan as four numbered figures of one move each; a
+    /// cycle is two dan. **The derivation never reads them.**
+    static let yatsuKongoDiskStepNames = (1...2).flatMap { dan in
+        (1...4).map { figure in "dan\(dan)Figure\(figure)" }
+    }
+
     static let yatsuKongoS8: BraidMethod = {
         guard let method = yatsuKongoSDisk.method(
-            id: "yatsu-kongo-s-8", standID: stand8.id, stepNames: yatsuKongoStepNames
+            id: "yatsu-kongo-s-8", standID: stand8.id, stepNames: yatsuKongoDiskStepNames
         ) else {
             preconditionFailure("the yatsu-kongo S table does not run as a cycle of the eight-place stand")
         }
@@ -161,7 +185,7 @@ enum BraidMethodCatalog {
 
     static let yatsuKongoZ8: BraidMethod = {
         guard let method = yatsuKongoZDisk.method(
-            id: "yatsu-kongo-z-8", standID: stand8.id, stepNames: yatsuKongoStepNames
+            id: "yatsu-kongo-z-8", standID: stand8.id, stepNames: yatsuKongoDiskStepNames
         ) else {
             preconditionFailure("the yatsu-kongo Z table does not run as a cycle of the eight-place stand")
         }
@@ -364,18 +388,18 @@ enum BraidMethodCatalog {
     /// slots through a thickness, and a tube is what the derivation returns. It is
     /// declared here only to carry the note.
     ///
-    /// What the note says is the one thing book A p54–55 does not: **which of a
-    /// pair goes first.** The pictures give the arrows and the hands, not the order
-    /// inside a printed step. It changes nothing that is drawn today — the figure
-    /// reads the occupancy history, and the eight-thread family has no drawer — so
-    /// it is carried rather than guessed at.
+    /// **What the note says since Task 053**: the tables come from a disk book
+    /// that is not the source of record (book C). It prints one move a figure, so
+    /// the order of the moves is its own; book C Fig.129 agrees with it for Z
+    /// (`YatsuKongoAgainstBookCTests`), and nothing drawn depends on the order
+    /// inside a dan.
     static let yatsuKongo8CrossSection = BraidCrossSection(
         order: stand8.positionIDs,
         source: .standRim,
-        unsettled: "which thread of a pair is carried first is not settled; book A "
-            + "p54-55 draw the arrows and the hands but not the order inside a "
-            + "printed step, and book C's figure for this braid is not to hand. "
-            + "Nothing drawn depends on it: a printed step is read as one instant"
+        unsettled: "the tables are the disk book's p.36-37, photographed by the author; "
+            + "that book is not the source of record, which is book C. Book C "
+            + "Fig.129 prints the same Z. Book A p.54's picture, read before, carries "
+            + "three places a cycle where both books carry two"
     )
 
     /// Book A p.54's own colouring for yatsu-kongo S: **the upright pair in
@@ -433,8 +457,72 @@ enum BraidMethodCatalog {
         orderRoundTheBraid: yatsuKongo8CrossSection
     )
 
+    /// **Yatsu-kongo gaeshi (八つ金剛返し組, 8S&Z-スパイラル), from the disk
+    /// book's p.38** (Task 053): six dan of S, a hand-over, six dan of Z and a
+    /// hand-over back — 「[8S-スパイラル]を6段組み、次に[8Z-スパイラル]を6段組んで
+    /// 1工程となります」 (p.39). After the hand-over back every thread is on the
+    /// slit it began at (p.39: 1工程終了 = 組みはじめ).
+    ///
+    /// **Its dan are p.37's and p.36's**, the disk turned (S three notches on,
+    /// Z two). The two hand-overs are printed as they are: [4] 「隣り合う糸の右側を
+    /// 動かします」 8→6, 16→14, 24→22, 32→30, and [8] 「左側を動かします」 32→2,
+    /// 8→10, 16→18, 24→26. **Each lifts the four threads the dan before it has
+    /// just laid**, and read in the order round the braid carries them two
+    /// places further the same way.
+    ///
+    /// **A hand-over is part of the dan before it, not a dan of its own**: the
+    /// braid's stitches do not change at the turn, only its pattern (the author,
+    /// 2026-09-22). So those four threads are laid four places on in that dan
+    /// instead of two, and the braid keeps its lattice (`BookDiskKongo.rounds`).
+    /// An earlier reading (Task 053) counted the hand-over as a dan and drew
+    /// cells half a cycle and a cycle and a half long at every turn — stitches
+    /// that cannot be there.
+    ///
+    /// **Six tables worked in turn**: three cycles of S, the last with [4] in its
+    /// second dan, and three of Z, the last with [8].
+    static let yatsuKongoGaeshiRounds: [BraidDiskNotation] = {
+        let s = [(17, 3), (1, 19), (25, 11), (9, 27)]          // p.38 [1], [2]
+        let z = [(7, 21), (23, 5), (31, 13), (15, 29)]         // p.38 [5], [6]
+        let over = [(8, 6), (16, 14), (24, 22), (32, 30)]      // p.38 [4]
+        let back = [(32, 2), (8, 10), (16, 18), (24, 26)]      // p.38 [8]
+        func sDan(_ k: Int) -> [(Int, Int)] { BookDiskKongo.dan(s, driftPerDan: 1, times: k) }
+        func zDan(_ k: Int) -> [(Int, Int)] { BookDiskKongo.dan(z, driftPerDan: -1, times: k) }
+        guard let rounds = BookDiskKongo.rounds(
+            source: "the disk book p.38 (八つ金剛返し組)",
+            // 1・2 is the top pair (pink, upright), `round8`'s places 8 and 1.
+            placeOneOnward: [2, 9, 10, 17, 18, 25, 26, 1],
+            rounds: [
+                [sDan(0), sDan(1)], [sDan(2), sDan(3)], [sDan(4), sDan(5), over],
+                [zDan(0), zDan(1)], [zDan(2), zDan(3)], [zDan(4), zDan(5), back],
+            ]
+        ) else {
+            preconditionFailure("the disk book's 返し組 does not run on the eight-place stand")
+        }
+        return rounds
+    }()
+
+    /// **The book's own colouring for 返し組** (p.38 組みはじめ): the upright
+    /// pairs pink, the flat pairs orange — the same arrangement as book A p.54's
+    /// yellow and orange.
+    static let yatsuKongoGaeshi8Colouring = colouring(on: stand8, [
+        "north": ["pink", "pink"],       // 8, 1
+        "east": ["orange", "orange"],    // 2, 3
+        "south": ["pink", "pink"],       // 5, 4
+        "west": ["orange", "orange"],    // 7, 6
+    ])
+
+    static let yatsuKongoGaeshi8Recipe = BraidRecipe(
+        id: "yatsu-kongo-gaeshi-8",
+        name: "八つ金剛返し組",
+        rounds: yatsuKongoGaeshiRounds,
+        colouring: yatsuKongoGaeshi8Colouring,
+        shape: BraidShapeValues(),
+        orderRoundTheBraid: yatsuKongo8CrossSection
+    )
+
     static let recipes: [BraidRecipe] = [
         maruGenji16Recipe, hiraGenji16Recipe, yatsuKongoS8Recipe, yatsuKongoZ8Recipe,
+        yatsuKongoGaeshi8Recipe,
     ]
 
     /// The recipe a preset stands for.
@@ -444,5 +532,137 @@ enum BraidMethodCatalog {
     /// preset with no recipe, which is a preset this app cannot yet braid.
     static func recipe(for presetID: BraidPresetID) -> BraidRecipe? {
         recipes.first { $0.id == presetID.rawValue }
+    }
+}
+
+/// **The disk book's eight-thread tables, read into this repository's disk
+/// notation** (Task 053).
+///
+/// The book prints one dan (段) and says the slit numbers then stand one notch
+/// further round; its later dan are the printed one moved round by that drift.
+/// This works the book's own disk notch by notch, dan by dan, until every
+/// thread has been braided once — one cycle — and writes the same moves on the
+/// stand's eight evenly spaced resting notches (`diskRestingNotchesForEight`),
+/// **keeping the order of the threads round the braid**, which is what the
+/// braid is; the book's notch numbers drift and the braid does not turn with
+/// them.
+///
+/// **How a move is written**: from the thread's resting notch to the notch
+/// just before the resting notch of the place it takes in the new order, and
+/// after the dan, one notch on into that place — the way the book A table
+/// always wrote a landing and its tidy.
+///
+/// `nil` — and so a failed table, not a guess — when the threads that stay put
+/// in a dan would not keep their places in the new order, when a dan lands on a
+/// taken notch, or when the cycle does not braid every thread exactly once.
+enum BookDiskKongo {
+    static let notchCount = 32
+
+    /// One cycle of a spiral: the printed dan, and as many more as it takes to
+    /// braid every thread once, each moved round by the drift.
+    static func cycle(
+        source: String,
+        placeOneOnward: [Int],
+        printedDan: [(Int, Int)],
+        driftPerDan: Int
+    ) -> BraidDiskNotation? {
+        // Two dan braid every thread once: each moves one thread of every pair.
+        let dans = (0..<2).map { dan(printedDan, driftPerDan: driftPerDan, times: $0) }
+        return rounds(source: source, placeOneOnward: placeOneOnward, rounds: [dans])?.first
+    }
+
+    /// A printed dan moved round `times` dan's worth of drift.
+    static func dan(_ printed: [(Int, Int)], driftPerDan: Int, times: Int) -> [(Int, Int)] {
+        printed.map { (wrapped($0.0 + driftPerDan * times), wrapped($0.1 + driftPerDan * times)) }
+    }
+
+    /// **Several cycles of the stand from the book's steps worked in order**
+    /// (Task 053): each round is the steps that make one cycle of the stand. The
+    /// book's disk is worked through the whole list, notch by notch; each round
+    /// comes out as a table of its own.
+    ///
+    /// **A step that lifts only threads the step before it has just laid lays
+    /// them on further, as part of the same dan** — 返し組's hand-overs (p.38
+    /// [4] and [8]). The braid's stitches do not change at the turn, only its
+    /// pattern (the author, 2026-09-22: 「模様だけが変わるもの」); so such a step
+    /// adds no layer, and its threads are carried once, from where they stood
+    /// before the dan to where the hand-over leaves them. Any other thread
+    /// braided twice in a round is refused.
+    static func rounds(
+        source: String,
+        placeOneOnward: [Int],
+        rounds: [[[(Int, Int)]]]
+    ) -> [BraidDiskNotation]? {
+        let places = placeOneOnward.count
+        guard places == 8, Set(placeOneOnward).count == places else { return nil }
+        func resting(_ place: Int) -> Int { 4 * place - 3 }
+
+        // The book's disk: notch -> thread, the thread named by the stand place
+        // it starts at.
+        var onDisk = [Int: Int]()
+        for (index, notch) in placeOneOnward.enumerated() { onDisk[notch] = index + 1 }
+        var placeOf = [Int: Int]()                  // thread -> stand place now
+        for thread in 1...places { placeOf[thread] = thread }
+
+        var tables = [BraidDiskNotation]()
+        for (roundIndex, steps) in rounds.enumerated() {
+            let startPlace = placeOf
+            var braided = [Int]()                   // in the order first braided
+            var lastStep = Set<Int>()
+            for step in steps {
+                var movers = [Int]()
+                for (from, to) in step {
+                    guard let thread = onDisk[from], onDisk[to] == nil else { return nil }
+                    onDisk[from] = nil
+                    onDisk[to] = thread
+                    movers.append(thread)
+                }
+                // A thread braided again this round must have been laid by the
+                // step just before: the hand-over carrying on that dan.
+                for thread in movers where braided.contains(thread) {
+                    guard lastStep.contains(thread) else { return nil }
+                }
+                // The new order round the braid, clockwise from notch 1.
+                let order = onDisk.keys.sorted().compactMap { onDisk[$0] }
+                // The threads that stayed keep their places: that fixes where the
+                // order starts. One offset has to fit all of them.
+                let stayed = order.indices.filter { !movers.contains(order[$0]) }
+                guard let first = stayed.first, let anchor = placeOf[order[first]] else { return nil }
+                let offset = anchor - 1 - first
+                var newPlace = [Int: Int]()
+                for (index, thread) in order.enumerated() {
+                    newPlace[thread] = ((index + offset) % places + places) % places + 1
+                }
+                guard stayed.allSatisfy({ newPlace[order[$0]] == placeOf[order[$0]] }) else { return nil }
+                placeOf = newPlace
+                for thread in movers where !braided.contains(thread) { braided.append(thread) }
+                lastStep = Set(movers)
+            }
+            // Written on the stand: each thread braided this round goes, in the
+            // order it was first braided, from where it stood to just short of
+            // where the round leaves it; then each is tidied on into its place.
+            var moves = [BraidMove]()
+            for thread in braided {
+                guard let from = startPlace[thread], let to = placeOf[thread] else { return nil }
+                moves.append(BraidMove(from: resting(from), to: wrapped(resting(to) - 1)))
+            }
+            for thread in braided {
+                guard let to = placeOf[thread] else { return nil }
+                moves.append(BraidMove(from: wrapped(resting(to) - 1), to: resting(to)))
+            }
+            tables.append(BraidDiskNotation(
+                source: rounds.count == 1 ? source : "\(source), round \(roundIndex + 1)",
+                notchCount: notchCount,
+                standPositionByRestingNotch: BraidMethodCatalog.diskRestingNotchesForEight,
+                moves: moves,
+                threadsPerStep: 1,
+                stepReading: .oneThreadAnInstant
+            ))
+        }
+        return tables
+    }
+
+    private static func wrapped(_ notch: Int) -> Int {
+        ((notch - 1) % notchCount + notchCount) % notchCount + 1
     }
 }

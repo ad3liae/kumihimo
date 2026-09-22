@@ -49,7 +49,8 @@ struct BraidOrientationTests {
     // MARK: - 2. The occupancy history
 
     /// **The ring is the stand's rim, taken the same way round, and a thread goes
-    /// round it the way the table sends it**: three slots back a cycle, which is
+    /// round it the way the table sends it**: two slots back a cycle (three under
+    /// book A p.54's table, before Task 053), which is
     /// anticlockwise seen from above. Nothing here turns the ring over.
     @Test func theOccupancyKeepsTheRimAndTheTablesWayRound() throws {
         let worked = try #require(BraidMethodCatalog.yatsuKongoS8Recipe.worked(on: stand))
@@ -62,7 +63,7 @@ struct BraidOrientationTests {
                 let step = RoundTube8SurfacePatternGenerator.shortestWayRound(
                     from: course.slots[row], to: course.slots[row + 1], around: 8
                 )
-                #expect(step == -3, "thread \(course.threadPosition), cycle \(row)")
+                #expect(step == -2, "thread \(course.threadPosition), cycle \(row)")
             }
         }
     }

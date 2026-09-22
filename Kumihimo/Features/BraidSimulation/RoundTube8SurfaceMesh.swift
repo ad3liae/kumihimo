@@ -71,7 +71,8 @@ struct RoundTube8SurfaceMeshData: Sendable {
 /// Each cell of the pattern — the thread standing at its place from its arrival
 /// to the next thread's — is drawn as that thread's visible run
 /// (`RoundTube8Bundle`): full width a short way after it arrives, leaning round
-/// the braid the way the carry goes, and past its middle bending into the next
+/// the braid the stitch's way — the same for S and Z (`RoundTube8SurfacePattern
+/// Generator.stitchLean`) — and past its middle bending into the next
 /// lane, where it goes under the side of the run laid half a cycle after it and
 /// under the next thread's head, and only then narrows. Runs overlap, and
 /// **whichever stands higher at a place is the one seen**: the depth test draws
@@ -451,7 +452,7 @@ enum RoundTube8SurfaceMesh {
                             of: segment,
                             cycles: along * bundle.lengthInCycles,
                             across: crossSectionOffset(forSample: sample),
-                            leanDirection: pattern.leanDirection,
+                            leanDirection: pattern.leanBySegment[segmentIndex],
                             bundle: bundle,
                             floor: floor, radius: radius,
                             base: base, repeatLength: repeatLength
@@ -550,6 +551,7 @@ enum RoundTube8SurfaceMesh {
         cycles: Float,
         across: Float,
         leanDirection: Float,
+        cycleLength: Float? = nil,
         bundle: RoundTube8Bundle = .standard,
         floor: Float,
         radius: Float,
@@ -558,8 +560,10 @@ enum RoundTube8SurfaceMesh {
     ) -> (position: SIMD3<Float>, normal: SIMD3<Float>,
           tangent: SIMD3<Float>, bitangent: SIMD3<Float>) {
         let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
-        // One cycle along the braid, as a share of the repeat: the cell is one.
-        let cycle = segment.centerlineEnd.y - segment.centerlineStart.y
+        // One cycle along the braid, as a share of the repeat: the pattern's
+        // (`RoundTube8SurfacePattern.cycleInRepeats`). A cell is one cycle long
+        // only for a braid of one table, which is what it defaults to.
+        let cycle = cycleLength ?? (segment.centerlineEnd.y - segment.centerlineStart.y)
         let ridge = radius - floor
         // Never quite a point, so that the width still has a direction at the
         // tip and the frame there is defined.

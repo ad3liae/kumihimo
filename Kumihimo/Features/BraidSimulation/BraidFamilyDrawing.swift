@@ -86,7 +86,7 @@ enum BraidFamilyDrawing {
             // **The cells are worked out, not transcribed**, so this drawer is
             // handed the table itself rather than a colouring alone.
             return RoundTube8SurfacePatternGenerator.generate(
-                stand: stand, method: worked.method, crossSection: worked.section,
+                stand: stand, rounds: worked.derivation.rounds, crossSection: worked.section,
                 assignments: recipe.colouring
             ).map(Drawing.roundTubeOfEight)
         default:

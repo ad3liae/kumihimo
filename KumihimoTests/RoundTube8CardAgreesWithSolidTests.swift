@@ -21,7 +21,8 @@ struct RoundTube8CardAgreesWithSolidTests {
         let eight = ["red", "orange", "yellow", "green", "light-blue", "blue", "purple", "pink"]
             .enumerated().map { ThreadAssignment(position: $0.offset + 1, colorID: ThreadColorID(rawValue: $0.element)) }
         return try #require(RoundTube8SurfacePatternGenerator.generate(
-            stand: stand, method: worked.method, crossSection: worked.section, assignments: eight
+            stand: stand, rounds: worked.derivation.rounds, crossSection: worked.section,
+            assignments: eight
         ))
     }
 
@@ -179,7 +180,8 @@ struct RoundTube8CardAgreesWithSolidTests {
     /// all in the outer tenth of a run's half-width or just after its arrival
     /// (the first sweep, before this was written in). Everywhere else the card
     /// and the solid must agree exactly, and how many were let off is bounded.
-    @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
+    @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe,
+                      BraidMethodCatalog.yatsuKongoGaeshi8Recipe])
     func theCardShowsWhatTheSolidShowsAcrossARepeat(recipe: BraidRecipe) throws {
         let drawn = try pattern(recipe)
         let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: drawn))
@@ -438,7 +440,7 @@ struct RoundTube8CardAgreesWithSolidTests {
             / (segment.centerlineEnd.y - segment.centerlineStart.y)
         let bundle = RoundTube8Bundle.standard
         let centre = segment.centerlineStart.x * 8
-            + bundle.leanInColumns(atCycles: cycles, direction: drawn.leanDirection)
+            + bundle.leanInColumns(atCycles: cycles, direction: drawn.leanBySegment[run.segment])
         var offset = (turns * 8 - centre).truncatingRemainder(dividingBy: 8)
         if offset > 4 { offset -= 8 }
         if offset < -4 { offset += 8 }
@@ -499,7 +501,8 @@ struct RoundTube8CardAgreesWithSolidTests {
     /// show a little wider than its column (Task 046); 0 of 16,384 on S and Z
     /// with Task 051's tails, which keep their width until they are covered.
     /// The bound is a guard against the floor coming back, not a target of zero.
-    @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
+    @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe,
+                      BraidMethodCatalog.yatsuKongoGaeshi8Recipe])
     func theFloorHardlyShows(recipe: BraidRecipe) throws {
         let drawn = try pattern(recipe)
         let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: drawn))

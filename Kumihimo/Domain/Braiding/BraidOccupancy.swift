@@ -114,7 +114,18 @@ struct BraidOccupancy: Equatable, Sendable {
         crossSection: BraidCrossSection,
         cycles count: Int
     ) -> BraidOccupancy? {
-        guard count > 0, let worked = BraidWorking.cycles(of: method, on: stand, count: count)
+        history(ofRounds: [method], on: stand, crossSection: crossSection, cycles: count)
+    }
+
+    /// The same, for tables worked in turn (Task 053): cycle `i` with
+    /// `rounds[i % rounds.count]`.
+    static func history(
+        ofRounds rounds: [BraidMethod],
+        on stand: BraidStand,
+        crossSection: BraidCrossSection,
+        cycles count: Int
+    ) -> BraidOccupancy? {
+        guard count > 0, let worked = BraidWorking.cycles(ofRounds: rounds, on: stand, count: count)
         else { return nil }
 
         var slotOfPosition = [Int: Int]()
@@ -139,9 +150,11 @@ struct BraidOccupancy: Equatable, Sendable {
         guard let last = slots(of: worked[worked.count - 1].endState) else { return nil }
         boundaries.append(last)
 
-        // One cycle decides the folding, and every cycle repeats it.
+        // One cycle decides the folding, and every cycle repeats it. (With
+        // tables worked in turn, the first table's; the eight-thread tables have
+        // empty closings and fold nothing.)
         let first = worked[0]
-        let closingOrdinal = method.instantCount
+        let closingOrdinal = rounds[0].instantCount
         var braided = Set<Int>()
         var shuffled = Set<Int>()
         for instant in first.instants {

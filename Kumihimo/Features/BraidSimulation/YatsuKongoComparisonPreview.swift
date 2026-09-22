@@ -12,12 +12,13 @@ import SwiftUI
 ///
 ///     --ui-testing-yatsu-kongo-solid   the solid, full screen
 ///     --ui-testing-yatsu-kongo-card    the card, as the results list lays it out
-///     --yatsu-kongo-recipe=s|z|maru|hira
+///     --yatsu-kongo-recipe=s|z|maru|hira|gaeshi
 ///                                      which braid (default s). `maru` is the
 ///                                      sixteen-thread maru-genji, added for
 ///                                      Task 047's comparisons, and `hira` the
 ///                                      sixteen-thread flat braid, added for
-///                                      Task 050's; the launch arguments keep
+///                                      Task 050's, and `gaeshi` 八つ金剛返し組
+///                                      (Task 053); the launch arguments keep
 ///                                      their first name
 ///     --yatsu-kongo-colouring=plain|book|eight|author|redblue|one
 ///                                      one colour, book A p.54's, all eight
@@ -56,6 +57,7 @@ enum YatsuKongoComparisonPreviewData {
         case "z": return BraidMethodCatalog.yatsuKongoZ8Recipe
         case "maru": return BraidMethodCatalog.maruGenji16Recipe
         case "hira": return BraidMethodCatalog.hiraGenji16Recipe
+        case "gaeshi": return BraidMethodCatalog.yatsuKongoGaeshi8Recipe
         default: return BraidMethodCatalog.yatsuKongoS8Recipe
         }
     }

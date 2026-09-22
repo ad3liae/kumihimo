@@ -120,7 +120,7 @@ enum RoundTube8CardImage {
             // The runs reaching this far along, before looking round the braid.
             var reaching = [(Int, Int)]()
             for (index, segment) in segments.enumerated() {
-                let cycle = segment.centerlineEnd.y - segment.centerlineStart.y
+                let cycle = pattern.runCycle(of: segment)
                 for offset in -1...1 {
                     let start = segment.centerlineStart.y + Float(offset)
                     if along >= start, along <= start + cycle * bundle.lengthInCycles {
@@ -133,7 +133,7 @@ enum RoundTube8CardImage {
                 var best: (Int, Int, Float)?
                 for (offset, index) in reaching {
                     guard let standing = pattern.standing(
-                        segments[index], repeatOffset: offset,
+                        segment: index, repeatOffset: offset,
                         atTurns: turns, along: along, bundle: bundle
                     ) else { continue }
                     if best == nil || standing > best!.2 { best = (offset, index, standing) }
@@ -156,6 +156,9 @@ enum RoundTube8CardImage {
         /// Where each cell stands, so two tables with the same colours never
         /// share a picture.
         let cells: [Float]
+        /// Which way each cell's run leans: two braids with the same cells can
+        /// lean them differently (Task 053).
+        let leans: [Float]
         let columnsCarried: Int
         let rowCount: Int
         let aspectRatio: Float
@@ -166,6 +169,7 @@ enum RoundTube8CardImage {
             cells = pattern.surface.segments.flatMap {
                 [$0.centerlineStart.x, $0.centerlineStart.y, $0.centerlineEnd.y]
             }
+            leans = pattern.leanBySegment
             columnsCarried = pattern.columnsCarried
             rowCount = pattern.rowCount
             aspectRatio = pattern.aspectRatio
