@@ -71,8 +71,7 @@ struct RoundTube8SurfaceMeshData: Sendable {
 /// Each cell of the pattern — the thread standing at its place from its arrival
 /// to the next thread's — is drawn as that thread's visible run
 /// (`RoundTube8Bundle`): full width a short way after it arrives, leaning round
-/// the braid the stitch's way — the same for S and Z (`RoundTube8SurfacePattern
-/// Generator.stitchLean`) — and past its middle bending into the next
+/// the braid the way the carry goes, and past its middle bending into the next
 /// lane, where it goes under the side of the run laid half a cycle after it and
 /// under the next thread's head, and only then narrows. Runs overlap, and
 /// **whichever stands higher at a place is the one seen**: the depth test draws

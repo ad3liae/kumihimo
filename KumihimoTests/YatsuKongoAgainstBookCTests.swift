@@ -136,10 +136,10 @@ struct YatsuKongoAgainstBookCTests {
                     "book C moves the thread at place \(place) to \(endsAt[place] ?? 0)")
         }
 
-        // Fig.129 read into the stand: 1・2 is the top pair, places 8 and 1.
+        // Fig.129 read into the stand: 1・2 at places 1 and 2 (Task 055).
         let bookC = try #require(BookDiskKongo.cycle(
             source: "book C Fig.129",
-            placeOneOnward: [2, 9, 10, 17, 18, 25, 26, 1],
+            placeOneOnward: [1, 2, 9, 10, 17, 18, 25, 26],
             printedDan: Array(Self.printedMoves.prefix(4)),
             driftPerDan: -1
         ))
