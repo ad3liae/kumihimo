@@ -238,7 +238,9 @@ struct RoundTube8HalfPitchTests {
     /// **A colour band is one pair of threads, followed half a pitch at a time**
     /// — and which pair is settled by the table, not by the colours: the step
     /// half a pitch on, round the braid the way the runs lean, joins the threads
-    /// that begin at places 1 and 2, 3 and 4, 5 and 6, 7 and 8.
+    /// that begin at places 1 and 2, 3 and 4, 5 and 6, 7 and 8 — **the disk
+    /// book's pairs** since Task 055, where they stand and which way the runs
+    /// lean both having been put right for it.
     @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
     func aBandFollowsOnePairOfThreads(recipe: BraidRecipe) throws {
         let worked = try worked(recipe)
@@ -272,11 +274,17 @@ struct RoundTube8HalfPitchTests {
             }, "the band stops after \(threads.count) cells")
             threads.append(here.threadPosition)
         }
-        // Two threads, and they are a pair of the stand's numbering.
-        let pair = Set(threads.compactMap { startingSlot[$0] })
-        #expect(pair.count == 2, "\(threads)")
-        let slots = pair.sorted()
-        #expect(slots[0] ^ 1 == slots[1], "places \(slots.map { $0 + 1 }) are not a pair")
+        // **Whole pairs, one after the other** (Task 055): every two steps are
+        // the two threads of one of the disk book's pairs, 1・2 … 7・8, the
+        // first laid then its partner — never a thread of one pair with a
+        // thread of the next.
+        let slots = threads.compactMap { startingSlot[$0] }
+        #expect(slots.count == threads.count)
+        let offset = slots[0] ^ 1 == slots[1] ? 0 : 1
+        for index in stride(from: offset, to: slots.count - 1, by: 2) {
+            #expect(slots[index] ^ 1 == slots[index + 1],
+                    "places \(slots[index] + 1) and \(slots[index + 1] + 1) are not a pair: \(threads)")
+        }
         // So with the author's colouring the whole band is one colour.
         let colours = Set(threads.map { thread in
             authorColouring.first { $0.position == thread }?.colorID

@@ -112,14 +112,13 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     }
 
     /// Which way round the braid a thread's visible run leans as it goes along
-    /// it, and which way the finished braid turns as it is made: the sign of
-    /// the carry, `+1` or `-1`.
-    ///
-    /// **Only the sign is the table's.** A thread arrives from the place it was
-    /// carried from and leaves towards the place it is carried to, so its run
-    /// tilts from the one towards the other (Task 033 §4.2, Task 045). How far it
-    /// tilts is `RoundTube8Bundle.leanColumnsPerCycle`, a drawing figure.
-    var leanDirection: Float { columnsCarried < 0 ? -1 : 1 }
+    /// it, for a braid of one table, `+1` or `-1`: **the other way from the
+    /// carry** (Task 055) — towards the pair's thread laid half a cycle after it,
+    /// so a colour on the pair runs on as one line. Until Task 055 it was the
+    /// carry's own sign, and a colour on the book's pairs stepped like a stair.
+    /// How far a run tilts is `RoundTube8Bundle.leanColumnsPerCycle`, a drawing
+    /// figure. Per cell, `leanBySegment`.
+    var leanDirection: Float { columnsCarried < 0 ? 1 : -1 }
 }
 
 /// **What a thread's visible run looks like on the eight-thread tube: a bundle
@@ -415,7 +414,12 @@ enum RoundTube8SurfacePatternGenerator {
                 let step = shortestWayRound(from: from, to: to, around: count)
                 guard step != 0, !slotsByDan[dan].contains(to) else { return nil }
                 slotsByDan[dan].insert(to)
-                let lean: Float = step * 2 == count ? (tableLean ?? 1) : (step < 0 ? -1 : 1)
+                // **Toward the thread laid half a cycle after it beside it**, which
+                // is the other way from the carry (Task 055): S lays a pair's
+                // anticlockwise thread first and its partner a place clockwise
+                // half a cycle later, and a colour on the pair runs on as one
+                // line only if the first run's tail goes under the second.
+                let lean: Float = -(step * 2 == count ? (tableLean ?? 1) : (step < 0 ? -1 : 1))
                 arrivalsBySlot[to].append(Arrival(
                     time: time + Float(dan + 1) * 0.5,
                     thread: carried.thread,
@@ -447,7 +451,6 @@ enum RoundTube8SurfacePatternGenerator {
         guard arrivalPhases.count == count else { return nil }
 
         let columnWidth = Float(1) / Float(count)
-        struct Cell { let start: Float; let end: Float; let slot: Int; let thread: Int; let lean: Float }
         var cells = [Cell]()
         for slot in 0..<count {
             let arrivals = arrivalsBySlot[slot].sorted { $0.time < $1.time }
@@ -472,6 +475,8 @@ enum RoundTube8SurfacePatternGenerator {
                 cells.append(Cell(start: start, end: end, slot: slot, thread: arrival.thread, lean: arrival.lean))
             }
         }
+        cells = leaningTowardPartners(cells, derivation: derivation, rows: rows, count: count)
+
         // Row by row — the cycle whose start a cell stands across — and thread
         // by thread within a row.
         func row(_ cell: Cell) -> Int { Int((cell.start - 1e-4).rounded(.up)) }
@@ -509,6 +514,63 @@ enum RoundTube8SurfacePatternGenerator {
             drawnPhaseByColumn: arrivalPhases.map(drawnPhase(ofArrival:)),
             leanBySegment: cells.map(\.lean)
         )
+    }
+
+    /// A thread standing at a place, from its arrival to the next thread's.
+    struct Cell { let start: Float; let end: Float; let slot: Int; let thread: Int; let lean: Float }
+
+    /// **A run leans toward its partner** (Task 055): the thread beside it at
+    /// every cycle's end, the whole repeat through. A colour laid on the two
+    /// runs as one line only when the run laid first puts its tail under the
+    /// one laid after it; so the first leans toward its partner and the second
+    /// away from it, each the way the pair steps round.
+    ///
+    /// In S and Z every thread has two such neighbours — the braid only turns —
+    /// and the lean stays the table's (the other way from the carry). In
+    /// 返し組 the hand-overs part each thread from one of them, which leaves one
+    /// partner: the book's pair (the author: 「全ての色が折り返す」). There the
+    /// pair steps the other way in the last cycle before each turn, and the runs
+    /// follow it.
+    static func leaningTowardPartners(
+        _ cells: [Cell], derivation: BraidDerivation, rows: Int, count: Int
+    ) -> [Cell] {
+        var slotAt = [Int: [Int]]()                 // thread -> slot at each boundary
+        for course in derivation.courses { slotAt[course.threadPosition] = course.slots }
+        func beside(_ a: Int, _ b: Int) -> Bool {
+            guard let one = slotAt[a], let other = slotAt[b] else { return false }
+            return (0...rows).allSatisfy {
+                let gap = ((one[$0] - other[$0]) % count + count) % count
+                return gap == 1 || gap == count - 1
+            }
+        }
+        let threads = Array(slotAt.keys)
+        var partner = [Int: Int]()
+        for thread in threads {
+            let found = threads.filter { $0 != thread && beside(thread, $0) }
+            if found.count == 1 { partner[thread] = found[0] }
+        }
+        guard !partner.isEmpty else { return cells }
+        func side(_ from: Int, _ to: Int) -> Float? {
+            let gap = ((to - from) % count + count) % count
+            return gap == 1 ? 1 : gap == count - 1 ? -1 : nil
+        }
+        return cells.map { cell in
+            guard let mate = partner[cell.thread] else { return cell }
+            // The partner's run half a cycle after this one, or before it.
+            for other in cells where other.thread == mate {
+                for shift in [Float(0), Float(rows), -Float(rows)] {
+                    let gap = other.start + shift - cell.start
+                    guard let s = side(cell.slot, other.slot) else { continue }
+                    if abs(gap - 0.5) < 1e-4 {
+                        return Cell(start: cell.start, end: cell.end, slot: cell.slot, thread: cell.thread, lean: s)
+                    }
+                    if abs(gap + 0.5) < 1e-4 {
+                        return Cell(start: cell.start, end: cell.end, slot: cell.slot, thread: cell.thread, lean: -s)
+                    }
+                }
+            }
+            return cell
+        }
     }
 
     /// Where a place's cells begin, as a share of the cycle, from when its
