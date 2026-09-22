@@ -318,6 +318,8 @@ final class HomeFlowUITests: XCTestCase {
 
     func testNoCompatiblePresetStillShowsUndecidedSelection() {
         let app = launch(arguments: ["--ui-testing-new-editor"])
+        // Four threads have a braid since Task 054 (丸四つ); twelve still have none.
+        selectThreadCount(12, in: app, pickerIdentifier: "project-editor.thread-count-picker")
 
         let undecided = element(
             in: app,

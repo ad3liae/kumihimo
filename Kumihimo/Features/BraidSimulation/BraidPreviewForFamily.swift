@@ -36,7 +36,8 @@ struct BraidPreviewForFamily: View {
                 isEmbedded: isEmbedded,
                 closeAction: closeAction
             )
-        case RoundTube8SurfaceMesh.family:
+        case let family? where family == RoundTube8SurfaceMesh.family
+            || family == RoundTube4SurfaceMesh.family:
             // **The same view**: a tube is a tube, and what differs is the family,
             // the table its cells are worked out from, and what the braid is
             // called.
@@ -45,7 +46,7 @@ struct BraidPreviewForFamily: View {
                 controller: controller,
                 isEmbedded: isEmbedded,
                 closeAction: closeAction,
-                family: RoundTube8SurfaceMesh.family,
+                family: family,
                 table: BraidSurfaceScene.table(for: recipe),
                 wording: RoundTube16PreviewView.Wording(
                     title: ProjectEditorStrings.previewTitle(recipe.name),
@@ -116,6 +117,17 @@ struct BraidThumbnailForFamily: View {
                 )
             }) {
                 RoundTube8ThumbnailView(pattern: pattern)
+            } else {
+                BraidNothingDrawsItView(text: nothingDrawsIt)
+            }
+        case RoundTube4SurfaceMesh.family:
+            if let pattern = BraidSurfaceScene.table(for: recipe).flatMap({ table in
+                RoundTube4SurfacePatternGenerator.generate(
+                    stand: table.stand, rounds: table.rounds,
+                    crossSection: table.crossSection, assignments: assignments
+                )
+            }) {
+                RoundTube4ThumbnailView(pattern: pattern)
             } else {
                 BraidNothingDrawsItView(text: nothingDrawsIt)
             }

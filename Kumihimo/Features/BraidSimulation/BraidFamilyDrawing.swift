@@ -14,19 +14,22 @@ enum BraidFamilyDrawing {
         case flat(Flat16SurfacePattern)
         case roundTube(RoundTube16SurfacePattern)
         case roundTubeOfEight(RoundTube8SurfacePattern)
+        case roundTubeOfFour(RoundTube4SurfacePattern)
 
         var family: BraidFamily {
             switch self {
             case .flat: return Flat16SurfaceMesh.family
             case .roundTube: return RoundTube16SurfaceMesh.family
             case .roundTubeOfEight: return RoundTube8SurfaceMesh.family
+            case .roundTubeOfFour: return RoundTube4SurfaceMesh.family
             }
         }
     }
 
     /// Every family this app can draw, and what each one rests on.
     static var families: [BraidFamilyShape] {
-        [Flat16SurfaceMesh.shape, RoundTube16SurfaceMesh.shape, RoundTube8SurfaceMesh.shape]
+        [Flat16SurfaceMesh.shape, RoundTube16SurfaceMesh.shape, RoundTube8SurfaceMesh.shape,
+         RoundTube4SurfaceMesh.shape]
     }
 
     /// Which family will draw this recipe, or `nil` when none will.
@@ -42,7 +45,8 @@ enum BraidFamilyDrawing {
             guard recipe.id == Flat16SurfacePatternGenerator.drawsOnlyTheRecipe
             else { return nil }
             return family
-        case RoundTube16SurfaceMesh.family, RoundTube8SurfaceMesh.family:
+        case RoundTube16SurfaceMesh.family, RoundTube8SurfaceMesh.family,
+             RoundTube4SurfaceMesh.family:
             return family
         default:
             return nil
@@ -89,6 +93,12 @@ enum BraidFamilyDrawing {
                 stand: stand, rounds: worked.derivation.rounds, crossSection: worked.section,
                 assignments: recipe.colouring
             ).map(Drawing.roundTubeOfEight)
+        case RoundTube4SurfaceMesh.family:
+            // Worked out from the table too (Task 054).
+            return RoundTube4SurfacePatternGenerator.generate(
+                stand: stand, rounds: worked.derivation.rounds, crossSection: worked.section,
+                assignments: recipe.colouring
+            ).map(Drawing.roundTubeOfFour)
         default:
             return nil
         }
@@ -98,16 +108,18 @@ enum BraidFamilyDrawing {
     static func mesh(
         for recipe: BraidRecipe, on stand: BraidStand
     ) -> (flat: Flat16SurfaceMeshData?, tube: RoundTube16SurfaceMeshData?,
-          tubeOfEight: RoundTube8SurfaceMeshData?) {
+          tubeOfEight: RoundTube8SurfaceMeshData?, tubeOfFour: RoundTube4SurfaceMeshData?) {
         switch drawing(for: recipe, on: stand) {
         case let .flat(pattern):
-            return (Flat16SurfaceMesh.generate(pattern: pattern), nil, nil)
+            return (Flat16SurfaceMesh.generate(pattern: pattern), nil, nil, nil)
         case let .roundTube(pattern):
-            return (nil, RoundTube16SurfaceMesh.generate(pattern: pattern), nil)
+            return (nil, RoundTube16SurfaceMesh.generate(pattern: pattern), nil, nil)
         case let .roundTubeOfEight(pattern):
-            return (nil, nil, RoundTube8SurfaceMesh.generate(pattern: pattern))
+            return (nil, nil, RoundTube8SurfaceMesh.generate(pattern: pattern), nil)
+        case let .roundTubeOfFour(pattern):
+            return (nil, nil, nil, RoundTube4SurfaceMesh.generate(pattern: pattern))
         case nil:
-            return (nil, nil, nil)
+            return (nil, nil, nil, nil)
         }
     }
 }

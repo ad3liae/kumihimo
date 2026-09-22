@@ -9,7 +9,8 @@ struct MaruGenjiSimulationTests {
             #expect(!BraidPresetCatalog.availablePresets(threadCount: count)
                 .contains(BraidPresetCatalog.maruGenji))
         }
-        #expect(BraidPresetCatalog.availablePresets(threadCount: 4).isEmpty)
+        // Four threads have 丸四つ since Task 054.
+        #expect(BraidPresetCatalog.availablePresets(threadCount: 4) == [BraidPresetCatalog.maruYotsu])
         #expect(BraidPresetCatalog.availablePresets(threadCount: 12).isEmpty)
         #expect(
             BraidPresetCatalog.availablePresets(threadCount: 16)

@@ -51,8 +51,8 @@ enum BraidSurfaceScene {
     ///
     /// **Only a family whose cells are worked out asks for this.** The two
     /// sixteen-thread drawers keep their cells' shape transcribed and need nothing
-    /// but the colours; the eight-thread tube works its cells out from the table,
-    /// so the table has to reach it.
+    /// but the colours; the eight- and four-thread tubes work their cells out
+    /// from the table, so the table has to reach them.
     struct Table {
         let stand: BraidStand
         let method: BraidMethod
@@ -204,6 +204,9 @@ enum BraidSurfaceScene {
         case RoundTube8SurfaceMesh.family:
             guard let table else { throw SceneError.patternGenerationFailed }
             return try roundTubeOfEightModel(assignments: assignments, table: table)
+        case RoundTube4SurfaceMesh.family:
+            guard let table else { throw SceneError.patternGenerationFailed }
+            return try roundTubeOfFourModel(assignments: assignments, table: table)
         default:
             throw SceneError.patternGenerationFailed
         }
@@ -261,6 +264,70 @@ enum BraidSurfaceScene {
         else { throw SceneError.emptySurface }
 
         var descriptor = MeshDescriptor(name: "round-tube-8-surface")
+        descriptor.positions = MeshBuffer(surface.positions)
+        descriptor.normals = MeshBuffer(surface.normals)
+        descriptor.tangents = MeshBuffer(surface.tangents)
+        descriptor.bitangents = MeshBuffer(surface.bitangents)
+        descriptor.textureCoordinates = MeshBuffer(surface.textureCoordinates)
+        descriptor.primitives = .triangles(combinedIndices)
+        descriptor.materials = .perFace(faceMaterialIndices)
+
+        return Model(
+            mesh: try MeshResource.generate(from: [descriptor]),
+            materials: materials,
+            tileLength: surface.length
+        )
+    }
+
+    /// The four-thread tube (Task 054), built the way the eight-thread tube is:
+    /// one material a thread colour, and one set of maps for every cell.
+    @MainActor
+    private static func roundTubeOfFourModel(
+        assignments: [ThreadAssignment],
+        table: Table
+    ) throws -> Model {
+        guard let pattern = RoundTube4SurfacePatternGenerator.generate(
+            stand: table.stand, rounds: table.rounds,
+            crossSection: table.crossSection, assignments: assignments
+        ) else { throw SceneError.patternGenerationFailed }
+        guard let surface = RoundTube4SurfaceMesh.generate(pattern: pattern)
+        else { throw SceneError.meshDataGenerationFailed }
+
+        let groups = surface.sortedColorGroups
+        guard !groups.isEmpty else { throw SceneError.emptySurface }
+
+#if DEBUG
+        let maps = YatsuKongoComparisonPreviewData.drawsWithoutDetail
+            ? RoundTube4StrandTexture.Maps(occlusion: nil, roughness: nil, normal: nil)
+            : RoundTube4StrandTexture.maps
+#else
+        let maps = RoundTube4StrandTexture.maps
+#endif
+        var combinedIndices = [UInt32]()
+        var faceMaterialIndices = [UInt32]()
+        var materials = [PhysicallyBasedMaterial]()
+        for (colorID, indices) in groups where !indices.isEmpty {
+            guard let threadColor = ThreadColorCatalog.color(for: colorID) else {
+                throw SceneError.unknownColor
+            }
+            combinedIndices.append(contentsOf: indices)
+            faceMaterialIndices.append(
+                contentsOf: repeatElement(UInt32(materials.count), count: indices.count / 3)
+            )
+            materials.append(material(
+                color: threadColor.uiColor,
+                occlusion: maps.occlusion,
+                roughness: maps.roughness,
+                normal: maps.normal
+            ))
+        }
+        guard
+            !combinedIndices.isEmpty,
+            combinedIndices.count / 3 == faceMaterialIndices.count,
+            !materials.isEmpty
+        else { throw SceneError.emptySurface }
+
+        var descriptor = MeshDescriptor(name: "round-tube-4-surface")
         descriptor.positions = MeshBuffer(surface.positions)
         descriptor.normals = MeshBuffer(surface.normals)
         descriptor.tangents = MeshBuffer(surface.tangents)
