@@ -395,6 +395,17 @@ enum RoundTube8SurfacePatternGenerator {
             guard !braiding.isEmpty, braiding.count % perDan == 0 else { return nil }
             let dans = braiding.count / perDan
             var slotsByDan = [Set<Int>](repeating: [], count: dans)
+            // **Half a turn has no way round of its own**: a thread carried
+            // four places leans the way the table's other threads go (返し組's
+            // hand-over lays four threads four places on, Task 053).
+            let tableLean: Float? = braiding.lazy.compactMap { carried -> Float? in
+                guard
+                    let from = crossSection.slotIndex(ofPositionID: carried.move.from),
+                    let to = crossSection.slotIndex(ofPositionID: carried.move.to)
+                else { return nil }
+                let step = shortestWayRound(from: from, to: to, around: count)
+                return step * 2 == count || step == 0 ? nil : (step < 0 ? -1 : 1)
+            }.first
             for (order, carried) in (braiding + closing).enumerated() {
                 let dan = min(order / perDan, dans - 1)
                 guard
@@ -404,10 +415,11 @@ enum RoundTube8SurfacePatternGenerator {
                 let step = shortestWayRound(from: from, to: to, around: count)
                 guard step != 0, !slotsByDan[dan].contains(to) else { return nil }
                 slotsByDan[dan].insert(to)
+                let lean: Float = step * 2 == count ? (tableLean ?? 1) : (step < 0 ? -1 : 1)
                 arrivalsBySlot[to].append(Arrival(
                     time: time + Float(dan + 1) * 0.5,
                     thread: carried.thread,
-                    lean: step < 0 ? -1 : 1
+                    lean: lean
                 ))
                 if index == 0, order < braiding.count {
                     if let firstCarry, firstCarry != step { return nil }

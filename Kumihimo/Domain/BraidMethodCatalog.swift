@@ -466,13 +466,20 @@ enum BraidMethodCatalog {
     /// **Its dan are p.37's and p.36's**, the disk turned (S three notches on,
     /// Z two). The two hand-overs are printed as they are: [4] 「隣り合う糸の右側を
     /// 動かします」 8→6, 16→14, 24→22, 32→30, and [8] 「左側を動かします」 32→2,
-    /// 8→10, 16→18, 24→26. **Read in the order of the threads round the braid**
-    /// (`BookDiskKongo`), each hand-over moves the four threads the dan before
-    /// it moved, two places the same way again — a dan's worth, which is how it
-    /// is drawn (Task 053).
+    /// 8→10, 16→18, 24→26. **Each lifts the four threads the dan before it has
+    /// just laid**, and read in the order round the braid carries them two
+    /// places further the same way.
     ///
-    /// **Eight tables worked in turn**: three cycles of S (two dan each), the
-    /// hand-over, three cycles of Z, the hand-over back.
+    /// **A hand-over is part of the dan before it, not a dan of its own**: the
+    /// braid's stitches do not change at the turn, only its pattern (the author,
+    /// 2026-09-22). So those four threads are laid four places on in that dan
+    /// instead of two, and the braid keeps its lattice (`BookDiskKongo.rounds`).
+    /// An earlier reading (Task 053) counted the hand-over as a dan and drew
+    /// cells half a cycle and a cycle and a half long at every turn — stitches
+    /// that cannot be there.
+    ///
+    /// **Six tables worked in turn**: three cycles of S, the last with [4] in its
+    /// second dan, and three of Z, the last with [8].
     static let yatsuKongoGaeshiRounds: [BraidDiskNotation] = {
         let s = [(17, 3), (1, 19), (25, 11), (9, 27)]          // p.38 [1], [2]
         let z = [(7, 21), (23, 5), (31, 13), (15, 29)]         // p.38 [5], [6]
@@ -485,10 +492,8 @@ enum BraidMethodCatalog {
             // 1・2 is the top pair (pink, upright), `round8`'s places 8 and 1.
             placeOneOnward: [2, 9, 10, 17, 18, 25, 26, 1],
             rounds: [
-                [sDan(0), sDan(1)], [sDan(2), sDan(3)], [sDan(4), sDan(5)],
-                [over],
-                [zDan(0), zDan(1)], [zDan(2), zDan(3)], [zDan(4), zDan(5)],
-                [back],
+                [sDan(0), sDan(1)], [sDan(2), sDan(3)], [sDan(4), sDan(5), over],
+                [zDan(0), zDan(1)], [zDan(2), zDan(3)], [zDan(4), zDan(5), back],
             ]
         ) else {
             preconditionFailure("the disk book's 返し組 does not run on the eight-place stand")
@@ -572,10 +577,17 @@ enum BookDiskKongo {
     }
 
     /// **Several cycles of the stand from the book's steps worked in order**
-    /// (Task 053): each round is the steps — a dan, or a step the book prints
-    /// on its own, like 返し組's hand-over — that make one cycle of the stand,
-    /// every thread braided at most once. The book's disk is worked through the
-    /// whole list, notch by notch; each round comes out as a table of its own.
+    /// (Task 053): each round is the steps that make one cycle of the stand. The
+    /// book's disk is worked through the whole list, notch by notch; each round
+    /// comes out as a table of its own.
+    ///
+    /// **A step that lifts only threads the step before it has just laid lays
+    /// them on further, as part of the same dan** — 返し組's hand-overs (p.38
+    /// [4] and [8]). The braid's stitches do not change at the turn, only its
+    /// pattern (the author, 2026-09-22: 「模様だけが変わるもの」); so such a step
+    /// adds no layer, and its threads are carried once, from where they stood
+    /// before the dan to where the hand-over leaves them. Any other thread
+    /// braided twice in a round is refused.
     static func rounds(
         source: String,
         placeOneOnward: [Int],
@@ -594,8 +606,9 @@ enum BookDiskKongo {
 
         var tables = [BraidDiskNotation]()
         for (roundIndex, steps) in rounds.enumerated() {
-            var moves = [BraidMove]()
-            var braided = [Int]()
+            let startPlace = placeOf
+            var braided = [Int]()                   // in the order first braided
+            var lastStep = Set<Int>()
             for step in steps {
                 var movers = [Int]()
                 for (from, to) in step {
@@ -603,6 +616,11 @@ enum BookDiskKongo {
                     onDisk[from] = nil
                     onDisk[to] = thread
                     movers.append(thread)
+                }
+                // A thread braided again this round must have been laid by the
+                // step just before: the hand-over carrying on that dan.
+                for thread in movers where braided.contains(thread) {
+                    guard lastStep.contains(thread) else { return nil }
                 }
                 // The new order round the braid, clockwise from notch 1.
                 let order = onDisk.keys.sorted().compactMap { onDisk[$0] }
@@ -616,20 +634,22 @@ enum BookDiskKongo {
                     newPlace[thread] = ((index + offset) % places + places) % places + 1
                 }
                 guard stayed.allSatisfy({ newPlace[order[$0]] == placeOf[order[$0]] }) else { return nil }
-                // Written on the stand: each mover lands just short of its new
-                // place, then is tidied on into it once the step is done.
-                for thread in movers {
-                    guard let from = placeOf[thread], let to = newPlace[thread] else { return nil }
-                    moves.append(BraidMove(from: resting(from), to: wrapped(resting(to) - 1)))
-                }
-                for thread in movers {
-                    guard let to = newPlace[thread] else { return nil }
-                    moves.append(BraidMove(from: wrapped(resting(to) - 1), to: resting(to)))
-                }
                 placeOf = newPlace
-                braided.append(contentsOf: movers)
+                for thread in movers where !braided.contains(thread) { braided.append(thread) }
+                lastStep = Set(movers)
             }
-            guard Set(braided).count == braided.count else { return nil }
+            // Written on the stand: each thread braided this round goes, in the
+            // order it was first braided, from where it stood to just short of
+            // where the round leaves it; then each is tidied on into its place.
+            var moves = [BraidMove]()
+            for thread in braided {
+                guard let from = startPlace[thread], let to = placeOf[thread] else { return nil }
+                moves.append(BraidMove(from: resting(from), to: wrapped(resting(to) - 1)))
+            }
+            for thread in braided {
+                guard let to = placeOf[thread] else { return nil }
+                moves.append(BraidMove(from: wrapped(resting(to) - 1), to: resting(to)))
+            }
             tables.append(BraidDiskNotation(
                 source: rounds.count == 1 ? source : "\(source), round \(roundIndex + 1)",
                 notchCount: notchCount,
