@@ -58,13 +58,10 @@ struct RoundTube8SurfaceTests {
         for row in 0..<drawn.rowCount {
             for place in 0..<8 {
                 let shape = try #require(figure.appearance(atColumn: place, row: row))
-                // **The figure is by place on the stand; the solid is by column
-                // of the finished braid**, and the braid turns one column a
-                // cycle (Task 048's rework). The cell to read is the one in the
-                // column this place has turned to.
-                let column = RoundTube8SurfacePatternGenerator.drawnColumn(
-                    ofSlot: place, cycle: row, lean: Int(drawn.leanDirection)
-                )
+                // **The figure is by place on the stand, and so is the solid**
+                // since Task 053: a column is a place (the drawing no longer
+                // turns the braid a column a cycle).
+                let column = place
                 let middle = (Float(column) + 0.5) / 8
                 let along = Float(row) / Float(drawn.rowCount)
                 let cell = try #require(drawn.surface.segments.first {
@@ -317,7 +314,8 @@ struct RoundTube8SurfaceTests {
         // thread now shows as a run that leans the carry's way and goes on
         // beneath the next thread, 25 by 11 samples, with its own cell lying
         // beneath at the valley floor, 2 by 5 (Task 045).
-        #expect(s.positions.count == 128 * (25 * 11 + 2 * 5))
+        #expect(s.positions.count == 128 * (25 * 11 + 2 * 5)
+                / 2)
         // Then `0xfbb4_48c0_8f4a_7fdd` while a run was widest at a shoulder just
         // after its arrival and narrowed all the way to its tip, one column at
         // most: a lens with a belly now, pointed at both ends and a little wider
@@ -344,23 +342,27 @@ struct RoundTube8SurfaceTests {
         // 2026-09-21): the head is blunt, the tail keeps its width, bends into
         // the next lane and goes under the runs laid after it, and the arc has
         // its own span (Task 051). The vertex count did not change.
-        #expect(BraidMeshHashTests.hash(s.positions) == 0x7b20_db3a_0f1e_b941)
+        // Then `0x7b20_db3a_0f1e_b941` (36,480 vertices) while the table was
+        // book A p.54's, which comes round in eight cycles: the disk book's comes
+        // round in four, so a repeat has half the cells (Task 053). The drawing
+        // turned the braid a column a cycle then and does not now; **what shows
+        // on the front is pixel for pixel the same** (Task 053's record).
+        #expect(BraidMeshHashTests.hash(s.positions) == 0x4ba0_4e68_e894_23ed)
     }
 
-    // MARK: - 6. Which of a pair goes first does not reach the drawing
+    // MARK: - 6. The order inside a dan does not reach the drawing
 
-    /// **The one thing Task 008 left open must not be showing.** Which thread of a
-    /// printed pair is carried first is not settled, so a drawing that depended on
-    /// it would be a drawing resting on a guess.
+    /// **The order of the moves inside a dan must not be showing** (Task 053).
+    /// The disk book and book C print the moves of a dan in different orders —
+    /// which of two opposite pairs is worked first — so a drawing that depended
+    /// on it would rest on which book was copied.
     ///
-    /// It does not, and the reason is stronger than a tolerance: **a printed pair
-    /// is one instant** (the author, 2026-09-11), so the two threads of a pair
-    /// arrive together, and nothing the drawing reads — which thread stands where,
-    /// and when it arrived — has a place for their order. Nothing crosses either,
-    /// so there is no over and under for the order to decide. While the pair was
-    /// split into two instants the arrival phase did carry the order onto the
-    /// face, and this test is what stopped it going in.
-    @Test func swappingWhichOfAPairGoesFirstDoesNotMoveTheMesh() throws {
+    /// It does not: a place's cells begin in the half of the cycle its thread
+    /// arrives in, and the dan is that half whatever order its four moves come
+    /// in. Nothing crosses, so there is no over and under for the order to
+    /// decide. (Until Task 053 this asked the same of which thread of a printed
+    /// pair went first, under book A's table.)
+    @Test func swappingTheOrderInsideADanDoesNotMoveTheMesh() throws {
         let recipe = BraidMethodCatalog.yatsuKongoS8Recipe
         let worked = try #require(recipe.worked(on: stand))
         let swapped = BraidMethod(
@@ -383,16 +385,14 @@ struct RoundTube8SurfaceTests {
                 == BraidMeshHashTests.hash(asIs.positions))
     }
 
-    /// The steps of one cycle with the two threads of each printed pair listed
-    /// the other way round. Book A prints two threads to a step and book C's order
-    /// inside the pair is what is not known for this braid.
-    ///
-    /// **A printed step is one step now** (the author, 2026-09-11), so the pair is
-    /// turned round inside it. Until then each thread of a pair was a step of its
-    /// own and this swapped neighbouring steps; swapping neighbours now would swap
-    /// two different printed steps, which is not the question this test asks.
+    /// The steps of one cycle with neighbouring figures of each dan swapped:
+    /// the order book C prints its lines in against the disk book's.
     private func swappingPairs(of steps: [BraidStep]) -> [BraidStep] {
-        steps.map { BraidStep(name: $0.name, moves: $0.moves.reversed()) }
+        var swapped = steps
+        for index in stride(from: 0, to: steps.count - 1, by: 2) {
+            swapped.swapAt(index, index + 1)
+        }
+        return swapped
     }
 
     // MARK: - 7. It draws no other family
@@ -425,10 +425,11 @@ struct RoundTube8SurfaceTests {
         let z = try pattern(BraidMethodCatalog.yatsuKongoZ8Recipe)
         #expect(s.columnsCarried == -RoundTube8SurfacePatternGenerator.columnsCarriedPerCycle)
         #expect(z.columnsCarried == RoundTube8SurfacePatternGenerator.columnsCarriedPerCycle)
-        #expect(s.rowCount == 8)
-        // Sixty-four cells, every one whole: the first row's begin in the repeat
-        // before and are drawn from there, not cut at the tile's edge.
-        #expect(s.surface.segments.count == 64)
+        #expect(s.rowCount == 4)
+        // Thirty-two cells, every one whole: the first row's begin in the repeat
+        // before and are drawn from there, not cut at the tile's edge. (Sixty-four
+        // with book A's table, which came round in eight cycles.)
+        #expect(s.surface.segments.count == 32)
     }
 
     /// Every number the drawing rests on says where it came from, and the one that

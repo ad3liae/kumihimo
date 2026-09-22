@@ -80,24 +80,27 @@ struct RoundTube8HalfPitchTests {
         #expect(found.isEmpty, "\(found.prefix(4))")
     }
 
-    /// **The same check rejects the placement it replaced**: bundles begun at
-    /// their arrivals (Task 032), ¼, ¾, ½, 1 … on S.
+    /// **The half pitch is the table's** (Task 053): a place's cells begin in
+    /// the half of the cycle its thread arrives in, and every place arrives in the
+    /// other half from its neighbours. The same check rejects bundles begun at
+    /// the instant each thread arrives, which the disk book spreads over the
+    /// eight figures of a cycle.
     @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
-    func theArrivalPlacementWouldFail(recipe: BraidRecipe) throws {
+    func theHalfPitchIsTheHalfOfTheCycleAPlaceArrivesIn(recipe: BraidRecipe) throws {
         let drawn = try pattern(recipe)
-        // The placement it replaced: every place at its own arrival, and the
-        // place held at one column of the finished braid.
+        for place in 0..<8 {
+            let arrival = drawn.arrivalPhaseBySlot[place]
+            #expect(drawn.drawnPhaseByColumn[place] == (arrival <= 0.5 ? 0.5 : 1))
+            let next = drawn.arrivalPhaseBySlot[(place + 1) % 8]
+            #expect((arrival <= 0.5) != (next <= 0.5), "places \(place + 1) and \(place + 2)")
+        }
+        // Begun at the instant each thread arrives instead: not half a pitch.
         let atArrivals = bundles(drawn).map { bundle in
             Bundle(place: bundle.place,
                    belly: bundle.belly - drawn.drawnPhaseByColumn[bundle.place]
                        + drawn.arrivalPhaseBySlot[bundle.place])
         }
         #expect(!failures(atArrivals).isEmpty)
-        // S's arrivals, as Task 032 recorded them.
-        if recipe.id == BraidMethodCatalog.yatsuKongoS8Recipe.id {
-            #expect(drawn.arrivalPhaseBySlot == [0.25, 0.75, 0.5, 1, 0.25, 0.75, 0.5, 1])
-            #expect(drawn.drawnPhaseByColumn == [1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5])
-        }
     }
 
     /// **Followed the way the bundles lean** (the carry's direction), each place
@@ -143,7 +146,7 @@ struct RoundTube8HalfPitchTests {
         ))
         let drawn = try pattern(recipe)
         let rows = Float(drawn.rowCount)
-        #expect(drawn.surface.segments.count == 64)
+        #expect(drawn.surface.segments.count == 32)
         for segment in drawn.surface.segments {
             let column = Int((segment.centerlineStart.x * 8).rounded(.down))
             let row = segment.centerlineStart.y * rows + 1 - drawn.drawnPhaseByColumn[column]
@@ -151,15 +154,10 @@ struct RoundTube8HalfPitchTests {
             let cycle = Int(row.rounded())
             let course = try #require(derivation.courses.first { $0.threadPosition == segment.threadPosition })
             // The cell is the thread standing at its place in that cycle, and
-            // the column is where the finished braid has turned that place to.
-            let slot = course.slots[cycle]
-            #expect(RoundTube8SurfacePatternGenerator.drawnColumn(
-                ofSlot: slot, cycle: cycle, lean: Int(drawn.leanDirection)) == column,
-                "thread \(segment.threadPosition), cycle \(cycle)")
+            // the column is that place (Task 053).
+            #expect(course.slots[cycle] == column,
+                    "thread \(segment.threadPosition), cycle \(cycle)")
         }
-        // The arrivals are still recorded, and are no longer where cells begin:
-        // the drawn phase belongs to the column, not to the place (Task 048's
-        // rework).
         #expect(drawn.arrivalPhaseBySlot.count == 8)
         #expect(drawn.drawnPhaseByColumn.count == 8)
     }
@@ -211,26 +209,30 @@ struct RoundTube8HalfPitchTests {
         }
     }
 
-    /// **The same check rejects the placement it replaced**: with a place held
-    /// at one column of the finished braid, the author's colouring runs two
-    /// cells of a colour down every column.
-    @Test func theFirstPlacementWouldRunTwoCellsOfAColour() throws {
-        let recipe = BraidMethodCatalog.yatsuKongoS8Recipe
-        let worked = try worked(recipe)
+    /// **The same check rejects book A p.54's table** (shipped until Task 053)
+    /// drawn the way the disk book's is, a place to a column: the author's
+    /// colouring runs two cells of a colour down its columns. That is what Task
+    /// 048 turned the braid a column a cycle to hide; the disk book's table does
+    /// not need it.
+    @Test func bookAsTableWouldRunTwoCellsOfAColour() throws {
+        let method = try #require(BraidMethodCatalog.yatsuKongoBookAP54Disk.method(
+            id: "yatsu-kongo-s-8-book-a-p54", standID: stand.id,
+            stepNames: BraidMethodCatalog.yatsuKongoStepNames
+        ))
         let derivation = try #require(BraidDerivation.derive(
-            stand: stand, method: worked.method, crossSection: worked.section
+            stand: stand, method: method,
+            crossSection: BraidMethodCatalog.yatsuKongoS8Recipe.crossSection(on: stand)
         ))
         let colours = Dictionary(uniqueKeysWithValues: authorColouring.map { ($0.position, $0.colorID) })
         var twoInARow = 0
         for slot in 0..<8 {
-            // The place's own cells, cycle by cycle, as they were drawn before.
-            let down = (0..<8).map { cycle -> ThreadColorID in
+            let down = (0..<derivation.repeatCycleCount).map { cycle -> ThreadColorID in
                 let course = derivation.courses.first { $0.slots[cycle] == slot }
                 return colours[course?.threadPosition ?? 0] ?? ThreadColorID(rawValue: "")
             }
             for (here, next) in zip(down, down.dropFirst()) where here == next { twoInARow += 1 }
         }
-        #expect(twoInARow > 0, "the placement this replaced had no colour twice in a row")
+        #expect(twoInARow > 0, "book A's table had no colour twice in a row")
     }
 
     /// **A colour band is one pair of threads, followed half a pitch at a time**
@@ -250,19 +252,23 @@ struct RoundTube8HalfPitchTests {
         let lean = Int(drawn.leanDirection)
 
         // Walk a band: from a cell, half a pitch on in the column the runs lean
-        // towards, eight steps round the braid.
+        // towards, eight steps round the braid — across the join into the next
+        // repeat where it gets there (a repeat is four cycles since Task 053).
         var here = try #require(drawn.surface.segments.first {
             Int(($0.centerlineStart.x * 8).rounded(.down)) == 0
                 && $0.centerlineStart.y * rows > 0
         })
+        var along = here.centerlineStart.y * rows
         var threads = [here.threadPosition]
         for _ in 0..<8 {
             let column = Int((here.centerlineStart.x * 8).rounded(.down))
             let next = ((column + lean) % 8 + 8) % 8
-            let wanted = here.centerlineStart.y * rows + 0.5
+            along += 0.5
+            let wanted = along
             here = try #require(drawn.surface.segments.first {
-                Int(($0.centerlineStart.x * 8).rounded(.down)) == next
-                    && abs($0.centerlineStart.y * rows - wanted) < 1e-4
+                guard Int(($0.centerlineStart.x * 8).rounded(.down)) == next else { return false }
+                let gap = ($0.centerlineStart.y * rows - wanted).truncatingRemainder(dividingBy: rows)
+                return abs(gap) < 1e-4 || abs(abs(gap) - rows) < 1e-4
             }, "the band stops after \(threads.count) cells")
             threads.append(here.threadPosition)
         }
