@@ -91,10 +91,11 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// author's condition, Task 048), from the table (Task 053). A column is a
     /// place on the stand.
     let drawnPhaseByColumn: [Float]
-    /// Which way each cell's run leans, by segment: **the way its thread was
-    /// carried to it**, `+1` or `-1` (Task 053). One sign for every cell of a
-    /// braid of one table — `leanDirection` — and both, part by part, for a braid
-    /// that turns its spiral round.
+    /// Which way each cell's run leans, by segment, `+1` or `-1`: **the
+    /// stitch's own direction, the same for every cell of every eight-thread
+    /// braid** (`RoundTube8SurfacePatternGenerator.stitchLean`, the author,
+    /// 2026-09-22). Kept per segment so a drawing reads it where it reads the
+    /// cell.
     let leanBySegment: [Float]
 
     /// One cycle along the braid, in repeats.
@@ -111,14 +112,14 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
         segment.centerlineEnd.y - segment.centerlineStart.y
     }
 
-    /// Which way round the braid a thread's visible run leans as it goes along
-    /// it, and which way the finished braid turns as it is made: the sign of
-    /// the carry, `+1` or `-1`.
+    /// Which way the first table carries its threads round the braid — **the
+    /// spiral's direction, not the stitch's**: the sign of the carry, `+1` or
+    /// `-1`. S and Z differ here, and only here.
     ///
-    /// **Only the sign is the table's.** A thread arrives from the place it was
-    /// carried from and leaves towards the place it is carried to, so its run
-    /// tilts from the one towards the other (Task 033 §4.2, Task 045). How far it
-    /// tilts is `RoundTube8Bundle.leanColumnsPerCycle`, a drawing figure.
+    /// Until Task 053 a run was drawn leaning this way, so Z's stitches were
+    /// S's mirrored. **They are not** (the author, 2026-09-22: 「スパイラルの向きが
+    /// 逆になるだけで、基本の組み目の形は変わらないはず … 組み上げ方向は変わらない
+    /// から」): runs lean `stitchLean` whatever the table.
     var leanDirection: Float { columnsCarried < 0 ? -1 : 1 }
 }
 
@@ -132,9 +133,11 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
 /// gives, and it is still the pattern's `surface`: which thread is at which place
 /// and when does not move. What this adds is how that thread *shows*:
 ///
-/// - **it leans.** Its centreline moves round the braid as it goes along it, the
-///   way the carry goes (`RoundTube8SurfacePattern.leanDirection`) — so S and Z
-///   are mirrors because their tables are;
+/// - **it leans.** Its centreline moves round the braid as it goes along it,
+///   **the same way for S, Z and S&Z** (`RoundTube8SurfacePatternGenerator
+///   .stitchLean`): the stitch comes from how the braid is built up, and only
+///   the colour's spiral turns (the author, 2026-09-22). Until then it leaned
+///   the way the carry goes, and Z's stitches were drawn as S's mirror;
 /// - **its head is blunt**: full width a short rounding after the arrival. The
 ///   head is where the thread was laid last, so it lies on top of what was laid
 ///   before it (`docs/architecture.md`, 組み台の力学: 後に置いた糸が上), and
@@ -278,6 +281,13 @@ struct RoundTube8Bundle: Equatable, Sendable {
 enum RoundTube8SurfacePatternGenerator {
     static let requiredThreadCount = 8
 
+    /// **Which way every run leans round the braid, for S, Z and S&Z alike**
+    /// (the author, 2026-09-22): the stitch comes from the way the braid is built
+    /// up, which does not change when the spiral turns the other way. The sign is
+    /// S's, whose stitch the author accepted in Task 051; Z and 返し組 now draw the
+    /// same stitch, and only their colour turns the other way.
+    static let stitchLean: Float = -1
+
     /// One cycle's growth as a fraction of the braid's own diameter.
     ///
     /// **Read from the colour's period, once the drawing's cycle is fixed**
@@ -333,18 +343,19 @@ enum RoundTube8SurfacePatternGenerator {
     /// thread's arrival there** — whatever table brought either. The time is
     /// counted in dan (段): **a dan is one layer, half a cycle**, and a table's
     /// braiding moves make its dan four at a time — one thread from each pair of
-    /// the eight (the disk book: 1段 = four figures). A cycle of S or Z is two dan;
-    /// 返し組's hand-over is one. A place's thread arrives at the end of its dan.
+    /// the eight (the disk book: 1段 = four figures). A cycle is two dan, for S,
+    /// Z and 返し組 alike (its hand-overs are part of the dan before them,
+    /// `BookDiskKongo.rounds`). A place's thread arrives at the end of its dan.
     ///
-    /// For a braid of one table every place receives one thread a cycle, in one
-    /// dan or the other, so its cells are a cycle long and half a pitch from the
-    /// next place's (`drawnPhaseByColumn`) — what this drew before. Where a
-    /// braid turns its spiral round, the same place can receive in two dan
-    /// running or skip one, and its cells there are half a cycle or a cycle and a
-    /// half long. **That is the table's, not a shape drawn in.**
+    /// Every place receives one thread a cycle, in one dan or the other, so its
+    /// cells are a cycle long and half a pitch from the next place's
+    /// (`drawnPhaseByColumn`). A table that gave a place two threads running, or
+    /// none, would draw cells of other lengths — **the table's, not a shape
+    /// drawn in** — and the shipped tables do not.
     ///
-    /// **Each cell leans the way its thread was carried to it**
-    /// (`leanBySegment`): back for a thread an S dan brought, on for a Z dan's.
+    /// **Every cell leans the stitch's way, `stitchLean`**, whichever table
+    /// carried its thread (the author, 2026-09-22): the spiral turns, the stitch
+    /// does not.
     ///
     /// `nil` when the braid is not a tube of eight, when a table's braiding moves
     /// are not a whole number of dan, when a place receives twice in one dan, when
@@ -395,17 +406,6 @@ enum RoundTube8SurfacePatternGenerator {
             guard !braiding.isEmpty, braiding.count % perDan == 0 else { return nil }
             let dans = braiding.count / perDan
             var slotsByDan = [Set<Int>](repeating: [], count: dans)
-            // **Half a turn has no way round of its own**: a thread carried
-            // four places leans the way the table's other threads go (返し組's
-            // hand-over lays four threads four places on, Task 053).
-            let tableLean: Float? = braiding.lazy.compactMap { carried -> Float? in
-                guard
-                    let from = crossSection.slotIndex(ofPositionID: carried.move.from),
-                    let to = crossSection.slotIndex(ofPositionID: carried.move.to)
-                else { return nil }
-                let step = shortestWayRound(from: from, to: to, around: count)
-                return step * 2 == count || step == 0 ? nil : (step < 0 ? -1 : 1)
-            }.first
             for (order, carried) in (braiding + closing).enumerated() {
                 let dan = min(order / perDan, dans - 1)
                 guard
@@ -415,11 +415,10 @@ enum RoundTube8SurfacePatternGenerator {
                 let step = shortestWayRound(from: from, to: to, around: count)
                 guard step != 0, !slotsByDan[dan].contains(to) else { return nil }
                 slotsByDan[dan].insert(to)
-                let lean: Float = step * 2 == count ? (tableLean ?? 1) : (step < 0 ? -1 : 1)
                 arrivalsBySlot[to].append(Arrival(
                     time: time + Float(dan + 1) * 0.5,
                     thread: carried.thread,
-                    lean: lean
+                    lean: stitchLean
                 ))
                 if index == 0, order < braiding.count {
                     if let firstCarry, firstCarry != step { return nil }

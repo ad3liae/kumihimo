@@ -124,8 +124,7 @@ struct YatsuKongoGaeshiTests {
     /// **The stitches are the S and Z braids' own all the way through**: six
     /// cycles to a repeat, every cell a cycle long, every place half a pitch
     /// from the next — the turn changes which thread is where, not the lattice
-    /// (the author, 2026-09-22). Each cell leans the way its thread was carried:
-    /// S's way in the S part, Z's in the Z part.
+    /// (the author, 2026-09-22), and every run leans the same way.
     @Test func theStitchesDoNotChangeOnlyThePattern() throws {
         let worked = try worked()
         let pattern = try #require(RoundTube8SurfacePatternGenerator.generate(
@@ -154,9 +153,9 @@ struct YatsuKongoGaeshiTests {
             })
         }
         #expect(starts(pattern) == starts(s))
-        // Both leans, as many of each: three cycles of each part.
-        #expect(pattern.leanBySegment.filter { $0 < 0 }.count == 24)
-        #expect(pattern.leanBySegment.filter { $0 > 0 }.count == 24)
+        // One stitch all through: every run leans the same way, S part and Z
+        // part alike (the author, 2026-09-22).
+        #expect(pattern.leanBySegment.allSatisfy { $0 == RoundTube8SurfacePatternGenerator.stitchLean })
     }
 
     /// **The S part is drawn as S draws it**: over the first three cycles, the
