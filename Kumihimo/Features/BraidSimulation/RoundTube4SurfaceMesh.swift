@@ -136,8 +136,9 @@ enum RoundTube4SurfaceMesh {
             ),
             "how far a run's head is rounded, in cycles past its arrival": .declared(
                 Double(bundle.headRoundingCycles),
-                calibratedBy: byEye + "the eight-thread tube's figure (Task 051); short, "
-                    + "so the head is blunt, as photograph b's bundles are"
+                calibratedBy: byEye + "longer than the eight-thread tube's 0.12, so the "
+                    + "head tapers into the domed oval of photograph b's bundles; at 0.12 they "
+                    + "read as gnocchi (the author, 2026-09-22)"
             ),
             "over how much of a run its height's arc stands, in cycles": .declared(
                 Double(bundle.arcSpanCycles),
@@ -165,8 +166,9 @@ enum RoundTube4SurfaceMesh {
                 Double(runHeightOverRadius),
                 basis: .fractionOf("the braid's outer radius"),
                 calibratedBy: byEye + "how much a bundle domes on book A p.10's "
-                    + "photograph b. The derived figure beside it is for threads one to a "
-                    + "column that do not overlap; these runs are wider than a column"
+                    + "photograph b: raised in the middle, near a half circle across. The "
+                    + "eight-thread tube's 0.44 drew it flat-topped here, where a run is a "
+                    + "quarter of the turn wide"
             ),
             "where a run stands highest, in cycles past its arrival": BraidMeasurement(
                 Double(bundle.crestAtCycles),
@@ -224,8 +226,11 @@ enum RoundTube4SurfaceMesh {
     ///
     /// **Calibrated by eye against book A p.10's photograph b, not derived**,
     /// and not read off the braid's outline (measuring procedure 2 cannot give
-    /// the grooves of a round braid).
-    static let runHeightOverRadius: Float = 0.44
+    /// the grooves of a round braid). Deeper than the eight-thread tube's 0.44:
+    /// a run here is a quarter of the turn across, and at 0.44 it stood
+    /// flat-topped (the author, 2026-09-22: 「ニョッキみたい」); at 0.6 it domes
+    /// to near a half circle.
+    static let runHeightOverRadius: Float = 0.6
 
     /// How far beneath the valley floor the cell under a run lies, as a
     /// fraction of the ridge. **Not a shape figure**: it only keeps the cell

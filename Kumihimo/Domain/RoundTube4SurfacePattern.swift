@@ -102,25 +102,30 @@ struct RoundTube4Bundle: Equatable, Sendable {
     let widestHalfWidthInColumns: Float
 
     /// **Set against book A p.10's photograph b by eye** (Task 054), side by
-    /// side with the solid at the same braid width. The run's timing — the
-    /// head, the arc, where the tail bends and narrows, how far it goes under —
-    /// is the eight-thread tube's, accepted in Tasks 051 and 053: it is counted
-    /// in cycles, and on both braids a place takes a new thread every cycle,
-    /// half a cycle from its neighbours. **What is this braid's own is how far
-    /// round a run reaches**: photograph b's bundles lie at about 23 degrees to
-    /// the braid and their tails go under the lane beside them, about half a
-    /// column over a cycle, where the eight-thread tube's lean a fifth of one;
-    /// and they are fatter, about six tenths of the braid's width on the
-    /// photograph.
+    /// side with the solid at the same braid width. Where the tail goes under,
+    /// the arc, and where the tail bends and narrows are the eight-thread tube's
+    /// (Task 051), counted in cycles: on both braids a place takes a new thread
+    /// every cycle, half a cycle from its neighbours. **The rest is this
+    /// braid's own**, because photograph b's bundles are not the eight-thread
+    /// tube's beans:
+    ///
+    /// - they are **domed ovals that taper to the head** rather than blunt
+    ///   pillows — the eight-thread head rounding of 0.12 cycles drew them as
+    ///   gnocchi (the author, 2026-09-22: 「ニョッキみたい」), so the head is
+    ///   rounded over 0.35;
+    /// - they lie at **about 23 degrees to the braid** and their tails go under
+    ///   the lane beside them, about half a column and more over a cycle;
+    /// - they are **fat and packed**, about six tenths of the braid's width, with
+    ///   no floor showing between the columns.
     static let standard = RoundTube4Bundle(
-        leanColumnsPerCycle: 0.3,
+        leanColumnsPerCycle: 0.45,
         tuckedCycles: 0.55,
-        headRoundingCycles: 0.12,
+        headRoundingCycles: 0.35,
         arcSpanCycles: 1.2,
         tailBendColumns: 0.5,
         tailBendFromCycles: 0.5,
         tailNarrowsFromCycles: 1,
-        widestHalfWidthInColumns: 0.62
+        widestHalfWidthInColumns: 0.64
     )
 
     /// From the arrival to the end of the run, in cycles.

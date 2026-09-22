@@ -173,12 +173,14 @@ struct MaruYotsuTests {
         #expect(map.shown.allSatisfy { $0 != nil })
     }
 
-    /// **The mesh is the shape it was when it was accepted** (Task 054). Moves
-    /// only on purpose.
+    /// **The mesh is the shape it was when it was last set by eye** (Task 054).
+    /// Moves only on purpose. It was `0x506f_2561_7c50_30c5` while the bundles
+    /// were the eight-thread tube's height and head, which read as gnocchi (the
+    /// author, 2026-09-22); the vertex count did not change.
     @Test func theMeshIsTheShapeItWas() throws {
         let mesh = try #require(BraidFamilyDrawing.mesh(for: recipe, on: stand).tubeOfFour)
         #expect(mesh.positions.count == 4_560)
-        #expect(BraidMeshHashTests.hash(mesh.positions) == 0x506f_2561_7c50_30c5)
+        #expect(BraidMeshHashTests.hash(mesh.positions) == 0x4ae7_8577_341e_6bf1)
     }
 
     // MARK: - The preset
