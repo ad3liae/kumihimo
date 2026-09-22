@@ -102,8 +102,8 @@ struct RoundTube4Bundle: Equatable, Sendable {
     let widestHalfWidthInColumns: Float
 
     /// **Set against book A p.10's photograph b by eye** (Task 054), side by
-    /// side with the solid at the same braid width. Where the tail goes under,
-    /// the arc, and where the tail bends and narrows are the eight-thread tube's
+    /// side with the solid at the same braid width. How far the tail goes
+    /// under, the arc, and where the tail bends are the eight-thread tube's
     /// (Task 051), counted in cycles: on both braids a place takes a new thread
     /// every cycle, half a cycle from its neighbours. **The rest is this
     /// braid's own**, because photograph b's bundles are not the eight-thread
@@ -113,18 +113,20 @@ struct RoundTube4Bundle: Equatable, Sendable {
     ///   pillows — the eight-thread head rounding of 0.12 cycles drew them as
     ///   gnocchi (the author, 2026-09-22: 「ニョッキみたい」), so the head is
     ///   rounded over 0.35;
-    /// - they lie at **about 23 degrees to the braid** and their tails go under
-    ///   the lane beside them, about half a column and more over a cycle;
+    /// - they **come to a point at the right end** while it still shows, so the
+    ///   tail narrows from 0.7 of a cycle, not from the next thread's arrival;
+    /// - they **lean hard**, and their tails go up under the lane beside them
+    ///   (the author asked for both, 2026-09-22);
     /// - they are **fat and packed**, about six tenths of the braid's width, with
     ///   no floor showing between the columns.
     static let standard = RoundTube4Bundle(
-        leanColumnsPerCycle: 0.45,
+        leanColumnsPerCycle: 0.6,
         tuckedCycles: 0.55,
         headRoundingCycles: 0.35,
         arcSpanCycles: 1.2,
-        tailBendColumns: 0.5,
+        tailBendColumns: 0.6,
         tailBendFromCycles: 0.5,
-        tailNarrowsFromCycles: 1,
+        tailNarrowsFromCycles: 0.7,
         widestHalfWidthInColumns: 0.64
     )
 

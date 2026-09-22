@@ -158,9 +158,9 @@ enum RoundTube4SurfaceMesh {
             ),
             "where a run's tail begins to narrow, in cycles past its arrival": .declared(
                 Double(bundle.tailNarrowsFromCycles),
-                calibratedBy: byEye + "the eight-thread tube's figure (Task 051): the "
-                    + "next thread's arrival, so the tail is as wide as the run where it "
-                    + "goes under"
+                calibratedBy: byEye + "earlier than the eight-thread tube's 1 (the next "
+                    + "thread's arrival), so the right end of a bundle comes to a point while "
+                    + "it still shows, as photograph b's do (the author, 2026-09-22)"
             ),
             "how far a run stands over the valley floor, over the braid's radius": .declared(
                 Double(runHeightOverRadius),
