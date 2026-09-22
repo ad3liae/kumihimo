@@ -135,6 +135,7 @@ struct ProjectEditorPresentationStateTests {
         #expect(store.availableBraidPresets == [
             BraidPresetCatalog.yatsuKongoS,
             BraidPresetCatalog.yatsuKongoZ,
+            BraidPresetCatalog.yatsuKongoGaeshi,
         ])
     }
 
