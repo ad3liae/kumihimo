@@ -1,6 +1,6 @@
 # Task 054: 丸四つ組（4本）を足す
 
-- 状態: **実装済み・作者の確認待ち**（2026-09-22）。結果は末尾の「結果」。指示書として出したのは同日（042 以降の型）
+- 状態: **完了・作者が受領してマージ**（2026-09-22）。結果は末尾の「結果」。指示書として出したのは同日（042 以降の型）
 - 前提（先に読むこと）: `docs/tasks/025-5-adding-a-recipe.md`（レシピを1つ足す手順）、
   `docs/tasks/049-yatsu-kongo-appearance-and-source-closure.md` の 2.3 節（帯の向きの食い違い）、
   `docs/tasks/053-yatsu-kongo-gaeshi.md`、`docs/architecture.md`「正本の読み方」
@@ -304,3 +304,8 @@ c は1色なので模様の判定に使えない。
 
 画像 `.build/task054/sheets/v5.png`。ハッシュ `0x4ae7_8577_341e_6bf1` → `0x05ee_28f8_d5c8_3939`（頂点数 4,560 は不変）。
 1サイクル÷幅は同じ測り方で 0.98。`MaruYotsuTests` と `BraidFamilyDrawingTests` を回して通過（ハッシュの固定値以外）。**全件は回していない。**
+
+### マージ前の全件（2026-09-22）
+
+`.build/test-results/task054-final.xcresult`: **479件、失敗0**（既知の issue 1件、スキップは `DRAW_SHEETS` のシート）、
+**テスト段階 278.5 秒**、打ち切りなし。上の直しをすべて含む。
