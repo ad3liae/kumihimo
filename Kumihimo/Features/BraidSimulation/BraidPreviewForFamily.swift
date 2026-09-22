@@ -111,7 +111,7 @@ struct BraidThumbnailForFamily: View {
         case RoundTube8SurfaceMesh.family:
             if let pattern = BraidSurfaceScene.table(for: recipe).flatMap({ table in
                 RoundTube8SurfacePatternGenerator.generate(
-                    stand: table.stand, method: table.method,
+                    stand: table.stand, rounds: table.rounds,
                     crossSection: table.crossSection, assignments: assignments
                 )
             }) {

@@ -33,6 +33,7 @@ extension BraidPresetID {
     static let hiraGenji16 = BraidPresetID(rawValue: "hira-genji-16")
     static let yatsuKongoS8 = BraidPresetID(rawValue: "yatsu-kongo-s-8")
     static let yatsuKongoZ8 = BraidPresetID(rawValue: "yatsu-kongo-z-8")
+    static let yatsuKongoGaeshi8 = BraidPresetID(rawValue: "yatsu-kongo-gaeshi-8")
 }
 
 enum BraidPresetCatalog {
@@ -79,7 +80,20 @@ enum BraidPresetCatalog {
         prototypeNotice: "手順表は組ひもディスクの本（8Z-スパイラル）から写した試作で、bookC Fig.129と同じ進み方です。立体は写真に合わせた描画上の近似です。"
     )
 
-    static let presets = [maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ]
+    /// 八つ金剛返し組 (Task 053): six dan of S, then six of Z, from the disk
+    /// book's p.38. **More is open than for S and Z**: the finished braid's
+    /// photographs are small, and how the drawing lays the turn is its own
+    /// reading.
+    static let yatsuKongoGaeshi = BraidPreset(
+        id: .yatsuKongoGaeshi8,
+        displayName: "八つ金剛返し",
+        supportedThreadCounts: [8],
+        crossSectionProfile: .round,
+        verificationLevel: .movementRules,
+        prototypeNotice: "手順表は組ひもディスクの本（8S&Z-スパイラル）から写した試作です。Sを6段、Zを6段で1工程です。折り返しの見え方は小さな写真にしか照らしていない描画上の近似です。"
+    )
+
+    static let presets = [maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ, yatsuKongoGaeshi]
 
     static func availablePresets(threadCount: Int) -> [BraidPreset] {
         presets.filter { $0.supports(threadCount: threadCount) }

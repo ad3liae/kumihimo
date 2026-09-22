@@ -195,10 +195,12 @@ struct YatsuKongoTests {
     @Test func theyAreOfferedOnlyForEightThreads() {
         for count in [4, 12, 16] {
             #expect(!BraidPresetCatalog.availablePresets(threadCount: count)
-                .contains { $0.id == .yatsuKongoS8 || $0.id == .yatsuKongoZ8 })
+                .contains { [.yatsuKongoS8, .yatsuKongoZ8, .yatsuKongoGaeshi8].contains($0.id) })
         }
+        // 返し組 beside them since Task 053 (`YatsuKongoGaeshiTests`).
         #expect(BraidPresetCatalog.availablePresets(threadCount: 8)
-                == [BraidPresetCatalog.yatsuKongoS, BraidPresetCatalog.yatsuKongoZ])
+                == [BraidPresetCatalog.yatsuKongoS, BraidPresetCatalog.yatsuKongoZ,
+                    BraidPresetCatalog.yatsuKongoGaeshi])
     }
 
     /// **The figure needs no drawer.** It was the whole of what this braid could

@@ -54,7 +54,12 @@ struct BraidRecipe: Equatable, Sendable {
     let id: String
     /// What the braid is called. **The one place a braid's name belongs.**
     let name: String
-    let notation: BraidDiskNotation
+    /// The tables worked in turn, cycle by cycle (Task 053). One, for most
+    /// braids; a braid that turns its spiral round partway through works one
+    /// table for some cycles and another for the next.
+    let rounds: [BraidDiskNotation]
+    /// The first table — **the** table, for a braid of one.
+    var notation: BraidDiskNotation { rounds[0] }
     let colouring: [ThreadAssignment]
     let shape: BraidShapeValues
     /// The order the threads come in round the braid, when the source gives one.
@@ -69,9 +74,26 @@ struct BraidRecipe: Equatable, Sendable {
         shape: BraidShapeValues,
         orderRoundTheBraid: BraidCrossSection? = nil
     ) {
+        self.init(
+            id: id, name: name, rounds: [notation], colouring: colouring,
+            shape: shape, orderRoundTheBraid: orderRoundTheBraid
+        )
+    }
+
+    /// A braid worked with several tables in turn. **At least one**: an empty
+    /// list is a programming error, not a braid.
+    init(
+        id: String,
+        name: String,
+        rounds: [BraidDiskNotation],
+        colouring: [ThreadAssignment],
+        shape: BraidShapeValues,
+        orderRoundTheBraid: BraidCrossSection? = nil
+    ) {
+        precondition(!rounds.isEmpty, "a recipe needs a table")
         self.id = id
         self.name = name
-        self.notation = notation
+        self.rounds = rounds
         self.colouring = colouring
         self.shape = shape
         self.orderRoundTheBraid = orderRoundTheBraid
@@ -85,6 +107,26 @@ struct BraidRecipe: Equatable, Sendable {
     /// gives them and numbered when it does not; **the derivation never reads
     /// them.**
     func method(on stand: BraidStand, stepNames: [String]? = nil) -> BraidMethod? {
+        Self.method(of: notation, id: id, on: stand, stepNames: stepNames)
+    }
+
+    /// Every table's method, in turn. `nil` when any of them is not a cycle of
+    /// this stand.
+    func methods(on stand: BraidStand) -> [BraidMethod]? {
+        var methods = [BraidMethod]()
+        for (index, round) in rounds.enumerated() {
+            let roundID = rounds.count == 1 ? id : "\(id)-round-\(index + 1)"
+            guard let method = Self.method(of: round, id: roundID, on: stand, stepNames: nil) else {
+                return nil
+            }
+            methods.append(method)
+        }
+        return methods
+    }
+
+    private static func method(
+        of notation: BraidDiskNotation, id: String, on stand: BraidStand, stepNames: [String]?
+    ) -> BraidMethod? {
         let braidingCount = notation.braidingMoves.count
         guard notation.threadsPerStep > 0,
               braidingCount % notation.threadsPerStep == 0 else { return nil }
@@ -94,13 +136,14 @@ struct BraidRecipe: Equatable, Sendable {
     }
 
     /// Everything the working-out needs, in one go. `nil` when the table is not a
-    /// cycle of this stand.
+    /// cycle of this stand. `method` is the first table; the derivation carries
+    /// them all (`BraidDerivation.rounds`).
     func worked(on stand: BraidStand) -> (method: BraidMethod, section: BraidCrossSection,
                                           derivation: BraidDerivation)? {
-        guard let method = method(on: stand) else { return nil }
+        guard let methods = methods(on: stand), let method = methods.first else { return nil }
         let section = crossSection(on: stand)
         guard let derivation = BraidDerivation.derive(
-            stand: stand, method: method, crossSection: section
+            stand: stand, rounds: methods, crossSection: section
         ) else { return nil }
         return (method, section, derivation)
     }

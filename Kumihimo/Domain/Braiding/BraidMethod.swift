@@ -170,11 +170,22 @@ enum BraidWorking {
 
     /// Consecutive cycles from the stand's starting arrangement.
     static func cycles(of method: BraidMethod, on stand: BraidStand, count: Int) -> [BraidCycle]? {
-        guard count > 0 else { return nil }
+        cycles(ofRounds: [method], on: stand, count: count)
+    }
+
+    /// Consecutive cycles from the stand's starting arrangement, **cycle `i`
+    /// worked with `rounds[i % rounds.count]`** (Task 053).
+    ///
+    /// A braid can be worked with one table for some cycles and another for the
+    /// next — a spiral one way and then the other. Each entry is still a cycle
+    /// of the stand in its own right: it leaves every position holding one
+    /// thread. A braid of one table is a list of one.
+    static func cycles(ofRounds rounds: [BraidMethod], on stand: BraidStand, count: Int) -> [BraidCycle]? {
+        guard count > 0, !rounds.isEmpty else { return nil }
         var state = BraidStandState.start(on: stand)
         var result = [BraidCycle]()
-        for _ in 0..<count {
-            guard let worked = cycle(of: method, from: state) else { return nil }
+        for index in 0..<count {
+            guard let worked = cycle(of: rounds[index % rounds.count], from: state) else { return nil }
             result.append(worked)
             state = worked.endState
         }
@@ -189,12 +200,24 @@ enum BraidWorking {
         on stand: BraidStand,
         limit: Int = 64
     ) -> Int? {
+        repeatCycleCount(ofRounds: [method], on: stand, limit: limit)
+    }
+
+    /// The same for a list of tables worked in turn: **only a whole number of
+    /// times through the list counts**, since coming back to the start part way
+    /// through would carry on with a different table than the one begun with.
+    static func repeatCycleCount(
+        ofRounds rounds: [BraidMethod],
+        on stand: BraidStand,
+        limit: Int = 64
+    ) -> Int? {
+        guard !rounds.isEmpty else { return nil }
         let start = BraidStandState.start(on: stand)
         var state = start
         for count in 1...max(1, limit) {
-            guard let worked = cycle(of: method, from: state) else { return nil }
+            guard let worked = cycle(of: rounds[(count - 1) % rounds.count], from: state) else { return nil }
             state = worked.endState
-            if state == start { return count }
+            if state == start, count % rounds.count == 0 { return count }
         }
         return nil
     }

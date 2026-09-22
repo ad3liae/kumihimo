@@ -451,7 +451,7 @@ enum RoundTube8SurfaceMesh {
                             of: segment,
                             cycles: along * bundle.lengthInCycles,
                             across: crossSectionOffset(forSample: sample),
-                            leanDirection: pattern.leanDirection,
+                            leanDirection: pattern.leanBySegment[segmentIndex],
                             bundle: bundle,
                             floor: floor, radius: radius,
                             base: base, repeatLength: repeatLength
@@ -550,6 +550,7 @@ enum RoundTube8SurfaceMesh {
         cycles: Float,
         across: Float,
         leanDirection: Float,
+        cycleLength: Float? = nil,
         bundle: RoundTube8Bundle = .standard,
         floor: Float,
         radius: Float,
@@ -558,8 +559,10 @@ enum RoundTube8SurfaceMesh {
     ) -> (position: SIMD3<Float>, normal: SIMD3<Float>,
           tangent: SIMD3<Float>, bitangent: SIMD3<Float>) {
         let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
-        // One cycle along the braid, as a share of the repeat: the cell is one.
-        let cycle = segment.centerlineEnd.y - segment.centerlineStart.y
+        // One cycle along the braid, as a share of the repeat: the pattern's
+        // (`RoundTube8SurfacePattern.cycleInRepeats`). A cell is one cycle long
+        // only for a braid of one table, which is what it defaults to.
+        let cycle = cycleLength ?? (segment.centerlineEnd.y - segment.centerlineStart.y)
         let ridge = radius - floor
         // Never quite a point, so that the width still has a direction at the
         // tip and the frame there is defined.

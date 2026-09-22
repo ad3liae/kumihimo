@@ -91,6 +91,25 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// author's condition, Task 048), from the table (Task 053). A column is a
     /// place on the stand.
     let drawnPhaseByColumn: [Float]
+    /// Which way each cell's run leans, by segment: **the way its thread was
+    /// carried to it**, `+1` or `-1` (Task 053). One sign for every cell of a
+    /// braid of one table — `leanDirection` — and both, part by part, for a braid
+    /// that turns its spiral round.
+    let leanBySegment: [Float]
+
+    /// One cycle along the braid, in repeats.
+    var cycleInRepeats: Float { 1 / Float(rowCount) }
+
+    /// **What a run's length in cycles is measured against: its own cell**, the
+    /// time its thread stands at its place. A cycle, for a braid of one table;
+    /// where a braid turns its spiral round, a cell of half a cycle draws a run
+    /// half as long and one of a cycle and a half a run half as long again
+    /// (Task 053) — the thread shows for as long as it stands there. Measured
+    /// against a whole cycle instead, the long cells' runs ran out before the
+    /// next thread came and the floor showed at every turn.
+    func runCycle(of segment: BraidStrandSegment) -> Float {
+        segment.centerlineEnd.y - segment.centerlineStart.y
+    }
 
     /// Which way round the braid a thread's visible run leans as it goes along
     /// it, and which way the finished braid turns as it is made: the sign of
@@ -298,123 +317,173 @@ enum RoundTube8SurfacePatternGenerator {
     static let columnsCarriedPerCycle = 2
 
     /// The pattern for a braid, from its table and its colouring.
-    ///
-    /// `nil` when the braid is not a tube of eight, when the table is not a cycle
-    /// of the stand, when the courses do not all carry their threads the same
-    /// distance, or when a place does not receive exactly one thread a cycle —
-    /// then "where its cell begins" has no single answer, and that is worth
-    /// stopping over rather than drawing something arbitrary.
     static func generate(
         stand: BraidStand,
         method: BraidMethod,
         crossSection: BraidCrossSection,
         assignments: [ThreadAssignment]
     ) -> RoundTube8SurfacePattern? {
+        generate(stand: stand, rounds: [method], crossSection: crossSection, assignments: assignments)
+    }
+
+    /// The pattern for a braid worked with one table or several in turn
+    /// (Task 053), from its tables and its colouring.
+    ///
+    /// **A cell is a thread standing at a place, from its arrival to the next
+    /// thread's arrival there** — whatever table brought either. The time is
+    /// counted in dan (段): **a dan is one layer, half a cycle**, and a table's
+    /// braiding moves make its dan four at a time — one thread from each pair of
+    /// the eight (the disk book: 1段 = four figures). A cycle of S or Z is two dan;
+    /// 返し組's hand-over is one. A place's thread arrives at the end of its dan.
+    ///
+    /// For a braid of one table every place receives one thread a cycle, in one
+    /// dan or the other, so its cells are a cycle long and half a pitch from the
+    /// next place's (`drawnPhaseByColumn`) — what this drew before. Where a
+    /// braid turns its spiral round, the same place can receive in two dan
+    /// running or skip one, and its cells there are half a cycle or a cycle and a
+    /// half long. **That is the table's, not a shape drawn in.**
+    ///
+    /// **Each cell leans the way its thread was carried to it**
+    /// (`leanBySegment`): back for a thread an S dan brought, on for a Z dan's.
+    ///
+    /// `nil` when the braid is not a tube of eight, when a table's braiding moves
+    /// are not a whole number of dan, when a place receives twice in one dan, when
+    /// a cycle of two dan does not put every other place in each (the half
+    /// pitch), when the first table does not carry every thread the same way, or
+    /// when a repeat is not a whole number of cycles long — then "where its cell
+    /// begins" has no single answer, and that is worth stopping over rather than
+    /// drawing something arbitrary.
+    static func generate(
+        stand: BraidStand,
+        rounds: [BraidMethod],
+        crossSection: BraidCrossSection,
+        assignments: [ThreadAssignment]
+    ) -> RoundTube8SurfacePattern? {
+        let count = requiredThreadCount
         guard
-            stand.positionCount == requiredThreadCount,
-            assignments.count == requiredThreadCount,
+            stand.positionCount == count,
+            assignments.count == count,
             let derivation = BraidDerivation.derive(
-                stand: stand, method: method, crossSection: crossSection
+                stand: stand, rounds: rounds, crossSection: crossSection
             ),
             derivation.fold == nil,
-            crossSection.slotCount == requiredThreadCount
+            crossSection.slotCount == count,
+            let cycles = BraidWorking.cycles(
+                ofRounds: rounds, on: stand, count: derivation.repeatCycleCount
+            )
         else { return nil }
 
         let colours = Dictionary(uniqueKeysWithValues: assignments.map { ($0.position, $0.colorID) })
         guard Set(colours.keys) == Set(stand.positionIDs) else { return nil }
 
-        let rows = derivation.repeatCycleCount
-        guard rows > 0 else { return nil }
+        struct Arrival { let time: Float; let thread: Int; let lean: Float }
+        let perDan = count / 2
+        var arrivalsBySlot = [[Arrival]](repeating: [], count: count)
+        var time: Float = 0
+        // The first table's own record: how far it carries, and when in its
+        // cycle each place takes its thread.
+        var firstCarry: Int?
+        var firstPhases = [Float?](repeating: nil, count: count)
 
-        // How far one cycle carries a thread: the same for every thread, read off
-        // the courses. **Not the cell's shape** -- the carry is buried -- but it is
-        // what sends the colour round, so a table that does not agree with itself
-        // about it is one this cannot draw.
-        var carried: Int?
-        for course in derivation.courses {
-            for row in 0..<rows {
-                let step = shortestWayRound(
-                    from: course.slots[row], to: course.slots[row + 1],
-                    around: requiredThreadCount
-                )
-                if let carried, carried != step { return nil }
-                carried = step
+        for (index, cycle) in cycles.enumerated() {
+            let round = rounds[index % rounds.count]
+            // **The braiding moves, the closing left out of the count** (Task
+            // 007G's "the denominator is 6, not 7"): the closing lays nothing.
+            // A thread the closing moves still arrives, in the table's last dan.
+            let braiding = cycle.allCarried.filter { $0.instant <= round.steps.count }
+            let closing = cycle.allCarried.filter { $0.instant > round.steps.count }
+            guard !braiding.isEmpty, braiding.count % perDan == 0 else { return nil }
+            let dans = braiding.count / perDan
+            var slotsByDan = [Set<Int>](repeating: [], count: dans)
+            for (order, carried) in (braiding + closing).enumerated() {
+                let dan = min(order / perDan, dans - 1)
+                guard
+                    let from = crossSection.slotIndex(ofPositionID: carried.move.from),
+                    let to = crossSection.slotIndex(ofPositionID: carried.move.to)
+                else { return nil }
+                let step = shortestWayRound(from: from, to: to, around: count)
+                guard step != 0, !slotsByDan[dan].contains(to) else { return nil }
+                slotsByDan[dan].insert(to)
+                arrivalsBySlot[to].append(Arrival(
+                    time: time + Float(dan + 1) * 0.5,
+                    thread: carried.thread,
+                    lean: step < 0 ? -1 : 1
+                ))
+                if index == 0, order < braiding.count {
+                    if let firstCarry, firstCarry != step { return nil }
+                    firstCarry = step
+                    firstPhases[to] = Float(carried.instant) / Float(round.steps.count)
+                }
+            }
+            // **Half a pitch** (the author's condition, Task 048): in a cycle of
+            // two dan, every other place takes its thread in each.
+            if dans == 2 {
+                for slot in 0..<count where slotsByDan[0].contains(slot)
+                    == slotsByDan[0].contains((slot + 1) % count) {
+                    return nil
+                }
+            }
+            time += Float(dans) * 0.5
+        }
+
+        // One repeat, in cycles: a whole number of them.
+        guard time > 0, abs(time - time.rounded()) < 1e-4 else { return nil }
+        let rows = Int(time.rounded())
+        let repeatLength = Float(rows)
+        guard let columnsCarried = firstCarry else { return nil }
+        let arrivalPhases = firstPhases.compactMap { $0 }
+        guard arrivalPhases.count == count else { return nil }
+
+        let columnWidth = Float(1) / Float(count)
+        struct Cell { let start: Float; let end: Float; let slot: Int; let thread: Int; let lean: Float }
+        var cells = [Cell]()
+        for slot in 0..<count {
+            let arrivals = arrivalsBySlot[slot].sorted { $0.time < $1.time }
+            guard !arrivals.isEmpty else { return nil }
+            for (index, arrival) in arrivals.enumerated() {
+                var start = arrival.time
+                var end = index + 1 < arrivals.count
+                    ? arrivals[index + 1].time : arrivals[0].time + repeatLength
+                guard end > start else { return nil }
+                // **The last cycle's cells begin in the repeat before this one,
+                // and are drawn from there** — nothing is cut at the tile's edge,
+                // and a lane's cells run end to end over exactly one repeat. What
+                // hangs past an end is the frame's to crop, or the next tile's to
+                // meet. Cutting it at the edge instead put a cell boundary in
+                // every lane at the same place, once a repeat: a line down the
+                // card (Task 033), the same mistake Task 030 found in the flat
+                // braid.
+                if start > repeatLength - 1 + 1e-4 {
+                    start -= repeatLength
+                    end -= repeatLength
+                }
+                cells.append(Cell(start: start, end: end, slot: slot, thread: arrival.thread, lean: arrival.lean))
             }
         }
-        guard let columnsCarried = carried, columnsCarried != 0 else { return nil }
-
-        // Where in a cycle each place takes its new thread, as a share of the
-        // cycle. **Counted in braiding instants, the closing left out**: the
-        // stacking model lays the braid one layer a hand and the closing not at
-        // all (`docs/architecture.md`, 積み重ねの模型), and on these braids the
-        // closing carries nothing. **Not a new rule**: it is the one recorded for
-        // Task 007G, "the denominator is 6, not 7, because the tidying is not
-        // counted", applied here. One arrival a place, or there is no one place
-        // for a cell to begin.
-        let braidingInstants = method.steps.count
-        guard braidingInstants > 0 else { return nil }
-        var phaseOfSlot = [Int: Float]()
-        for slot in 0..<requiredThreadCount {
-            let arrivals = derivation.arrivalInstants(atSlot: slot)
-            guard arrivals.count == 1, let instant = arrivals.first,
-                  (1...braidingInstants).contains(instant) else { return nil }
-            phaseOfSlot[slot] = Float(instant) / Float(braidingInstants)
-        }
-
-        let arrivalPhases = (0..<requiredThreadCount).compactMap { phaseOfSlot[$0] }
-        guard arrivalPhases.count == requiredThreadCount else { return nil }
-        // **A dan is one layer** (Task 053): a place's cells begin in the half of
-        // the cycle its thread arrives in. Neighbouring places have to fall in
-        // opposite halves — the half pitch — or this reading does not fit the
-        // table, and that is worth stopping over.
-        let drawnPhases = arrivalPhases.map(drawnPhase(ofArrival:))
-        for column in 0..<requiredThreadCount {
-            let next = drawnPhases[(column + 1) % requiredThreadCount]
-            guard abs(abs(drawnPhases[column] - next) - 0.5) < 1e-4 else { return nil }
-        }
-
-        let columnWidth = Float(1) / Float(requiredThreadCount)
-        let rowHeight = Float(1) / Float(rows)
+        // Row by row — the cycle whose start a cell stands across — and thread
+        // by thread within a row.
+        func row(_ cell: Cell) -> Int { Int((cell.start - 1e-4).rounded(.up)) }
+        cells.sort { row($0) != row($1) ? row($0) < row($1) : $0.thread < $1.thread }
 
         var segments = [BraidStrandSegment]()
-        for row in 0..<rows {
-            for course in derivation.courses {
-                guard let colour = colours[course.threadPosition] else { return nil }
-                let column = course.slots[row]
-                // Half a pitch from the columns beside it: the half of the cycle
-                // its thread arrived in (Task 053).
-                let phase = drawnPhases[column]
-                // **The thread stands here for one cycle**, so the cell runs along
-                // the braid at this one place: one column wide, one cycle long,
-                // square to the braid. It is the thread that is here at the start
-                // of cycle `row`, so it arrived during the cycle before, and it
-                // stays until the next thread arrives: from `row - 1 + phase` to
-                // `row + phase`.
-                let middle = (Float(column) + 0.5) * columnWidth
-                let start = Float(row) - 1 + phase
-                let end = Float(row) + phase
-                // **The first row's cells begin in the repeat before this one, and
-                // are drawn from there** — nothing is cut at the tile's edge. The
-                // phase is one constant added to a whole lane, so the lane stays
-                // exactly one repeat long and its last cell ends where the next
-                // repeat's first begins; what hangs past an end is the frame's to
-                // crop, or the next tile's to meet. Cutting it at the edge instead
-                // put a cell boundary in every lane at the same place, once a
-                // repeat: a line down the card (Task 033), the same mistake Task
-                // 030 found in the flat braid.
-                segments.append(BraidStrandSegment(
-                    threadPosition: course.threadPosition,
-                    colorID: colour,
-                    // **Nothing crosses**, so there is no side of a crossing to
-                    // take. Every cell says the same thing rather than pretending
-                    // to an order the surface does not have.
-                    layer: .over,
-                    centerlineStart: SIMD2(middle, start * rowHeight),
-                    centerlineEnd: SIMD2(middle, end * rowHeight),
-                    startHalfWidth: SIMD2(columnWidth / 2, 0),
-                    endHalfWidth: SIMD2(columnWidth / 2, 0)
-                ))
-            }
+        for cell in cells {
+            guard let colour = colours[cell.thread] else { return nil }
+            // **The thread stands here from its arrival to the next**, so the
+            // cell runs along the braid at this one place: one column wide,
+            // square to the braid.
+            let middle = (Float(cell.slot) + 0.5) * columnWidth
+            segments.append(BraidStrandSegment(
+                threadPosition: cell.thread,
+                colorID: colour,
+                // **Nothing crosses**, so there is no side of a crossing to
+                // take. Every cell says the same thing rather than pretending
+                // to an order the surface does not have.
+                layer: .over,
+                centerlineStart: SIMD2(middle, cell.start / repeatLength),
+                centerlineEnd: SIMD2(middle, cell.end / repeatLength),
+                startHalfWidth: SIMD2(columnWidth / 2, 0),
+                endHalfWidth: SIMD2(columnWidth / 2, 0)
+            ))
         }
 
         return RoundTube8SurfacePattern(
@@ -425,7 +494,8 @@ enum RoundTube8SurfacePatternGenerator {
             aspectRatio: Float(rows) * pitchOverDiameter / .pi,
             columnsCarried: columnsCarried,
             arrivalPhaseBySlot: arrivalPhases,
-            drawnPhaseByColumn: drawnPhases
+            drawnPhaseByColumn: arrivalPhases.map(drawnPhase(ofArrival:)),
+            leanBySegment: cells.map(\.lean)
         )
     }
 
@@ -470,10 +540,10 @@ extension RoundTube8SurfacePattern {
         bundle: RoundTube8Bundle = .standard
     ) -> [RoundTube8StandingRun] {
         var found = [RoundTube8StandingRun]()
-        for (index, segment) in surface.segments.enumerated() {
+        for index in surface.segments.indices {
             for repeatOffset in -1...1 {
                 if let height = standing(
-                    segment, repeatOffset: repeatOffset,
+                    segment: index, repeatOffset: repeatOffset,
                     atTurns: turns, along: along, bundle: bundle
                 ) {
                     found.append(RoundTube8StandingRun(
@@ -488,21 +558,20 @@ extension RoundTube8SurfacePattern {
     /// How far one run stands at a place, or `nil` where it does not reach.
     /// `repeatOffset` moves the run that many repeats along.
     func standing(
-        _ segment: BraidStrandSegment,
+        segment index: Int,
         repeatOffset: Int,
         atTurns turns: Float,
         along: Float,
         bundle: RoundTube8Bundle = .standard
     ) -> Float? {
-        let cycle = segment.centerlineEnd.y - segment.centerlineStart.y
-        guard cycle > 0 else { return nil }
-        let cycles = (along - Float(repeatOffset) - segment.centerlineStart.y) / cycle
+        let segment = surface.segments[index]
+        let cycles = (along - Float(repeatOffset) - segment.centerlineStart.y) / runCycle(of: segment)
         guard cycles >= 0, cycles <= bundle.lengthInCycles else { return nil }
         let halfWidth = bundle.halfWidthInColumns(atCycles: cycles)
         guard halfWidth > 0 else { return nil }
         let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
         let centre = segment.centerlineStart.x * columns
-            + bundle.leanInColumns(atCycles: cycles, direction: leanDirection)
+            + bundle.leanInColumns(atCycles: cycles, direction: leanBySegment[index])
         // Round the ring: the nearest way to the run's centreline.
         var offset = (turns * columns - centre).truncatingRemainder(dividingBy: columns)
         if offset > columns / 2 { offset -= columns }
