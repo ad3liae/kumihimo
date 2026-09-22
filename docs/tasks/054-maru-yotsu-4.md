@@ -5,7 +5,10 @@
   `docs/tasks/049-yatsu-kongo-appearance-and-source-closure.md` の 2.3 節（帯の向きの食い違い）、
   `docs/tasks/053-yatsu-kongo-gaeshi.md`、`docs/architecture.md`「正本の読み方」
 - 資料: **bookA p.10（完成写真 a・b・c）と p.56（手順の図と「糸の配色と配置」）**。
-  作者が撮った頁は `.build/task054/source/` に置く（**git に入れない**）
+  **`.build/task054/source/` に置いてある**（git の外。倍率は bookA p.8–9 の拡大と同じ
+  3584×2058 の窓から切り出したもの）。**同フォルダの `README.md` を先に読むこと**——
+  審査側が p.56 から読んだもの（材料・2手・配色 a/b/c）と、**読めなかったもの（対の中の先後）**を書いてある。
+  写すのは `bookA-p56-maru-yotsu-instructions.png`、測るのは `bookA-p10-maru-yotsu-photograph.png`
 - **製品コードに触れる。** 研究タスクではないので、PR の前にユニットテストを一度通すこと
 
 ## 0. なぜ今これか
