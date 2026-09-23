@@ -1,6 +1,6 @@
 # Task 057: 江戸八つ組を教科書 p.64–65 の表へ置き直す
 
-- 状態: **実装済み**（2026-09-23、Claude Code。枝 `claude/task-057-edo-yatsu-textbook`）。結果は末尾。**作者の手動確認は無い**（009 の 11節の保留のまま）。指示書は **worker へそのまま渡す。承認待ちの段は挟まない**（042 以降の型）
+- 状態: **実装済み・PR #41 でマージ**（2026-09-23、Claude Code。枝 `claude/task-057-edo-yatsu-textbook`。作者が PR の作成とマージを許可した。見え方の受領ではない）。結果は末尾。**作者の手動確認は無い**（009 の 11節の保留のまま）。指示書は **worker へそのまま渡す。承認待ちの段は挟まない**（042 以降の型）
 - 前提（先に読むこと）: **`docs/sources.md`**（正本の本と頁、呼び名）、`docs/tasks/053-yatsu-kongo-gaeshi.md`
   （**八つ金剛で同じことをした。型はこれに倣う**）、`docs/tasks/055-yatsu-kongo-gaeshi-fold.md`（組の置き方）、
   `docs/tasks/009-edo-yatsu-8.md`（いまの江戸八つ組）
