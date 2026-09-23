@@ -107,17 +107,17 @@ enum BraidPresetCatalog {
         prototypeNotice: "手順表はbookA p.56から写した試作です。bookCに図が無く、対の2本のどちらが先かは読めません。立体は写真に合わせた描画上の近似です。"
     )
 
-    /// 江戸八つ組 (Task 009). **Read off book A p.48's pictures**, which print
-    /// each step's two threads, one to a hand, and not which goes first; book C
-    /// has no figure of it. Drawn, where it is drawn, by the eight-thread tube's
-    /// drawer with that drawer's own shape.
+    /// 江戸八つ組 (Task 009). **Transcribed from the textbook's p.64–65** since
+    /// Task 057, which prints it on the disk one move a figure; until then it
+    /// was read off the recipe book's p.48 pictures. Drawn, where it is drawn,
+    /// by the eight-thread tube's drawer with that drawer's own shape.
     static let edoYatsu = BraidPreset(
         id: .edoYatsu8,
         displayName: "江戸八つ",
         supportedThreadCounts: [8],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順表はbookA p.48から写した試作です。bookCに図が無く、1手の2本のどちらが先かは読めません。立体は八つ金剛と同じ8本の筒の描き方による近似です。"
+        prototypeNotice: "手順表は教科書 p.64–65から写した試作です。立体は八つ金剛と同じ8本の筒の描き方による近似です。"
     )
 
     static let presets = [

@@ -613,16 +613,86 @@ enum BraidMethodCatalog {
         shape: BraidShapeValues()
     )
 
-    // MARK: - Edo-yatsu (Task 009)
+    // MARK: - Edo-yatsu (Task 009, Task 057)
 
-    /// **Edo-yatsu (江戸八つ組), book A p.48, set down in the disk notation.**
+    /// **Edo-yatsu (江戸八つ組), transcribed from the textbook's p.64–65**
+    /// (Task 057; the author took the textbook as the source of record,
+    /// 2026-09-23).
+    ///
+    /// The textbook prints it on the disk, one move a figure, ten figures, from
+    /// yatsu-kongo's starting slits 4・5, 12・13, 20・21, 28・29:
+    ///
+    /// | figure | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+    /// | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+    /// | slit | 4→11 | 28→4 | 20→28 | 12→20 | 11→12 | 5→30 | 13→5 | 21→13 | 29→21 | 30→29 |
+    ///
+    /// and then 「1段目終了。スリット番号は【組みはじめ】と同じです」: **the slits
+    /// do not drift**, where yatsu-kongo's do. **This page's 段 is all ten figures,
+    /// every thread braided once — this repository's cycle**; on yatsu-kongo's
+    /// page a 段 moves four threads, half a cycle. The same word, two lengths.
+    ///
+    /// Figures 1–4 lift the anticlockwise thread of each pair and 6–9 the
+    /// clockwise one. **Figure 5 lifts the thread figure 1 laid, and figure 10
+    /// the one figure 6 laid**, each into the slit the figure before it has just
+    /// emptied. So a cycle is two dan of four threads, figures 1–5 and 6–10, as
+    /// the drawer counts them, and each is written as one step of
+    /// `BookDiskKongo.rounds`: a thread lifted twice inside a step is braided
+    /// once, from where it stood to where the step leaves it.
+    ///
+    /// Worked through, **places 1, 3, 5, 7 go two places on each cycle and
+    /// places 2, 4, 6, 8 two back** (`EdoYatsuTests`), which is the book's
+    /// 「【1】→【4】は糸を右回りに4回組み、【6】→【9】は糸を左回りに4回組みます」:
+    /// two spirals turning opposite ways, 「隣り合う糸の左側にある計4本、右側に
+    /// ある計4本で、それぞれ1本のらせんを作ります」.
+    ///
+    /// **The same braid as the recipe book's p.48** (`edoYatsuRecipeBookP48Disk`,
+    /// which the app braided until Task 057, read off a round-stand picture two
+    /// threads at a time): name that table's places one on and the two carry
+    /// every thread alike. What differs is the order inside a dan.
+    static let edoYatsuDisk: BraidDiskNotation = {
+        guard let disk = BookDiskKongo.rounds(
+            source: "the textbook p.64-65 (江戸八つ組), its ten printed moves",
+            placeOneOnward: edoYatsuStartingSlits,
+            rounds: [[
+                [(4, 11), (28, 4), (20, 28), (12, 20), (11, 12)],   // 【1】〜【5】: clockwise
+                [(5, 30), (13, 5), (21, 13), (29, 21), (30, 29)],   // 【6】〜【10】: anticlockwise
+            ]]
+        )?.first else {
+            preconditionFailure("the textbook's 江戸八つ組 does not run as a cycle of the eight-place stand")
+        }
+        return disk
+    }()
+
+    /// The textbook's starting slits for 江戸八つ組 in the order of the stand's
+    /// places 1–8, a pair of the book to a pair of places (`BookDiskKongo
+    /// .pairsAtPlaces`): 12・13 is places 1 and 2. Yatsu-kongo's own.
+    static let edoYatsuStartingSlits = BookDiskKongo.pairsAtPlaces([12, 13, 20, 21, 28, 29, 4, 5])
+
+    /// One name to a thread the cycle braids, in the order it braids them: the
+    /// textbook's figures that carry it. **The derivation never reads them.**
+    static let edoYatsuStepNames = [
+        "figures1And5", "figure2", "figure3", "figure4",
+        "figures6And10", "figure7", "figure8", "figure9",
+    ]
+
+    static let edoYatsu8: BraidMethod = {
+        guard let method = edoYatsuDisk.method(
+            id: "edo-yatsu-8", standID: stand8.id, stepNames: edoYatsuStepNames
+        ) else {
+            preconditionFailure("the textbook's 江戸八つ組 does not run as a cycle of the eight-place stand")
+        }
+        return method
+    }()
+
+    /// **The recipe book's p.48, set down in the disk notation — the table the
+    /// app braided until Task 057**, kept so the two books can be held against
+    /// each other (`EdoYatsuTests`).
     ///
     /// The book prints four steps and 「1〜4をくり返す」, two threads a step, one to
     /// a hand. Its figures lay the eight threads in four pairs; the text says
     /// that once used to it one sets them in eight even places 「きれいに丸く
-    /// なります」, so the stand is `round8`, read the way yatsu-kongo reads it:
-    /// two places running are one of the book's pairs, the top pair places 8
-    /// and 1.
+    /// なります」. Read as yatsu-kongo was read before Task 055: two places running
+    /// are one of the book's pairs, **the top pair places 8 and 1**.
     ///
     /// | step | right hand | left hand |
     /// | --- | --- | --- |
@@ -638,17 +708,17 @@ enum BraidMethodCatalog {
     ///
     /// **Written as the book A tables write a landing and its tidy** (Task 008's
     /// reading): a thread carried lands just outside the group it joins, and is
-    /// tidied one notch into the place emptied by the next step. The carries are
-    /// seven to nine notches and the tidies one, so `isRepositioning` tells them
-    /// apart as it does elsewhere. Worked through, **odd places go two back and
-    /// even places two on** (`EdoYatsuTests`): the two colours turn opposite
-    /// ways, and the braid is not a spiral — book A does not call it one.
+    /// tidied one notch into the place emptied by the next step. Worked through,
+    /// odd places go two back and even places two on. **A printed step is one
+    /// instant** (`diskOfEight`'s reading): the book prints the right hand and
+    /// the left and not which goes first.
     ///
-    /// **A printed step is one instant** (`diskOfEight`'s reading): the book
-    /// prints the right hand and the left and not which goes first, and book C
-    /// has no figure of this braid.
-    static let edoYatsuDisk = diskOfEight(
-        "book A p.48, its four printed steps set down in this repository's disk notation",
+    /// **Two things were read into it that the textbook now prints**: which
+    /// thread of a step goes first (one move a figure there), and where a
+    /// carried thread lands. The textbook's table carries every thread as this
+    /// one does, the place names one on.
+    static let edoYatsuRecipeBookP48Disk = diskOfEight(
+        "the recipe book p.48, its four printed steps set down in this repository's disk notation",
         [
             (29, 4), (13, 22),          // printed step 1: 8 east, 4 west
             (21, 30), (5, 14),          // printed step 2: west north, east south
@@ -661,45 +731,67 @@ enum BraidMethodCatalog {
         ]
     )
 
-    /// Book A prints four steps and does not name them; these say what each
-    /// one does. **The derivation never reads them.**
-    static let edoYatsuStepNames = ["acrossTopLeft", "downAndUp", "acrossBottomLeft", "upAndDown"]
+    /// The recipe book prints four steps and does not name them; these say
+    /// what each one does. **The derivation never reads them.**
+    static let edoYatsuRecipeBookP48StepNames = [
+        "acrossTopLeft", "downAndUp", "acrossBottomLeft", "upAndDown",
+    ]
 
-    static let edoYatsu8: BraidMethod = {
-        guard let method = edoYatsuDisk.method(
-            id: "edo-yatsu-8", standID: stand8.id, stepNames: edoYatsuStepNames
-        ) else {
-            preconditionFailure("book A p.48's table does not run as a cycle of the eight-place stand")
-        }
-        return method
-    }()
-
-    /// **Book A p.48's colouring, 131 and 129 alternating round the stand, set on
-    /// the catalogue's nearest colour names** — a reading, not a measurement.
-    /// The page draws 131 salmon and 129 pale pink; p.4's photograph 3 is salmon
-    /// and a pink so pale it is nearly white. So 131 is `pink` (nearer the
-    /// salmon than the catalogue's saturated `orange`) and 129 is `white`.
+    /// **The textbook's own colouring (p.64 組みはじめ), written slit by slit**
+    /// and laid on the places through the starting slits, so the colours go
+    /// wherever the slits are laid.
     ///
-    /// The page's figure 1, clockwise from the top: 131 in 8, 129 in 1, and on
-    /// round alternately. The old reference simulator's "直線" alternated the
-    /// same way over positions 1 to 8.
-    static let edoYatsu8Colouring = colouring(on: stand8, [
-        "north": ["pink", "white"],      // 8: 131, 1: 129
-        "east": ["pink", "white"],       // 2: 131, 3: 129
-        "south": ["white", "pink"],      // 5: 129, 4: 131
-        "west": ["white", "pink"],       // 7: 129, 6: 131
+    /// The figure draws two opposite threads as one line through the middle:
+    /// 4・20 magenta, 5・21 grey, 12・28 cyan, 13・29 yellow-green. The
+    /// photograph at the head of the page is those four, the grey a cream. On
+    /// the places: 1 cyan, 2 yellow-green, 3 magenta, 4 cream, and round again.
+    /// **The colours come back every two cycles, not every one**
+    /// (`EdoYatsuTests`) — 「糸の色は2段ごとに戻ります」, this page's 段 being a
+    /// cycle.
+    ///
+    /// **The names are a reading, not a measurement**: magenta is `pink`, cyan
+    /// `light-blue`, the cream `natural`. **The catalogue has no yellow-green**;
+    /// it lies between `yellow` and `green`, and `yellow` is the nearer. Read
+    /// off the 300 dpi scan, the figure's line is about (0.75, 0.77, 0.45) and
+    /// the photograph's thread (0.62, 0.69, 0.49): nearer `yellow` (0.95, 0.75,
+    /// 0.12) than `green` (0.12, 0.52, 0.27) in both RGB and hue — `green` is a
+    /// dark green. `natural` is nearer than either, and is the cream. Adding a
+    /// colour is outside Task 057.
+    ///
+    /// **Until Task 057 the colouring was the recipe book's**, two colours
+    /// alternating round the stand, which keeps every place its colour; the
+    /// tests keep it for that (`EdoYatsuTests`). The textbook's photograph is
+    /// of this one (Task 025-5: take the colouring the book photographs).
+    static let edoYatsu8Colouring = bySlit(stand8, startingSlits: edoYatsuStartingSlits, [
+        4: "pink", 20: "pink",
+        5: "natural", 21: "natural",
+        12: "light-blue", 28: "light-blue",
+        13: "yellow", 29: "yellow",
     ])
 
+    /// A colouring written slit by slit on a disk book's starting diagram, laid
+    /// on the stand's places in the order `startingSlits` gives them.
+    private static func bySlit(
+        _ stand: BraidStand, startingSlits: [Int], _ names: [Int: String]
+    ) -> [ThreadAssignment] {
+        let ordered = startingSlits.compactMap { names[$0] }
+        guard ordered.count == startingSlits.count, ordered.count == stand.positionCount else {
+            preconditionFailure("a starting slit has no colour")
+        }
+        return byPlace(stand, ordered)
+    }
+
     /// **The stand's own rim order**, as for yatsu-kongo: a tube declares
-    /// nothing. It is declared here only to carry what could not be read.
+    /// nothing. It is declared here only to carry the note.
+    ///
+    /// **What is left unsettled since Task 057** is where the table comes from:
+    /// the textbook prints one move a figure, so the order and the landings are
+    /// printed, not read in as they were from the recipe book.
     static let edoYatsu8CrossSection = BraidCrossSection(
         order: stand8.positionIDs,
         source: .standRim,
-        unsettled: "the table is book A p.48's four figures; book C, the source of record, "
-            + "has none. Which thread of a step goes first is not printed. Where a carried "
-            + "thread lands — outside its new group, tidied into the place the next step "
-            + "empties — is Task 008's reading: it matches the colours of figures 2 and 3, "
-            + "but another landing could give the same colours"
+        unsettled: "the table is the textbook's p.64-65, which the author took as the source of "
+            + "record (2026-09-23); book C has no figure of this braid"
     )
 
     /// **The measured values are empty: nothing has been measured for the
@@ -730,7 +822,8 @@ enum BraidMethodCatalog {
 }
 
 /// **The disk book's eight-thread tables, read into this repository's disk
-/// notation** (Task 053).
+/// notation** (Task 053). The disk book is the textbook (`docs/sources.md`);
+/// its 江戸八つ組 is read here too (Task 057).
 ///
 /// The book prints one dan (段) and says the slit numbers then stand one notch
 /// further round; its later dan are the printed one moved round by that drift.
@@ -796,6 +889,11 @@ enum BookDiskKongo {
     /// adds no layer, and its threads are carried once, from where they stood
     /// before the dan to where the hand-over leaves them. Any other thread
     /// braided twice in a round is refused.
+    ///
+    /// **Inside one step a thread may be lifted twice** (江戸八つ組, Task 057:
+    /// the textbook's figure 5 carries on the thread figure 1 laid). The step is
+    /// worked move by move on the disk, and the thread counts once, from where
+    /// it stood before the step to where the step leaves it.
     static func rounds(
         source: String,
         placeOneOnward: [Int],

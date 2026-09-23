@@ -84,6 +84,9 @@ Swift Testing 側は `@Suite(.timeLimit(.minutes(1)))` で同じことができ�
 打ち切ると `xcodebuild` は機体の診断（`simctl diagnose`）を走らせ、それが1時間を超えても終わらなかった。
 **`simctl diagnose` の方を `kill -INT` すれば、`xcodebuild` は結果を書いて終わる**
 （`xcodebuild` を先に殺すと結果が書かれない）。一時的な調べ物の試験も 60 秒に収めること。
+**打ち切りでない普通の失敗でも起きる**（2026-09-23、Task 057: `EdoYatsuTests` の11件で失敗1件・打ち切りなし。
+試験は2秒で終わり、diagnose が約10分戻らず、`kill -INT` で結果が書かれた）。**失敗が見込まれる実行は、
+走らせたら `simctl diagnose` が居ないかを見ること。**
 
 ### 上限を上げてあった1件——閉じた記録（2026-09-09 に開き、2026-09-12 に閉じた。Task 018）
 
