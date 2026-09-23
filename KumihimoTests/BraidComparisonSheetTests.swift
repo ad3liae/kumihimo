@@ -356,6 +356,39 @@ struct BraidComparisonSheetTests {
         try face(workedZ.method, z, section: workedZ.section, named: "face-yatsu-kongo-z")
     }
 
+    /// **江戸八つ組's face, drawn the way `theYatsuKongoFacesForMeasuring` draws
+    /// S** (Task 009), to hold its colour band against book A p.4's photograph 3
+    /// with `measure_photographs.colour_angle`. One turn a case, sixteen turns a
+    /// half column apart: a face takes some twenty seconds, and sixteen in one
+    /// test would pass the minute.
+    @Test(.enabled(if: braidSheetsAreWanted), arguments: 0..<16)
+    func theEdoYatsuFacesForMeasuring(turn: Int) throws {
+        let floor = Double(RoundTube8SurfaceMesh.defaultRadius)
+            * Double(1 - RoundTube8SurfaceMesh.crestHeightRatio)
+        let perDiameter = 2 * Double.pi * floor / 8
+        let braidWidth = Double(RoundTube8SurfaceMesh.defaultRadius) * 2 / perDiameter
+        let pixelsPerDiameter = Int((235 / braidWidth).rounded())
+        let stand = BraidMethodCatalog.stand8
+        let recipe = BraidMethodCatalog.edoYatsu8Recipe
+        let worked = try #require(recipe.worked(on: stand))
+        let pattern = try #require(RoundTube8SurfacePatternGenerator.generate(
+            stand: stand, method: worked.method, crossSection: worked.section,
+            assignments: recipe.colouring
+        ))
+        let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: pattern))
+        let solid = BraidComparisonSheet.solid(
+            positions: mesh.positions, byColour: mesh.colorGroups, perDiameter: perDiameter
+        )
+        let angle = 2 * Double.pi * Double(turn) / 16
+        let panel = try #require(BraidComparisonSheet.paint(
+            triangles: solid.triangles, looking: SIMD3(sin(angle), -cos(angle), 0),
+            window: solid.along, acrossWanted: braidWidth,
+            pixelsPerDiameter: pixelsPerDiameter
+        ))
+        let image = try #require(Self.image(of: panel))
+        try BraidFigureDrawing.write(image, named: "face-edo-yatsu-turn-\(turn)")
+    }
+
     /// A panel as an image, the ground where nothing was painted.
     private static func image(of panel: BraidComparisonSheet.Panel) -> CGImage? {
         var bytes = [UInt8](repeating: 255, count: panel.width * panel.height * 4)

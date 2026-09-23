@@ -193,7 +193,7 @@ struct YatsuKongoGaeshiTests {
     /// tube's drawer.
     @Test func itIsOfferedForEightThreadsAndDrawnByTheTube() {
         #expect(BraidPresetCatalog.availablePresets(threadCount: 8).map(\.id)
-                == [.yatsuKongoS8, .yatsuKongoZ8, .yatsuKongoGaeshi8])
+                == [.yatsuKongoS8, .yatsuKongoZ8, .yatsuKongoGaeshi8, .edoYatsu8])
         #expect(BraidMethodCatalog.recipe(for: .yatsuKongoGaeshi8) == recipe)
         #expect(BraidFamilyDrawing.drawer(for: recipe) == RoundTube8SurfaceMesh.family)
         // The book's colouring (p.38 組みはじめ): slits 1・2 and 17・18 orange,

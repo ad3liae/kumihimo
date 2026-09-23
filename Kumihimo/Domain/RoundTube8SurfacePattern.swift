@@ -74,13 +74,18 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// the drawing onto a braid of any radius keeps the cells the shape they were
     /// worked out to be.
     let aspectRatio: Float
-    /// How many places round the braid one cycle carries a thread, signed:
-    /// negative runs against the ring.
+    /// How many places round the braid the first table's cycle carried the
+    /// thread each place takes, signed, by slot: negative runs against the ring.
     ///
     /// **This is not the cell's shape.** The carry is buried and does not show; it
     /// is kept because it is what decides which thread is at which place next
     /// cycle, and so what the colour does.
-    let columnsCarried: Int
+    ///
+    /// **By slot since Task 009**: 江戸八つ組 carries its even places two on
+    /// and its odd places two back. Until then the carry was one number and a
+    /// table whose threads went different ways was refused — a leftover from
+    /// before Task 053, when a run leaned the way it was carried.
+    let columnsCarriedBySlot: [Int]
 
     /// When each place takes its new thread in the braiding, as a share of the
     /// cycle, by slot: **the braiding's own record**, one thread an instant.
@@ -96,6 +101,14 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// braid of one table — `leanDirection` — and both, part by part, for a braid
     /// that turns its spiral round.
     let leanBySegment: [Float]
+
+    /// The carry as one number, **when every place is carried the same way** —
+    /// yatsu-kongo's spiral — and `nil` when not (江戸八つ組).
+    var columnsCarried: Int? {
+        guard let first = columnsCarriedBySlot.first,
+              columnsCarriedBySlot.allSatisfy({ $0 == first }) else { return nil }
+        return first
+    }
 
     /// One cycle along the braid, in repeats.
     var cycleInRepeats: Float { 1 / Float(rowCount) }
@@ -118,7 +131,11 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// carry's own sign, and a colour on the book's pairs stepped like a stair.
     /// How far a run tilts is `RoundTube8Bundle.leanColumnsPerCycle`, a drawing
     /// figure. Per cell, `leanBySegment`.
-    var leanDirection: Float { columnsCarried < 0 ? 1 : -1 }
+    ///
+    /// **`nil` where the table carries different places different ways**
+    /// (江戸八つ組, Task 009): there is no one lean then, and the cells' own
+    /// `leanBySegment` is the whole answer. Nothing drawn reads this.
+    var leanDirection: Float? { columnsCarried.map { $0 < 0 ? 1 : -1 } }
 }
 
 /// **What a thread's visible run looks like on the eight-thread tube: a bundle
@@ -348,10 +365,15 @@ enum RoundTube8SurfacePatternGenerator {
     /// `nil` when the braid is not a tube of eight, when a table's braiding moves
     /// are not a whole number of dan, when a place receives twice in one dan, when
     /// a cycle of two dan does not put every other place in each (the half
-    /// pitch), when the first table does not carry every thread the same way, or
+    /// pitch), when the first table does not give every place a thread, or
     /// when a repeat is not a whole number of cycles long — then "where its cell
     /// begins" has no single answer, and that is worth stopping over rather than
     /// drawing something arbitrary.
+    ///
+    /// **Threads carried different ways are drawn** (Task 009): until then a
+    /// table was refused unless it carried every thread the same way, which
+    /// kept only the carry's record to one number — the cell's shape has not
+    /// read the carry since Task 053.
     static func generate(
         stand: BraidStand,
         rounds: [BraidMethod],
@@ -381,7 +403,7 @@ enum RoundTube8SurfacePatternGenerator {
         var time: Float = 0
         // The first table's own record: how far it carries, and when in its
         // cycle each place takes its thread.
-        var firstCarry: Int?
+        var firstCarries = [Int?](repeating: nil, count: count)
         var firstPhases = [Float?](repeating: nil, count: count)
 
         for (index, cycle) in cycles.enumerated() {
@@ -426,8 +448,7 @@ enum RoundTube8SurfacePatternGenerator {
                     lean: lean
                 ))
                 if index == 0, order < braiding.count {
-                    if let firstCarry, firstCarry != step { return nil }
-                    firstCarry = step
+                    firstCarries[to] = step
                     firstPhases[to] = Float(carried.instant) / Float(round.steps.count)
                 }
             }
@@ -446,7 +467,8 @@ enum RoundTube8SurfacePatternGenerator {
         guard time > 0, abs(time - time.rounded()) < 1e-4 else { return nil }
         let rows = Int(time.rounded())
         let repeatLength = Float(rows)
-        guard let columnsCarried = firstCarry else { return nil }
+        let columnsCarried = firstCarries.compactMap { $0 }
+        guard columnsCarried.count == count else { return nil }
         let arrivalPhases = firstPhases.compactMap { $0 }
         guard arrivalPhases.count == count else { return nil }
 
@@ -509,7 +531,7 @@ enum RoundTube8SurfacePatternGenerator {
             // One repeat is `rows` cycles of `pitchOverDiameter` diameters each,
             // and one turn is pi diameters.
             aspectRatio: Float(rows) * pitchOverDiameter / .pi,
-            columnsCarried: columnsCarried,
+            columnsCarriedBySlot: columnsCarried,
             arrivalPhaseBySlot: arrivalPhases,
             drawnPhaseByColumn: arrivalPhases.map(drawnPhase(ofArrival:)),
             leanBySegment: cells.map(\.lean)

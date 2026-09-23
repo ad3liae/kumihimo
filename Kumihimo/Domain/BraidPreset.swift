@@ -35,6 +35,7 @@ extension BraidPresetID {
     static let yatsuKongoZ8 = BraidPresetID(rawValue: "yatsu-kongo-z-8")
     static let yatsuKongoGaeshi8 = BraidPresetID(rawValue: "yatsu-kongo-gaeshi-8")
     static let maruYotsu4 = BraidPresetID(rawValue: "maru-yotsu-4")
+    static let edoYatsu8 = BraidPresetID(rawValue: "edo-yatsu-8")
 }
 
 enum BraidPresetCatalog {
@@ -106,7 +107,22 @@ enum BraidPresetCatalog {
         prototypeNotice: "手順表はbookA p.56から写した試作です。bookCに図が無く、対の2本のどちらが先かは読めません。立体は写真に合わせた描画上の近似です。"
     )
 
-    static let presets = [maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ, yatsuKongoGaeshi, maruYotsu]
+    /// 江戸八つ組 (Task 009). **Read off book A p.48's pictures**, which print
+    /// each step's two threads, one to a hand, and not which goes first; book C
+    /// has no figure of it. Drawn, where it is drawn, by the eight-thread tube's
+    /// drawer with that drawer's own shape.
+    static let edoYatsu = BraidPreset(
+        id: .edoYatsu8,
+        displayName: "江戸八つ",
+        supportedThreadCounts: [8],
+        crossSectionProfile: .round,
+        verificationLevel: .movementRules,
+        prototypeNotice: "手順表はbookA p.48から写した試作です。bookCに図が無く、1手の2本のどちらが先かは読めません。立体は八つ金剛と同じ8本の筒の描き方による近似です。"
+    )
+
+    static let presets = [
+        maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ, yatsuKongoGaeshi, maruYotsu, edoYatsu,
+    ]
 
     static func availablePresets(threadCount: Int) -> [BraidPreset] {
         presets.filter { $0.supports(threadCount: threadCount) }

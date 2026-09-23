@@ -641,14 +641,18 @@ struct RoundTube8SurfaceTests {
         for recipe in [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe] {
             let drawn = try pattern(recipe)
             let mesh = try mesh(recipe)
-            // The other way from the carry since Task 055.
-            #expect(drawn.leanDirection == -Float(drawn.columnsCarried.signum()))
-            #expect(drawn.leanBySegment.allSatisfy { $0 == drawn.leanDirection })
+            // The other way from the carry since Task 055. One table, so the
+            // braid has one carry and one lean (both optional since Task 009,
+            // where 江戸八つ組 carries its places both ways).
+            let carry = try #require(drawn.columnsCarried)
+            let lean = try #require(drawn.leanDirection)
+            #expect(lean == -Float(carry.signum()))
+            #expect(drawn.leanBySegment.allSatisfy { $0 == lean })
             let segment = drawn.surface.segments[0]
             func turns(_ cycles: Float) -> Float {
                 let point = RoundTube8SurfaceMesh.frame(
                     of: segment, cycles: cycles, across: 0,
-                    leanDirection: drawn.leanDirection,
+                    leanDirection: lean,
                     floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
                     base: 0, repeatLength: mesh.patternRepeatLength
                 ).position
@@ -658,10 +662,10 @@ struct RoundTube8SurfaceTests {
             // bend is the tail's, and is held by `aRunHasABluntHeadAndATailThatKeepsItsWidth`.
             let span = bundle.tailBendFromCycles
             let moved = (turns(span) - turns(0)) * 8 / span
-            #expect(abs(moved - drawn.leanDirection * bundle.leanColumnsPerCycle) < 1e-4,
+            #expect(abs(moved - lean * bundle.leanColumnsPerCycle) < 1e-4,
                     "\(recipe.id): \(moved) columns a cycle")
             // And the tail goes on round the same way.
-            #expect((turns(bundle.lengthInCycles) - turns(span)) * drawn.leanDirection > 0)
+            #expect((turns(bundle.lengthInCycles) - turns(span)) * lean > 0)
         }
     }
 

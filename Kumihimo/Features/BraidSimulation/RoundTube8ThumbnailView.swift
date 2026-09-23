@@ -159,7 +159,7 @@ enum RoundTube8CardImage {
         /// Which way each cell's run leans: two braids with the same cells can
         /// lean them differently (Task 053).
         let leans: [Float]
-        let columnsCarried: Int
+        let columnsCarriedBySlot: [Int]
         let rowCount: Int
         let aspectRatio: Float
         let bundle: [Float]
@@ -170,7 +170,7 @@ enum RoundTube8CardImage {
                 [$0.centerlineStart.x, $0.centerlineStart.y, $0.centerlineEnd.y]
             }
             leans = pattern.leanBySegment
-            columnsCarried = pattern.columnsCarried
+            columnsCarriedBySlot = pattern.columnsCarriedBySlot
             rowCount = pattern.rowCount
             aspectRatio = pattern.aspectRatio
             self.bundle = [

@@ -197,10 +197,11 @@ struct YatsuKongoTests {
             #expect(!BraidPresetCatalog.availablePresets(threadCount: count)
                 .contains { [.yatsuKongoS8, .yatsuKongoZ8, .yatsuKongoGaeshi8].contains($0.id) })
         }
-        // 返し組 beside them since Task 053 (`YatsuKongoGaeshiTests`).
+        // 返し組 beside them since Task 053 (`YatsuKongoGaeshiTests`), and
+        // 江戸八つ since Task 009 (`EdoYatsuTests`).
         #expect(BraidPresetCatalog.availablePresets(threadCount: 8)
                 == [BraidPresetCatalog.yatsuKongoS, BraidPresetCatalog.yatsuKongoZ,
-                    BraidPresetCatalog.yatsuKongoGaeshi])
+                    BraidPresetCatalog.yatsuKongoGaeshi, BraidPresetCatalog.edoYatsu])
     }
 
     /// **The figure needs no drawer.** It was the whole of what this braid could
