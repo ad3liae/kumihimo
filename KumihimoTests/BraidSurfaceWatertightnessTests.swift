@@ -58,10 +58,7 @@ struct BraidSurfaceWatertightnessTests {
     }
 
     @Test func hiraGenjiSurfaceIsOpaqueInsideItsOwnOutline() throws {
-        let pattern = try #require(
-            Flat16SurfacePatternGenerator.generate(assignments: fixture)
-        )
-        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.flat(fixture))
         // The plain cross-section the cells are laid on: everything inside it is
         // braid, and the crests stand out of it.
         let halfWidth = Flat16SurfaceMesh.defaultHalfWidth
@@ -89,10 +86,7 @@ struct BraidSurfaceWatertightnessTests {
     /// above is about the braid's inside, not a looser version of one about its
     /// silhouette.
     @Test func hiraGenjiStandsProudOfThePlainOutlineRightRound() throws {
-        let pattern = try #require(
-            Flat16SurfacePatternGenerator.generate(assignments: fixture)
-        )
-        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.flat(fixture))
         let crest = Flat16SurfaceMesh.defaultHalfThickness
             * Flat16SurfaceMesh.crestHeightRatio
 

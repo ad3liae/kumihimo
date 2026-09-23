@@ -56,7 +56,7 @@ struct MaruGenjiSurfaceMeshTests {
         let pattern = try #require(
             RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
-        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.tube(fixtureAssignments))
 
         #expect(mesh.triangleSegmentIndices.allSatisfy { pattern.patches.indices.contains($0) })
         for index in pattern.patches.indices {
@@ -84,15 +84,8 @@ struct MaruGenjiSurfaceMeshTests {
         _ radius: Float,
         _ repeatCount: Int
     ) throws {
-        let pattern = try #require(
-            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
-        )
         let mesh = try #require(
-            RoundTube16SurfaceMesh.generate(
-                pattern: pattern,
-                radius: radius,
-                patternRepeatCount: repeatCount
-            )
+            SharedMeshes.tube(fixtureAssignments, radius: radius, patternRepeatCount: repeatCount)
         )
         // Measured across the drawn surface, not across the mean one. A photograph
         // sees the braid's silhouette, and raising the crest fattens the braid
@@ -128,11 +121,7 @@ struct MaruGenjiSurfaceMeshTests {
             RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
         let mesh = try #require(
-            RoundTube16SurfaceMesh.generate(
-                pattern: pattern,
-                radius: radius,
-                patternRepeatCount: repeatCount
-            )
+            SharedMeshes.tube(fixtureAssignments, radius: radius, patternRepeatCount: repeatCount)
         )
 
         #expect(abs(mesh.patternAspectRatio - pattern.aspectRatio) < 0.000_1)
@@ -161,7 +150,7 @@ struct MaruGenjiSurfaceMeshTests {
         let pattern = try #require(
             RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
-        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.tube(fixtureAssignments))
 
         // Grouped once, so the cost is the vertices once over rather than once per
         // strand: 64 walks of 419,184 vertices took 20 seconds (Task 052).
@@ -179,17 +168,9 @@ struct MaruGenjiSurfaceMeshTests {
     }
 
     @Test func theRidgeAngleIsIndependentOfTheRadiusAndTheRepeatCount() throws {
-        let pattern = try #require(
-            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
-        )
-
         for (radius, repeatCount) in [(Float(0.2), 7), (Float(1.35), 3)] {
             let mesh = try #require(
-                RoundTube16SurfaceMesh.generate(
-                    pattern: pattern,
-                    radius: radius,
-                    patternRepeatCount: repeatCount
-                )
+                SharedMeshes.tube(fixtureAssignments, radius: radius, patternRepeatCount: repeatCount)
             )
             let angle = try crestAngleToAxisInDegrees(of: mesh, segmentIndex: 0)
             #expect(abs(angle - ridgeAngleToAxisInDegrees) < 1)
@@ -207,7 +188,7 @@ struct MaruGenjiSurfaceMeshTests {
         let pattern = try #require(
             RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
-        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.tube(fixtureAssignments))
         let base = RoundTube16SurfaceMesh.defaultRadius
         let tolerance: Float = 0.000_1
 
@@ -352,7 +333,7 @@ struct MaruGenjiSurfaceMeshTests {
         let pattern = try #require(
             RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
-        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.tube(fixtureAssignments))
         let floor = RoundTube16SurfaceMesh.beneathRadius(radius: mesh.baseRadius)
 
         #expect(mesh.triangleIsBeneath.contains(true))
@@ -422,8 +403,12 @@ struct MaruGenjiSurfaceMeshTests {
                 == 2 * .pi * Float(RoundTube16SurfaceMesh.strandFibreCount)
         })
 
+        // Grouped once rather than walked once per strand (Task 056; see
+        // `twistPhaseFit`).
+        let bySegment = verticesBySegment(of: mesh)
         for segmentIndex in 0..<RoundTube16SurfacePatternGenerator.patchCount {
-            let fit = try twistPhaseFit(of: mesh, segmentIndex: segmentIndex)
+            let fit = try twistPhaseFit(
+                of: mesh, segmentIndex: segmentIndex, vertices: bySegment[segmentIndex] ?? [])
             let coefficients = try #require(mesh.twist.coefficients(forSegment: segmentIndex))
             // An affine phase is a phase with no break in it: every vertex of the
             // strand sits on one plane through (along, across, phase).
@@ -458,11 +443,14 @@ struct MaruGenjiSurfaceMeshTests {
             )
         )
 
+        // Grouped once rather than walked once per strand (Task 056).
+        let bySegment = verticesBySegment(of: mesh)
         let angles = try surface.segments.indices.map { segmentIndex in
             try stripeAngleInDegrees(
                 of: mesh,
                 surface: surface,
-                segmentIndex: segmentIndex
+                segmentIndex: segmentIndex,
+                vertices: bySegment[segmentIndex] ?? []
             )
         }
 
@@ -612,10 +600,7 @@ struct MaruGenjiSurfaceMeshTests {
             verifiedFixture1,
             ProjectEditorPreviewData.maruGenjiSurfaceFixture1,
         ] {
-            let pattern = try #require(
-                RoundTube16SurfacePatternGenerator.generate(assignments: assignments)
-            )
-            let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+            let mesh = try #require(SharedMeshes.tube(assignments))
 
             var indices = [UInt32]()
             var materialIndices = [UInt32]()
@@ -665,11 +650,9 @@ struct MaruGenjiSurfaceMeshTests {
         }
     }
 
+    /// The fixture's mesh, made once a run and shared (Task 056).
     private func makeMesh() throws -> RoundTube16SurfaceMeshData {
-        let pattern = try #require(
-            RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
-        )
-        return try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        try #require(SharedMeshes.tube(fixtureAssignments))
     }
 
     private func radius(of mesh: RoundTube16SurfaceMeshData, at index: Int) -> Float {
@@ -684,13 +667,14 @@ struct MaruGenjiSurfaceMeshTests {
     private func stripeAngleInDegrees(
         of mesh: RoundTube16SurfaceMeshData,
         surface: BraidStrandSurface,
-        segmentIndex: Int
+        segmentIndex: Int,
+        vertices: [Int]? = nil
     ) throws -> Float {
         // Measured on the bundle as drawn, at mid-span, where it is wider than its
         // cell (Task 047 rework). Towards its leading end a bundle narrows, and the
         // stripes meet it at another angle there.
         let segment = surface.segments[segmentIndex]
-        let fit = try twistPhaseFit(of: mesh, segmentIndex: segmentIndex)
+        let fit = try twistPhaseFit(of: mesh, segmentIndex: segmentIndex, vertices: vertices)
         let along = RoundTube16SurfaceMesh.worldOffset(
             segment.centerlineDelta,
             radius: mesh.baseRadius,
@@ -715,11 +699,17 @@ struct MaruGenjiSurfaceMeshTests {
     /// Least-squares fit of `phase ≈ phasePerAlong * along + phasePerAcross *
     /// across + offset` over every vertex of one strand. A stripe that broke or
     /// restarted inside the strand would leave a residual behind.
+    ///
+    /// Pass the strand's `vertices` from `verticesBySegment(of:)` when fitting
+    /// every strand: finding them here walks the whole mesh, and 64 such walks
+    /// were most of what the two twist tests cost (Task 056). Either way they come
+    /// in ascending order, so the sums run in the same order.
     private func twistPhaseFit(
         of mesh: RoundTube16SurfaceMeshData,
-        segmentIndex: Int
+        segmentIndex: Int,
+        vertices: [Int]? = nil
     ) throws -> (phasePerAlong: Float, phasePerAcross: Float, maximumResidual: Float) {
-        let indices = mesh.positions.indices.filter {
+        let indices = vertices ?? mesh.positions.indices.filter {
             mesh.vertexSegmentIndices[$0] == segmentIndex
         }
         #expect(indices.count >= 3)

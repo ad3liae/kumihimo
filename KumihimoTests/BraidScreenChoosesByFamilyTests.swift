@@ -48,17 +48,13 @@ struct BraidScreenChoosesByFamilyTests {
         let flat = try #require(BraidMethodCatalog.recipe(for: .hiraGenji16))
         #expect(BraidFamilyDrawing.drawer(for: flat, on: BraidMethodCatalog.stand16)
                 == Flat16SurfaceMesh.family)
-        let flatPattern = try #require(Flat16SurfacePatternGenerator.generate(
-            assignments: BraidMethodCatalog.hiraGenji16Colouring))
-        let flatMesh = try #require(Flat16SurfaceMesh.generate(pattern: flatPattern))
+        let flatMesh = try #require(SharedMeshes.flat(BraidMethodCatalog.hiraGenji16Colouring))
         #expect(BraidMeshHashTests.hash(flatMesh.positions) == 0x2df5_8dcc_177c_b981)
 
         let tube = try #require(BraidMethodCatalog.recipe(for: .maruGenji16))
         #expect(BraidFamilyDrawing.drawer(for: tube, on: BraidMethodCatalog.stand16)
                 == RoundTube16SurfaceMesh.family)
-        let tubePattern = try #require(RoundTube16SurfacePatternGenerator.generate(
-            assignments: BraidMethodCatalog.maruGenji16Colouring))
-        let tubeMesh = try #require(RoundTube16SurfaceMesh.generate(pattern: tubePattern))
+        let tubeMesh = try #require(SharedMeshes.tube(BraidMethodCatalog.maruGenji16Colouring))
         // Tasks 047 and 052 changed this shape on purpose; see `BraidMeshHashTests`.
         #expect(BraidMeshHashTests.hash(tubeMesh.positions) == 0x13ed_1478_75ce_cc9e)
     }

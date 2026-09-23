@@ -55,7 +55,7 @@ struct RoundTube16StrandTipTests {
     /// These are claims at those points only, not over the whole width or path.
     @Test func atEveryCrossingTheBundleGoingOnCoversTheEndOfTheOneGoingUnder() throws {
         let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture))
-        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.tube(fixture))
         let lines = RadialLines(mesh: mesh)
         let lap = RoundTube16SurfaceMesh.overCrossingLap
         let inner = Float(0.3) * mesh.length
@@ -152,8 +152,7 @@ struct RoundTube16StrandTipTests {
         // On the mesh: the texture column every vertex reads stands for the place
         // along the bundle the vertex is at, past the ends included. Were it
         // clamped, every vertex past an end would read the last column.
-        let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: fixture))
-        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.tube(fixture))
         var lapVertices = 0
         for index in mesh.positions.indices where !mesh.vertexIsBeneath[index] {
             let along = mesh.strandCoordinates[index].x
