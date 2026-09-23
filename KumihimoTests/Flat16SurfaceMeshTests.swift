@@ -7,7 +7,7 @@ import Testing
 struct HiraGenjiSurfaceMeshTests {
     @Test func meshIsAnOpenRoundedFlatBraidWithEveryRegion() throws {
         let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.flat(assignments))
 
         #expect(abs(Flat16SurfaceMesh.widthToThicknessRatio - 3.4) <= 0.3)
         #expect(Set(mesh.surfaceVertexRegions) == Set(Flat16SurfaceRegion.allCases))
@@ -163,7 +163,7 @@ struct HiraGenjiSurfaceMeshTests {
     /// of cutting a grid into it.
     @Test func theDrawnSurfaceFallsAtEveryJoinWithoutReachingTheValley() throws {
         let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.flat(assignments))
         let shape = Flat16SurfaceMesh.bundleShape
         let crest = Flat16SurfaceMesh.defaultHalfThickness
             * Flat16SurfaceMesh.crestHeightRatio
@@ -440,15 +440,17 @@ struct HiraGenjiSurfaceMeshTests {
     /// it, it had reached four minutes three seconds. **A cost written down in the
     /// wrong shape is one nobody can see grow.**
     ///
-    /// The outline is built once now (`plainOutline`) and this takes twenty-three
-    /// seconds, so **it is back on the ordinary sixty-second allowance**. That is
-    /// deliberate and not tidying: five minutes around a twenty-three second test
-    /// is room for it to grow tenfold again unseen.
+    /// The outline is built once now (`plainOutline`) and this took twenty-three
+    /// seconds then, so **it is back on the ordinary sixty-second allowance**. That
+    /// is deliberate and not tidying: five minutes around a twenty-three second
+    /// test is room for it to grow tenfold again unseen.
+    ///
+    /// Measured again in Task 056 (2026-09-23): 7.3 seconds, of which about 3.6
+    /// were making the mesh. It reads the shared one now (`SharedMeshes`), and the
+    /// walk itself is 3.7 seconds: the vertices once over, each held first against the
+    /// outline points in the thirteen bins round its own (about fifty of the 1028).
     @Test func everyRegionCarriesTheRidgeIncludingBothEdges() throws {
-        let pattern = try #require(
-            Flat16SurfacePatternGenerator.generate(assignments: assignments)
-        )
-        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.flat(assignments))
         let halfThickness = Flat16SurfaceMesh.defaultHalfThickness
         let crest = halfThickness * Flat16SurfaceMesh.crestHeightRatio
 
@@ -626,8 +628,7 @@ struct HiraGenjiSurfaceMeshTests {
     }
 
     @Test func meshHasNoEndCapTriangles() throws {
-        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.flat(assignments))
         let indices = mesh.allTriangleIndices
 
         let containsEndCap = stride(from: 0, to: indices.count, by: 3).contains { offset in
@@ -639,8 +640,7 @@ struct HiraGenjiSurfaceMeshTests {
     }
 
     @Test func everySurfaceTriangleHasArea() throws {
-        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.flat(assignments))
         let indices = mesh.allTriangleIndices
         let containsDegenerateTriangle = stride(from: 0, to: indices.count, by: 3).contains { offset in
             let a = mesh.positions[Int(indices[offset])]
@@ -663,8 +663,7 @@ struct HiraGenjiSurfaceMeshTests {
     /// which is what makes the tiles meet, and asking for the same sample points
     /// asks for something the braid does not owe.
     @Test func consecutiveTilesMeetOnTheSameSurface() throws {
-        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.flat(assignments))
         let length = Flat16SurfaceMesh.defaultLength
         let start = mesh.positions.indices.filter { abs(mesh.positions[$0].x + length / 2) < 0.000_001 }
         let end = mesh.positions.indices.filter { abs(mesh.positions[$0].x - length / 2) < 0.000_001 }
@@ -754,8 +753,7 @@ struct HiraGenjiSurfaceMeshTests {
     }
 
     @Test @MainActor func allMaterialGroupsBuildOneRealityKitMesh() throws {
-        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.flat(assignments))
         let groups = mesh.colorGroups.sorted { $0.key.rawValue < $1.key.rawValue }
             + mesh.boundaryColorGroups.sorted { $0.key.rawValue < $1.key.rawValue }
         var indices = [UInt32]()

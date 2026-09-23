@@ -44,9 +44,7 @@ struct BraidMeshHashTests {
     /// the tile's ends meeting — is held by the tests that state those things,
     /// not by the digits here.
     @Test func theFlatBraidsMeshIsTheShapeItWas() throws {
-        let pattern = try #require(Flat16SurfacePatternGenerator.generate(
-            assignments: BraidMethodCatalog.hiraGenji16Colouring))
-        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.flat(BraidMethodCatalog.hiraGenji16Colouring))
         #expect(mesh.positions.count == 361_350)
         #expect(Self.hash(mesh.positions) == 0x2df5_8dcc_177c_b981)
     }
@@ -66,9 +64,7 @@ struct BraidMeshHashTests {
     /// a V comes to a point, sampled three times as finely (`lapRefinement`),
     /// which is why there are 419,184 vertices now.
     @Test func theRoundBraidsMeshIsTheShapeItWas() throws {
-        let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(
-            assignments: BraidMethodCatalog.maruGenji16Colouring))
-        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.tube(BraidMethodCatalog.maruGenji16Colouring))
         #expect(mesh.positions.count == 419_184)
         #expect(Self.hash(mesh.positions) == 0x13ed_1478_75ce_cc9e)
     }

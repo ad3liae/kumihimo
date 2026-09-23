@@ -60,7 +60,7 @@ struct UnrolledPatternThumbnailLayoutTests {
         let pattern = try #require(
             RoundTube16SurfacePatternGenerator.generate(assignments: fixtureAssignments)
         )
-        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.tube(fixtureAssignments))
         let layout = try #require(
             UnrolledPatternThumbnailLayout(
                 size: CGSize(width: 320, height: 96),

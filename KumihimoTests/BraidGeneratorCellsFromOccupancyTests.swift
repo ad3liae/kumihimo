@@ -75,7 +75,7 @@ struct BraidGeneratorCellsFromOccupancyTests {
         let pattern = try #require(
             RoundTube16SurfacePatternGenerator.generate(assignments: assignments))
         #expect(pattern.patches.count == RoundTube16SurfacePatternGenerator.patchCount)
-        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.tube(assignments))
         // Every position finite, and as many as the frozen generator has always made.
         #expect(mesh.positions.allSatisfy { $0.x.isFinite && $0.y.isFinite && $0.z.isFinite })
         #expect(mesh.triangleCount > 0)
@@ -131,9 +131,7 @@ struct BraidFlatGeneratorCellsFromOccupancyTests {
             let pattern = try #require(
                 Flat16WeavePatternGenerator.generate(assignments: assignments))
             #expect(pattern.columnCount == 6)
-            let surface = try #require(
-                Flat16SurfacePatternGenerator.generate(assignments: assignments))
-            let mesh = try #require(Flat16SurfaceMesh.generate(pattern: surface))
+            let mesh = try #require(SharedMeshes.flat(assignments))
             #expect(mesh.triangleCount > 0)
             let wanted = Set(assignments.map(\.colorID))
             #expect(Set(mesh.colorGroups.keys).isSubset(of: wanted))

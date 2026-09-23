@@ -613,9 +613,7 @@ struct BraidOrientationTests {
     private static func mesh(_ drawer: String) throws -> Mesh {
         switch drawer {
         case "flat sixteen":
-            let pattern = try #require(Flat16SurfacePatternGenerator.generate(
-                assignments: BraidMethodCatalog.hiraGenji16Colouring))
-            let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+            let mesh = try #require(SharedMeshes.flat(BraidMethodCatalog.hiraGenji16Colouring))
             var indices = [UInt32]()
             var labels = [String]()
             for (groups, band) in [(mesh.colorGroups, ""), (mesh.boundaryColorGroups, " band")] {
@@ -632,9 +630,7 @@ struct BraidOrientationTests {
             return Mesh(positions: mesh.positions, indices: indices,
                         tileEnd: Flat16SurfaceMesh.defaultLength / 2, walls: nil, labels: labels)
         case "round sixteen":
-            let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(
-                assignments: BraidMethodCatalog.maruGenji16Colouring))
-            let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+            let mesh = try #require(SharedMeshes.tube(BraidMethodCatalog.maruGenji16Colouring))
             // Since the Task 047 rework this drawer has no walls: its bundles
             // overlap, and a floor lies beneath them.
             let indices = mesh.materialGroups.values.flatMap { $0 }

@@ -72,8 +72,7 @@ struct BraidSideBySideTests {
         _ = newSeen
 
         // The frozen generator.
-        let pattern = try #require(Flat16SurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(Flat16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.flat(assignments))
         let old = try #require(BraidMeshDrawing.paint(
             BraidMeshDrawing.Mesh(positions: mesh.positions, byColour: mesh.colorGroups),
             looking: SIMD3(0, -1, 0)
@@ -104,8 +103,7 @@ struct BraidSideBySideTests {
         }
         let newSection = try #require(BraidSectionMeasure.measure(built.lines, tube: true))
 
-        let pattern = try #require(RoundTube16SurfacePatternGenerator.generate(assignments: assignments))
-        let mesh = try #require(RoundTube16SurfaceMesh.generate(pattern: pattern))
+        let mesh = try #require(SharedMeshes.tube(assignments))
         let old = try #require(BraidMeshDrawing.paint(
             BraidMeshDrawing.Mesh(positions: mesh.positions, byColour: mesh.colorGroups),
             looking: SIMD3(0, -1, 0)
@@ -148,10 +146,7 @@ struct BraidSideBySideTests {
             let image = try #require(BraidDrawing.image(of: picture, colours: colours))
             try BraidFigureDrawing.write(image, named: "look-hira-new-\(view.name)")
         }
-        let flatPattern = try #require(Flat16SurfacePatternGenerator.generate(
-            assignments: BraidMethodCatalog.hiraGenji16Colouring
-        ))
-        let flatMesh = try #require(Flat16SurfaceMesh.generate(pattern: flatPattern))
+        let flatMesh = try #require(SharedMeshes.flat(BraidMethodCatalog.hiraGenji16Colouring))
         for view in Self.views {
             let drawn = try #require(BraidMeshDrawing.paint(
                 BraidMeshDrawing.Mesh(positions: flatMesh.positions,
@@ -176,10 +171,7 @@ struct BraidSideBySideTests {
             let image = try #require(BraidDrawing.image(of: picture, colours: tubeColours))
             try BraidFigureDrawing.write(image, named: "look-maru-new-\(view.name)")
         }
-        let tubePattern = try #require(RoundTube16SurfacePatternGenerator.generate(
-            assignments: BraidMethodCatalog.maruGenji16Colouring
-        ))
-        let tubeMesh = try #require(RoundTube16SurfaceMesh.generate(pattern: tubePattern))
+        let tubeMesh = try #require(SharedMeshes.tube(BraidMethodCatalog.maruGenji16Colouring))
         for view in Self.views {
             let drawn = try #require(BraidMeshDrawing.paint(
                 BraidMeshDrawing.Mesh(positions: tubeMesh.positions,
