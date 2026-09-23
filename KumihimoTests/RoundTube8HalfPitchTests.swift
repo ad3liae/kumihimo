@@ -117,7 +117,8 @@ struct RoundTube8HalfPitchTests {
         let drawn = try pattern(recipe)
         let all = bundles(drawn, repeats: 4)
         let byPlace = Dictionary(grouping: all, by: \.place)
-        let step = Int(drawn.leanDirection)
+        // The carry's sign (`leanDirection` until Task 009, which removed it).
+        let step = try #require(drawn.columnsCarried).signum()
         guard let start = byPlace[0]?.sorted(by: { $0.belly < $1.belly })[drawn.rowCount] else {
             Issue.record("no bundle to start from")
             return
@@ -249,7 +250,8 @@ struct RoundTube8HalfPitchTests {
         for course in derivation.courses { startingSlot[course.threadPosition] = course.slots[0] }
         let drawn = try pattern(recipe, assignments: authorColouring)
         let rows = Float(drawn.rowCount)
-        let lean = Int(drawn.leanDirection)
+        // The carry's sign (`leanDirection` until Task 009, which removed it).
+        let lean = try #require(drawn.columnsCarried).signum()
 
         // Walk a band: from a cell, half a pitch on in the column the runs lean
         // towards, eight steps round the braid — across the join into the next

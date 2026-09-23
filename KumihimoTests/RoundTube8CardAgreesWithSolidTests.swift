@@ -467,7 +467,7 @@ struct RoundTube8CardAgreesWithSolidTests {
             let segment = drawn.surface.segments[0]
             func crest(_ cycles: Float) -> SIMD3<Float> {
                 RoundTube8SurfaceMesh.frame(
-                    of: segment, cycles: cycles, across: 0, leanDirection: drawn.leanDirection,
+                    of: segment, cycles: cycles, across: 0, leanDirection: drawn.leanBySegment[0],
                     floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
                     base: 0, repeatLength: mesh.patternRepeatLength
                 ).position
@@ -483,9 +483,9 @@ struct RoundTube8CardAgreesWithSolidTests {
                 (0.5 - turns) * Float(map.height) - 0.5
             }
             let rowBefore = row(ofTurns: segment.centerlineStart.x + RoundTube8Bundle.standard
-                .leanInColumns(atCycles: 0.2, direction: drawn.leanDirection) / 8)
+                .leanInColumns(atCycles: 0.2, direction: drawn.leanBySegment[0]) / 8)
             let rowAfter = row(ofTurns: segment.centerlineStart.x + RoundTube8Bundle.standard
-                .leanInColumns(atCycles: 0.8, direction: drawn.leanDirection) / 8)
+                .leanInColumns(atCycles: 0.8, direction: drawn.leanBySegment[0]) / 8)
             let upOnTheCard = rowBefore - rowAfter      // rows count down the card
             #expect(upOnTheSolid * upOnTheCard > 0, "\(recipe.id): solid \(upOnTheSolid), card \(upOnTheCard)")
         }
@@ -561,7 +561,7 @@ struct RoundTube8CardAgreesWithSolidTests {
             let home = 1
             func seen(_ cycles: Float, _ across: Float) -> Solid.Part? {
                 let point = RoundTube8SurfaceMesh.frame(
-                    of: segment, cycles: cycles, across: across, leanDirection: drawn.leanDirection,
+                    of: segment, cycles: cycles, across: across, leanDirection: drawn.leanBySegment[0],
                     floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
                     base: -mesh.length / 2 + Float(home) * mesh.patternRepeatLength,
                     repeatLength: mesh.patternRepeatLength
@@ -711,7 +711,7 @@ struct RoundTube8CardAgreesWithSolidTests {
         let along = segment.centerlineStart.y
             + belly * (segment.centerlineEnd.y - segment.centerlineStart.y)
         let turns = segment.centerlineStart.x
-            + bundle.leanInColumns(atCycles: belly, direction: drawn.leanDirection) / 8
+            + bundle.leanInColumns(atCycles: belly, direction: drawn.leanBySegment[0]) / 8
         let standing = drawn.runsStanding(atTurns: turns, along: along)
         let top = try #require(standing.first)
         #expect(top.segment == 0)

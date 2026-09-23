@@ -136,6 +136,7 @@ struct ProjectEditorPresentationStateTests {
             BraidPresetCatalog.yatsuKongoS,
             BraidPresetCatalog.yatsuKongoZ,
             BraidPresetCatalog.yatsuKongoGaeshi,
+            BraidPresetCatalog.edoYatsu,
         ])
     }
 

@@ -99,8 +99,8 @@ struct RoundTube8SurfaceTests {
                     "\(recipe.id)")
         }
         // The spiral still turns opposite ways: that is the tables'.
-        let sCarry = try pattern(BraidMethodCatalog.yatsuKongoS8Recipe).columnsCarried
-        let zCarry = try pattern(BraidMethodCatalog.yatsuKongoZ8Recipe).columnsCarried
+        let sCarry = try #require(try pattern(BraidMethodCatalog.yatsuKongoS8Recipe).columnsCarried)
+        let zCarry = try #require(try pattern(BraidMethodCatalog.yatsuKongoZ8Recipe).columnsCarried)
         #expect(sCarry == -zCarry)
 
         // **One lattice**: every cell a cycle long, and the half-pitch stagger the
@@ -600,7 +600,9 @@ struct RoundTube8SurfaceTests {
         for recipe in [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe] {
             let drawn = try pattern(recipe)
             let mesh = try mesh(recipe)
-            #expect(drawn.leanDirection == Float(drawn.columnsCarried.signum()))
+            // `leanDirection == columnsCarried.signum()` stood here until Task
+            // 009. It was the property's own definition checked against itself,
+            // and nothing drawn read the property; it was removed with it.
             #expect(drawn.leanBySegment[0] == stitch)
             let segment = drawn.surface.segments[0]
             func turns(_ cycles: Float) -> Float {

@@ -89,14 +89,15 @@ struct BraidOrientationTests {
         func crest(slot: Int, row: Int) throws -> SIMD3<Float> {
             let middle = (Float(slot) + 0.5) / 8
             let height = (Float(row) + 0.5) / Float(pattern.rowCount)
-            let cell = try #require(pattern.surface.segments.first {
+            let index = try #require(pattern.surface.segments.firstIndex {
                 abs($0.centerlineStart.x - middle) < 1e-4
                     && $0.centerlineStart.y <= height && $0.centerlineEnd.y >= height
             })
+            let cell = pattern.surface.segments[index]
             let cycles = (height - cell.centerlineStart.y)
                 / (cell.centerlineEnd.y - cell.centerlineStart.y)
             return RoundTube8SurfaceMesh.frame(
-                of: cell, cycles: cycles, across: 0, leanDirection: pattern.leanDirection,
+                of: cell, cycles: cycles, across: 0, leanDirection: pattern.leanBySegment[index],
                 floor: mesh.valleyFloorRadius, radius: mesh.crestRadius,
                 base: -mesh.length / 2, repeatLength: mesh.patternRepeatLength
             ).position
