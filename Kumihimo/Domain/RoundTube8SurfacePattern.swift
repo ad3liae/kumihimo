@@ -81,8 +81,9 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// is kept because it is what decides which thread is at which place next
     /// cycle, and so what the colour does.
     ///
-    /// **By slot since Task 009**: 江戸八つ組 carries its even places two on
-    /// and its odd places two back. Until then the carry was one number and a
+    /// **By slot since Task 009**: 江戸八つ組 carries the places of one parity
+    /// two on and the other two back (odd on, since Task 057 put its table on
+    /// the textbook's slits). Until then the carry was one number and a
     /// table whose threads went different ways was refused — a leftover from
     /// before Task 053, when a run leaned the way it was carried.
     let columnsCarriedBySlot: [Int]
