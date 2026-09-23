@@ -231,15 +231,16 @@ struct YatsuKongoTests {
     /// places, the only difference left between S and Z is which way the spiral
     /// leans — which is what `theDiagonalsOfSAndZLeanOppositeWays` measures.
     @Test func bothBraidsShipBookAsOwnColouringAndItIsTheSameOne() {
-        let upright = ["yellow", "yellow", "yellow", "yellow"]      // 1, 5, 8, 4
-        let flat = ["orange", "orange", "orange", "orange"]         // 2, 3, 6, 7
+        // Pair by pair since Task 055: 1・2 and 5・6, 3・4 and 7・8.
+        let upright = ["yellow", "yellow", "yellow", "yellow"]      // 1, 2, 5, 6
+        let flat = ["orange", "orange", "orange", "orange"]         // 3, 4, 7, 8
         for colouring in [BraidMethodCatalog.yatsuKongoS8Recipe.colouring,
                           BraidMethodCatalog.yatsuKongoZ8Recipe.colouring] {
             let byPosition = Dictionary(uniqueKeysWithValues: colouring.map {
                 ($0.position, $0.colorID.rawValue)
             })
-            #expect([1, 5, 8, 4].map { byPosition[$0] ?? "" } == upright)
-            #expect([2, 3, 6, 7].map { byPosition[$0] ?? "" } == flat)
+            #expect([1, 2, 5, 6].map { byPosition[$0] ?? "" } == upright)
+            #expect([3, 4, 7, 8].map { byPosition[$0] ?? "" } == flat)
         }
         #expect(BraidMethodCatalog.yatsuKongoS8Recipe.colouring
                 == BraidMethodCatalog.yatsuKongoZ8Recipe.colouring)

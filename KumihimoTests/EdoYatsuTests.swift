@@ -107,7 +107,12 @@ struct EdoYatsuTests {
         #expect(drawn.columnsCarried == nil)
         #expect(drawn.rowCount == 4)
         #expect(drawn.drawnPhaseByColumn == [1, 0.5, 1, 0.5, 1, 0.5, 1, 0.5])
-        #expect(drawn.leanBySegment.allSatisfy { $0 == RoundTube8SurfacePatternGenerator.stitchLean })
+        // **The two colours lean opposite ways** (Task 055's rule on this braid):
+        // a run leans the other way from its own carry, and here the carries
+        // differ by place. So there is no one lean, and the pattern is not a
+        // spiral but a herringbone.
+        #expect(drawn.leanDirection == nil)
+        #expect(Set(drawn.leanBySegment) == [-1, 1])
         for slot in 0..<8 {
             let middle = (Float(slot) + 0.5) / 8
             let colours = Set(drawn.surface.segments
@@ -121,7 +126,7 @@ struct EdoYatsuTests {
     @Test func theMeshIsTheShapeItWas() throws {
         let mesh = try #require(BraidFamilyDrawing.mesh(for: recipe, on: stand).tubeOfEight)
         #expect(mesh.positions.count == 18_240)
-        #expect(BraidMeshHashTests.hash(mesh.positions) == 0xe8fb_2086_7c66_e29d)
+        #expect(BraidMeshHashTests.hash(mesh.positions) == 0x4120_520e_ed66_35d5)
     }
 
     // MARK: - The preset

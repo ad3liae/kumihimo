@@ -117,8 +117,9 @@ struct RoundTube8HalfPitchTests {
         let drawn = try pattern(recipe)
         let all = bundles(drawn, repeats: 4)
         let byPlace = Dictionary(grouping: all, by: \.place)
-        // The carry's sign (`leanDirection` until Task 009, which removed it).
-        let step = try #require(drawn.columnsCarried).signum()
+        // The way the runs lean (the other way from the carry since Task 055);
+        // optional since Task 009, and these two braids have one carry each.
+        let step = Int(try #require(drawn.leanDirection))
         guard let start = byPlace[0]?.sorted(by: { $0.belly < $1.belly })[drawn.rowCount] else {
             Issue.record("no bundle to start from")
             return
@@ -239,7 +240,9 @@ struct RoundTube8HalfPitchTests {
     /// **A colour band is one pair of threads, followed half a pitch at a time**
     /// — and which pair is settled by the table, not by the colours: the step
     /// half a pitch on, round the braid the way the runs lean, joins the threads
-    /// that begin at places 1 and 2, 3 and 4, 5 and 6, 7 and 8.
+    /// that begin at places 1 and 2, 3 and 4, 5 and 6, 7 and 8 — **the disk
+    /// book's pairs** since Task 055, where they stand and which way the runs
+    /// lean both having been put right for it.
     @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe])
     func aBandFollowsOnePairOfThreads(recipe: BraidRecipe) throws {
         let worked = try worked(recipe)
@@ -250,8 +253,9 @@ struct RoundTube8HalfPitchTests {
         for course in derivation.courses { startingSlot[course.threadPosition] = course.slots[0] }
         let drawn = try pattern(recipe, assignments: authorColouring)
         let rows = Float(drawn.rowCount)
-        // The carry's sign (`leanDirection` until Task 009, which removed it).
-        let lean = try #require(drawn.columnsCarried).signum()
+        // The way the runs lean; optional since Task 009 (江戸八つ組 leans both
+        // ways), and these two braids have one carry each.
+        let lean = Int(try #require(drawn.leanDirection))
 
         // Walk a band: from a cell, half a pitch on in the column the runs lean
         // towards, eight steps round the braid — across the join into the next
@@ -274,11 +278,17 @@ struct RoundTube8HalfPitchTests {
             }, "the band stops after \(threads.count) cells")
             threads.append(here.threadPosition)
         }
-        // Two threads, and they are a pair of the stand's numbering.
-        let pair = Set(threads.compactMap { startingSlot[$0] })
-        #expect(pair.count == 2, "\(threads)")
-        let slots = pair.sorted()
-        #expect(slots[0] ^ 1 == slots[1], "places \(slots.map { $0 + 1 }) are not a pair")
+        // **Whole pairs, one after the other** (Task 055): every two steps are
+        // the two threads of one of the disk book's pairs, 1・2 … 7・8, the
+        // first laid then its partner — never a thread of one pair with a
+        // thread of the next.
+        let slots = threads.compactMap { startingSlot[$0] }
+        #expect(slots.count == threads.count)
+        let offset = slots[0] ^ 1 == slots[1] ? 0 : 1
+        for index in stride(from: offset, to: slots.count - 1, by: 2) {
+            #expect(slots[index] ^ 1 == slots[index + 1],
+                    "places \(slots[index] + 1) and \(slots[index + 1] + 1) are not a pair: \(threads)")
+        }
         // So with the author's colouring the whole band is one colour.
         let colours = Set(threads.map { thread in
             authorColouring.first { $0.position == thread }?.colorID

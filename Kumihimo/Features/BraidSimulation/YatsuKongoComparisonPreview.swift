@@ -20,7 +20,7 @@ import SwiftUI
 ///                                      Task 050's, and `gaeshi` 八つ金剛返し組
 ///                                      (Task 053); the launch arguments keep
 ///                                      their first name
-///     --yatsu-kongo-colouring=plain|book|eight|author|redblue|one
+///     --yatsu-kongo-colouring=plain|book|eight|author|redblue|one|tri
 ///                                      one colour, book A p.54's, all eight
 ///                                      told apart, the author's 青青赤赤青青赤赤
 ///                                      (Task 048's rework), book A's layout in
@@ -88,6 +88,14 @@ enum YatsuKongoComparisonPreviewData {
                     position: assignment.position,
                     colorID: ThreadColorID(rawValue: assignment.colorID == recipe.colouring[0].colorID ? "red" : "blue")
                 )
+            }
+        case "tri":
+            // Places 1 and 2 red, 5 and 6 blue, the rest natural: the author's
+            // screenshot of 2026-09-22 (Task 055).
+            return (1...8).map {
+                ThreadAssignment(position: $0, colorID: [1, 2].contains($0)
+                    ? ThreadColorID(rawValue: "red")
+                    : [5, 6].contains($0) ? ThreadColorID(rawValue: "blue") : ThreadColorColorIDs.natural)
             }
         case "one":
             // Every thread natural but position 1, blue (Task 048).

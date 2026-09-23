@@ -128,9 +128,9 @@ enum BraidMethodCatalog {
         guard let disk = BookDiskKongo.cycle(
             source: "the disk book p.37 (8S-スパイラル), one printed dan and its drift",
             // The slits of the starting diagram in the order of the stand's
-            // places 1-8: 12・13 is the top pair (the upright pair, pink in the
-            // book), and `round8` puts its places 8 and 1 at the top.
-            placeOneOnward: [13, 20, 21, 28, 29, 4, 5, 12],
+            // places 1-8, **a pair of the book to a pair of places, 1・2, 3・4,
+            // 5・6, 7・8** (Task 055): 12・13 is places 1 and 2.
+            placeOneOnward: BookDiskKongo.pairsAtPlaces([12, 13, 20, 21, 28, 29, 4, 5]),
             printedDan: [(20, 6), (4, 22), (12, 30), (28, 14)],
             driftPerDan: 1
         ) else {
@@ -147,7 +147,7 @@ enum BraidMethodCatalog {
     static let yatsuKongoZDisk: BraidDiskNotation = {
         guard let disk = BookDiskKongo.cycle(
             source: "the disk book p.36 (8Z-スパイラル), one printed dan and its drift",
-            placeOneOnward: [13, 20, 21, 28, 29, 4, 5, 12],
+            placeOneOnward: BookDiskKongo.pairsAtPlaces([12, 13, 20, 21, 28, 29, 4, 5]),
             printedDan: [(5, 19), (21, 3), (29, 11), (13, 27)],
             driftPerDan: -1
         ) else {
@@ -420,17 +420,17 @@ enum BraidMethodCatalog {
     ///
     /// Read off the page's "糸の配色と配置" enlarged (the author, 2026-09-10):
     /// thread 105 yellow stands in the north and south groups, thread 108 orange
-    /// in the east and west. Two colours, four threads each.
+    /// in the east and west. Two colours, four threads each. **Laid pair by pair
+    /// at the stand's places 1・2 and 5・6 yellow, 3・4 and 7・8 orange** since
+    /// Task 055, where the disk book's pairs now stand (`BookDiskKongo
+    /// .pairsAtPlaces`).
     ///
     /// The reference simulator's checkerboard and diagonal, which stood here while
     /// the page was unread, are **kept in the tests** — they are what holds the
     /// move table up, and a colouring is a question about where the recipe comes
     /// from, not about whether the table is right.
-    static let yatsuKongoS8Colouring = colouring(on: stand8, [
-        "north": ["yellow", "yellow"],   // 8, 1
-        "east": ["orange", "orange"],    // 2, 3
-        "south": ["yellow", "yellow"],   // 5, 4
-        "west": ["orange", "orange"],    // 7, 6
+    static let yatsuKongoS8Colouring = byPlace(stand8, [
+        "yellow", "yellow", "orange", "orange", "yellow", "yellow", "orange", "orange",
     ])
 
     /// Book A p.55's colouring **a** for yatsu-kongo Z, which is printed the same
@@ -502,8 +502,8 @@ enum BraidMethodCatalog {
         func zDan(_ k: Int) -> [(Int, Int)] { BookDiskKongo.dan(z, driftPerDan: -1, times: k) }
         guard let rounds = BookDiskKongo.rounds(
             source: "the disk book p.38 (八つ金剛返し組)",
-            // 1・2 is the top pair (pink, upright), `round8`'s places 8 and 1.
-            placeOneOnward: [2, 9, 10, 17, 18, 25, 26, 1],
+            // The book's pair 1・2 at the stand's places 1 and 2 (Task 055).
+            placeOneOnward: BookDiskKongo.pairsAtPlaces([1, 2, 9, 10, 17, 18, 25, 26]),
             rounds: [
                 [sDan(0), sDan(1)], [sDan(2), sDan(3)], [sDan(4), sDan(5), over],
                 [zDan(0), zDan(1)], [zDan(2), zDan(3)], [zDan(4), zDan(5), back],
@@ -514,15 +514,20 @@ enum BraidMethodCatalog {
         return rounds
     }()
 
-    /// **The book's own colouring for 返し組** (p.38 組みはじめ): the upright
-    /// pairs pink, the flat pairs orange — the same arrangement as book A p.54's
-    /// yellow and orange.
-    static let yatsuKongoGaeshi8Colouring = colouring(on: stand8, [
-        "north": ["pink", "pink"],       // 8, 1
-        "east": ["orange", "orange"],    // 2, 3
-        "south": ["pink", "pink"],       // 5, 4
-        "west": ["orange", "orange"],    // 7, 6
+    /// **The book's own colouring for 返し組** (p.38 組みはじめ): slits 1・2
+    /// and 17・18 orange, 9・10 and 25・26 pink — pair by pair, at the stand's
+    /// places 1・2 … 7・8 (Task 055; it had the two colours the other way
+    /// round). The same arrangement as book A p.54's two colours.
+    static let yatsuKongoGaeshi8Colouring = byPlace(stand8, [
+        "orange", "orange", "pink", "pink", "orange", "orange", "pink", "pink",
     ])
+
+    /// A colouring written place by place, 1 to 8.
+    private static func byPlace(_ stand: BraidStand, _ names: [String]) -> [ThreadAssignment] {
+        zip(stand.positionIDs.sorted(), names).map {
+            ThreadAssignment(position: $0.0, colorID: ThreadColorID(rawValue: $0.1))
+        }
+    }
 
     static let yatsuKongoGaeshi8Recipe = BraidRecipe(
         id: "yatsu-kongo-gaeshi-8",
@@ -746,6 +751,20 @@ enum BraidMethodCatalog {
 /// taken notch, or when the cycle does not braid every thread exactly once.
 enum BookDiskKongo {
     static let notchCount = 32
+
+    /// **The book's pairs are the stand's pairs 1・2, 3・4, 5・6, 7・8** (Task
+    /// 055). A pair of the disk — two threads in neighbouring slits, one of
+    /// which a dan lifts — keeps its two threads together through the whole
+    /// braid, and **a colour laid on a pair is what turns back as one line in
+    /// 返し組** (the author, 2026-09-23: 「全ての色が折り返す」). The author
+    /// colours by those pairs (1・2 blue, 3・4 red …), so they have to be the
+    /// book's. Until Task 055 the book's pairs stood at 8・1, 2・3, 4・5, 6・7 —
+    /// the stand's four groups — and a colour on 1・2 split two pairs, and came
+    /// apart at the turn.
+    ///
+    /// Takes the slits pair by pair, the first pair's anticlockwise slit first,
+    /// and returns them in the order of the stand's places.
+    static func pairsAtPlaces(_ slits: [Int]) -> [Int] { slits }
 
     /// One cycle of a spiral: the printed dan, and as many more as it takes to
     /// braid every thread once, each moved round by the drift.

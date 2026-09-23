@@ -89,7 +89,7 @@ struct YatsuKongoGaeshiTests {
         // After two dan, lift a thread the first dan laid (notch 3 is where
         // 17 went; the second dan has moved on a notch).
         let refused = BookDiskKongo.rounds(
-            source: "test", placeOneOnward: [2, 9, 10, 17, 18, 25, 26, 1],
+            source: "test", placeOneOnward: [1, 2, 9, 10, 17, 18, 25, 26],
             rounds: [[s, BookDiskKongo.dan(s, driftPerDan: 1, times: 1), [(3, 5)]]]
         )
         #expect(refused == nil)
@@ -124,7 +124,8 @@ struct YatsuKongoGaeshiTests {
     /// **The stitches are the S and Z braids' own all the way through**: six
     /// cycles to a repeat, every cell a cycle long, every place half a pitch
     /// from the next — the turn changes which thread is where, not the lattice
-    /// (the author, 2026-09-22), and every run leans the same way.
+    /// (the author, 2026-09-22). Each cell leans the way its thread was carried:
+    /// S's way in the S part, Z's in the Z part.
     @Test func theStitchesDoNotChangeOnlyThePattern() throws {
         let worked = try worked()
         let pattern = try #require(RoundTube8SurfacePatternGenerator.generate(
@@ -153,9 +154,9 @@ struct YatsuKongoGaeshiTests {
             })
         }
         #expect(starts(pattern) == starts(s))
-        // One stitch all through: every run leans the same way, S part and Z
-        // part alike (the author, 2026-09-22).
-        #expect(pattern.leanBySegment.allSatisfy { $0 == RoundTube8SurfacePatternGenerator.stitchLean })
+        // Both leans, as many of each: three cycles of each part.
+        #expect(pattern.leanBySegment.filter { $0 < 0 }.count == 24)
+        #expect(pattern.leanBySegment.filter { $0 > 0 }.count == 24)
     }
 
     /// **The S part is drawn as S draws it**: over the first three cycles, the
@@ -195,10 +196,83 @@ struct YatsuKongoGaeshiTests {
                 == [.yatsuKongoS8, .yatsuKongoZ8, .yatsuKongoGaeshi8, .edoYatsu8])
         #expect(BraidMethodCatalog.recipe(for: .yatsuKongoGaeshi8) == recipe)
         #expect(BraidFamilyDrawing.drawer(for: recipe) == RoundTube8SurfaceMesh.family)
-        // The book's colouring: pink upright, orange flat.
+        // The book's colouring (p.38 組みはじめ): slits 1・2 and 17・18 orange,
+        // 9・10 and 25・26 pink, pair by pair at places 1・2 … 7・8.
         let byPosition = Dictionary(uniqueKeysWithValues: recipe.colouring.map { ($0.position, $0.colorID.rawValue) })
-        #expect([8, 1, 4, 5].map { byPosition[$0] } == ["pink", "pink", "pink", "pink"])
-        #expect([2, 3, 6, 7].map { byPosition[$0] } == ["orange", "orange", "orange", "orange"])
+        #expect([1, 2, 5, 6].map { byPosition[$0] } == ["orange", "orange", "orange", "orange"])
+        #expect([3, 4, 7, 8].map { byPosition[$0] } == ["pink", "pink", "pink", "pink"])
+    }
+
+    // MARK: - Every colour turns back (Task 055)
+
+    /// **Every colour turns back as one line** (the author, 2026-09-23:
+    /// 「全ての色が折り返す」): whichever pair of the stand's places 1・2, 3・4,
+    /// 5・6, 7・8 a colour is laid on, its two threads stand side by side at every
+    /// cycle's end, through the S part, the hand-over and the Z part — read off
+    /// the occupancy history, so the drawing cannot hide it.
+    ///
+    /// **And the pairs are where that holds, not a choice of colouring**: the
+    /// same check over two threads that are not one pair (places 2 and 3) finds
+    /// them apart after the turn. Until Task 055 the book's pairs stood at
+    /// 8・1, 2・3 …, and it was the author's 1・2 that came apart.
+    @Test func everyPairStaysOneLineThroughTheTurn() throws {
+        let worked = try worked()
+        let occupancy = try #require(BraidOccupancy.history(
+            ofRounds: worked.derivation.rounds, on: stand,
+            crossSection: worked.section, cycles: worked.derivation.repeatCycleCount
+        ))
+        let columns = try #require(occupancy.columns(.landing))
+        let grid = try #require(occupancy.grid(atColumns: columns, rows: worked.derivation.repeatCycleCount))
+        func sideBySide(_ one: Int, _ other: Int, in row: [Int]) -> Bool {
+            guard let a = row.firstIndex(of: one), let b = row.firstIndex(of: other) else { return false }
+            let gap = abs(a - b)
+            return gap == 1 || gap == row.count - 1
+        }
+        for pair in [(1, 2), (3, 4), (5, 6), (7, 8)] {
+            for (index, row) in grid.enumerated() {
+                #expect(sideBySide(pair.0, pair.1, in: row), "places \(pair.0)・\(pair.1), cycle \(index)")
+            }
+        }
+        #expect(grid.contains { !sideBySide(2, 3, in: $0) })
+    }
+
+    /// **On the drawing too, a pair is one line all the way through** (Task
+    /// 055): for S, Z and 返し組, every run whose partner is laid half a cycle
+    /// after it, beside it, leans toward that partner — so its tail goes under
+    /// a run of its own colour line, and a colour laid on a pair turns back
+    /// without a fragment of another colour. Until Task 055 the runs leaned the
+    /// carry's way, which in Z and in the last cycle before each turn put the
+    /// tail under the next pair.
+    @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe,
+                      BraidMethodCatalog.yatsuKongoGaeshi8Recipe])
+    func everyRunLeansTowardThePartnerLaidAfterIt(recipe: BraidRecipe) throws {
+        let worked = try #require(recipe.worked(on: stand))
+        let drawn = try #require(RoundTube8SurfacePatternGenerator.generate(
+            stand: stand, rounds: worked.derivation.rounds,
+            crossSection: worked.section, assignments: recipe.colouring
+        ))
+        let rows = Float(drawn.rowCount)
+        let partner = [1: 2, 2: 1, 3: 4, 4: 3, 5: 6, 6: 5, 7: 8, 8: 7]
+        let cells = drawn.surface.segments
+        var leading = 0
+        for (index, cell) in cells.enumerated() {
+            let place = Int((cell.centerlineStart.x * 8).rounded(.down))
+            let start = cell.centerlineStart.y * rows
+            // The partner's run half a cycle later, beside it.
+            guard let later = cells.first(where: { other in
+                guard other.threadPosition == partner[cell.threadPosition] else { return false }
+                let gap = (other.centerlineStart.y * rows - start - 0.5)
+                    .truncatingRemainder(dividingBy: rows)
+                return abs(gap) < 1e-4 || abs(abs(gap) - rows) < 1e-4
+            }) else { continue }
+            let there = Int((later.centerlineStart.x * 8).rounded(.down))
+            let side = ((there - place) % 8 + 8) % 8
+            guard side == 1 || side == 7 else { continue }
+            leading += 1
+            #expect(drawn.leanBySegment[index] == (side == 1 ? 1 : -1),
+                    "\(recipe.id): thread \(cell.threadPosition) at place \(place + 1), cycle \(start)")
+        }
+        #expect(leading == cells.count / 2)
     }
 
     // MARK: - The derivation with tables in turn
