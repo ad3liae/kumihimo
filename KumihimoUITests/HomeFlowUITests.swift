@@ -116,12 +116,9 @@ final class HomeFlowUITests: XCTestCase {
         XCTAssertFalse(app.buttons["3Dで見る"].exists)
         thumbnailButton.tap()
 
-        if app.frame.width >= 900 {
-            XCTAssertTrue(app.buttons["結果へ戻る"].waitForExistence(timeout: 10))
-            XCTAssertTrue(app.staticTexts["色の配置"].exists)
-        } else {
-            XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 10))
-        }
+        // Task 058: a sheet at every width, titled with the recipe's name.
+        XCTAssertTrue(app.navigationBars["丸源氏組"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["丸源氏組"].buttons["閉じる"].exists)
         XCTAssertTrue(app.buttons["左へ回転"].exists)
         XCTAssertTrue(app.buttons["正面に戻す"].exists)
         XCTAssertTrue(app.buttons["右へ回転"].exists)
@@ -154,11 +151,7 @@ final class HomeFlowUITests: XCTestCase {
         XCTAssertEqual(thumbnail.label, "平源氏を3Dで見る")
         thumbnail.tap()
 
-        if app.frame.width >= 900 {
-            XCTAssertTrue(app.buttons["結果へ戻る"].waitForExistence(timeout: 10))
-        } else {
-            XCTAssertTrue(app.navigationBars["平源氏・3D試作"].waitForExistence(timeout: 10))
-        }
+        XCTAssertTrue(app.navigationBars["平源氏組"].waitForExistence(timeout: 10))
         let surface = app.descendants(matching: .any)["hira-genji-3d-surface"].firstMatch
         XCTAssertTrue(surface.waitForExistence(timeout: 10))
         let rendered = expectation(
@@ -214,13 +207,14 @@ final class HomeFlowUITests: XCTestCase {
         }
     }
 
-    func testWideIPadEditorUsesInline3DAndKeepsColorControlsVisible() throws {
+    func testWideIPadEditorOpensDetailAsSheetThatSurvivesRotation() throws {
         XCUIDevice.shared.orientation = .landscapeLeft
         defer { XCUIDevice.shared.orientation = .portrait }
         let app = launch(arguments: ["--ui-testing-colorful-editor"])
         guard app.frame.width >= 900 else {
             throw XCTSkip("This check requires an iPad landscape-sized destination")
         }
+        addScreenshot(named: "ipad-landscape-editor")
 
         let preset = element(
             in: app,
@@ -238,15 +232,17 @@ final class HomeFlowUITests: XCTestCase {
         XCTAssertTrue(thumbnail.isHittable)
         thumbnail.tap()
 
-        XCTAssertTrue(app.buttons["結果へ戻る"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["色の配置"].exists)
+        // Task 058: the detail is a sheet here too, and turning the iPad neither
+        // closes it nor moves it.
+        XCTAssertTrue(app.navigationBars["丸源氏組"].waitForExistence(timeout: 10))
         assertSurfaceRendered(in: app)
-        addScreenshot(named: "ipad-landscape-inline-3d")
+        addScreenshot(named: "ipad-landscape-detail-sheet")
 
         XCUIDevice.shared.orientation = .portrait
-        XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["丸源氏組"].waitForExistence(timeout: 10))
         assertSurfaceRendered(in: app)
-        app.buttons["閉じる"].tap()
+        addScreenshot(named: "ipad-detail-sheet-after-turning-upright")
+        app.navigationBars["丸源氏組"].buttons["閉じる"].tap()
 
         XCTAssertTrue(app.staticTexts["色の配置"].waitForExistence(timeout: 3))
         XCTAssertEqual(
@@ -261,7 +257,7 @@ final class HomeFlowUITests: XCTestCase {
         XCTAssertEqual(selectedPreset.value as? String, "選択中")
     }
 
-    func testIPadPortraitUsesSingleColumnAndFullScreen3D() throws {
+    func testIPadPortraitUsesSingleColumnAndOpensDetailSheet() throws {
         XCUIDevice.shared.orientation = .portrait
         let app = launch(arguments: ["--ui-testing-colorful-editor"])
         guard app.frame.width > 700, app.frame.width < 900 else {
@@ -275,9 +271,9 @@ final class HomeFlowUITests: XCTestCase {
         )
         thumbnail.tap()
 
-        XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.navigationBars["丸源氏組"].waitForExistence(timeout: 10))
         assertSurfaceRendered(in: app)
-        addScreenshot(named: "ipad-portrait-full-screen-3d")
+        addScreenshot(named: "ipad-portrait-detail-sheet")
     }
 
     func testVerifiedSurfaceNoticeAndControlsRemainVisibleInDarkAccessibilityText() {
@@ -329,7 +325,7 @@ final class HomeFlowUITests: XCTestCase {
         XCTAssertEqual(undecided.value as? String, "選択中")
         undecided.tap()
         XCTAssertEqual(undecided.value as? String, "選択中")
-        XCTAssertTrue(app.staticTexts["この本数の組み方はまだありません"].exists)
+        XCTAssertTrue(app.staticTexts["この台と本数の組み方はまだありません"].exists)
     }
 
     func testDeleteCanBeCancelledThenConfirmed() {

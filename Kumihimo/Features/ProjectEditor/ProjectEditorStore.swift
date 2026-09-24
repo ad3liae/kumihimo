@@ -87,7 +87,10 @@ final class ProjectEditorStore {
     }
 
     var availableBraidPresets: [BraidPreset] {
-        BraidPresetCatalog.availablePresets(threadCount: draft.threadCount)
+        BraidPresetCatalog.availablePresets(
+            threadCount: draft.threadCount,
+            standKind: draft.standKind
+        )
     }
 
     var isProposedNameValid: Bool {
@@ -174,6 +177,14 @@ final class ProjectEditorStore {
         showsThreadCountReductionConfirmation = false
     }
 
+    /// Changes the stand. **A braid the new stand does not offer is unselected and
+    /// the colours stay**, the same as changing the thread count.
+    func selectStandKind(_ kind: BraidStandKind) {
+        guard kind != draft.standKind else { return }
+        draft.standKind = kind
+        clearBraidPresetIfUnavailable()
+    }
+
     func selectColor(_ colorID: ThreadColorID) {
         guard let selectedThreadPosition else { return }
         self.selectedThreadPosition = nil
@@ -188,7 +199,8 @@ final class ProjectEditorStore {
         }
         guard
             let preset = BraidPresetCatalog.preset(for: id),
-            preset.supports(threadCount: draft.threadCount)
+            preset.supports(threadCount: draft.threadCount),
+            preset.supports(standKind: draft.standKind)
         else {
             return
         }
@@ -199,10 +211,12 @@ final class ProjectEditorStore {
     private func applyThreadCount(_ count: Int) {
         selectedThreadCount = count
         draft.setThreadCount(count)
-        if
-            let selectedBraidPresetID = draft.selectedBraidPresetID,
-            BraidPresetCatalog.preset(for: selectedBraidPresetID)?.supports(threadCount: count) != true
-        {
+        clearBraidPresetIfUnavailable()
+    }
+
+    private func clearBraidPresetIfUnavailable() {
+        guard let selectedBraidPresetID = draft.selectedBraidPresetID else { return }
+        if !availableBraidPresets.contains(where: { $0.id == selectedBraidPresetID }) {
             selectBraidPreset(nil)
         }
     }

@@ -16,6 +16,11 @@ import simd
 struct BraidStand: Equatable, Sendable {
     let id: String
 
+    /// Which kind of stand a person sets up to braid on it — round or square
+    /// (Task 058). **The derivation never reads this.** It is what the screens let
+    /// a person choose by, and a braid's stand says which it is.
+    let kind: BraidStandKind
+
     /// The positions, in rim order. The order is the braid's own cyclic order of
     /// the stand, so it is held as an array rather than recovered by sorting.
     let positions: [BraidPosition]
@@ -54,6 +59,16 @@ struct BraidStand: Equatable, Sendable {
     }
 }
 
+/// The kinds of stand a person can choose between (Task 058).
+///
+/// **The disk counts as round.** The disk braids in this repository are set up
+/// on `BraidStands.round*`, the same round rim as a 丸台, so the kind follows
+/// the stand and not the tool. The raw value is what a saved project writes.
+enum BraidStandKind: String, CaseIterable, Sendable {
+    case round
+    case square
+}
+
 struct BraidPosition: Equatable, Sendable {
     let id: Int
 
@@ -90,7 +105,7 @@ enum BraidStands {
                 point: SIMD2<Double>(sin(angle), cos(angle))
             )
         }
-        return BraidStand(id: id, positions: positions, groups: groups)
+        return BraidStand(id: id, kind: .round, positions: positions, groups: groups)
     }
 
     /// The sixteen-position round stand both known methods are worked on, with the

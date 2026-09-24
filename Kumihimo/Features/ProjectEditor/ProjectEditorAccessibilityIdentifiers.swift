@@ -1,4 +1,5 @@
 enum ProjectEditorAccessibilityIdentifiers {
+    static let standPicker = "project-editor.stand-picker"
     static let threadCountPicker = "project-editor.thread-count-picker"
     static let undecidedPresetButton = "project-editor.preset-undecided"
 

@@ -43,6 +43,7 @@ struct ProjectEditorPersistenceService {
             braidTypeName: draft.braidTypeName,
             selectedBraidRecipeID: draft.savedBraidKey,
             threadCount: draft.threadCount,
+            standKind: draft.standKind,
             threadAssignments: draft.threadAssignments,
             thumbnailData: draft.thumbnailData,
             createdAt: timestamp,
@@ -63,6 +64,7 @@ struct ProjectEditorPersistenceService {
         project.braidTypeName = draft.braidTypeName
         project.selectedBraidRecipeID = draft.savedBraidKey
         project.threadCount = draft.threadCount
+        project.standKind = draft.standKind
         project.threadAssignments = draft.threadAssignments
         project.thumbnailData = draft.thumbnailData
         project.updatedAt = now()
@@ -82,6 +84,7 @@ struct ProjectEditorPersistenceService {
             guard
                 let preset = BraidPresetCatalog.preset(for: presetID),
                 preset.supports(threadCount: project.threadCount),
+                preset.supports(standKind: project.standKind),
                 project.braidTypeName == preset.displayName
             else {
                 throw ProjectEditorPersistenceError.invalidProjectData

@@ -70,6 +70,7 @@ struct KumihimoProject {
     var id: UUID
     var name: String
     var selectedBraidPresetID: BraidPresetID?
+    var standKind: BraidStandKind
     var threadCount: Int
     var threadAssignments: [ThreadAssignment]
     var thumbnailData: Data?
@@ -84,13 +85,19 @@ struct KumihimoProject {
 
 `ThreadAssignment` は少なくとも、天板上で変わらない位置番号と色IDを持つ。配列の添字だけを永続的な位置識別子として扱わない。
 
+`standKind` は組紐台の種類（`BraidStandKind`: 丸台 `round`・角台 `square`。2026-09-24、Task 058）。SwiftData には
+既定値 `"round"` つきの文字列の列 `standKindRawValue` として保存し、型のついた `standKind` を通して読む。**台を持たない
+既存の保存は、この既定値で丸台として開く**（前のスキーマで書いた store を開く試験 `aSaveWrittenBeforeStandsOpensOnARoundStand`）。
+知らない値も丸台として読む。プリセットの台は書かずに**レシピの台（`BraidStand.kind`）から読む**。導出は `kind` を読まない。
+組ひもディスクの組み方は `round*` の台に置いてあるので丸台に数える。
+
 ### データ上の不変条件
 
 - `id` は作品作成時に生成し、その後変更しない。
 - `name` は空白文字だけにしない。
 - `threadCount` は正の値とする。
 - `threadAssignments` の有効な位置数は `threadCount` と一致する。
-- `selectedBraidPresetID` がある場合は、そのプリセットが現在の糸本数に対応している。
+- `selectedBraidPresetID` がある場合は、そのプリセットが現在の糸本数と台に対応している。
 - `updatedAt` は作品内容の保存時に更新する。
 - 色は表示名だけでなく、再現可能な色値を保持する。
 
@@ -141,7 +148,7 @@ struct KumihimoProject {
 
 - アプリターゲットはiPhoneとiPadをネイティブにサポートする。
 - iPhoneのコンパクト幅では、従来の1列スクロールと `NavigationStack` を維持する。
-- 十分な横幅がある場合、作品編集画面は配色設定とシミュレーション結果を左右へ分け、3Dを右側の主要コンテンツとして表示できる構成にする。
+- 十分な横幅がある場合、作品編集画面は配色設定とシミュレーション結果を左右へ分ける。**組み方の詳細（3Dと模様図）は右列を置き換えず、どの幅でもシートで開く**（iOS 18 以降は `.presentationSizing(.page)`。2026-09-24、Task 058）。回転や幅の変化で詳細が閉じたり移ったりしない。
 - iPadという端末種別だけで分岐せず、Split View、Stage Manager、画面回転、Dynamic Typeを含む実際の利用可能幅に応じて配置を切り替える。
 - 狭いiPadウインドウではiPhone相当の1列構成へ安全に戻す。
 

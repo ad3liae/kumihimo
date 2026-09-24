@@ -81,8 +81,6 @@ enum BraidPatternStrings {
     /// A braid whose figure cannot be worked out. **Short**, because it stands
     /// where the figure would be.
     static let nothingToShow = "この組み方の模様図は描けません"
-    static let twoDimensions = "模様図"
-    static let threeDimensions = "立体"
     /// Shown under a tube's figure when the figure says something about itself is
     /// unsettled. **The figure's own notes are developer-facing English** — and
     /// `BraidCrossSection.unsettled` says in as many words that it is not display

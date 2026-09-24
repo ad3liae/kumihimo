@@ -9,6 +9,8 @@ enum ProjectEditorStrings {
     static let saveAsTitle = "名前をつけて保存"
     static let projectName = "作品名"
     static let cancel = "キャンセル"
+    static let standSection = "組紐台"
+    static let stand = "台"
     static let threadCountSection = "糸の本数"
     static let threadCount = "本数"
     static let colorPlacementSection = "色の配置"
@@ -18,8 +20,18 @@ enum ProjectEditorStrings {
     static let simulationCalculating = "完成イメージを計算中"
     static let simulationFailedTitle = "完成イメージを生成できませんでした"
     static let simulationFailedMessage = "配色はこのまま保存できます。"
-    static let noCompatiblePresetTitle = "この本数の組み方はまだありません"
-    static let noCompatiblePresetMessage = "16本を選ぶと、丸源氏の試作シミュレーションを表示できます。配色はこのまま保存できます。"
+    static let noCompatiblePresetTitle = "この台と本数の組み方はまだありません"
+    /// **What to try instead depends on the stand.** On a round stand another
+    /// thread count has braids; a square stand has none yet at any count, so
+    /// pointing it at sixteen would send the reader nowhere.
+    static func noCompatiblePresetMessage(standKind: BraidStandKind) -> String {
+        switch standKind {
+        case .round:
+            "16本を選ぶと、丸源氏の試作シミュレーションを表示できます。配色はこのまま保存できます。"
+        case .square:
+            "丸台を選ぶと、試作シミュレーションを表示できます。配色はこのまま保存できます。"
+        }
+    }
     static let undecidedBraid = "組み方をまだ決めない"
     static let selectionSelected = "選択中"
     static let selectionNotSelected = "未選択"
@@ -61,10 +73,18 @@ enum ProjectEditorStrings {
     static let saveErrorMessage = "編集内容は残っています。もう一度お試しください。"
     static let retry = "再試行"
     static let dismiss = "閉じる"
-    static let backToResults = "結果へ戻る"
     static let loadErrorTitle = "作品を読み込めませんでした"
     static let loadErrorMessage = "作品が削除されたか、保存データを読み込めませんでした。"
     static let loading = "読み込み中"
+
+    /// **The one place a stand's name is written.** The home screen's rows read it
+    /// from here too.
+    static func standName(_ kind: BraidStandKind) -> String {
+        switch kind {
+        case .round: "丸台"
+        case .square: "角台"
+        }
+    }
 
     static func threadCountValue(_ count: Int) -> String { "\(count)本" }
     static func copyName(from name: String) -> String { "\(name)のコピー" }

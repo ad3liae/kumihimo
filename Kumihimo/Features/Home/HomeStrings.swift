@@ -24,13 +24,23 @@ enum HomeStrings {
         "“\(projectName)”を削除しますか？"
     }
 
+    /// The line under a project's name: braid, stand, threads.
+    static func projectSummary(
+        braidTypeName: String,
+        standName: String,
+        threadCount: Int
+    ) -> String {
+        "\(braidTypeName) ・ \(standName) ・ \(Self.threadCount(threadCount))"
+    }
+
     static func projectAccessibilityLabel(
         name: String,
         braidTypeName: String,
+        standName: String,
         threadCount: Int,
         updatedAt: String
     ) -> String {
-        "\(name)、\(braidTypeName)、糸\(threadCount)本、最終更新 \(updatedAt)"
+        "\(name)、\(braidTypeName)、\(standName)、糸\(threadCount)本、最終更新 \(updatedAt)"
     }
 
     static let openProjectHint = "編集画面を開きます"

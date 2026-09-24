@@ -2,12 +2,13 @@ import SwiftUI
 
 struct SimulationResultsBoundaryView: View {
     let state: ProjectEditorStore.SimulationResultsState
+    let standKind: BraidStandKind
     let threadCount: Int
     let assignments: [ThreadAssignment]
     let presets: [BraidPreset]
     let selectedPresetID: BraidPresetID?
     let selectPreset: (BraidPresetID?) -> Void
-    let show3DPreview: (BraidPreset) -> Void
+    let showDetail: (BraidPreset) -> Void
 
     var body: some View {
         VStack(spacing: 12) {
@@ -41,13 +42,13 @@ struct SimulationResultsBoundaryView: View {
                         systemImage: "circle.grid.cross"
                     )
                 } description: {
-                    Text(ProjectEditorStrings.noCompatiblePresetMessage)
+                    Text(ProjectEditorStrings.noCompatiblePresetMessage(standKind: standKind))
                 }
             } else {
                 ForEach(presets) { preset in
                     VStack(alignment: .leading, spacing: 12) {
                         Button {
-                            show3DPreview(preset)
+                            showDetail(preset)
                         } label: {
                             thumbnail(for: preset)
                                 .frame(height: 112)

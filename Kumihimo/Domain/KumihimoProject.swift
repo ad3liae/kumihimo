@@ -16,6 +16,13 @@ final class KumihimoProject {
     /// `BraidSavedBraid`, never directly.
     @Attribute(originalName: "selectedBraidPresetID") var selectedBraidRecipeID: String?
     var threadCount: Int
+    /// **The stand, by its kind's raw value** (Task 058). Read it through
+    /// `standKind`.
+    ///
+    /// The default is what lets a save written before there was a stand to choose
+    /// — one with no such column — open on a round stand, which is what every
+    /// braid it could have named was set up on.
+    private var standKindRawValue: String = BraidStandKind.round.rawValue
     private var threadAssignmentsData: Data = Data()
     var thumbnailData: Data?
     var createdAt: Date
@@ -27,6 +34,7 @@ final class KumihimoProject {
         braidTypeName: String = undecidedBraidName,
         selectedBraidRecipeID: String? = nil,
         threadCount: Int,
+        standKind: BraidStandKind = .round,
         threadAssignments: [ThreadAssignment]? = nil,
         thumbnailData: Data? = nil,
         createdAt: Date = .now,
@@ -37,12 +45,20 @@ final class KumihimoProject {
         self.braidTypeName = braidTypeName
         self.selectedBraidRecipeID = selectedBraidRecipeID
         self.threadCount = max(1, threadCount)
+        self.standKindRawValue = standKind.rawValue
         self.threadAssignmentsData = Self.encodeAssignments(
             threadAssignments ?? Self.defaultAssignments(count: max(1, threadCount))
         )
         self.thumbnailData = thumbnailData
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+    }
+
+    /// The stand this project is braided on. **A value this build does not know
+    /// reads as round**, the same as a save that has none.
+    var standKind: BraidStandKind {
+        get { BraidStandKind(rawValue: standKindRawValue) ?? .round }
+        set { standKindRawValue = newValue.rawValue }
     }
 
     var threadAssignments: [ThreadAssignment] {
