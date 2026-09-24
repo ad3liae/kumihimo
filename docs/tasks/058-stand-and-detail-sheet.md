@@ -1,6 +1,6 @@
 # Task 058: 組紐台（丸台・角台）を選べるようにし、詳細をシートで開く
 
-- 状態: **実装済み・PR 前**（2026-09-24、Claude Code。枝 `claude/task-058-stand-and-detail`）。結果は末尾。**作者の見え方の確認は無い**。
+- 状態: **実装済み・PR #42 でマージ**（2026-09-24、Claude Code。枝 `claude/task-058-stand-and-detail`。作者が PR の作成とマージを許可した。見え方の受領ではない）。結果は末尾。**作者の見え方の確認は無い**。
   指示書は **worker へそのまま渡す。承認待ちの段は挟まない**（042 以降の型）
 - 前提（先に読むこと）: **`docs/specifications/project-editor.md`**（「組紐台」「詳細」の節と受け入れ条件。
   審査側がこの指示書と同時に書き直した）、`docs/specifications/home-screen.md`（行に台を足した）、`AGENTS.md`
