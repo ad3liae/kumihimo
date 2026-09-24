@@ -249,3 +249,62 @@
 - 作者の実際の保存の移行（初めて開いたときに走る）。
 - 角台の組み方・角台の俯瞰図（やらないこと）。
 
+---
+
+## 追補1（2026-09-24、作者）: 「組み方をまだ決めない」をカードにして、結果の見出しの上へ
+
+作者:「組み方をまだ決めない、というのはなくていい。組み方は選択せず、台と本数、色の組み合わせのみを保存というような
+文章になるかな？ カードにしていい。そして場所を組み方別シミュレーション結果のタイトルの上へ配置。組み方別〜は
+八つ金剛などを引き続き配置。」
+
+仕様（`project-editor.md` の「全体構成」「選択」と受け入れ条件）は審査側が書き直した。やること:
+
+1. **`SimulationResultsBoundaryView` の先頭の「組み方をまだ決めない」の行を、その節から外す。**
+   節（見出し「組み方別のシミュレーション結果」）の中は、組み方のカードだけにする。
+2. **「組み方を選ばない」のカードを、その見出しの上に置く。** 見出し「組み方を選ばない」、説明
+   「台と本数、色の組み合わせだけを保存します」（`ProjectEditorStrings`。旧 `undecidedBraid` は置き換える）。
+   1列では「色の配置」と結果の見出しのあいだ、2列では右列の一番上。
+3. **選択の示し方は組み方のカードと同じ**（チェックマークと境界線、色だけで示さない）。サムネイル・3D の印・
+   詳細は持たない。タップで選択（`selectPreset(nil)`）。
+4. 選ばれているのは、このカードと組み方のカードを合わせていつも1つ。新規作品の初期状態はこのカード。
+5. アクセシビリティ識別子（`undecidedPresetButton`）は、試験と UI テストが使っているなら名前を変えずに移してよい。
+   VoiceOver の名前は「組み方を選ばない」、値に選択状態。
+
+**変えないもの**: 保存の中身（組み方を選ばない作品は `selectedBraidRecipeID == nil`、保存名は
+`KumihimoProject.undecidedBraidName`＝「組み方未選択」のまま）。ホームの行の「組み方未選択」も今回は変えない。
+
+**確かめること**: iPhone 16 縦と iPad Pro 11 横で、カードが結果の見出しの上にあるスクリーンショット
+（`.build/task058/`）。選択の切り替え（カード ⇄ 組み方）で、選ばれているのがいつも1つであること。
+全件の件数とテスト段階の秒数。
+
+### 追補1の結果（2026-09-24、Claude Code。枝 `claude/task-058-addendum-1`。**PR #43 でマージ**——作者が PR の作成とマージを許可した）
+
+1. **行を節から外した**: `SimulationResultsBoundaryView` は組み方のカードだけになった（計算中・失敗・「まだありません」の表示も
+   この節の中のまま）。
+2. **カード `NoBraidCard`**（`Kumihimo/Features/ProjectEditor/NoBraidCard.swift`）を、1列では「色の配置」と結果の見出しのあいだ、
+   2列では右列の一番上に置いた。見出し「組み方を選ばない」、説明「台と本数、色の組み合わせだけを保存します」
+   （`ProjectEditorStrings.noBraidTitle`・`noBraidMessage`。旧 `undecidedBraid` は消した）。
+3. **選択の示し方は組み方のカードと同じ**: チェックマークの行（`BraidSelectionRow`）とカードの地・境界線（`braidChoiceCard(isSelected:)`）を
+   組み方のカードから取り出して、両方で使う。組み方のカードの見た目は変わらない。サムネイル・3Dの印・詳細は無い。
+   カード全体がボタンで、余白を押しても選べる（`selectBraidPreset(nil)`）。
+4. **選ばれているのはいつも1つ**: `exactlyOneChoiceIsChosenAtATime`（4・8・12・16本それぞれ。画面と同じ判定
+   `NoBraidCard.isSelected`・`SimulationResultsBoundaryView.isSelected` で数える）。新規作品はこのカードから始まる。
+   シミュレータでも カード → 丸源氏 → カード と切り替えて、チェックと境界線がいつも1枚にだけ付くのを見た。
+5. アクセシビリティ識別子は `undecidedPresetButton`（`project-editor.preset-undecided`）のまま移した。VoiceOver の名前は
+   「組み方を選ばない」、説明はヒント、値は「選択中」／「未選択」。**VoiceOver を実際に当てての確認はしていない。**
+
+**変えていないもの**: 保存の中身（`selectedBraidRecipeID == nil`、保存名「組み方未選択」）とホームの行。試験
+`theNoBraidCardSaysWhatIsSaved` で保存名が変わっていないことも押さえた。
+
+**スクリーンショット**（`.build/task058/`）: `addendum1-iphone16-no-braid-card-selected.png`（iPhone 16 縦、色の配置 → カード → 結果の見出し）、
+`addendum1-iphone16-braid-selected.png`（丸源氏を選ぶとカードの印が外れる）、`addendum1-ipad-landscape-editor.png`
+（iPad Pro 11 横、右列の一番上にカード。UI テスト `testWideIPadEditorOpensDetailAsSheetThatSurvivesRotation` を単独で回して撮った。通過）。
+
+**検証**: 全件1回（`.build/test-results/task058a1-full.xcresult`、iPhone 16 `9EF8CDC3…`、`-only-testing:KumihimoTests`、上限 300000 ミリ秒・
+1件 60 秒、並列なし）: **507件中 成功502・失敗0・スキップ5**。打ち切りなし。**テスト段階 166.9 秒**（起動 10.6 秒）、
+試験ごとの時間の和 155.0 秒。件数は 505 → 507（試験2つ、うち1つは本数4通り）。新しい試験の和は 0.06 秒。
+**和が前回（126.6 秒）より 28 秒長いのは、この変更と関係のない重いメッシュの試験が一様に 15〜30% 遅かったため**
+（`test_times.py --compare` で上位 25 件すべて。この実行のときシミュレータが3台起動していた——iPhone 16・iPad Pro 11・作者の iPad 10th gen。
+iPad Pro 11 はあとで落とした）。全件は回し直していない。形状ハッシュは不変、`check-braiding-is-general.sh` 通過、ビルドの警告なし。
+UI テストは上の1件だけ回した（識別子を使う残りの3件は回していない）。
+

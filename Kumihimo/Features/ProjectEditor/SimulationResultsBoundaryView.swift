@@ -10,25 +10,18 @@ struct SimulationResultsBoundaryView: View {
     let selectPreset: (BraidPresetID?) -> Void
     let showDetail: (BraidPreset) -> Void
 
+    /// **Only braids.** Choosing no braid is a card of its own above this
+    /// section's heading (`NoBraidCard`, Task 058 追補1).
     var body: some View {
         VStack(spacing: 12) {
-            Button {
-                selectPreset(nil)
-            } label: {
-                selectionRow(
-                    title: ProjectEditorStrings.undecidedBraid,
-                    isSelected: selectedPresetID == nil
-                )
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier(
-                ProjectEditorAccessibilityIdentifiers.undecidedPresetButton
-            )
-
             resultsContent
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
+    }
+
+    static func isSelected(_ preset: BraidPreset, selectedPresetID: BraidPresetID?) -> Bool {
+        selectedPresetID == preset.id
     }
 
     @ViewBuilder
@@ -71,10 +64,10 @@ struct SimulationResultsBoundaryView: View {
                         Button {
                             selectPreset(preset.id)
                         } label: {
-                            selectionRow(
+                            BraidSelectionRow(
                                 title: preset.displayName,
                                 subtitle: ProjectEditorStrings.threadCountValue(threadCount),
-                                isSelected: selectedPresetID == preset.id
+                                isSelected: Self.isSelected(preset, selectedPresetID: selectedPresetID)
                             )
                         }
                         .buttonStyle(.plain)
@@ -86,15 +79,9 @@ struct SimulationResultsBoundaryView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
-                    .padding()
-                    .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 16))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                selectedPresetID == preset.id ? Color.accentColor : .clear,
-                                lineWidth: 2
-                            )
-                    }
+                    .braidChoiceCard(
+                        isSelected: Self.isSelected(preset, selectedPresetID: selectedPresetID)
+                    )
                 }
             }
         case .calculating:
@@ -132,12 +119,16 @@ struct SimulationResultsBoundaryView: View {
     private func prototypeNotice(for preset: BraidPreset) -> String {
         preset.prototypeNotice
     }
+}
 
-    private func selectionRow(
-        title: String,
-        subtitle: String? = nil,
-        isSelected: Bool
-    ) -> some View {
+/// A choice's name, what it means, and whether it is the one chosen — **a check
+/// as well as the border**, so being chosen is not told by colour alone.
+struct BraidSelectionRow: View {
+    let title: String
+    var subtitle: String?
+    let isSelected: Bool
+
+    var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -162,5 +153,18 @@ struct SimulationResultsBoundaryView: View {
                 ? ProjectEditorStrings.selectionSelected
                 : ProjectEditorStrings.selectionNotSelected
         )
+    }
+}
+
+extension View {
+    /// The card a choice sits on. **The same for a braid and for no braid**, so
+    /// being chosen looks the same on both: an accent border.
+    func braidChoiceCard(isSelected: Bool) -> some View {
+        padding()
+            .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 16))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 2)
+            }
     }
 }

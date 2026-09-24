@@ -237,6 +237,43 @@ struct BraidStandAndDetailTests {
         #expect(BraidDetailSheet.title(for: BraidPresetCatalog.maruGenji) == "丸源氏組")
     }
 
+    // MARK: 追補1: choosing no braid is a card above the results
+
+    /// **Of the no-braid card and the braids' cards, exactly one is chosen**,
+    /// whichever was tapped last, and a new project starts on the no-braid card.
+    /// Counted the way the screen draws them.
+    @Test(arguments: ProjectDraft.supportedThreadCounts)
+    func exactlyOneChoiceIsChosenAtATime(threadCount: Int) throws {
+        let store = try makeStore()
+        store.requestThreadCount(threadCount)
+        store.confirmThreadCountReduction()
+        func chosen() -> (noBraid: Bool, count: Int) {
+            let selected = store.draft.selectedBraidPresetID
+            let noBraid = NoBraidCard.isSelected(selectedPresetID: selected)
+            let braids = store.availableBraidPresets.filter {
+                SimulationResultsBoundaryView.isSelected($0, selectedPresetID: selected)
+            }.count
+            return (noBraid, (noBraid ? 1 : 0) + braids)
+        }
+
+        #expect(chosen() == (true, 1))
+        for preset in store.availableBraidPresets {
+            store.selectBraidPreset(preset.id)
+            #expect(chosen() == (false, 1), "\(preset.id.rawValue)")
+            store.selectBraidPreset(nil)
+            #expect(chosen() == (true, 1), "\(preset.id.rawValue)")
+            // What is saved for no braid is unchanged.
+            #expect(store.draft.braidTypeName == KumihimoProject.undecidedBraidName)
+        }
+    }
+
+    @Test func theNoBraidCardSaysWhatIsSaved() {
+        #expect(ProjectEditorStrings.noBraidTitle == "組み方を選ばない")
+        #expect(ProjectEditorStrings.noBraidMessage == "台と本数、色の組み合わせだけを保存します")
+        // The home screen still calls such a project 「組み方未選択」.
+        #expect(KumihimoProject.undecidedBraidName == "組み方未選択")
+    }
+
     // MARK: helpers
 
     private func makeContainer() throws -> ModelContainer {
