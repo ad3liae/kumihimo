@@ -93,20 +93,9 @@ struct BraidScreenChoosesByFamilyTests {
         #expect(BraidMethodCatalog.recipe(for: BraidPresetID(rawValue: "not-a-braid")) == nil)
     }
 
-    /// **A full-screen preview always has a way out.** The solid drawers dismiss
-    /// from a navigation bar of their own; the figure has no bar, and neither has
-    /// the empty space a braid nothing draws, so the screen puts a dismiss button
-    /// beside the picker for those two. Task 008's eight-thread braids are the
-    /// first shipped braids that reach the second case.
-    @Test(arguments: BraidPresetCatalog.presets)
-    func aPreviewShownOnItsOwnCanAlwaysBeLeft(preset: BraidPreset) throws {
-        let recipe = try #require(BraidMethodCatalog.recipe(for: preset.id))
-        // The figure never has a bar of its own.
-        #expect(BraidPreviewForFamily.needsItsOwnWayOut(recipe: recipe, showingFigure: true))
-        // Solid: only when a drawer draws it does the drawer's own bar carry one.
-        #expect(BraidPreviewForFamily.needsItsOwnWayOut(recipe: recipe, showingFigure: false)
-                == (BraidFamilyDrawing.drawer(for: recipe) == nil))
-    }
+    // `aPreviewShownOnItsOwnCanAlwaysBeLeft` went with Task 058: the detail is a
+    // sheet whose own bar always carries 閉じる, so no preview is shown on its own
+    // from the editor any more. `BraidStandAndDetailTests` holds the sheet's title.
 
     /// The notice each braid carries moved from a branch in the view onto the
     /// preset. **The wording did not change.**

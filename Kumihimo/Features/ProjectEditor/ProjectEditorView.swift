@@ -2,13 +2,10 @@ import SwiftUI
 
 struct ProjectEditorView: View {
     @Bindable var store: ProjectEditorStore
-    @State private var previewPreset: BraidPreset?
-    @State private var compactPreviewPreset: BraidPreset?
-    @State private var currentLayout = ProjectEditorLayout.singleColumn
+    /// The braid whose detail is open. **A sheet at every width** (Task 058), so
+    /// turning the device or resizing the window neither closes it nor moves it.
+    @State private var detailPreset: BraidPreset?
     @StateObject private var previewController = RoundTube16ViewerController()
-    /// Which of the two the preview is showing. **Not a new screen** — the same
-    /// place, switched.
-    @State private var previewShowsFigure = false
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
@@ -58,8 +55,13 @@ struct ProjectEditorView: View {
                 )
             }
         }
-        .fullScreenCover(item: $compactPreviewPreset) { preset in
-            preview(for: preset, isEmbedded: false)
+        .sheet(item: $detailPreset) { preset in
+            BraidDetailSheet(
+                preset: preset,
+                assignments: store.draft.threadAssignments,
+                controller: previewController
+            )
+            .braidDetailSheetSizing()
         }
         .alert(
             ProjectEditorStrings.reduceThreadCountTitle,
@@ -99,28 +101,13 @@ struct ProjectEditorView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .onAppear { currentLayout = layout }
-            .onChange(of: layout) { _, newLayout in
-                currentLayout = newLayout
-                switch newLayout {
-                case .singleColumn:
-                    if let previewPreset {
-                        compactPreviewPreset = previewPreset
-                        self.previewPreset = nil
-                    }
-                case .twoColumn:
-                    if let compactPreviewPreset {
-                        previewPreset = compactPreviewPreset
-                        self.compactPreviewPreset = nil
-                    }
-                }
-            }
         }
     }
 
     private var singleColumnContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
+                standSection
                 threadCountSection
                 colorPlacementSection
                 simulationSection
@@ -133,6 +120,7 @@ struct ProjectEditorView: View {
         HStack(alignment: .top, spacing: 24) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 28) {
+                    standSection
                     threadCountSection
                     colorPlacementSection
                 }
@@ -142,21 +130,35 @@ struct ProjectEditorView: View {
 
             Divider()
 
-            Group {
-                if let previewPreset {
-                    preview(for: previewPreset, isEmbedded: true)
-                        .padding(.vertical)
-                } else {
-                    ScrollView {
-                        simulationSection
-                            .padding(.vertical)
-                    }
-                }
+            ScrollView {
+                simulationSection
+                    .padding(.vertical)
             }
             .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(.horizontal, 24)
         .frame(maxWidth: 1_220, maxHeight: .infinity)
+    }
+
+    /// Round or square (Task 058). **The board below stays round for either**;
+    /// the square stand's picture comes with its first braid.
+    private var standSection: some View {
+        section(ProjectEditorStrings.standSection) {
+            Picker(
+                ProjectEditorStrings.stand,
+                selection: Binding(
+                    get: { store.draft.standKind },
+                    set: store.selectStandKind
+                )
+            ) {
+                ForEach(BraidStandKind.allCases, id: \.self) { kind in
+                    Text(ProjectEditorStrings.standName(kind)).tag(kind)
+                }
+            }
+            .pickerStyle(.menu)
+            .accessibilityIdentifier(ProjectEditorAccessibilityIdentifiers.standPicker)
+            .accessibilityValue(ProjectEditorStrings.standName(store.draft.standKind))
+        }
     }
 
     private var threadCountSection: some View {
@@ -197,12 +199,13 @@ struct ProjectEditorView: View {
         section(ProjectEditorStrings.simulationSection) {
             SimulationResultsBoundaryView(
                 state: store.simulationResultsState,
+                standKind: store.draft.standKind,
                 threadCount: store.draft.threadCount,
                 assignments: store.draft.threadAssignments,
                 presets: store.availableBraidPresets,
                 selectedPresetID: store.draft.selectedBraidPresetID,
                 selectPreset: store.selectBraidPreset,
-                show3DPreview: openPreview
+                showDetail: { detailPreset = $0 }
             )
         }
     }
@@ -240,79 +243,6 @@ struct ProjectEditorView: View {
             content()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// **The family decides which drawer shows the braid**, not the braid's name.
-    ///
-    /// The figure and the solid braid share this one place, switched between rather
-    /// than pushed onto: **a figure needs no drawer**, so a braid nothing draws
-    /// still has something to show.
-    @ViewBuilder
-    private func preview(for preset: BraidPreset, isEmbedded: Bool) -> some View {
-        if let recipe = BraidMethodCatalog.recipe(for: preset.id) {
-            VStack(spacing: 8) {
-                HStack(spacing: 12) {
-                    Picker("", selection: $previewShowsFigure) {
-                        Text(BraidPatternStrings.threeDimensions).tag(false)
-                        Text(BraidPatternStrings.twoDimensions).tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-
-                    // **The way out, when the drawing does not bring its own.** Shown
-                    // full screen, the figure and the empty space a braid nothing draws
-                    // have no navigation bar to dismiss from.
-                    if !isEmbedded,
-                       BraidPreviewForFamily.needsItsOwnWayOut(
-                        recipe: recipe, showingFigure: previewShowsFigure
-                       ) {
-                        Button(ProjectEditorStrings.dismiss, action: closePreview)
-                    }
-                }
-                .padding(.horizontal)
-
-                if previewShowsFigure {
-                    ScrollView {
-                        BraidPatternForRecipe(
-                            recipe: recipe,
-                            assignments: store.draft.threadAssignments,
-                            nothingToShow: BraidPatternStrings.nothingToShow
-                        )
-                        .frame(minHeight: 320)
-                        .padding(.horizontal)
-                        Text(BraidPatternStrings.noEstimateNotice)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal)
-                    }
-                } else {
-                    BraidPreviewForFamily(
-                        recipe: recipe,
-                        assignments: store.draft.threadAssignments,
-                        controller: previewController,
-                        isEmbedded: isEmbedded,
-                        closeAction: closePreview,
-                        nothingDrawsIt: ProjectEditorStrings.nothingDrawsThisBraid,
-                        prototypeNotice: preset.prototypeNotice
-                    )
-                }
-            }
-        } else {
-            BraidNothingDrawsItView(text: ProjectEditorStrings.nothingDrawsThisBraid)
-        }
-    }
-
-    private func openPreview(_ preset: BraidPreset) {
-        if currentLayout == .singleColumn {
-            compactPreviewPreset = preset
-        } else {
-            previewPreset = preset
-        }
-    }
-
-    private func closePreview() {
-        previewPreset = nil
-        compactPreviewPreset = nil
     }
 
     private var colorSheetBinding: Binding<Bool> {

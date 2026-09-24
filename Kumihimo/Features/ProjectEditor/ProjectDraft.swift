@@ -12,6 +12,8 @@ struct ProjectDraft: Equatable, Sendable {
         selectedBraidPresetID.flatMap(BraidSavedBraid.savedKey(forPreset:))
     }
     var braidTypeName: String
+    /// The stand the braid is set up on. A new project starts on a round stand.
+    var standKind: BraidStandKind
     var threadCount: Int
     var threadAssignments: [ThreadAssignment]
     var thumbnailData: Data?
@@ -20,6 +22,7 @@ struct ProjectDraft: Equatable, Sendable {
         name: String = "",
         selectedBraidPresetID: BraidPresetID? = nil,
         braidTypeName: String = KumihimoProject.undecidedBraidName,
+        standKind: BraidStandKind = .round,
         threadCount: Int = 4,
         threadAssignments: [ThreadAssignment]? = nil,
         thumbnailData: Data? = nil
@@ -27,6 +30,7 @@ struct ProjectDraft: Equatable, Sendable {
         self.name = name
         self.selectedBraidPresetID = selectedBraidPresetID
         self.braidTypeName = braidTypeName
+        self.standKind = standKind
         self.threadCount = threadCount
         self.threadAssignments = threadAssignments
             ?? Self.defaultAssignments(count: threadCount)
@@ -39,6 +43,7 @@ struct ProjectDraft: Equatable, Sendable {
             name: project.name,
             selectedBraidPresetID: project.braidPresetID,
             braidTypeName: project.braidTypeName,
+            standKind: project.standKind,
             threadCount: project.threadCount,
             threadAssignments: project.threadAssignments,
             thumbnailData: project.thumbnailData
@@ -64,6 +69,7 @@ struct ProjectDraft: Equatable, Sendable {
             return false
         }
         return preset.supports(threadCount: threadCount)
+            && preset.supports(standKind: standKind)
             && braidTypeName == preset.displayName
     }
 

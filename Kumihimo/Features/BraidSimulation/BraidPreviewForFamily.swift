@@ -12,7 +12,9 @@ struct BraidPreviewForFamily: View {
     let assignments: [ThreadAssignment]
     let controller: RoundTube16ViewerController
     let isEmbedded: Bool
-    let closeAction: () -> Void
+    /// Used only when shown on its own (`isEmbedded` false), where the drawer
+    /// brings its own navigation bar and dismiss button.
+    var closeAction: (() -> Void)? = nil
     /// What to say when nothing draws this braid. **Passed in**, so the wording
     /// lives with the screen's other wording and not in here.
     let nothingDrawsIt: String
@@ -59,22 +61,6 @@ struct BraidPreviewForFamily: View {
         default:
             BraidNothingDrawsItView(text: nothingDrawsIt)
         }
-    }
-}
-
-extension BraidPreviewForFamily {
-    /// Whether a preview shown on its own has to be given a way out.
-    ///
-    /// **The two solid drawers each put a dismiss button in a navigation bar of
-    /// their own.** The figure has no bar, and neither has the empty space a braid
-    /// nothing draws — so those two have to be given one from outside, or a
-    /// full-screen preview of either cannot be left at all.
-    static func needsItsOwnWayOut(recipe: BraidRecipe, showingFigure: Bool) -> Bool {
-        showingFigure || drawer(for: recipe) == nil
-    }
-
-    private static func drawer(for recipe: BraidRecipe) -> BraidFamily? {
-        BraidFamilyDrawing.drawer(for: recipe)
     }
 }
 

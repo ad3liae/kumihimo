@@ -85,31 +85,20 @@ struct RoundTube16PreviewView: View {
         }
     }
 
+    /// **Only the braid and its buttons.** Whatever holds it — the detail sheet —
+    /// brings the title, the way out and the notes, so there is one navigation
+    /// bar and not two, and the notes can scroll where nothing turns the braid
+    /// (Task 058). The canvas takes the height the buttons leave.
     private var embeddedPreview: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(wording.title)
-                    .font(.title3.bold())
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                Button(ProjectEditorStrings.backToResults) {
-                    closeAction?()
-                }
-                .buttonStyle(.bordered)
-            }
-
-            GeometryReader { geometry in
-                previewContent(
-                    canvasHeight: max(300, geometry.size.height - 145),
-                    allowsScrolling: false
-                )
-            }
-        }
+        previewContent(canvasHeight: nil, allowsScrolling: false, showsNotes: false)
     }
 
+    /// `canvasHeight` `nil`: the canvas fills what the rest leaves, down to
+    /// `minimumCanvasHeight`.
     private func previewContent(
-        canvasHeight: CGFloat,
-        allowsScrolling: Bool = true
+        canvasHeight: CGFloat?,
+        allowsScrolling: Bool = true,
+        showsNotes: Bool = true
     ) -> some View {
         let content = VStack(spacing: 16) {
             GeometryReader { geometry in
@@ -131,6 +120,7 @@ struct RoundTube16PreviewView: View {
                 }
             }
             .frame(height: canvasHeight)
+            .frame(minHeight: canvasHeight == nil ? Self.minimumCanvasHeight : nil)
             .clipShape(RoundedRectangle(cornerRadius: 18))
             .accessibilityLabel(wording.accessibilityLabel)
             .accessibilityHint(ProjectEditorStrings.maruGenji3DAccessibilityHint)
@@ -162,14 +152,16 @@ struct RoundTube16PreviewView: View {
                 }
             }
 
-            VStack(spacing: 4) {
-                Text(wording.notice)
-                    .font(.footnote.weight(.semibold))
-                Text(ProjectEditorStrings.maruGenjiGestureHelp)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            if showsNotes {
+                VStack(spacing: 4) {
+                    Text(wording.notice)
+                        .font(.footnote.weight(.semibold))
+                    Text(ProjectEditorStrings.maruGenjiGestureHelp)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .multilineTextAlignment(.center)
             }
-            .multilineTextAlignment(.center)
         }
         .padding(.horizontal)
         .padding(.bottom)
@@ -182,6 +174,8 @@ struct RoundTube16PreviewView: View {
             }
         }
     }
+
+    static let minimumCanvasHeight: CGFloat = 160
 
     private func controlButton(
         _ title: String,

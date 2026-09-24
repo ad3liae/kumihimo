@@ -27,7 +27,7 @@ struct ProjectRow: View {
             Text(project.name)
                 .font(.headline)
 
-            Text("\(project.braidDisplayName) ・ \(HomeStrings.threadCount(project.threadCount))")
+            Text(Self.summary(of: project))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
@@ -39,9 +39,22 @@ struct ProjectRow: View {
     }
 
     private var accessibilityLabel: String {
+        Self.accessibilityLabel(of: project)
+    }
+
+    static func summary(of project: KumihimoProject) -> String {
+        HomeStrings.projectSummary(
+            braidTypeName: project.braidDisplayName,
+            standName: ProjectEditorStrings.standName(project.standKind),
+            threadCount: project.threadCount
+        )
+    }
+
+    static func accessibilityLabel(of project: KumihimoProject) -> String {
         HomeStrings.projectAccessibilityLabel(
             name: project.name,
             braidTypeName: project.braidDisplayName,
+            standName: ProjectEditorStrings.standName(project.standKind),
             threadCount: project.threadCount,
             updatedAt: project.updatedAt.formatted(
                 .dateTime.year().month().day().hour().minute()

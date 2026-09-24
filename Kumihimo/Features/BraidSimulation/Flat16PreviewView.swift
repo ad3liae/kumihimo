@@ -22,19 +22,9 @@ struct Flat16PreviewView: View {
 
     var body: some View {
         if isEmbedded {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text(ProjectEditorStrings.hiraGenjiPreviewTitle)
-                        .font(.title3.bold())
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer()
-                    Button(ProjectEditorStrings.backToResults) { closeAction?() }
-                        .buttonStyle(.bordered)
-                }
-                GeometryReader { geometry in
-                    previewContent(canvasHeight: max(300, geometry.size.height - 145))
-                }
-            }
+            // Only the braid and its buttons: the detail sheet brings the title,
+            // the way out and the notes (Task 058).
+            previewContent(canvasHeight: nil, showsNotes: false)
         } else {
             NavigationStack {
                 GeometryReader { geometry in
@@ -53,7 +43,8 @@ struct Flat16PreviewView: View {
         }
     }
 
-    private func previewContent(canvasHeight: CGFloat) -> some View {
+    /// `canvasHeight` `nil`: the canvas fills what the rest leaves.
+    private func previewContent(canvasHeight: CGFloat?, showsNotes: Bool = true) -> some View {
         VStack(spacing: 16) {
             GeometryReader { geometry in
                 ZStack {
@@ -72,6 +63,9 @@ struct Flat16PreviewView: View {
                 }
             }
             .frame(height: canvasHeight)
+            .frame(
+                minHeight: canvasHeight == nil ? RoundTube16PreviewView.minimumCanvasHeight : nil
+            )
             .clipShape(RoundedRectangle(cornerRadius: 18))
             .accessibilityLabel(ProjectEditorStrings.hiraGenji3DAccessibilityLabel)
             .accessibilityHint(ProjectEditorStrings.hiraGenji3DAccessibilityHint)
@@ -94,14 +88,16 @@ struct Flat16PreviewView: View {
                 }
             }
 
-            VStack(spacing: 4) {
-                Text(ProjectEditorStrings.hiraGenjiPrototypeNotice)
-                    .font(.footnote.weight(.semibold))
-                Text(ProjectEditorStrings.maruGenjiGestureHelp)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            if showsNotes {
+                VStack(spacing: 4) {
+                    Text(ProjectEditorStrings.hiraGenjiPrototypeNotice)
+                        .font(.footnote.weight(.semibold))
+                    Text(ProjectEditorStrings.maruGenjiGestureHelp)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .multilineTextAlignment(.center)
             }
-            .multilineTextAlignment(.center)
         }
         .padding(.horizontal)
         .padding(.bottom)

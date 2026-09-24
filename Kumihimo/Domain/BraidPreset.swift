@@ -26,6 +26,19 @@ struct BraidPreset: Identifiable, Equatable, Sendable {
     func supports(threadCount: Int) -> Bool {
         supportedThreadCounts.contains(threadCount)
     }
+
+    /// The kind of stand this braid is set up on, **read off its recipe's stand**
+    /// rather than written on the preset (Task 058). `nil` for a preset with no
+    /// recipe, which no stand offers.
+    var standKind: BraidStandKind? {
+        BraidMethodCatalog.recipe(for: id)
+            .flatMap(BraidMethodCatalog.stand(for:))?
+            .kind
+    }
+
+    func supports(standKind: BraidStandKind) -> Bool {
+        self.standKind == standKind
+    }
 }
 
 extension BraidPresetID {
@@ -124,8 +137,15 @@ enum BraidPresetCatalog {
         maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ, yatsuKongoGaeshi, maruYotsu, edoYatsu,
     ]
 
+    /// The braids that take this many threads, **whatever the stand**.
     static func availablePresets(threadCount: Int) -> [BraidPreset] {
         presets.filter { $0.supports(threadCount: threadCount) }
+    }
+
+    /// The braids the editor offers: this many threads, **on this kind of stand**
+    /// (Task 058).
+    static func availablePresets(threadCount: Int, standKind: BraidStandKind) -> [BraidPreset] {
+        availablePresets(threadCount: threadCount).filter { $0.supports(standKind: standKind) }
     }
 
     static func preset(for id: BraidPresetID) -> BraidPreset? {
