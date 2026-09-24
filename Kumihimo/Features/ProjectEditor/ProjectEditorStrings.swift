@@ -32,7 +32,10 @@ enum ProjectEditorStrings {
             "丸台を選ぶと、試作シミュレーションを表示できます。配色はこのまま保存できます。"
         }
     }
-    static let undecidedBraid = "組み方をまだ決めない"
+    /// The card for choosing no braid (Task 058 追補1). What a project saved this
+    /// way is called on the home screen is `KumihimoProject.undecidedBraidName`.
+    static let noBraidTitle = "組み方を選ばない"
+    static let noBraidMessage = "台と本数、色の組み合わせだけを保存します"
     static let selectionSelected = "選択中"
     static let selectionNotSelected = "未選択"
     /// A braid the app cannot draw in three dimensions yet. **Short**, because it

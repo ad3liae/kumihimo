@@ -110,6 +110,7 @@ struct ProjectEditorView: View {
                 standSection
                 threadCountSection
                 colorPlacementSection
+                noBraidCard
                 simulationSection
             }
             .padding()
@@ -131,8 +132,11 @@ struct ProjectEditorView: View {
             Divider()
 
             ScrollView {
-                simulationSection
-                    .padding(.vertical)
+                VStack(alignment: .leading, spacing: 28) {
+                    noBraidCard
+                    simulationSection
+                }
+                .padding(.vertical)
             }
             .frame(minWidth: 420, maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -193,6 +197,17 @@ struct ProjectEditorView: View {
             .frame(maxWidth: 440)
             .frame(maxWidth: .infinity)
         }
+    }
+
+    /// Choosing no braid: **above the results' heading**, not in the section
+    /// (Task 058 追補1).
+    private var noBraidCard: some View {
+        NoBraidCard(
+            isSelected: NoBraidCard.isSelected(
+                selectedPresetID: store.draft.selectedBraidPresetID
+            ),
+            select: { store.selectBraidPreset(nil) }
+        )
     }
 
     private var simulationSection: some View {
