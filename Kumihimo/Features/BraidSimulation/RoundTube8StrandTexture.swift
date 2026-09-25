@@ -50,25 +50,42 @@ enum RoundTube8StrandTexture {
 
     /// Uploading is RealityKit's business and belongs to the main actor; the
     /// arithmetic above it stays free of the actor so a test can read it.
-    @MainActor static let maps: Maps = {
-        guard let twist else {
+    @MainActor static let maps: Maps = drawMaps(on: .oneWay)
+
+    /// **The both-ways family's maps** (Task 059): the same stripes and shading,
+    /// counted over its runs' own length.
+    @MainActor static let bothWaysMaps: Maps = drawMaps(on: .bothWays)
+
+    /// The maps for a braid, by which ways round its table carries its threads.
+    @MainActor static func maps(on turning: BraidTurning) -> Maps {
+        switch turning {
+        case .oneWay: return maps
+        case .bothWays: return bothWaysMaps
+        }
+    }
+
+    @MainActor private static func drawMaps(on turning: BraidTurning) -> Maps {
+        guard let twist = twist(on: turning) else {
             logger.error("The eight-thread stripes could not be solved")
             return Maps(occlusion: nil, roughness: nil, normal: nil)
         }
         return Maps(
-            occlusion: upload(occlusionImage(twist: twist), semantic: .color, name: "occlusion"),
+            occlusion: upload(
+                occlusionImage(twist: twist, bundle: RoundTube8Bundle.shown(on: turning)),
+                semantic: .color, name: "occlusion"
+            ),
             roughness: upload(
                 RoundTube16StrandTextureFactory.roughnessImage(twist: twist),
                 semantic: .scalar, name: "roughness"
             ),
             normal: upload(
                 RoundTube16StrandTextureFactory.normalImage(
-                    twist: twist, relief: RoundTube8SurfaceMesh.fibreStripeRelief
+                    twist: twist, relief: RoundTube8SurfaceMesh.fibreStripeRelief(for: turning)
                 ),
                 semantic: .normal, name: "normal"
             )
         )
-    }()
+    }
 
     // MARK: - The stripes
 
@@ -83,14 +100,18 @@ enum RoundTube8StrandTexture {
     /// reason: a column is one ridge from end to end, so the stripes have to come
     /// back to where they started at the end of a cell or they would break at
     /// every cycle.
-    static var stripesPerCell: Float {
-        max(1, stripesPerCellBeforeRounding.rounded())
+    static var stripesPerCell: Float { stripesPerCell(on: .oneWay) }
+
+    static func stripesPerCell(on turning: BraidTurning) -> Float {
+        max(1, stripesPerCellBeforeRounding(on: turning).rounded())
     }
 
-    static var stripesPerCellBeforeRounding: Float {
-        let angle = abs(RoundTube8SurfaceMesh.fibreStripeAngleDegrees) * .pi / 180
-        return RoundTube8SurfaceMesh.fibreStripesAcrossThreadWidth * tan(angle)
-            * cellLengthInThreadWidths
+    static var stripesPerCellBeforeRounding: Float { stripesPerCellBeforeRounding(on: .oneWay) }
+
+    static func stripesPerCellBeforeRounding(on turning: BraidTurning) -> Float {
+        let angle = abs(RoundTube8SurfaceMesh.fibreStripeAngleDegrees(for: turning)) * .pi / 180
+        return RoundTube8SurfaceMesh.fibreStripesAcrossThreadWidth(for: turning) * tan(angle)
+            * cellLengthInThreadWidths(on: turning)
     }
 
     /// One thread's visible run along the braid, in thread widths. A thread is an
@@ -101,12 +122,38 @@ enum RoundTube8StrandTexture {
     /// **The maps span the whole run** (Task 045): its texture runs 0...1 from
     /// the arrival to the tip, so the stripes are counted over that length and
     /// lie as close as they did over a one-cycle cell.
-    static var cellLengthInThreadWidths: Float {
+    static var cellLengthInThreadWidths: Float { cellLengthInThreadWidths(on: .oneWay) }
+
+    /// The same for either family, over the run's own length (Task 059).
+    static func cellLengthInThreadWidths(on turning: BraidTurning) -> Float {
         let threads = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
         // In radii: the braid is 2 across, and the floor is below the crest.
         let threadWidth = 2 * .pi * (1 - RoundTube8SurfaceMesh.crestHeightRatio) / threads
-        return 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameter
-            * RoundTube8Bundle.standard.lengthInCycles / threadWidth
+        return runLengthInRadii(on: turning) / threadWidth
+    }
+
+    /// A run's length in radii along the braid, from its first sample to its
+    /// last. **A both-ways stitch is a cycle long** (Task 059 addendum 6) and
+    /// begins before its start (its tuck, addendum 4).
+    static func runLengthInRadii(on turning: BraidTurning) -> Float {
+        let bundle = RoundTube8Bundle.shown(on: turning)
+        guard turning == .bothWays else {
+            return 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameter(for: turning) * bundle.lengthInCycles
+        }
+        return 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameterTurningBothWays
+            * (bundle.lengthInCycles - bundle.firstCycles)
+    }
+
+    /// Half the width the maps span across a run, in radii at the crest: a
+    /// thread's half-width, an eighth of the circumference halved — or a tile's
+    /// widest half-width, which the maps span straight across
+    /// (`RoundTube8SurfaceMesh.textureRow`).
+    static func mapHalfWidthInRadii(on turning: BraidTurning) -> Float {
+        let column = 2 * Float.pi / Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
+        guard turning == .bothWays, let tile = RoundTube8Bundle.shown(on: turning).tile else {
+            return column / 2
+        }
+        return column * tile.widestHalfWidthInColumns
     }
 
     /// The coefficients every cell uses, in the form the sixteen-thread factory
@@ -135,8 +182,11 @@ enum RoundTube8StrandTexture {
     /// read the same way, five show a period the size of a fibre stripe; four of
     /// those lean this way (+12.5 to +40.8 degrees) and one the other (-11.3), and
     /// a first look by eye had it the other way too. This sign is the majority's.
-    static var twist: RoundTube16SurfaceMesh.TwistGroup? {
-        let angle = RoundTube8SurfaceMesh.fibreStripeAngleDegrees * .pi / 180
+    static var twist: RoundTube16SurfaceMesh.TwistGroup? { twist(on: .oneWay) }
+
+    /// The same solve for either family, over its own run's length (Task 059).
+    static func twist(on turning: BraidTurning) -> RoundTube16SurfaceMesh.TwistGroup? {
+        let angle = RoundTube8SurfaceMesh.fibreStripeAngleDegrees(for: turning) * .pi / 180
         let sine = sin(angle)
         let cosine = cos(angle)
         guard sine != 0 else { return nil }
@@ -144,10 +194,9 @@ enum RoundTube8StrandTexture {
         // A run is `lengthInCycles` cycles long and, at its widest, an eighth of
         // the crest's circumference wide; across is read in half-widths, as the
         // factory reads it.
-        let along = 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameter
-            * RoundTube8Bundle.standard.lengthInCycles
-        let halfWidth = Float.pi / Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
-        let phasePerAlong = -2 * .pi * stripesPerCell
+        let along = runLengthInRadii(on: turning)
+        let halfWidth = mapHalfWidthInRadii(on: turning)
+        let phasePerAlong = -2 * .pi * stripesPerCell(on: turning)
         let phasePerAcross = phasePerAlong * halfWidth * cosine / (along * sine)
         // **The normal map's second channel runs along the normal crossed with the
         // tangent**, which is the way the sixteen-thread solve expresses it (its
@@ -201,6 +250,15 @@ enum RoundTube8StrandTexture {
         let offset = RoundTube16StrandTextureFactory.crossSectionOffset(forRow: row)
         let depth = RoundTube16StrandTextureFactory.valleyOcclusion
         let reach = RoundTube16StrandTextureFactory.valleyOcclusionWidth
+        // **A tile is shaded at its edge**, where it meets the stitches round it,
+        // and darker past it, where it goes under them (Task 059 addendum 4).
+        // The maps span it straight across (`RoundTube8SurfaceMesh.textureRow`),
+        // so the edge is found by the norm.
+        if let tile = bundle.tile {
+            let stitches = bundle.cycles(atFraction: along)
+            let norm = tile.norm(atStitches: stitches, columns: offset * tile.widestHalfWidthInColumns)
+            return mix(depth, 1, smoothstep(0, reach, 1 - norm))
+        }
         let sides = mix(depth, 1, smoothstep(0, reach, 1 - abs(offset)))
         let cycles = along * bundle.lengthInCycles
         let rising = mix(depth, 1, smoothstep(0, reach, cycles / bundle.headRoundingCycles))
@@ -213,12 +271,15 @@ enum RoundTube8StrandTexture {
     /// The shading, darkened a little where a stripe turns away — the
     /// sixteen-thread tube's tint, which is small because the stripe is carried by
     /// the normal and roughness maps.
-    static func occlusionImage(twist: RoundTube16SurfaceMesh.TwistGroup) -> CGImage? {
+    static func occlusionImage(
+        twist: RoundTube16SurfaceMesh.TwistGroup,
+        bundle: RoundTube8Bundle = .standard
+    ) -> CGImage? {
         image { along, row in
             let offset = RoundTube16StrandTextureFactory.crossSectionOffset(forRow: row)
             let tint = 1 - RoundTube16StrandTextureFactory.twistTint
                 * (1 - cos(twist.coefficients.phase(along: along, across: offset))) / 2
-            return linearToSRGB(shading(across: row, along: along) * tint)
+            return linearToSRGB(shading(across: row, along: along, bundle: bundle) * tint)
         }
     }
 

@@ -65,7 +65,7 @@ struct RoundTube4SurfaceMeshData: Sendable {
 /// **The other drawers are untouched.** This is an addition beside them.
 enum RoundTube4SurfaceMesh {
     /// **The family this draws**: four threads, a tube.
-    static let family = BraidFamily.roundTube(threads: 4)
+    static let family = BraidFamily.roundTube(threads: 4, turning: .oneWay)
 
     /// Where every number this drawing rests on came from. **No value here is
     /// changed by saying so.**

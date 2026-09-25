@@ -12,20 +12,29 @@ import SwiftUI
 ///
 ///     --ui-testing-yatsu-kongo-solid   the solid, full screen
 ///     --ui-testing-yatsu-kongo-card    the card, as the results list lays it out
-///     --yatsu-kongo-recipe=s|z|maru|hira|gaeshi
+///     --yatsu-kongo-recipe=s|z|maru|hira|gaeshi|edo
 ///                                      which braid (default s). `maru` is the
 ///                                      sixteen-thread maru-genji, added for
 ///                                      Task 047's comparisons, and `hira` the
 ///                                      sixteen-thread flat braid, added for
 ///                                      Task 050's, and `gaeshi` 八つ金剛返し組
-///                                      (Task 053); the launch arguments keep
-///                                      their first name
-///     --yatsu-kongo-colouring=plain|book|eight|author|redblue|one|tri
-///                                      one colour, book A p.54's, all eight
-///                                      told apart, the author's 青青赤赤青青赤赤
+///                                      (Task 053), and `edo` 江戸八つ組 (Task
+///                                      059); the launch arguments keep their
+///                                      first name
+///     --yatsu-kongo-colouring=plain|book|eight|author|redblue|one|tri|pwbg|swapped|leftright
+///                                      one colour, the recipe's own (book A
+///                                      p.54's for yatsu-kongo, the textbook
+///                                      p.64's for 江戸八つ組), all eight told
+///                                      apart, the author's 青青赤赤青青赤赤
 ///                                      (Task 048's rework), book A's layout in
-///                                      red and blue, or one blue thread
-///                                      (default plain)
+///                                      red and blue, one blue thread, or the
+///                                      author's 桃白青緑 round the stand, places
+///                                      1・5 pink, 2・6 white, 3・7 blue, 4・8
+///                                      green (Task 059), the textbook's figure
+///                                      with cyan and yellow-green swapped, or
+///                                      p.65's left example, the left of every
+///                                      pair one colour and the right another
+///                                      (Task 059 addendum 6) (default plain)
 ///                              maru only: plain|blue|fixture1|fixture2|fixture3|
 ///                                      bluewhite|sketch — natural, blue, the
 ///                                      editor's surface fixtures, fixture 1 with
@@ -58,6 +67,7 @@ enum YatsuKongoComparisonPreviewData {
         case "maru": return BraidMethodCatalog.maruGenji16Recipe
         case "hira": return BraidMethodCatalog.hiraGenji16Recipe
         case "gaeshi": return BraidMethodCatalog.yatsuKongoGaeshi8Recipe
+        case "edo": return BraidMethodCatalog.edoYatsu8Recipe
         default: return BraidMethodCatalog.yatsuKongoS8Recipe
         }
     }
@@ -96,6 +106,27 @@ enum YatsuKongoComparisonPreviewData {
                 ThreadAssignment(position: $0, colorID: [1, 2].contains($0)
                     ? ThreadColorID(rawValue: "red")
                     : [5, 6].contains($0) ? ThreadColorID(rawValue: "blue") : ThreadColorColorIDs.natural)
+            }
+        case "pwbg":
+            // The author's colouring of 江戸八つ組 (Task 059): places 1・5 pink,
+            // 2・6 white, 3・7 blue, 4・8 green.
+            let names = ["pink", "white", "blue", "green"]
+            return (1...8).map {
+                ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: names[($0 - 1) % 4]))
+            }
+        case "swapped":
+            // The textbook's figure with its cyan and yellow-green swapped, the
+            // reading of the p.64 photograph (Task 059 addendum 6); yellow-green
+            // is yellow until the catalogue has one.
+            let names = ["yellow", "light-blue", "pink", "natural"]
+            return (1...8).map {
+                ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: names[($0 - 1) % 4]))
+            }
+        case "leftright":
+            // p.65's left example (Task 059 addendum 6): the left of every pair
+            // teal, the right yellow-green — light-blue and yellow here.
+            return (1...8).map {
+                ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: $0 % 2 == 1 ? "light-blue" : "yellow"))
             }
         case "one":
             // Every thread natural but position 1, blue (Task 048).

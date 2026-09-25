@@ -428,7 +428,7 @@ struct RoundTube8SurfaceTests {
     // MARK: - 7. It draws no other family
 
     @Test func nothingButATubeOfEightIsDrawnByThisDrawer() throws {
-        #expect(RoundTube8SurfaceMesh.family == .roundTube(threads: 8))
+        #expect(RoundTube8SurfaceMesh.family == .roundTube(threads: 8, turning: .oneWay))
         for recipe in [BraidMethodCatalog.maruGenji16Recipe,
                        BraidMethodCatalog.hiraGenji16Recipe] {
             let sixteen = try #require(BraidMethodCatalog.stand(for: recipe))

@@ -180,18 +180,21 @@ struct RoundTube8CardAgreesWithSolidTests {
     /// all in the outer tenth of a run's half-width or just after its arrival
     /// (the first sweep, before this was written in). Everywhere else the card
     /// and the solid must agree exactly, and how many were let off is bounded.
+    ///
+    /// **江戸八つ組 too** (Task 059): the card and the solid draw the same
+    /// stitches, the pattern's own (`RoundTube8SurfacePattern.bundle`), where the
+    /// turn has laid them.
     @Test(arguments: [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe,
-                      BraidMethodCatalog.yatsuKongoGaeshi8Recipe])
+                      BraidMethodCatalog.yatsuKongoGaeshi8Recipe, BraidMethodCatalog.edoYatsu8Recipe])
     func theCardShowsWhatTheSolidShowsAcrossARepeat(recipe: BraidRecipe) throws {
         let drawn = try pattern(recipe)
         let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: drawn))
         let solid = Solid(mesh: mesh, cells: drawn.surface.segments.count)
         let map = RoundTube8CardImage.shownMap(for: drawn)
-        let bundle = RoundTube8Bundle.standard
+        let bundle = drawn.bundle
         let margin: Float = 0.03
         let steps = Float(RoundTube8SurfaceMesh.defaultAlongSubdivisions)
-        let secondSample = (1 + RoundTube8SurfaceMesh.crossSectionOffset(forSample: 2 / steps)) / 2
-            * bundle.lengthInCycles
+        let secondSample = bundle.cycles(atFraction: (1 + RoundTube8SurfaceMesh.crossSectionOffset(forSample: 2 / steps)) / 2)
         // The last sample inside a run's edge: beyond it the run's outline
         // itself is a chord.
         let edgeSample = RoundTube8SurfaceMesh.crossSectionOffset(
@@ -207,7 +210,7 @@ struct RoundTube8CardAgreesWithSolidTests {
                 if let top = standing.first {
                     let next = standing.dropFirst().first?.height ?? -1
                     let (cycles, across) = place(of: top, in: drawn, turns: turns, along: along)
-                    let asCut = min(top.height, sampled(cycles: cycles, across: across))
+                    let asCut = min(top.height, sampled(cycles: cycles, across: across, bundle: bundle))
                     if top.height < margin || asCut - next < margin
                         || abs(across) >= edgeSample || cycles < secondSample {
                         letOff += 1
@@ -285,7 +288,11 @@ struct RoundTube8CardAgreesWithSolidTests {
         }
         #expect(disagreements.count == 0,
                 "\(disagreements.count) of \(compared): \(disagreements.prefix(8).joined(separator: "; "))")
-        #expect(compared > 10_000)
+        // Most of the card compared: the share 10,000 was of S and Z's 16,896
+        // samples, now asked of every card, 江戸八つ組's narrower one too (its
+        // cycle is the both-ways family's shorter pitch, Task 059).
+        let samples = ((map.width + 1) / 2) * ((map.height + 1) / 2)
+        #expect(compared * 10 > samples * 6, "\(compared) of \(samples)")
         // Bounded, and counted by reason: the band the flat triangles cannot
         // follow, and samples on the line where two cells beneath meet.
         let all = compared + letOff + onAFloorBoundary
@@ -318,7 +325,7 @@ struct RoundTube8CardAgreesWithSolidTests {
         func station(_ i: Int, _ j: Int) -> (turns: Float, along: Float, height: Float) {
             let step = (1 + RoundTube8SurfaceMesh.crossSectionOffset(
                 forSample: Float(i) / Float(alongSteps))) / 2
-            let cycles = step * bundle.lengthInCycles
+            let cycles = bundle.cycles(atFraction: step)
             let across = RoundTube8SurfaceMesh.crossSectionOffset(
                 forSample: Float(j) / Float(acrossSteps))
             let halfWidth = max(bundle.halfWidthInColumns(atCycles: cycles), 1e-3)
@@ -363,13 +370,12 @@ struct RoundTube8CardAgreesWithSolidTests {
     /// at the mesh's own samples round the place, blended between them — what a
     /// flat triangle there stands at, near enough to say where the cut could
     /// change which run is highest.
-    private func sampled(cycles: Float, across: Float) -> Float {
-        let bundle = RoundTube8Bundle.standard
+    private func sampled(cycles: Float, across: Float, bundle: RoundTube8Bundle) -> Float {
         let alongSteps = RoundTube8SurfaceMesh.defaultAlongSubdivisions
         let acrossSteps = RoundTube8SurfaceMesh.defaultAcrossSubdivisions
         let alongs = (0...alongSteps).map {
-            (1 + RoundTube8SurfaceMesh.crossSectionOffset(forSample: Float($0) / Float(alongSteps))) / 2
-                * bundle.lengthInCycles
+            bundle.cycles(atFraction: (1 + RoundTube8SurfaceMesh.crossSectionOffset(
+                forSample: Float($0) / Float(alongSteps))) / 2)
         }
         let acrosses = (0...acrossSteps).map {
             RoundTube8SurfaceMesh.crossSectionOffset(forSample: Float($0) / Float(acrossSteps))
@@ -438,7 +444,7 @@ struct RoundTube8CardAgreesWithSolidTests {
         let segment = drawn.surface.segments[run.segment]
         let cycles = (along - Float(run.repeatOffset) - segment.centerlineStart.y)
             / (segment.centerlineEnd.y - segment.centerlineStart.y)
-        let bundle = RoundTube8Bundle.standard
+        let bundle = drawn.bundle
         let centre = segment.centerlineStart.x * 8
             + bundle.leanInColumns(atCycles: cycles, direction: drawn.leanBySegment[run.segment])
         var offset = (turns * 8 - centre).truncatingRemainder(dividingBy: 8)

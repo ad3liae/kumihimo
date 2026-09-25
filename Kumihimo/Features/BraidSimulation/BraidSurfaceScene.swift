@@ -201,7 +201,7 @@ enum BraidSurfaceScene {
             return try flatModel(assignments: assignments)
         case RoundTube16SurfaceMesh.family:
             return try roundTubeModel(assignments: assignments)
-        case RoundTube8SurfaceMesh.family:
+        case RoundTube8SurfaceMesh.family, RoundTube8SurfaceMesh.familyTurningBothWays:
             guard let table else { throw SceneError.patternGenerationFailed }
             return try roundTubeOfEightModel(assignments: assignments, table: table)
         case RoundTube4SurfaceMesh.family:
@@ -235,9 +235,9 @@ enum BraidSurfaceScene {
         // Task 051's comparisons read the shape without the maps, as 047's do.
         let maps = YatsuKongoComparisonPreviewData.drawsWithoutDetail
             ? RoundTube8StrandTexture.Maps(occlusion: nil, roughness: nil, normal: nil)
-            : RoundTube8StrandTexture.maps
+            : RoundTube8StrandTexture.maps(on: pattern.turning)
 #else
-        let maps = RoundTube8StrandTexture.maps
+        let maps = RoundTube8StrandTexture.maps(on: pattern.turning)
 #endif
         var combinedIndices = [UInt32]()
         var faceMaterialIndices = [UInt32]()

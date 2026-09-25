@@ -96,8 +96,22 @@ struct RoundTube8SurfaceMeshData: Sendable {
 ///
 /// **The sixteen-thread drawers are untouched.** This is an addition beside them.
 enum RoundTube8SurfaceMesh {
-    /// **The family this draws**: eight threads, a tube.
-    static let family = BraidFamily.roundTube(threads: 8)
+    /// **The family this draws with bundles**: eight threads, a tube, every thread
+    /// carried one way round — one spiral.
+    static let family = BraidFamily.roundTube(threads: 8, turning: .oneWay)
+
+    /// **The family this draws turning** (Task 059): eight threads, a tube,
+    /// carried both ways round — two spirals crossing. **The same drawer and a shape of its
+    /// own** (`shapeTurningBothWays`): the rows, the mesh and the card are the
+    /// ones above; which thread a place shows (the one that passed over it, Task
+    /// 059 addendum 6), what a thread shows as, how long a cycle is and how far a
+    /// run stands are this family's.
+    static let familyTurningBothWays = BraidFamily.roundTube(threads: 8, turning: .bothWays)
+
+    /// The family a pattern is drawn as: **read off its braid**, never its name.
+    static func family(of pattern: RoundTube8SurfacePattern) -> BraidFamily {
+        .roundTube(threads: RoundTube8SurfacePatternGenerator.requiredThreadCount, turning: pattern.turning)
+    }
 
     /// Where every number this drawing rests on came from. **No value here is
     /// changed by saying so.**
@@ -247,6 +261,88 @@ enum RoundTube8SurfaceMesh {
         return BraidFamilyShape(family: family, values: values)
     }
 
+    /// **The both-ways family and what it rests on** (Task 059 and its addenda).
+    /// The cycle is measured on the textbook p.64's photograph; which thread a
+    /// place shows is the table's (the thread that passed over it); the tile is
+    /// the face's, its rounding, tuck and top set against the same photograph by
+    /// eye, no higher than the one-way family's bundle; the stripes run the way
+    /// the table carries the thread; their spacing, the valley shading and the
+    /// size on screen are shared with the one-way family or set by eye.
+    static var shapeTurningBothWays: BraidFamilyShape {
+        let shared = ["half a thread over the braid's radius",
+                      "valley shading at a cell's edge",
+                      "how far across a cell the valley shading reaches", "radius on screen"]
+        var values = shape.values.filter { shared.contains($0.key) }
+        values["one cycle over the braid's diameter"] = BraidMeasurement(
+            Double(RoundTube8SurfacePatternGenerator.pitchOverDiameterTurningBothWays),
+            spread: 0.503...0.506,
+            basis: .fractionOf("the braid's own diameter, as the photograph's outline gives it"),
+            source: .observed("the textbook p.64's photograph: a stitch and the next in its row "
+                              + "along the braid, 47.6 px on a braid 94 px across at 600 dpi "
+                              + "(Scripts/task059/count_neighbours.py), 95 px on 189 px at 1200 dpi "
+                              + "(the reviewer); Task 059 addendum 6"),
+            unsettled: "a place is passed over once a cycle, so a row's stitches are a cycle apart. "
+                + "The photograph's colour period along the braid (1.01) is two cycles. It replaces "
+                + "0.74 (addenda 2-5); the recipe book p.4 zoom's 0.72 is another braid"
+        )
+        let tile = RoundTube8Bundle.bothWays.tile ?? .cushion
+        values["a both-ways stitch's half-width round the braid, in rows"] = BraidMeasurement(
+            Double(tile.reachInColumns),
+            basis: .fractionOf("one row, a place of the stand"),
+            source: .derived("the face's own tile (Task 059 addendum 6): each row is passed over "
+                             + "once a cycle and the rows beside it half a cycle later or earlier, "
+                             + "so the rhombus that fits its four diagonal neighbours edge to edge "
+                             + "reaches the middles of the next rows"),
+            unsettled: "on the drawn braid a row is an eighth of the crest's circumference, so the "
+                + "tile is 0.50 D along by 0.79 D round; on the photograph the next row's stitch "
+                + "looks about 0.27 D round at the front (the reviewer, 1200 dpi), and the tile a "
+                + "square turned 45°"
+        )
+        values["how far a both-ways stitch goes on under its neighbours, of its tile"] = .declared(
+            Double(tile.tuck),
+            calibratedBy: "set beside the textbook p.64's photograph, not derived: its ends and "
+                + "sides go on under the stitches round it and no floor shows (Task 059 addendum 6)"
+        )
+        values["how round a both-ways stitch's corners are, as the norm's power"] = .declared(
+            Double(tile.roundness),
+            calibratedBy: "set beside the textbook p.64's photograph, not derived: 1 is a sharp "
+                + "rhombus and 2 an ellipse; between them a cushion with rounded corners"
+        )
+        values["how flat a both-ways stitch's top is, as the height's power"] = .declared(
+            Double(tile.flatness),
+            calibratedBy: "set beside the textbook p.64's photograph, not derived: 2 is a dome; "
+                + "higher lies flatter and rounds only at the edges"
+        )
+        values["fibre stripes across a thread's width, on a both-ways stitch"] = .declared(
+            Double(bothWaysFibreStripesAcrossThreadWidth),
+            calibratedBy: "set by eye on screen (Task 059 addendum 4): the one-way family's 14 "
+                + "aliased on a stitch a column across and hid the stripes' slant; 7 is about book "
+                + "A p.8's count, 6.6"
+        )
+        values["fibre stripe relief, on a both-ways stitch"] = .declared(
+            Double(bothWaysFibreStripeRelief),
+            calibratedBy: "set by eye on screen (Task 059 addendum 4), so the slant reads: twice the "
+                + "one-way family's 0.003"
+        )
+        values["fibre stripe angle on a both-ways stitch, in degrees from the braid's axis"] = .derived(
+            Double(bothWaysFibreStripeAngleDegrees),
+            basis: .fractionOf("a degree"),
+            by: "the way the table carries the thread over the one beneath (Task 059 addendum 6): "
+                + "two rows a cycle, a row an eighth of the crest's circumference and a cycle 0.50 of "
+                + "the diameter; the two sets are carried opposite ways and read the maps mirrored",
+            unsettled: "on the photograph's lattice the same carry lies about 45° from the axis; the "
+                + "drawn rows are wider round"
+        )
+        values["how far a both-ways stitch stands over the valley floor, over the braid's radius"] = .declared(
+            Double(runHeightOverRadius(for: .bothWays)),
+            basis: .fractionOf("the braid's outer radius"),
+            calibratedBy: "set beside the textbook p.64's photograph, not derived, and never above "
+                + "the one-way family's 0.44 (the author, Task 059 addendum 1: the stitches lie on "
+                + "the face and do not stand out of the braid)"
+        )
+        return BraidFamilyShape(family: familyTurningBothWays, values: values)
+    }
+
     /// **A run's widest half-width**: derived while it is the one column a
     /// thread holds, and set by eye once a run is let show wider (Task 046).
     private static var bellyWidth: [String: BraidMeasurement] {
@@ -299,6 +395,22 @@ enum RoundTube8SurfaceMesh {
     /// outline of a round braid cannot give the grooves between its ridges.
     static let runHeightOverRadius: Float = 0.44
 
+    /// How far a run stands above the valley floor on a tube whose table carries
+    /// threads both ways, as a fraction of the braid's outer radius (Task 059
+    /// addendum 1). **Calibrated by eye against a photograph, not derived**: the
+    /// textbook p.64's, beside it at one braid width; never above the one-way family's.
+    static let bothWaysRunHeightOverRadius: Float = 0.22
+
+    /// How far what a thread shows as stands over the valley floor, by which ways
+    /// round the table carries its threads. **The both-ways family's is never
+    /// above the one-way family's** (the author, Task 059 addendum 1).
+    static func runHeightOverRadius(for turning: BraidTurning) -> Float {
+        switch turning {
+        case .oneWay: return runHeightOverRadius
+        case .bothWays: return min(bothWaysRunHeightOverRadius, runHeightOverRadius)
+        }
+    }
+
     /// How far beneath the valley floor the cell under a run lies, as a
     /// fraction of the ridge. **Not a shape figure**: it only keeps the cell
     /// beneath from sharing the floor with the edges of the runs above it, so
@@ -329,6 +441,30 @@ enum RoundTube8SurfaceMesh {
     /// figure is set by how the stripes lie on the drawn run, not by the reading
     /// on the photograph alone.
     static let fibreStripeAngleDegrees: Float = 8
+
+    /// **The stripes' angle on a both-ways stitch**, from the braid's axis
+    /// (Task 059 addendum 6): **the way its thread is carried over the one
+    /// beneath**. The fibre runs along the thread, and a stitch is the stretch of
+    /// it that crosses over; a thread is carried `columnsCarriedPerCycle` places a
+    /// cycle, a row each, so it runs that many rows round for a cycle along. On
+    /// the drawn face a row is an eighth of the crest's circumference, π/8 of the
+    /// diameter, and a cycle `pitchOverDiameterTurningBothWays` of it. The two
+    /// sets are carried opposite ways; the other set reads the maps mirrored
+    /// (`generate`). **Derived, not measured**: addenda 3-5's 26° from the
+    /// photograph's stitches is not used (too few stitches, and at 1200 dpi the
+    /// colours did not agree — the reviewer).
+    static var bothWaysFibreStripeAngleDegrees: Float {
+        let round = Float(RoundTube8SurfacePatternGenerator.columnsCarriedPerCycle) * .pi / 8
+        return atan(round / RoundTube8SurfacePatternGenerator.pitchOverDiameterTurningBothWays) * 180 / .pi
+    }
+
+    /// The stripes' angle, by which ways round the table carries its threads.
+    static func fibreStripeAngleDegrees(for turning: BraidTurning) -> Float {
+        switch turning {
+        case .oneWay: return fibreStripeAngleDegrees
+        case .bothWays: return bothWaysFibreStripeAngleDegrees
+        }
+    }
     /// How many fibre stripes lie side by side across one thread's width.
     /// **Calibrated by eye against the same photograph, not derived** — counted
     /// across a thread, because the stripes run nearly along it and that is the
@@ -349,6 +485,25 @@ enum RoundTube8SurfaceMesh {
     /// where the photograph has a fine, close grain. **The sixteen-thread side
     /// is not touched** — the factory already takes the figure as an argument.
     static let fibreStripeRelief: Float = 0.003
+
+    /// **The stripes on a both-ways stitch lie wider apart and stand out
+    /// further** (Task 059 addendum 4), set by eye so their slant reads: at the
+    /// one-way family's fourteen across a thread they alias on a stitch a
+    /// column across into a cross-hatch, and the way they lean is lost. Seven is
+    /// about book A p.8's own count (6.6 across a thread).
+    static let bothWaysFibreStripesAcrossThreadWidth: Float = 7
+    /// The same, for how far they stand out: twice the one-way family's.
+    static let bothWaysFibreStripeRelief: Float = 0.006
+
+    /// How many fibre stripes lie across a thread, by family.
+    static func fibreStripesAcrossThreadWidth(for turning: BraidTurning) -> Float {
+        turning == .bothWays ? bothWaysFibreStripesAcrossThreadWidth : fibreStripesAcrossThreadWidth
+    }
+
+    /// How far the fibre stripes stand out, by family.
+    static func fibreStripeRelief(for turning: BraidTurning) -> Float {
+        turning == .bothWays ? bothWaysFibreStripeRelief : fibreStripeRelief
+    }
 
     /// Samples along one run and across it. Across resolves the round ridge;
     /// along resolves the shoulder and the tip, **packed towards both ends the
@@ -376,8 +531,11 @@ enum RoundTube8SurfaceMesh {
         patternRepeatCount: Int = defaultPatternRepeatCount,
         alongSubdivisions: Int = defaultAlongSubdivisions,
         acrossSubdivisions: Int = defaultAcrossSubdivisions,
-        bundle: RoundTube8Bundle = .standard
+        bundle: RoundTube8Bundle? = nil
     ) -> RoundTube8SurfaceMeshData? {
+        // **What a thread shows as is the pattern's own** — its family's, by
+        // which ways round its table carries it — unless a test asks for another.
+        let bundle = bundle ?? pattern.bundle
         let tileLength = length(
             radius: radius,
             aspectRatio: pattern.aspectRatio,
@@ -397,7 +555,7 @@ enum RoundTube8SurfaceMesh {
             bundle.arcSpanCycles > 0, bundle.arcSpanCycles <= bundle.lengthInCycles,
             bundle.tailBendColumns.isFinite,
             bundle.tailBendFromCycles >= 0, bundle.tailBendFromCycles < bundle.lengthInCycles,
-            bundle.tailNarrowsFromCycles > bundle.headRoundingCycles,
+            bundle.tailNarrowsFromCycles >= bundle.headRoundingCycles,
             bundle.tailNarrowsFromCycles < bundle.lengthInCycles,
             bundle.widestHalfWidthInColumns > 0,
             !pattern.surface.segments.isEmpty
@@ -405,7 +563,7 @@ enum RoundTube8SurfaceMesh {
             return nil
         }
 
-        let floor = radius * (1 - runHeightOverRadius)
+        let floor = radius * (1 - runHeightOverRadius(for: pattern.turning))
         let repeatLength = tileLength / Float(patternRepeatCount)
         let beneath = floor - beneathClearanceOfRidge * (radius - floor)
 
@@ -441,16 +599,23 @@ enum RoundTube8SurfaceMesh {
 
                 // The run: the thread as it shows.
                 let first = positions.count
+                // **A tile's stripes lean one way for each set** (Task 059
+                // addendum 4): the maps are drawn once, so the other set reads
+                // them mirrored across the stitch, and its bitangent is turned
+                // with them so the relief is lit the way the stripes run.
+                let mirrored = bundle.tile != nil && pattern.leanBySegment[segmentIndex] > 0
                 for alongStep in 0...alongSubdivisions {
                     let along = (1 + crossSectionOffset(
                         forSample: Float(alongStep) / Float(alongSubdivisions)
                     )) / 2
+                    let cycles = bundle.cycles(atFraction: along)
                     for acrossStep in 0...acrossSubdivisions {
                         let sample = Float(acrossStep) / Float(acrossSubdivisions)
+                        let across = crossSectionOffset(forSample: sample)
                         let frame = self.frame(
                             of: segment,
-                            cycles: along * bundle.lengthInCycles,
-                            across: crossSectionOffset(forSample: sample),
+                            cycles: cycles,
+                            across: across,
                             leanDirection: pattern.leanBySegment[segmentIndex],
                             bundle: bundle,
                             floor: floor, radius: radius,
@@ -459,8 +624,14 @@ enum RoundTube8SurfaceMesh {
                         positions.append(frame.position)
                         normals.append(frame.normal)
                         tangents.append(frame.tangent)
-                        bitangents.append(frame.bitangent)
-                        textures.append(SIMD2(along, sample))
+                        if let tile = bundle.tile {
+                            let row = textureRow(of: tile, atStitches: cycles, across: across)
+                            bitangents.append(mirrored ? -frame.bitangent : frame.bitangent)
+                            textures.append(SIMD2(along, mirrored ? 1 - row : row))
+                        } else {
+                            bitangents.append(frame.bitangent)
+                            textures.append(SIMD2(along, sample))
+                        }
                     }
                 }
                 runRanges.append(first..<positions.count)
@@ -519,6 +690,16 @@ enum RoundTube8SurfaceMesh {
         return isConsistent(mesh) ? mesh : nil
     }
 
+    /// **Where a place on a tile reads the maps across them**: by how far round
+    /// the braid it is from its row's middle, over the tile's widest half-width —
+    /// not by how far across its width it is there — so the stripes run straight
+    /// over the whole tile rather than fanning to its corners. The maps read a
+    /// row through `crossSectionOffset`; this is its inverse.
+    static func textureRow(of tile: RoundTube8Tile, atStitches stitches: Float, across: Float) -> Float {
+        let round = tile.columns(atStitches: stitches, across: across) / tile.widestHalfWidthInColumns
+        return (asin(min(max(round, -1), 1)) / (.pi / 2) + 1) / 2
+    }
+
     // MARK: - The surface
 
     /// **Borrowed from `RoundTube16SurfaceMesh.crestProfile`**: a semi-ellipse,
@@ -574,9 +755,10 @@ enum RoundTube8SurfaceMesh {
                     + halfWidth * across) / columns
             // The height the card reads too (`RoundTube8Bundle.standingFraction`
             // is this, the envelope times the crest's section), written the way
-            // it was so that not one vertex moves.
-            let height = floor + ridge * bundle.heightFraction(atCycles: cycles)
-                * crestProfile(across: across)
+            // it was so that not one vertex moves. A tile's is its own.
+            let height = bundle.tile == nil
+                ? floor + ridge * bundle.heightFraction(atCycles: cycles) * crestProfile(across: across)
+                : floor + ridge * bundle.standingFraction(atCycles: cycles, across: across)
             let angle = 2 * .pi * turns
             // **The stand's own placement, seen from the braiding point**: `(sin,
             // cos)`, as `BraidStands.round` puts a position on the stand seen from
@@ -597,7 +779,7 @@ enum RoundTube8SurfaceMesh {
         let length = bundle.lengthInCycles
         let step: Float = 1e-3 * length
         let position = at(cycles, across)
-        var tangent = at(min(cycles + step, length), across) - at(max(cycles - step, 0), across)
+        var tangent = at(min(cycles + step, length), across) - at(max(cycles - step, bundle.firstCycles), across)
         var bitangent = at(cycles, min(across + 1e-3, 1)) - at(cycles, max(across - 1e-3, -1))
         tangent = normalised(tangent)
         bitangent = normalised(bitangent)
