@@ -1,7 +1,7 @@
 import Foundation
 
 enum HomeStrings {
-    static let title = "組紐"
+    static let title = "組ひも"
     static let createTitle = "新しく編む"
     static let createSubtitle = "色や組み方を選んで作成"
     static let savedProjectsHeader = "保存した組紐"
