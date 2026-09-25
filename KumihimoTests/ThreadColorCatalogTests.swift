@@ -136,6 +136,56 @@ struct ThreadColorCatalogTests {
         #expect(!store.hasUnsavedChanges)
     }
 
+    // MARK: the recipes' own colourings
+
+    /// Each recipe's colouring as it stood before Task 063, place by place, in
+    /// the twelve former IDs.
+    private static let formerColourings: [String: [String]] = {
+        func byGroup(_ stand: BraidStand, _ groups: [String: [String]]) -> [String] {
+            BraidMethodCatalog.colouring(on: stand, groups)
+                .sorted { $0.position < $1.position }.map(\.colorID.rawValue)
+        }
+        let eightYellowOrange = ["yellow", "yellow", "orange", "orange", "yellow", "yellow", "orange", "orange"]
+        return [
+            "maru-genji-16": byGroup(BraidMethodCatalog.stand16, [
+                "north": ["pink", "orange", "orange", "pink"], "east": Array(repeating: "black", count: 4),
+                "south": ["natural", "red", "red", "natural"], "west": Array(repeating: "black", count: 4),
+            ]),
+            "hira-genji-16": byGroup(BraidMethodCatalog.stand16, [
+                "north": ["purple", "purple", "black", "orange"], "east": Array(repeating: "pink", count: 4),
+                "south": ["purple", "purple", "black", "orange"], "west": Array(repeating: "pink", count: 4),
+            ]),
+            "yatsu-kongo-s-8": eightYellowOrange,
+            "yatsu-kongo-z-8": eightYellowOrange,
+            "yatsu-kongo-gaeshi-8": ["orange", "orange", "pink", "pink", "orange", "orange", "pink", "pink"],
+            "maru-yotsu-4": byGroup(BraidMethodCatalog.stand4, [
+                "north": ["white"], "east": ["purple"], "south": ["white"], "west": ["purple"],
+            ]),
+            "edo-yatsu-8": ["light-blue", "yellow", "pink", "natural", "light-blue", "yellow", "pink", "natural"],
+        ]
+    }()
+
+    /// **Every recipe's colouring is written in the 38**, not read through the
+    /// former IDs, and **its threads keep their pattern**: two threads that were
+    /// the same colour before Task 063 are the same colour now, and two that
+    /// were different are still different. The colours were chosen afresh from
+    /// the books' photographs, so which colour each is, is not held here.
+    @Test(arguments: BraidMethodCatalog.recipes)
+    func aRecipesColouringIsInTheThirtyEightAndKeepsItsPattern(recipe: BraidRecipe) throws {
+        let current = Set(ThreadColorCatalog.colors.map(\.id))
+        #expect(recipe.colouring.allSatisfy { current.contains($0.colorID) }, "\(recipe.id)")
+
+        let before = try #require(Self.formerColourings[recipe.id])
+        let now = recipe.colouring.sorted { $0.position < $1.position }.map(\.colorID.rawValue)
+        #expect(now.count == before.count)
+        for first in now.indices {
+            for second in now.indices where second > first {
+                #expect((now[first] == now[second]) == (before[first] == before[second]),
+                        "\(recipe.id) places \(first + 1) and \(second + 1)")
+            }
+        }
+    }
+
     // MARK: the sheet
 
     @Test func theSheetReadsTheNameItsReadingAndTheShopsNumber() throws {

@@ -356,20 +356,33 @@ enum BraidMethodCatalog {
 
     /// Book A p94's own colouring for maru-genji, whose finished braid is
     /// photographed at the head of the same page.
+    ///
+    /// **The colours are the photograph's, each set on its nearest of the 38**
+    /// (Task 063, CIEDE2000, `Scripts/task063/measure_colourings.py`): the rose
+    /// (0.92, 0.69, 0.66) is No.20 一斤 (ΔE 1.9), the salmon (0.93, 0.68, 0.53)
+    /// No.19 珊瑚 (5.7), the vermilion (0.94, 0.46, 0.33) No.21 黄丹 (11.7), the
+    /// cream (0.90, 0.85, 0.80) No.36 白土 (11.2, with No.15 象牙 and No.31 白群
+    /// both 11.6), and the navy (0.28, 0.24, 0.32) No.03 紫紺 (9.5).
     static let maruGenji16Colouring = colouring(on: stand16, [
-        "north": ["fuji", "oni", "oni", "fuji"],
-        "east": Array(repeating: "shikkoku", count: 4),
-        "south": ["zoge", "shu", "shu", "zoge"],
-        "west": Array(repeating: "shikkoku", count: 4),
+        "north": ["ikkon", "sango", "sango", "ikkon"],
+        "east": Array(repeating: "shikon", count: 4),
+        "south": ["hakudo", "oni", "oni", "hakudo"],
+        "west": Array(repeating: "shikon", count: 4),
     ])
 
     /// Book A p96's starting diagram for hira-genji, photographed at the head of
     /// the same page.
+    ///
+    /// **The colours are the photograph's, each set on its nearest of the 38**
+    /// (Task 063): the greyish mauve of the middle stripe (0.80, 0.64, 0.57) is
+    /// No.20 一斤 (ΔE 9.0), the black (0.18, 0.12, 0.12) No.32 漆黒 (5.1), the
+    /// vermilion (0.94, 0.47, 0.35) No.21 黄丹 (12.5), and the salmon of the two
+    /// sides (0.97, 0.74, 0.62) No.19 珊瑚 (8.5, No.20 一斤 9.0 next).
     static let hiraGenji16Colouring = colouring(on: stand16, [
-        "north": ["sumire", "sumire", "shikkoku", "oni"],
-        "east": Array(repeating: "fuji", count: 4),
-        "south": ["sumire", "sumire", "shikkoku", "oni"],
-        "west": Array(repeating: "fuji", count: 4),
+        "north": ["ikkon", "ikkon", "shikkoku", "oni"],
+        "east": Array(repeating: "sango", count: 4),
+        "south": ["ikkon", "ikkon", "shikkoku", "oni"],
+        "west": Array(repeating: "sango", count: 4),
     ])
 
     static let maruGenji16Recipe = BraidRecipe(
@@ -418,6 +431,11 @@ enum BraidMethodCatalog {
     /// Book A p.54's own colouring for yatsu-kongo S: **the upright pair in
     /// yellow and the flat pair in orange.**
     ///
+    /// **The colours are the threads photographed on p.8** (braids a and S),
+    /// each set on its nearest of the 38 (Task 063): the pale yellow of 105
+    /// (0.95, 0.90, 0.75) is No.15 象牙 (ΔE 3.3) and the orange of 108 (0.90,
+    /// 0.64, 0.49) No.19 珊瑚 (6.1).
+    ///
     /// Read off the page's "糸の配色と配置" enlarged (the author, 2026-09-10):
     /// thread 105 yellow stands in the north and south groups, thread 108 orange
     /// in the east and west. Two colours, four threads each. **Laid pair by pair
@@ -430,7 +448,7 @@ enum BraidMethodCatalog {
     /// move table up, and a colouring is a question about where the recipe comes
     /// from, not about whether the table is right.
     static let yatsuKongoS8Colouring = byPlace(stand8, [
-        "kiiro", "kiiro", "oni", "oni", "kiiro", "kiiro", "oni", "oni",
+        "zoge", "zoge", "sango", "sango", "zoge", "zoge", "sango", "sango",
     ])
 
     /// Book A p.55's colouring **a** for yatsu-kongo Z, which is printed the same
@@ -522,8 +540,13 @@ enum BraidMethodCatalog {
     /// and 17・18 orange, 9・10 and 25・26 pink — pair by pair, at the stand's
     /// places 1・2 … 7・8 (Task 055; it had the two colours the other way
     /// round). The same arrangement as book A p.54's two colours.
+    ///
+    /// **The colours are the photograph's** at the head of the page, each set on
+    /// its nearest of the 38 (Task 063). The thread the figure draws orange is a
+    /// pale yellow in the photograph, (0.94, 0.84, 0.69), No.15 象牙 (ΔE 7.2);
+    /// the pink (0.95, 0.78, 0.78) is No.20 一斤 (4.9).
     static let yatsuKongoGaeshi8Colouring = byPlace(stand8, [
-        "oni", "oni", "fuji", "fuji", "oni", "oni", "fuji", "fuji",
+        "zoge", "zoge", "ikkon", "ikkon", "zoge", "zoge", "ikkon", "ikkon",
     ])
 
     /// A colouring written place by place, 1 to 8.
@@ -589,21 +612,24 @@ enum BraidMethodCatalog {
         return method
     }()
 
-    /// **Book A p.56's colouring b, upright 163 and flat 148, set on the
-    /// catalogue's nearest colour names** — a reading, not a measurement: the page prints
+    /// **Book A p.56's colouring b, upright 163 and flat 148**: the page prints
     /// 163 pale and 148 a greyish lilac, and p.10's photograph b is white and
-    /// mauve, so 163 is `white` and 148 is `purple`, the catalogue's only
-    /// violet, which is more saturated than the thread.
+    /// mauve.
+    ///
+    /// **The colours are that photograph's, each set on its nearest of the 38**
+    /// (Task 063; until then `white` and `purple`, a reading of the names): 163
+    /// (0.94, 0.95, 0.96) is No.31 白群 (ΔE 9.4) and 148 (0.62, 0.55, 0.60) No.34
+    /// 鈍色 (11.0, No.05 藤色 17.2 next).
     ///
     /// **b because it can be judged**: p.10's photograph b is the one whose two
     /// pairs part most plainly. The page prints three: a (147 upright, 169 flat,
     /// both pale — white and pink in the photograph), b, and c (124 alone, one
     /// colour, which shows no pattern to judge).
     static let maruYotsu4Colouring = colouring(on: stand4, [
-        "north": ["hakudo"],     // 163
-        "east": ["sumire"],     // 148
-        "south": ["hakudo"],     // 163
-        "west": ["sumire"],     // 148
+        "north": ["byakugun"],  // 163
+        "east": ["nibi"],       // 148
+        "south": ["byakugun"],  // 163
+        "west": ["nibi"],       // 148
     ])
 
     /// **The measured values are empty: nothing has been measured for the
@@ -753,14 +779,15 @@ enum BraidMethodCatalog {
     /// (`EdoYatsuTests`) — 「糸の色は2段ごとに戻ります」, this page's 段 being a
     /// cycle.
     ///
-    /// **The names are a reading, not a measurement**: magenta is `pink`, cyan
-    /// `light-blue`, the cream `natural`. **The catalogue has no yellow-green**;
-    /// it lies between `yellow` and `green`, and `yellow` is the nearer. Read
-    /// off the 300 dpi scan, the figure's line is about (0.75, 0.77, 0.45) and
-    /// the photograph's thread (0.62, 0.69, 0.49): nearer `yellow` (0.95, 0.75,
-    /// 0.12) than `green` (0.12, 0.52, 0.27) in both RGB and hue — `green` is a
-    /// dark green. `natural` is nearer than either, and is the cream. Adding a
-    /// colour is outside Task 057.
+    /// **The colours are the photograph's, each set on its nearest of the 38**
+    /// (Task 063, CIEDE2000): the magenta (0.87, 0.41, 0.59) is No.05 藤色 (ΔE
+    /// 15.9), the cyan (0.15, 0.64, 0.76) No.30 露草色 (17.8, No.29 浅葱 19.4 next
+    /// — the two are within 2 whichever way the cyan is read), the yellow-green
+    /// (0.68, 0.75, 0.57) No.27 青磁 (4.7), and the cream (0.90, 0.89, 0.86)
+    /// No.31 白群 (9.7). The 38 have no magenta and no cyan, so the braid looks
+    /// paler than the photograph (the author accepted this, 2026-09-25). Until
+    /// Task 063 the yellow-green was drawn as the provisional `yellow`, which
+    /// had no yellow-green either.
     ///
     /// **Until Task 057 the colouring was the recipe book's**, two colours
     /// alternating round the stand, which keeps every place its colour; the
@@ -768,9 +795,9 @@ enum BraidMethodCatalog {
     /// of this one (Task 025-5: take the colouring the book photographs).
     static let edoYatsu8Colouring = bySlit(stand8, startingSlits: edoYatsuStartingSlits, [
         4: "fuji", 20: "fuji",
-        5: "zoge", 21: "zoge",
+        5: "byakugun", 21: "byakugun",
         12: "tsuyukusa", 28: "tsuyukusa",
-        13: "kiiro", 29: "kiiro",
+        13: "seiji", 29: "seiji",
     ])
 
     /// A colouring written slit by slit on a disk book's starting diagram, laid

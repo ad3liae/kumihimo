@@ -125,17 +125,18 @@ enum YatsuKongoComparisonPreviewData {
             }
         case "swapped":
             // The textbook's figure with its cyan and yellow-green swapped, the
-            // reading of the p.64 photograph (Task 059 addendum 6); yellow-green
-            // is yellow until the catalogue has one.
-            let names = ["kiiro", "tsuyukusa", "fuji", "zoge"]
+            // reading of the p.64 photograph (Task 059 addendum 6), in the
+            // recipe's own colours (Task 063).
+            let names = ["seiji", "tsuyukusa", "fuji", "byakugun"]
             return (1...8).map {
                 ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: names[($0 - 1) % 4]))
             }
         case "leftright":
             // p.65's left example (Task 059 addendum 6): the left of every pair
-            // teal, the right yellow-green — light-blue and yellow here.
+            // teal, the right yellow-green — the recipe's cyan and yellow-green
+            // here (Task 063).
             return (1...8).map {
-                ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: $0 % 2 == 1 ? "tsuyukusa" : "kiiro"))
+                ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: $0 % 2 == 1 ? "tsuyukusa" : "seiji"))
             }
         case "one":
             // Every thread natural but position 1, blue (Task 048).
