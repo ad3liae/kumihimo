@@ -20,10 +20,18 @@ enum ProjectEditorPreviewData {
     static let hiraSurfaceLadderLaunchArgument = "--ui-testing-hira-surface-ladder"
     static let darkModeLaunchArgument = "--ui-testing-dark-mode"
 
+    /// Twelve colours told apart, written out rather than read off the catalogue,
+    /// so that which threads share a colour does not move when the catalogue does.
     static var colorfulAssignments: [ThreadAssignment] {
-        (1...16).map { position in
-            let color = ThreadColorCatalog.colors[(position - 1) % ThreadColorCatalog.colors.count]
-            return ThreadAssignment(position: position, colorID: color.id)
+        let colours = [
+            "red", "orange", "yellow", "green", "light-blue", "blue",
+            "purple", "pink", "brown", "black", "white", "natural",
+        ]
+        return (1...16).map { position in
+            ThreadAssignment(
+                position: position,
+                colorID: ThreadColorID(rawValue: colours[(position - 1) % colours.count])
+            )
         }
     }
 

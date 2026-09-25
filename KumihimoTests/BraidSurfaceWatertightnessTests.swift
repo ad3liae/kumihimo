@@ -100,7 +100,7 @@ struct BraidSurfaceWatertightnessTests {
         (1...16).map {
             ThreadAssignment(
                 position: $0,
-                colorID: ThreadColorCatalog.colors[$0 % ThreadColorCatalog.colors.count].id
+                colorID: TwelveColours.ids[$0 % TwelveColours.ids.count]
             )
         }
     }
