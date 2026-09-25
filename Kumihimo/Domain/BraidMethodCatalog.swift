@@ -795,8 +795,12 @@ enum BraidMethodCatalog {
     )
 
     /// **The measured values are empty: nothing has been measured for the
-    /// recipe.** It is drawn, if at all, by the eight-thread tube's drawer with
-    /// that drawer's own values (the author, 2026-09-22: 「まずは既存の出力を参考に」).
+    /// recipe.** It is drawn by the eight-thread tube's drawer with the values of
+    /// its family — a tube whose table carries threads both ways round, drawn as
+    /// the both-ways family since Task 059 (which replaced 2026-09-22's 「まずは
+    /// 既存の出力を参考に」): a place shows the thread that passed over it. Its
+    /// pitch was measured on the textbook p.64's photograph and belongs to the
+    /// family (`RoundTube8SurfacePatternGenerator.pitchOverDiameterTurningBothWays`).
     static let edoYatsu8Recipe = BraidRecipe(
         id: "edo-yatsu-8",
         name: "江戸八つ組",

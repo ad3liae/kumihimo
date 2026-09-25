@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import Testing
 @testable import Kumihimo
@@ -67,5 +68,54 @@ struct BraidMeshHashTests {
         let mesh = try #require(SharedMeshes.tube(BraidMethodCatalog.maruGenji16Colouring))
         #expect(mesh.positions.count == 419_184)
         #expect(Self.hash(mesh.positions) == 0x13ed_1478_75ce_cc9e)
+    }
+
+    /// FNV-1a over a picture's bytes.
+    static func hash(_ image: CGImage) -> UInt64? {
+        guard let data = image.dataProvider?.data as Data? else { return nil }
+        var out: UInt64 = 0xcbf2_9ce4_8422_2325
+        for byte in data { out = (out ^ UInt64(byte)) &* 0x100_0000_01b3 }
+        return out
+    }
+
+    /// **The cards of the braids carried one way round are the pictures they
+    /// were before Task 059** gave the braids carried both ways a shape of their
+    /// own. Taken on the drawer before the change (yatsu-kongo S, Z and 返し組
+    /// under their own colouring, eight colours and the author's 桃白青緑; 丸四つ組
+    /// under its own and four colours) and held after it, pixel for pixel.
+    @Test func theOneWayCardsAreThePicturesTheyWere() throws {
+        let eight = ["red", "orange", "yellow", "green", "light-blue", "blue", "purple", "pink"]
+        let fourColours = ["pink", "white", "blue", "green", "pink", "white", "blue", "green"]
+        func byPlace(_ names: [String]) -> [ThreadAssignment] {
+            names.enumerated().map { ThreadAssignment(position: $0.offset + 1, colorID: ThreadColorID(rawValue: $0.element)) }
+        }
+        let stand8 = BraidMethodCatalog.stand8
+        let wanted: [(BraidRecipe, [[UInt64]])] = [
+            (BraidMethodCatalog.yatsuKongoS8Recipe, [[0x951d_60c3_2be5_9bc1], [0x7b7d_ffea_5370_e51e], [0x3d71_8648_e891_a7fd]]),
+            (BraidMethodCatalog.yatsuKongoZ8Recipe, [[0xecca_d4bd_e9c7_9cc5], [0xac55_d2be_65bd_3608], [0xb7d1_c93a_1646_1fa5]]),
+            (BraidMethodCatalog.yatsuKongoGaeshi8Recipe, [[0x4c71_c23a_b90a_b7ad], [0x77c2_2a77_0a2e_43cc], [0x3e7d_7a39_432d_40cd]]),
+        ]
+        for (recipe, hashes) in wanted {
+            let worked = try #require(recipe.worked(on: stand8))
+            for (colouring, hash) in zip([recipe.colouring, byPlace(eight), byPlace(fourColours)], hashes) {
+                let pattern = try #require(RoundTube8SurfacePatternGenerator.generate(
+                    stand: stand8, rounds: worked.derivation.rounds, crossSection: worked.section,
+                    assignments: colouring))
+                #expect(pattern.bundle == .standard)
+                let image = try #require(RoundTube8CardImage.draw(pattern, bundle: pattern.bundle))
+                #expect(Self.hash(image) == hash[0], "\(recipe.id)")
+            }
+        }
+        let recipe4 = BraidMethodCatalog.maruYotsu4Recipe
+        let stand4 = BraidMethodCatalog.stand4
+        let worked4 = try #require(recipe4.worked(on: stand4))
+        for (colouring, hash) in zip([recipe4.colouring, byPlace(["red", "white", "blue", "yellow"])],
+                                     [UInt64(0x8952_e9a9_9d1f_ce35), 0xf94d_11a5_0f3d_a4b9]) {
+            let pattern = try #require(RoundTube4SurfacePatternGenerator.generate(
+                stand: stand4, rounds: worked4.derivation.rounds, crossSection: worked4.section,
+                assignments: colouring))
+            let image = try #require(RoundTube4CardImage.draw(pattern, bundle: .standard))
+            #expect(Self.hash(image) == hash, "\(recipe4.id)")
+        }
     }
 }

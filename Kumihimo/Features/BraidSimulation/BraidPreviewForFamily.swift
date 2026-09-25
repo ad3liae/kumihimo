@@ -39,6 +39,7 @@ struct BraidPreviewForFamily: View {
                 closeAction: closeAction
             )
         case let family? where family == RoundTube8SurfaceMesh.family
+            || family == RoundTube8SurfaceMesh.familyTurningBothWays
             || family == RoundTube4SurfaceMesh.family:
             // **The same view**: a tube is a tube, and what differs is the family,
             // the table its cells are worked out from, and what the braid is
@@ -95,7 +96,7 @@ struct BraidThumbnailForFamily: View {
             Flat16ThumbnailView(assignments: assignments)
         case RoundTube16SurfaceMesh.family:
             RoundTube16ThumbnailView(assignments: assignments)
-        case RoundTube8SurfaceMesh.family:
+        case RoundTube8SurfaceMesh.family, RoundTube8SurfaceMesh.familyTurningBothWays:
             if let pattern = BraidSurfaceScene.table(for: recipe).flatMap({ table in
                 RoundTube8SurfacePatternGenerator.generate(
                     stand: table.stand, rounds: table.rounds,

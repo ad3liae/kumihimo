@@ -102,6 +102,22 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// braid of one table — `leanDirection` — and both, part by part, for a braid
     /// that turns its spiral round.
     let leanBySegment: [Float]
+    /// **Which ways round the table carries its threads** (Task 059), read off the
+    /// braid (`BraidTurning.of`): the eight-thread tube's two families. It chooses
+    /// what a thread shows as (`bundle`), how long a cycle is
+    /// (`RoundTube8SurfacePatternGenerator.pitchOverDiameter(for:)`) and **which
+    /// thread a place of the face shows**: for a table that carries every thread
+    /// one way, the thread standing there, cell by cell; for one that carries
+    /// them both ways, **the thread that passed over it** (Task 059 addendum 6,
+    /// `RoundTube8SurfacePatternGenerator.generate`). The rows are the places
+    /// either way.
+    let turning: BraidTurning
+
+    /// What a thread shows as on this braid: **the bundle** yatsu-kongo's table
+    /// is drawn with for a table that carries every thread one way, and **the
+    /// both-ways family's own** for one that carries them both ways (Task 059).
+    var bundle: RoundTube8Bundle { RoundTube8Bundle.shown(on: turning) }
+
 
     /// The carry as one number, **when every place is carried the same way** —
     /// yatsu-kongo's spiral — and `nil` when not (江戸八つ組).
@@ -208,6 +224,12 @@ struct RoundTube8Bundle: Equatable, Sendable {
     let tailNarrowsFromCycles: Float
     /// Half the run's width, **in columns**.
     let widestHalfWidthInColumns: Float
+    /// **The stitch's own tile, where it is one** (Task 059 addendum 4): then it,
+    /// and not the head, the tail, the lean and the arc above, gives where the
+    /// run stands round the braid, how wide it is and how high, and the run
+    /// begins before its arrival — its head goes on under the stitch before it.
+    /// `nil` for yatsu-kongo's bundle.
+    var tile: RoundTube8Tile? = nil
 
     /// **Set against the photograph by eye** (Task 051), keeping Task 049's lean
     /// and width. The arc's span and the tail were set so that a run's head
@@ -225,8 +247,60 @@ struct RoundTube8Bundle: Equatable, Sendable {
         widestHalfWidthInColumns: 0.6
     )
 
+    /// **What a thread shows as on a tube whose table carries threads both ways
+    /// round** (Task 059 addendum 6): **a cushion on its tile of the face**
+    /// (`RoundTube8Tile.cushion`), one a cycle for each place passed over
+    /// (`RoundTube8SurfacePatternGenerator.passes`). Its figures are counted in
+    /// cycles along the stitch: `runCycle(of:)` is the stitch's own length, a
+    /// cycle.
+    ///
+    /// **It does not lean**: the fibre inside it runs the way its thread was
+    /// carried over the one beneath (`RoundTube8SurfaceMesh
+    /// .fibreStripeAngleDegrees(for:)`), not along an outline drawn out.
+    static let bothWays = tiled(.cushion)
+
+    /// A bundle drawn as `tile`. Its run ends where the tile's reach does
+    /// (`tuckedCycles`) and begins as far before its middle (`firstCycles`).
+    /// The head, tail, lean and arc figures are not read for a tile; they are
+    /// set only so the checks every bundle passes still hold.
+    static func tiled(_ tile: RoundTube8Tile) -> RoundTube8Bundle {
+        RoundTube8Bundle(
+            leanColumnsPerCycle: 0,
+            tuckedCycles: tile.alongReachInStitches - 0.5,
+            headRoundingCycles: 0.12,
+            arcSpanCycles: 0.5 + tile.alongReachInStitches,
+            tailBendColumns: 0,
+            tailBendFromCycles: 0.5,
+            tailNarrowsFromCycles: 0.5 + tile.alongReachInStitches / 2,
+            widestHalfWidthInColumns: tile.widestHalfWidthInColumns,
+            tile: tile
+        )
+    }
+
+    /// **What a thread shows as, by which ways round its table carries it**
+    /// (Task 059): yatsu-kongo's bundle for one way, the both-ways family's own
+    /// for both.
+    static func shown(on turning: BraidTurning) -> RoundTube8Bundle {
+        switch turning {
+        case .oneWay: return .standard
+        case .bothWays: return .bothWays
+        }
+    }
+
     /// From the arrival to the end of the run, in cycles.
     var lengthInCycles: Float { 1 + tuckedCycles }
+
+    /// **Where the run begins, in cycles from its arrival**: at it, or for a
+    /// tile, its reach before it — the head goes on under the stitch before it
+    /// along the row as the tail goes under the one after.
+    var firstCycles: Float { tile.map { 0.5 - $0.alongReachInStitches } ?? 0 }
+
+    /// `fraction` of the way along the run, 0 at its first sample and 1 at its
+    /// last, in cycles past the arrival. For yatsu-kongo's bundle it is
+    /// `fraction * lengthInCycles`, to the bit.
+    func cycles(atFraction fraction: Float) -> Float {
+        firstCycles + fraction * (lengthInCycles - firstCycles)
+    }
 
     /// A thread is one column wide: the half-width the thread count gives.
     static let oneThreadHalfWidthInColumns: Float = 0.5
@@ -235,6 +309,7 @@ struct RoundTube8Bundle: Equatable, Sendable {
     /// over `headRoundingCycles` at the head, full through the run, and
     /// narrowing from `tailNarrowsFromCycles` to nothing at the end.
     func halfWidthInColumns(atCycles cycles: Float) -> Float {
+        if let tile { return tile.interval(atStitches: cycles).halfWidth }
         guard cycles >= 0, cycles <= lengthInCycles else { return 0 }
         var fraction: Float = 1
         if headRoundingCycles > 0, cycles < headRoundingCycles {
@@ -267,6 +342,7 @@ struct RoundTube8Bundle: Equatable, Sendable {
     /// Across the run it is a half-ellipse as well (`standingFraction`), so a
     /// run domes both ways.
     func heightFraction(atCycles cycles: Float) -> Float {
+        if let tile { return tile.heightFraction(atStitches: cycles, across: 0) }
         guard cycles >= 0, cycles <= lengthInCycles, arcSpanCycles > 0 else { return 0 }
         let fromTheMiddle = 2 * cycles / arcSpanCycles - 1
         return max(0, 1 - fromTheMiddle * fromTheMiddle).squareRoot()
@@ -277,6 +353,8 @@ struct RoundTube8Bundle: Equatable, Sendable {
     /// `tailBendFromCycles` the tail's bend, growing as the square of the way
     /// to the end so it leaves the lean without a kink.
     func leanInColumns(atCycles cycles: Float, direction: Float) -> Float {
+        // A tile does not lean: it stands on its row.
+        if let tile { return tile.interval(atStitches: cycles).middle }
         let reach = lengthInCycles - tailBendFromCycles
         let bent = reach > 0 ? max(0, cycles - tailBendFromCycles) / reach : 0
         return direction * (leanColumnsPerCycle * (cycles - 0.5) + tailBendColumns * bent * bent)
@@ -287,8 +365,93 @@ struct RoundTube8Bundle: Equatable, Sendable {
     /// semi-elliptical section (the crest's own, `RoundTube8SurfaceMesh
     /// .crestProfile`). 0 at its edges, which lie on the valley floor.
     func standingFraction(atCycles cycles: Float, across: Float) -> Float {
+        if let tile { return tile.heightFraction(atStitches: cycles, across: across) }
         let clamped = min(max(across, -1), 1)
         return heightFraction(atCycles: cycles) * max(0, 1 - clamped * clamped).squareRoot()
+    }
+}
+
+/// **A both-ways stitch as a cushion on its tile of the face** (Task 059
+/// addendum 6: 「2の菱形の区画を埋める、角を丸めたクッション形」).
+///
+/// **The tile is the face's own.** A place is passed over once a cycle, so a
+/// row's stitches stand a cycle apart, and the rows beside it half a cycle from
+/// them. The rhombus with its corners at a stitch's two ends along the braid
+/// and at the middles of the two rows beside it fits its four diagonal
+/// neighbours edge to edge and meets the next stitch of its row at a corner:
+/// **a cycle along and two rows round**, one row by one cycle in area. On the
+/// textbook p.64's photograph it is a square turned 45°: the nearest stitches
+/// are the four diagonal ones.
+///
+/// **Where it shows is decided by height, as every run's is** (`runsStanding`):
+/// two neighbours are equally high on the edge they share, so each shows over
+/// its own tile, and past its edges it goes on under them by `tuck` — no floor
+/// shows. The edge itself lies low between the two cushions, a groove the
+/// shading darkens (the photograph's shadowed grooves). The height is a low
+/// dome over the rhombus (`flatness`), its corners rounded (`roundness`).
+///
+/// **Measured in its own units**: along the braid in cycles past the stitch's
+/// start (its tile is 0...1, its middle at a half), round it in rows from its
+/// row's middle. `norm` is 1 on the tile's edge.
+struct RoundTube8Tile: Equatable, Sendable {
+    /// Half the tile round the braid, **in rows**: to the middle of the next row.
+    /// **The lattice's, not set by eye.**
+    let reachInColumns: Float
+    /// How far past its tile the stitch goes on under its neighbours, **as a
+    /// share of the tile's half-diagonals**. Set by eye.
+    let tuck: Float
+    /// The power of the norm the outline is drawn with: 1 is a sharp rhombus, 2
+    /// an ellipse. Between them the corners are rounded. Set by eye.
+    let roundness: Float
+    /// The power of the norm in the height: 2 is a dome, higher is flatter on top
+    /// and rounder only at its edges. Set by eye.
+    let flatness: Float
+
+    /// **Set by eye against the textbook p.64's photograph** (Task 059 addendum
+    /// 6) for its rounding, tuck and top. `RoundTube8SurfaceMesh
+    /// .shapeTurningBothWays` records each.
+    static let cushion = RoundTube8Tile(reachInColumns: 1, tuck: 0.2, roundness: 1.5, flatness: 2.5)
+
+    /// Where the outline lies, in the norm: the tile's edge and the tuck past it.
+    var outline: Float { 1 + tuck }
+
+    /// Half its width at its widest, in rows, tuck and all.
+    var widestHalfWidthInColumns: Float { reachInColumns * outline }
+
+    /// How far it reaches along the braid from its middle, in cycles, tuck and all.
+    var alongReachInStitches: Float { outline / 2 }
+
+    /// Where it stands round the braid `stitches` past its start, in rows from
+    /// its row's middle: the interval its outline covers there, as its middle
+    /// and half its width. Nothing past its ends.
+    func interval(atStitches stitches: Float) -> (middle: Float, halfWidth: Float) {
+        let fromMiddle = stitches - 0.5
+        guard abs(fromMiddle) <= alongReachInStitches else { return (0, 0) }
+        let along = pow(abs(2 * fromMiddle), roundness)
+        let left = pow(outline, roundness) - along
+        return (0, reachInColumns * pow(max(0, left), 1 / roundness))
+    }
+
+    /// The norm at `stitches` past its start and `columns` rows round from its
+    /// row's middle: 1 on the tile's edge, `outline` on the stitch's own.
+    func norm(atStitches stitches: Float, columns: Float) -> Float {
+        let along = abs(2 * (stitches - 0.5))
+        let round = abs(columns) / reachInColumns
+        return pow(pow(along, roundness) + pow(round, roundness), 1 / roundness)
+    }
+
+    /// Round the braid from its row's middle at `across` its width (-1...1).
+    func columns(atStitches stitches: Float, across: Float) -> Float {
+        let (middle, halfWidth) = interval(atStitches: stitches)
+        return middle + min(max(across, -1), 1) * halfWidth
+    }
+
+    /// How far it stands there, 0...1 of the ridge: a low dome over the tile,
+    /// down to nothing at its own outline.
+    func heightFraction(atStitches stitches: Float, across: Float) -> Float {
+        let reach = norm(atStitches: stitches, columns: columns(atStitches: stitches, across: across)) / outline
+        guard reach <= 1 else { return 0 }
+        return (1 - pow(reach, flatness)).squareRoot()
     }
 }
 
@@ -318,6 +481,32 @@ enum RoundTube8SurfacePatternGenerator {
     /// two cells at a time (the author, 2026-09-20: 「2ピッチずつ色が入れ替わって
     /// いるが金剛組ではこのようにはならない」).
     static let pitchOverDiameter: Float = 0.807
+
+    /// One cycle's growth as a fraction of the braid's own diameter **on a tube
+    /// whose table carries threads both ways round** (Task 059 addendum 6):
+    /// 江戸八つ組.
+    ///
+    /// **Measured on the textbook p.64's photograph**: a stitch and the next one
+    /// in its row along the braid, 47.6 px apart on a braid 94 px across (600
+    /// dpi, `Scripts/task059/count_neighbours.py`'s neighbours along the braid;
+    /// the reviewer read 95 px on 189 px at 1200 dpi). A place is passed over
+    /// once a cycle, so a row's stitches stand a cycle apart.
+    ///
+    /// **It replaces 0.74** (addenda 2-5), which was 0.37 counted as a stitch's
+    /// share of the face on the reading that a column was a stitch wide and
+    /// every thread showed twice a cycle. The recipe book's p.4 zoom gives 0.72
+    /// by Task 054's reading, but it is another braid — other threads, another
+    /// thickness — and is not this one's value.
+    static let pitchOverDiameterTurningBothWays: Float = 0.50
+
+    /// **One cycle's growth, by which ways round the table carries its threads**
+    /// (Task 059).
+    static func pitchOverDiameter(for turning: BraidTurning) -> Float {
+        switch turning {
+        case .oneWay: return pitchOverDiameter
+        case .bothWays: return pitchOverDiameterTurningBothWays
+        }
+    }
 
     /// How many places round the braid one cycle carries a thread.
     ///
@@ -397,6 +586,7 @@ enum RoundTube8SurfacePatternGenerator {
 
         let colours = Dictionary(uniqueKeysWithValues: assignments.map { ($0.position, $0.colorID) })
         guard Set(colours.keys) == Set(stand.positionIDs) else { return nil }
+        let turning = BraidTurning.of(derivation)
 
         struct Arrival { let time: Float; let thread: Int; let lean: Float }
         let perDan = count / 2
@@ -406,6 +596,20 @@ enum RoundTube8SurfacePatternGenerator {
         // cycle each place takes its thread.
         var firstCarries = [Int?](repeating: nil, count: count)
         var firstPhases = [Float?](repeating: nil, count: count)
+        // **Where the table carries threads both ways, a place of the face shows
+        // the thread that passed over it** (Task 059 addendum 6): who stands
+        // where at each cycle's start, and the stitches the passes raise.
+        var standingAtCycleStart = [[Int: Int]]()
+        if turning == .bothWays {
+            for index in cycles.indices {
+                var standing = [Int: Int]()
+                for course in derivation.courses where index < course.slots.count {
+                    standing[course.slots[index]] = course.threadPosition
+                }
+                standingAtCycleStart.append(standing)
+            }
+        }
+        var stitches = [Stitch]()
 
         for (index, cycle) in cycles.enumerated() {
             let round = rounds[index % rounds.count]
@@ -453,6 +657,13 @@ enum RoundTube8SurfacePatternGenerator {
                     firstPhases[to] = Float(carried.instant) / Float(round.steps.count)
                 }
             }
+            if turning == .bothWays {
+                guard let raised = passes(
+                    braiding, crossSection: crossSection, standing: standingAtCycleStart[index],
+                    count: count, perDan: perDan, dans: dans, cycleStart: time
+                ) else { return nil }
+                stitches += raised
+            }
             // **Half a pitch** (the author's condition, Task 048): in a cycle of
             // two dan, every other place takes its thread in each.
             if dans == 2 {
@@ -472,7 +683,6 @@ enum RoundTube8SurfacePatternGenerator {
         guard columnsCarried.count == count else { return nil }
         let arrivalPhases = firstPhases.compactMap { $0 }
         guard arrivalPhases.count == count else { return nil }
-
         let columnWidth = Float(1) / Float(count)
         var cells = [Cell]()
         for slot in 0..<count {
@@ -506,24 +716,51 @@ enum RoundTube8SurfacePatternGenerator {
         cells.sort { row($0) != row($1) ? row($0) < row($1) : $0.thread < $1.thread }
 
         var segments = [BraidStrandSegment]()
-        for cell in cells {
-            guard let colour = colours[cell.thread] else { return nil }
-            // **The thread stands here from its arrival to the next**, so the
-            // cell runs along the braid at this one place: one column wide,
-            // square to the braid.
-            let middle = (Float(cell.slot) + 0.5) * columnWidth
-            segments.append(BraidStrandSegment(
-                threadPosition: cell.thread,
-                colorID: colour,
-                // **Nothing crosses**, so there is no side of a crossing to
-                // take. Every cell says the same thing rather than pretending
-                // to an order the surface does not have.
-                layer: .over,
-                centerlineStart: SIMD2(middle, cell.start / repeatLength),
-                centerlineEnd: SIMD2(middle, cell.end / repeatLength),
-                startHalfWidth: SIMD2(columnWidth / 2, 0),
-                endHalfWidth: SIMD2(columnWidth / 2, 0)
-            ))
+        var leans = [Float]()
+        if turning == .bothWays {
+            // **A stitch stands on the place it was raised over, a cycle long,
+            // centred where the pass laid it**: the places passed in the first
+            // half of the cycle a half cycle before those passed in the second,
+            // so the rows beside each other are half a stitch apart. It is the
+            // passing thread's, in its colour, and leans the way it was carried
+            // (the fibre's way, `RoundTube8SurfaceMesh`).
+            for stitch in stitches.sorted(by: { ($0.middle, $0.slot) < ($1.middle, $1.slot) }) {
+                guard let colour = colours[stitch.thread] else { return nil }
+                var start = stitch.middle - 0.5
+                if start > repeatLength - 1 + 1e-4 { start -= repeatLength }
+                let middle = (Float(stitch.slot) + 0.5) * columnWidth
+                segments.append(BraidStrandSegment(
+                    threadPosition: stitch.thread,
+                    colorID: colour,
+                    layer: .over,
+                    centerlineStart: SIMD2(middle, start / repeatLength),
+                    centerlineEnd: SIMD2(middle, (start + 1) / repeatLength),
+                    startHalfWidth: SIMD2(columnWidth / 2, 0),
+                    endHalfWidth: SIMD2(columnWidth / 2, 0)
+                ))
+                leans.append(stitch.lean)
+            }
+        } else {
+            for cell in cells {
+                guard let colour = colours[cell.thread] else { return nil }
+                // **The thread stands here from its arrival to the next**, so the
+                // cell runs along the braid at this one place: one column wide,
+                // square to the braid.
+                let middle = (Float(cell.slot) + 0.5) * columnWidth
+                segments.append(BraidStrandSegment(
+                    threadPosition: cell.thread,
+                    colorID: colour,
+                    // **Nothing crosses**, so there is no side of a crossing to
+                    // take. Every cell says the same thing rather than pretending
+                    // to an order the surface does not have.
+                    layer: .over,
+                    centerlineStart: SIMD2(middle, cell.start / repeatLength),
+                    centerlineEnd: SIMD2(middle, cell.end / repeatLength),
+                    startHalfWidth: SIMD2(columnWidth / 2, 0),
+                    endHalfWidth: SIMD2(columnWidth / 2, 0)
+                ))
+                leans.append(cell.lean)
+            }
         }
 
         return RoundTube8SurfacePattern(
@@ -531,12 +768,76 @@ enum RoundTube8SurfacePatternGenerator {
             rowCount: rows,
             // One repeat is `rows` cycles of `pitchOverDiameter` diameters each,
             // and one turn is pi diameters.
-            aspectRatio: Float(rows) * pitchOverDiameter / .pi,
+            aspectRatio: Float(rows) * pitchOverDiameter(for: turning) / .pi,
             columnsCarriedBySlot: columnsCarried,
             arrivalPhaseBySlot: arrivalPhases,
             drawnPhaseByColumn: arrivalPhases.map(drawnPhase(ofArrival:)),
-            leanBySegment: cells.map(\.lean)
+            leanBySegment: leans,
+            turning: turning
         )
+    }
+
+    /// A stitch a pass raises: `middle` in cycles along the braid, on `slot`,
+    /// of `thread`, leaning `lean` — the way it was carried.
+    struct Stitch { let middle: Float; let slot: Int; let thread: Int; let lean: Float }
+
+    /// **The stitches one cycle's passes raise** (Task 059 addendum 6): a thread
+    /// carried round the stand goes over the threads standing at the places
+    /// between where it was and where it lands, the short way round — the
+    /// textbook's 1手 of 江戸八つ組 crosses over one thread of the other set — and
+    /// each of those places shows a stitch of it. **Who stands where is taken as
+    /// the instant begins**, thread by thread: a table written a move an instant
+    /// can land a thread on a place before the one there has left it (江戸八つ組's
+    /// 4→11→12 is written as one carry to 12, at its first figure), so two can
+    /// stand at one place for a while. A stitch stands where the dan laid its
+    /// thread, a half cycle for each dan, as a cell's arrival does.
+    ///
+    /// **Every place passed over once a cycle, and every thread passing once**,
+    /// or `nil`: then a place would show two threads a cycle, or none, and there
+    /// is no one face to draw. A half turn has no short way round and passes
+    /// over nothing; nor does a carry to the next place.
+    static func passes(
+        _ braiding: [(instant: Int, move: BraidMove, thread: Int)],
+        crossSection: BraidCrossSection,
+        standing: [Int: Int],
+        count: Int,
+        perDan: Int,
+        dans: Int,
+        cycleStart: Float
+    ) -> [Stitch]? {
+        var slotOfThread = [Int: Int]()
+        for (slot, thread) in standing { slotOfThread[thread] = slot }
+        var raised = [Stitch]()
+        let byInstant = Dictionary(grouping: braiding.indices, by: { braiding[$0].instant })
+        for instant in byInstant.keys.sorted() {
+            guard let orders = byInstant[instant] else { continue }
+            let before = slotOfThread
+            for order in orders {
+                let carried = braiding[order]
+                guard
+                    let from = crossSection.slotIndex(ofPositionID: carried.move.from),
+                    let to = crossSection.slotIndex(ofPositionID: carried.move.to)
+                else { return nil }
+                slotOfThread[carried.thread] = to
+                let step = shortestWayRound(from: from, to: to, around: count)
+                guard step * 2 != count, abs(step) > 1 else { continue }
+                let dan = min(order / perDan, dans - 1)
+                let way = step > 0 ? 1 : -1
+                for between in 1..<abs(step) {
+                    let slot = ((from + way * between) % count + count) % count
+                    guard before.contains(where: { $0.key != carried.thread && $0.value == slot }) else { continue }
+                    raised.append(Stitch(
+                        middle: cycleStart + Float(dan + 1) * 0.5,
+                        slot: slot, thread: carried.thread, lean: Float(way)
+                    ))
+                }
+            }
+        }
+        guard
+            Set(raised.map(\.slot)).count == count, raised.count == count,
+            Set(raised.map(\.thread)).count == raised.count
+        else { return nil }
+        return raised
     }
 
     /// A thread standing at a place, from its arrival to the next thread's.
@@ -634,8 +935,9 @@ extension RoundTube8SurfacePattern {
     func runsStanding(
         atTurns turns: Float,
         along: Float,
-        bundle: RoundTube8Bundle = .standard
+        bundle: RoundTube8Bundle? = nil
     ) -> [RoundTube8StandingRun] {
+        let bundle = bundle ?? self.bundle
         var found = [RoundTube8StandingRun]()
         for index in surface.segments.indices {
             for repeatOffset in -1...1 {
@@ -659,11 +961,12 @@ extension RoundTube8SurfacePattern {
         repeatOffset: Int,
         atTurns turns: Float,
         along: Float,
-        bundle: RoundTube8Bundle = .standard
+        bundle: RoundTube8Bundle? = nil
     ) -> Float? {
+        let bundle = bundle ?? self.bundle
         let segment = surface.segments[index]
         let cycles = (along - Float(repeatOffset) - segment.centerlineStart.y) / runCycle(of: segment)
-        guard cycles >= 0, cycles <= bundle.lengthInCycles else { return nil }
+        guard cycles >= bundle.firstCycles, cycles <= bundle.lengthInCycles else { return nil }
         let halfWidth = bundle.halfWidthInColumns(atCycles: cycles)
         guard halfWidth > 0 else { return nil }
         let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
@@ -676,6 +979,28 @@ extension RoundTube8SurfacePattern {
         let across = offset / halfWidth
         guard abs(across) <= 1 else { return nil }
         return bundle.standingFraction(atCycles: cycles, across: across)
+    }
+
+    /// **How near its tile's edge a place on a tiled stitch is**: the tile's norm
+    /// there (`RoundTube8Tile.norm`, 1 on the edge), or `nil` where the stitch
+    /// does not reach or is not a tile. The card darkens its grooves by it.
+    func tileNorm(
+        segment index: Int,
+        repeatOffset: Int,
+        atTurns turns: Float,
+        along: Float,
+        bundle: RoundTube8Bundle? = nil
+    ) -> Float? {
+        let bundle = bundle ?? self.bundle
+        guard let tile = bundle.tile else { return nil }
+        let segment = surface.segments[index]
+        let cycles = (along - Float(repeatOffset) - segment.centerlineStart.y) / runCycle(of: segment)
+        guard cycles >= bundle.firstCycles, cycles <= bundle.lengthInCycles else { return nil }
+        let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
+        var offset = (turns * columns - segment.centerlineStart.x * columns).truncatingRemainder(dividingBy: columns)
+        if offset > columns / 2 { offset -= columns }
+        if offset < -columns / 2 { offset += columns }
+        return tile.norm(atStitches: cycles, columns: offset)
     }
 
     /// The cell lying beneath a place: the thread standing at that place in the

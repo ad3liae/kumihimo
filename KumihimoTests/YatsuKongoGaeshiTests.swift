@@ -45,7 +45,7 @@ struct YatsuKongoGaeshiTests {
             #expect(course.slots.first == course.slots.last)
         }
         #expect(worked.derivation.fold == nil)
-        #expect(BraidFamily.family(of: worked.derivation) == .roundTube(threads: 8))
+        #expect(BraidFamily.family(of: worked.derivation) == .roundTube(threads: 8, turning: .oneWay))
         #expect(BraidMethodCatalog.stand(for: recipe) == stand)
     }
 

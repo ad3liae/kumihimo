@@ -8,11 +8,67 @@ struct BraidFamilyDrawingTests {
     @Test func theFamilyIsReadOffTheBraid() throws {
         for (recipe, wanted) in [
             (BraidMethodCatalog.hiraGenji16Recipe, BraidFamily.flat(threads: 16, columns: 6)),
-            (BraidMethodCatalog.maruGenji16Recipe, BraidFamily.roundTube(threads: 16)),
+            (BraidMethodCatalog.maruGenji16Recipe, BraidFamily.roundTube(threads: 16, turning: .bothWays)),
         ] {
             let worked = try #require(recipe.worked(on: BraidMethodCatalog.stand16))
             #expect(BraidFamily.family(of: worked.derivation) == wanted)
         }
+    }
+
+    /// **Which ways round a tube's threads are carried is read off the braid**
+    /// (Task 059): 江戸八つ組 carries the four threads of one side of each pair
+    /// on and the other four back, both ways in every cycle; 丸源氏 carries
+    /// across the braid both ways too. Yatsu-kongo S and Z carry every thread one
+    /// way, and 返し組 turns its spiral round only from one table to the next —
+    /// each cycle is still one way. 丸四つ組 carries every thread a half turn,
+    /// which has no way round, so it is not both ways.
+    ///
+    /// **Not by name**: 江戸八つ組's table under another name and id reads the
+    /// same, and finds the same drawer.
+    @Test func theWaysRoundAreReadOffTheBraid() throws {
+        let wanted: [(BraidRecipe, BraidTurning)] = [
+            (BraidMethodCatalog.yatsuKongoS8Recipe, .oneWay),
+            (BraidMethodCatalog.yatsuKongoZ8Recipe, .oneWay),
+            (BraidMethodCatalog.yatsuKongoGaeshi8Recipe, .oneWay),
+            (BraidMethodCatalog.maruYotsu4Recipe, .oneWay),
+            (BraidMethodCatalog.edoYatsu8Recipe, .bothWays),
+            (BraidMethodCatalog.maruGenji16Recipe, .bothWays),
+        ]
+        for (recipe, turning) in wanted {
+            let stand = try #require(BraidMethodCatalog.stand(for: recipe))
+            let worked = try #require(recipe.worked(on: stand))
+            #expect(BraidTurning.of(worked.derivation) == turning, "\(recipe.id)")
+            if case let .roundTube(threads, readTurning) = BraidFamily.family(of: worked.derivation) {
+                #expect(threads == stand.positionCount && readTurning == turning, "\(recipe.id)")
+            } else {
+                Issue.record("\(recipe.id) is not read as a tube")
+            }
+        }
+        #expect(BraidFamilyDrawing.drawer(for: BraidMethodCatalog.edoYatsu8Recipe)
+                == RoundTube8SurfaceMesh.familyTurningBothWays)
+        for recipe in [BraidMethodCatalog.yatsuKongoS8Recipe, BraidMethodCatalog.yatsuKongoZ8Recipe,
+                       BraidMethodCatalog.yatsuKongoGaeshi8Recipe] {
+            #expect(BraidFamilyDrawing.drawer(for: recipe) == RoundTube8SurfaceMesh.family, "\(recipe.id)")
+        }
+
+        let renamed = BraidRecipe(
+            id: "a-table-this-code-has-not-seen-both-ways", name: "架空の紐",
+            notation: BraidMethodCatalog.edoYatsuDisk,
+            colouring: BraidMethodCatalog.edoYatsu8Recipe.colouring, shape: BraidShapeValues(),
+            orderRoundTheBraid: BraidMethodCatalog.edoYatsu8CrossSection
+        )
+        let stand = BraidMethodCatalog.stand8
+        let worked = try #require(renamed.worked(on: stand))
+        #expect(BraidTurning.of(worked.derivation) == .bothWays)
+        #expect(BraidFamilyDrawing.drawer(for: renamed, on: stand) == RoundTube8SurfaceMesh.familyTurningBothWays)
+        // The recipe book's p.48 table of the same braid reads the same.
+        let recipeBook = try #require(BraidMethodCatalog.edoYatsuRecipeBookP48Disk.method(
+            id: "edo-yatsu-8-recipe-book-p48", standID: stand.id,
+            stepNames: BraidMethodCatalog.edoYatsuRecipeBookP48StepNames
+        ))
+        let section = BraidMethodCatalog.edoYatsu8Recipe.crossSection(on: stand)
+        let derived = try #require(BraidDerivation.derive(stand: stand, method: recipeBook, crossSection: section))
+        #expect(BraidTurning.of(derived) == .bothWays)
     }
 
     /// **A drawer is not promised.** A recipe of a family this app draws gets one,

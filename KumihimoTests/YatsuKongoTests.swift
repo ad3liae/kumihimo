@@ -44,7 +44,7 @@ struct YatsuKongoTests {
         #expect(worked.derivation.passingsWithinOneInstant.isEmpty)
         // A tube: nothing runs along the braid, so there is no fold.
         #expect(worked.derivation.fold == nil)
-        #expect(BraidFamily.family(of: worked.derivation) == .roundTube(threads: 8))
+        #expect(BraidFamily.family(of: worked.derivation) == .roundTube(threads: 8, turning: .oneWay))
         // The stand is found from the table, not named by hand.
         #expect(BraidMethodCatalog.stand(for: recipe) == stand)
     }

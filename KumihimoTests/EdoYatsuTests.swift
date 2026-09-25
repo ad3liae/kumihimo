@@ -108,7 +108,8 @@ struct EdoYatsuTests {
         #expect(recipe.shape == BraidShapeValues())
         let worked = try #require(recipe.worked(on: stand))
         #expect(worked.derivation.fold == nil)
-        #expect(BraidFamily.family(of: worked.derivation) == .roundTube(threads: 8))
+        // Carried both ways round (Task 059): the both-ways family.
+        #expect(BraidFamily.family(of: worked.derivation) == .roundTube(threads: 8, turning: .bothWays))
         let figure = try #require(BraidFigureBuilder.tube(
             from: worked.derivation, assignments: recipe.colouring
         ))
@@ -169,9 +170,10 @@ struct EdoYatsuTests {
 
     /// **Drawn by the eight-thread tube's drawer, with its own shape**: the
     /// family is read off the braid and that drawer returns a mesh, the only
-    /// one that does.
+    /// one that does. Since Task 059 the family is the both-ways one — the table
+    /// carries its threads both ways round.
     @Test func theEightThreadTubesDrawerMakesAMesh() throws {
-        #expect(BraidFamilyDrawing.drawer(for: recipe) == RoundTube8SurfaceMesh.family)
+        #expect(BraidFamilyDrawing.drawer(for: recipe) == RoundTube8SurfaceMesh.familyTurningBothWays)
         let mesh = BraidFamilyDrawing.mesh(for: recipe, on: stand)
         let tube = try #require(mesh.tubeOfEight)
         #expect(tube.triangleCount > 0)
@@ -186,7 +188,8 @@ struct EdoYatsuTests {
     /// The odd places receive their threads in the first half of the cycle and
     /// the even in the second. **Under the recipe book's colouring each place
     /// keeps its colour**: pink columns and white alternate straight along the
-    /// braid, the pairs half a pitch apart.
+    /// braid, the pairs half a pitch apart — since Task 059 addendum 6 each row
+    /// in the colour of the set that passes over it.
     @Test func theThreadsMoveAndThePlacesChangeColour() throws {
         let drawn = try pattern(recipe.colouring)
         // Slot s is place s + 1: odd places (even slots) are fed from two back.
@@ -194,20 +197,22 @@ struct EdoYatsuTests {
         #expect(drawn.columnsCarried == nil)
         #expect(drawn.rowCount == 4)
         #expect(drawn.drawnPhaseByColumn == [0.5, 1, 0.5, 1, 0.5, 1, 0.5, 1])
-        // **The two spirals lean opposite ways** (Task 055's rule on this braid):
-        // a run leans the other way from its own carry, and here the carries
-        // differ by place. So there is no one lean, and the pattern is a
-        // herringbone.
+        // **No one lean from the carry** (Task 055's rule on this braid): the
+        // carries differ by place. Since Task 059 a stitch leans the way its
+        // thread was carried (`EdoYatsuTurnTests`).
         #expect(drawn.leanDirection == nil)
         #expect(Set(drawn.leanBySegment) == [-1, 1])
+        // **A place's row shows the threads that pass over it** (Task 059
+        // addendum 6): the other set's, so the odd places' rows hold the even
+        // places' colours and the even places' rows the odd places'.
         for slot in 0..<8 {
-            let wanted: Set<String> = slot % 2 == 0 ? ["light-blue", "pink"] : ["yellow", "natural"]
+            let wanted: Set<String> = slot % 2 == 0 ? ["yellow", "natural"] : ["light-blue", "pink"]
             #expect(colours(of: drawn, atSlot: slot) == wanted, "slot \(slot)")
         }
 
         let straight = try pattern(recipeBookColouring)
         for slot in 0..<8 {
-            #expect(colours(of: straight, atSlot: slot) == [slot % 2 == 0 ? "pink" : "white"], "slot \(slot)")
+            #expect(colours(of: straight, atSlot: slot) == [slot % 2 == 0 ? "white" : "pink"], "slot \(slot)")
         }
     }
 
@@ -229,7 +234,10 @@ struct EdoYatsuTests {
             BraidMethodCatalog.edoYatsuRecipeBookP48Disk, byPlace((1...8).map { names[$0 % 8] })
         )
         #expect(textbook.positions.count == recipeBook.positions.count)
-        #expect(BraidMeshHashTests.hash(recipeBook.positions) == 0x4120_520e_ed66_35d5)
+        // The recipe book's table as the drawer draws it since Task 059: a place
+        // shows the thread that passed over it, a cushion on its tile (addendum
+        // 6); `0x4120_520e_ed66_35d5`, the thread standing there, until then.
+        #expect(BraidMeshHashTests.hash(recipeBook.positions) == 0x154b_a8f9_dd7e_99b1)
 
         func key(_ point: SIMD3<Float>) -> [Int32] {
             [Int32((point.x * 2048).rounded()),
@@ -282,15 +290,17 @@ struct EdoYatsuTests {
         #expect(BraidMeshHashTests.hash(shipped.positions) == BraidMeshHashTests.hash(textbook.positions))
     }
 
-    /// **The mesh is what the eight-thread drawer made of this braid when its
-    /// table was put on the textbook** (Task 057): the shape drawn from Task
-    /// 009, turned one column (`theShapeIsTheRecipeBooksTurnedOneColumn`). It
-    /// was `0x4120_520e_ed66_35d5` on the recipe book's table, which that test
-    /// still holds. Nothing was shaped for it; moves only on purpose.
+    /// **The mesh is the both-ways family's since Task 059** (`EdoYatsuTurnTests`):
+    /// the table carries threads both ways round, and a place shows the thread
+    /// that passed over it (addendum 6), once a cycle, a cushion on the rhombus
+    /// its tile makes — as many stitches as cells, hence 18,240 vertices again.
+    /// It was `0x395e_006f_6882_6dc1` from Task 057 until then — the eight-thread
+    /// drawer's bundles on the textbook's table, each place its own thread.
+    /// Moves only on purpose.
     @Test func theMeshIsTheShapeItWas() throws {
         let mesh = try #require(BraidFamilyDrawing.mesh(for: recipe, on: stand).tubeOfEight)
         #expect(mesh.positions.count == 18_240)
-        #expect(BraidMeshHashTests.hash(mesh.positions) == 0x395e_006f_6882_6dc1)
+        #expect(BraidMeshHashTests.hash(mesh.positions) == 0x3e06_1290_d694_7769)
     }
 
     // MARK: - The preset

@@ -375,7 +375,15 @@ struct BraidComparisonSheetTests {
             stand: stand, method: worked.method, crossSection: worked.section,
             assignments: recipe.colouring
         ))
-        let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: pattern))
+        // **As long as the bundles' two repeats were** (Task 059): the both-ways
+        // cycle is under half a bundle's, and two repeats of it were too short a
+        // face to count stitches on.
+        let bundlesLength = 2 * Float(pattern.rowCount) * RoundTube8SurfacePatternGenerator.pitchOverDiameter
+        let repeatLength = Float(pattern.rowCount)
+            * RoundTube8SurfacePatternGenerator.pitchOverDiameter(for: pattern.turning)
+        let mesh = try #require(RoundTube8SurfaceMesh.generate(
+            pattern: pattern, patternRepeatCount: Int((bundlesLength / repeatLength).rounded(.up))
+        ))
         let solid = BraidComparisonSheet.solid(
             positions: mesh.positions, byColour: mesh.colorGroups, perDiameter: perDiameter
         )

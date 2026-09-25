@@ -27,13 +27,17 @@ import SwiftUI
 /// card shows its plain background.
 struct RoundTube8ThumbnailView: View {
     let pattern: RoundTube8SurfacePattern
-    var bundle: RoundTube8Bundle = .standard
+    /// What a thread shows as: the pattern's own (Task 059) unless another is
+    /// asked for.
+    var bundle: RoundTube8Bundle? = nil
 
     @State private var loader = RoundTube8CardLoader()
     @Environment(\.displayScale) private var displayScale
 
+    private var shown: RoundTube8Bundle { bundle ?? pattern.bundle }
+
     private var key: RoundTube8CardImage.Key {
-        RoundTube8CardImage.Key(pattern: pattern, bundle: bundle)
+        RoundTube8CardImage.Key(pattern: pattern, bundle: shown)
     }
 
     var body: some View {
@@ -63,7 +67,7 @@ struct RoundTube8ThumbnailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .accessibilityHidden(true)
         .task(id: key) {
-            await loader.load(pattern: pattern, bundle: bundle)
+            await loader.load(pattern: pattern, bundle: shown)
         }
     }
 }
@@ -81,6 +85,20 @@ enum RoundTube8CardImage {
     /// How much the line where two runs meet is darkened. A look, not a shape:
     /// the stroke the card drew round every cell before, 0.26 of the ink.
     static let edgeShade: Float = 0.74
+
+    /// **How far in from a tiled stitch's edge the card darkens it**, in the
+    /// tile's norm (Task 059 addendum 6): the groove between two cushions, down
+    /// to the valley's shade on the edge itself. **A look, set by eye** so that
+    /// about as much of the card is not a thread's own colour as on the textbook
+    /// p.64's photograph (15.3%, `Scripts/task059/count_neighbours.py`).
+    static let grooveReachInNorm: Float = 0.2
+
+    /// The groove's shade at a tile's `norm`.
+    static func grooveShade(atNorm norm: Float) -> Float {
+        let inside = min(max((1 - norm) / grooveReachInNorm, 0), 1)
+        let smooth = inside * inside * (3 - 2 * inside)
+        return beneathShade + (1 - beneathShade) * smooth
+    }
 
     /// **Round the braid, up the card, with the solid's front across the
     /// middle.** Row `0` is the top. The solid lays `turns` 0 facing the camera
@@ -108,8 +126,9 @@ enum RoundTube8CardImage {
     /// test can hold it against the solid.
     static func shownMap(
         for pattern: RoundTube8SurfacePattern,
-        bundle: RoundTube8Bundle = .standard
+        bundle: RoundTube8Bundle? = nil
     ) -> (shown: [Shown?], width: Int, height: Int) {
+        let bundle = bundle ?? pattern.bundle
         let columns = RoundTube8SurfacePatternGenerator.requiredThreadCount
         let height = columns * pixelsPerColumn
         let width = max(1, Int((Float(height) * pattern.aspectRatio).rounded()))
@@ -123,7 +142,8 @@ enum RoundTube8CardImage {
                 let cycle = pattern.runCycle(of: segment)
                 for offset in -1...1 {
                     let start = segment.centerlineStart.y + Float(offset)
-                    if along >= start, along <= start + cycle * bundle.lengthInCycles {
+                    if along >= start + cycle * bundle.firstCycles,
+                       along <= start + cycle * bundle.lengthInCycles {
                         reaching.append((offset, index))
                     }
                 }
@@ -177,7 +197,9 @@ enum RoundTube8CardImage {
                 bundle.leanColumnsPerCycle, bundle.tuckedCycles, bundle.headRoundingCycles,
                 bundle.arcSpanCycles, bundle.tailBendColumns, bundle.tailBendFromCycles,
                 bundle.tailNarrowsFromCycles, bundle.widestHalfWidthInColumns,
-            ]
+            ] + (bundle.tile.map {
+                [$0.reachInColumns, $0.tuck, $0.roundness, $0.flatness]
+            } ?? [])
         }
     }
 
@@ -218,8 +240,16 @@ enum RoundTube8CardImage {
                 let here = shown[row * width + column]
                 var rgb = SIMD3<Float>(repeating: 0)
                 switch here {
-                case .run(_, let segment):
+                case .run(let offset, let segment):
                     rgb = colour(segment)
+                    // A tiled stitch's groove, where it meets the ones round it.
+                    if bundle.tile != nil, let norm = pattern.tileNorm(
+                        segment: segment, repeatOffset: offset,
+                        atTurns: turns(atRow: Float(row), rows: height),
+                        along: (Float(column) + 0.5) / Float(width), bundle: bundle
+                    ) {
+                        rgb *= grooveShade(atNorm: norm)
+                    }
                 case .beneath(_, let segment):
                     rgb = colour(segment) * beneathShade
                 case nil:

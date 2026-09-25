@@ -144,7 +144,7 @@ struct RoundTube16SurfaceMeshData: Sendable {
 /// that nothing here claims to settle.
 enum RoundTube16SurfaceMesh {
     /// **The family this draws**: sixteen threads, a tube.
-    static let family = BraidFamily.roundTube(threads: 16)
+    static let family = BraidFamily.roundTube(threads: 16, turning: .bothWays)
 
     /// Where every number this drawing rests on came from. **No value here is
     /// changed by saying so.**

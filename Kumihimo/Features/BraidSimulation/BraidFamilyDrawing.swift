@@ -3,7 +3,8 @@ import Foundation
 /// Hands a recipe to the drawer for its family.
 ///
 /// **The recipe says what to braid; the family says who draws it.** The family is
-/// read off the braid — folded or a tube, and how many threads — so nothing here
+/// read off the braid — folded or a tube, how many threads, and for a tube which
+/// ways round they are carried (Task 059) — so nothing here
 /// knows the name of a braid, and adding a braid of a family already drawn adds no
 /// code at all.
 ///
@@ -20,7 +21,9 @@ enum BraidFamilyDrawing {
             switch self {
             case .flat: return Flat16SurfaceMesh.family
             case .roundTube: return RoundTube16SurfaceMesh.family
-            case .roundTubeOfEight: return RoundTube8SurfaceMesh.family
+            // **Two families, one drawer** (Task 059): which one is the pattern's,
+            // read off its braid.
+            case let .roundTubeOfEight(pattern): return RoundTube8SurfaceMesh.family(of: pattern)
             case .roundTubeOfFour: return RoundTube4SurfaceMesh.family
             }
         }
@@ -29,7 +32,7 @@ enum BraidFamilyDrawing {
     /// Every family this app can draw, and what each one rests on.
     static var families: [BraidFamilyShape] {
         [Flat16SurfaceMesh.shape, RoundTube16SurfaceMesh.shape, RoundTube8SurfaceMesh.shape,
-         RoundTube4SurfaceMesh.shape]
+         RoundTube8SurfaceMesh.shapeTurningBothWays, RoundTube4SurfaceMesh.shape]
     }
 
     /// Which family will draw this recipe, or `nil` when none will.
@@ -46,7 +49,7 @@ enum BraidFamilyDrawing {
             else { return nil }
             return family
         case RoundTube16SurfaceMesh.family, RoundTube8SurfaceMesh.family,
-             RoundTube4SurfaceMesh.family:
+             RoundTube8SurfaceMesh.familyTurningBothWays, RoundTube4SurfaceMesh.family:
             return family
         default:
             return nil
@@ -86,9 +89,11 @@ enum BraidFamilyDrawing {
         case RoundTube16SurfaceMesh.family:
             return RoundTube16SurfacePatternGenerator.generate(assignments: recipe.colouring)
                 .map(Drawing.roundTube)
-        case RoundTube8SurfaceMesh.family:
+        case RoundTube8SurfaceMesh.family, RoundTube8SurfaceMesh.familyTurningBothWays:
             // **The cells are worked out, not transcribed**, so this drawer is
-            // handed the table itself rather than a colouring alone.
+            // handed the table itself rather than a colouring alone. The pattern
+            // reads which ways round the table carries its threads, and so which
+            // shape it is drawn with (Task 059).
             return RoundTube8SurfacePatternGenerator.generate(
                 stand: stand, rounds: worked.derivation.rounds, crossSection: worked.section,
                 assignments: recipe.colouring
