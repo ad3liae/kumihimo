@@ -1,6 +1,6 @@
 # Task 061: 詳細の下の部分を、丸台で玉を動かす手順のアニメーションにする
 
-- 状態: **実装済み**（2026-09-25、Claude Code。枝 `claude/task-061-braiding-steps-on-the-stand`。PR はまだ）。結果は末尾。
+- 状態: **実装済み・PR #46 でマージ**（2026-09-25、Claude Code。枝 `claude/task-061-braiding-steps-on-the-stand`。作者が PR の作成とマージを許可した）。結果は末尾。
   指示書は審査側（2026-09-25）。**指示書と違えた所が2つある**（結果の 2 と 3.4）
 - 前提（先に読むこと）: `docs/specifications/project-editor.md`（「詳細」「手順のアニメーション」の節と受け入れ条件。
   **審査側がこの指示書と同時に書き直した**）、`docs/architecture.md`（正本の読み方、`BraidMethod`）、`AGENTS.md`
