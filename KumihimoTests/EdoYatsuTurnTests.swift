@@ -30,7 +30,7 @@ struct EdoYatsuTurnTests {
     /// reading of the p.64 photograph): places 1・5 yellow-green, 2・6 cyan, 3・7
     /// magenta, 4・8 cream. Yellow-green is `yellow` until the catalogue has one
     /// (the author, 2026-09-25).
-    private var swappedColouring: [ThreadAssignment] { byPlace(["yellow", "light-blue", "pink", "natural"]) }
+    private var swappedColouring: [ThreadAssignment] { byPlace(["kiiro", "tsuyukusa", "fuji", "zoge"]) }
 
     /// **The p.65 left example**: the left thread of every pair one colour and
     /// the right another — teal and yellow-green on the page, `light-blue` and
@@ -52,7 +52,7 @@ struct EdoYatsuTurnTests {
 
     /// The textbook's colours as the reviewer names them: C cyan, M magenta, Y
     /// yellow-green (`yellow`), N cream; any other colour by its own name.
-    private static let letters = ["light-blue": "C", "pink": "M", "yellow": "Y", "natural": "N"]
+    private static let letters = ["tsuyukusa": "C", "fuji": "M", "kiiro": "Y", "zoge": "N"]
 
     /// **The stitches on the face's lattice**: row (the place), and middle in
     /// half cycles over one repeat.

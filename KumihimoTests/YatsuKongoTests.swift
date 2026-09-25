@@ -232,8 +232,8 @@ struct YatsuKongoTests {
     /// leans — which is what `theDiagonalsOfSAndZLeanOppositeWays` measures.
     @Test func bothBraidsShipBookAsOwnColouringAndItIsTheSameOne() {
         // Pair by pair since Task 055: 1・2 and 5・6, 3・4 and 7・8.
-        let upright = ["yellow", "yellow", "yellow", "yellow"]      // 1, 2, 5, 6
-        let flat = ["orange", "orange", "orange", "orange"]         // 3, 4, 7, 8
+        let upright = ["kiiro", "kiiro", "kiiro", "kiiro"]      // 1, 2, 5, 6
+        let flat = ["oni", "oni", "oni", "oni"]         // 3, 4, 7, 8
         for colouring in [BraidMethodCatalog.yatsuKongoS8Recipe.colouring,
                           BraidMethodCatalog.yatsuKongoZ8Recipe.colouring] {
             let byPosition = Dictionary(uniqueKeysWithValues: colouring.map {

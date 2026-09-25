@@ -97,5 +97,9 @@ enum ProjectEditorStrings {
         "糸\(position)、\(colorName)"
     }
     static func threadColorTitle(position: Int) -> String { "糸\(position)の色" }
+    /// 「菫色（すみれいろ）、No.01」: the name, how it is read, and the shop's number.
+    static func threadColorAccessibilityLabel(_ color: ThreadColor) -> String {
+        "\(color.name)（\(color.reading)）、\(color.code)"
+    }
     static let threadAccessibilityHint = "ダブルタップで色を変更"
 }

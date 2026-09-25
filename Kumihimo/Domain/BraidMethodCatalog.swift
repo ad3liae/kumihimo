@@ -357,19 +357,19 @@ enum BraidMethodCatalog {
     /// Book A p94's own colouring for maru-genji, whose finished braid is
     /// photographed at the head of the same page.
     static let maruGenji16Colouring = colouring(on: stand16, [
-        "north": ["pink", "orange", "orange", "pink"],
-        "east": Array(repeating: "black", count: 4),
-        "south": ["natural", "red", "red", "natural"],
-        "west": Array(repeating: "black", count: 4),
+        "north": ["fuji", "oni", "oni", "fuji"],
+        "east": Array(repeating: "shikkoku", count: 4),
+        "south": ["zoge", "shu", "shu", "zoge"],
+        "west": Array(repeating: "shikkoku", count: 4),
     ])
 
     /// Book A p96's starting diagram for hira-genji, photographed at the head of
     /// the same page.
     static let hiraGenji16Colouring = colouring(on: stand16, [
-        "north": ["purple", "purple", "black", "orange"],
-        "east": Array(repeating: "pink", count: 4),
-        "south": ["purple", "purple", "black", "orange"],
-        "west": Array(repeating: "pink", count: 4),
+        "north": ["sumire", "sumire", "shikkoku", "oni"],
+        "east": Array(repeating: "fuji", count: 4),
+        "south": ["sumire", "sumire", "shikkoku", "oni"],
+        "west": Array(repeating: "fuji", count: 4),
     ])
 
     static let maruGenji16Recipe = BraidRecipe(
@@ -430,7 +430,7 @@ enum BraidMethodCatalog {
     /// move table up, and a colouring is a question about where the recipe comes
     /// from, not about whether the table is right.
     static let yatsuKongoS8Colouring = byPlace(stand8, [
-        "yellow", "yellow", "orange", "orange", "yellow", "yellow", "orange", "orange",
+        "kiiro", "kiiro", "oni", "oni", "kiiro", "kiiro", "oni", "oni",
     ])
 
     /// Book A p.55's colouring **a** for yatsu-kongo Z, which is printed the same
@@ -523,7 +523,7 @@ enum BraidMethodCatalog {
     /// places 1・2 … 7・8 (Task 055; it had the two colours the other way
     /// round). The same arrangement as book A p.54's two colours.
     static let yatsuKongoGaeshi8Colouring = byPlace(stand8, [
-        "orange", "orange", "pink", "pink", "orange", "orange", "pink", "pink",
+        "oni", "oni", "fuji", "fuji", "oni", "oni", "fuji", "fuji",
     ])
 
     /// A colouring written place by place, 1 to 8.
@@ -600,10 +600,10 @@ enum BraidMethodCatalog {
     /// both pale — white and pink in the photograph), b, and c (124 alone, one
     /// colour, which shows no pattern to judge).
     static let maruYotsu4Colouring = colouring(on: stand4, [
-        "north": ["white"],     // 163
-        "east": ["purple"],     // 148
-        "south": ["white"],     // 163
-        "west": ["purple"],     // 148
+        "north": ["hakudo"],     // 163
+        "east": ["sumire"],     // 148
+        "south": ["hakudo"],     // 163
+        "west": ["sumire"],     // 148
     ])
 
     /// **The measured values are empty: nothing has been measured for the
@@ -767,10 +767,10 @@ enum BraidMethodCatalog {
     /// tests keep it for that (`EdoYatsuTests`). The textbook's photograph is
     /// of this one (Task 025-5: take the colouring the book photographs).
     static let edoYatsu8Colouring = bySlit(stand8, startingSlits: edoYatsuStartingSlits, [
-        4: "pink", 20: "pink",
-        5: "natural", 21: "natural",
-        12: "light-blue", 28: "light-blue",
-        13: "yellow", 29: "yellow",
+        4: "fuji", 20: "fuji",
+        5: "zoge", 21: "zoge",
+        12: "tsuyukusa", 28: "tsuyukusa",
+        13: "kiiro", 29: "kiiro",
     ])
 
     /// A colouring written slit by slit on a disk book's starting diagram, laid

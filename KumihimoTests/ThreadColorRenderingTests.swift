@@ -24,13 +24,16 @@ struct ThreadColorRenderingTests {
         }
     }
 
+    /// **Changed on purpose in Task 063**: the five were blue, pink, natural, white
+    /// and black of the twelve provisional colours, and are now the five of the
+    /// 38 those are read as. The formula is unchanged; only the colours are new.
     @Test func representativeColorsKeepTheirFixedRenderingValues() throws {
         let expected: [String: (base: SIMD3<Float>, boundary: SIMD3<Float>, highlight: SIMD3<Float>)] = [
-            "blue": (.init(0.12, 0.32, 0.68), .init(0.094022, 0.264333, 0.570892), .init(0.335987, 0.432574, 0.712798)),
-            "pink": (.init(0.90, 0.43, 0.57), .init(0.758234, 0.358004, 0.477221), .init(0.908541, 0.509017, 0.619575)),
-            "natural": (.init(0.86, 0.81, 0.68), .init(0.724172, 0.681594, 0.570892), .init(0.872307, 0.827359, 0.712798)),
-            "white": (.init(0.96, 0.96, 0.94), .init(0.809327, 0.809327, 0.792296), .init(0.963281, 0.963281, 0.944987)),
-            "black": (.init(0.08, 0.08, 0.09), .init(0.059960, 0.059960, 0.068475), .init(0.325707, 0.325707, 0.327965)),
+            "ruri": (.init(0.200, 0.220, 0.686), .init(0.162146, 0.179177, 0.576001), .init(0.366291, 0.375758, 0.717996)),
+            "fuji": (.init(0.902, 0.663, 0.804), .init(0.759937, 0.556416, 0.676485), .init(0.910358, 0.698127, 0.821994)),
+            "zoge": (.init(0.898, 0.855, 0.675), .init(0.756531, 0.719914, 0.566634), .init(0.906724, 0.867795, 0.708474)),
+            "hakudo": (.init(1.000, 0.973, 0.839), .init(0.843389, 0.820397, 0.706289), .init(1.000000, 0.975197, 0.853379)),
+            "shikkoku": (.init(0.110, 0.063, 0.055), .init(0.085506, 0.045483, 0.038664), .init(0.333105, 0.322340, 0.320959)),
         ]
 
         for (rawID, values) in expected {

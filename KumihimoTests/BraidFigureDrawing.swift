@@ -18,7 +18,7 @@ enum BraidFigureDrawing {
     }
 
     static func hex(_ id: ThreadColorID) -> String {
-        let colour = ThreadColorCatalog.colors.first { $0.id == id }
+        let colour = ThreadColorCatalog.color(for: id)
             ?? ThreadColorCatalog.defaultColor
         func byte(_ v: Double) -> Int { Int((min(max(v, 0), 1) * 255).rounded()) }
         return String(format: "#%02x%02x%02x", byte(colour.value.red),

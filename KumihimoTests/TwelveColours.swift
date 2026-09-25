@@ -6,7 +6,8 @@
 /// 063). Those tests used to go round the catalogue, `colors[$0 % colors.count]`;
 /// when the catalogue changed from twelve colours to thirty-eight, going round it
 /// would have changed which threads share a colour, and with that more than the
-/// colour. These are the twelve the catalogue listed until then, in its order.
+/// colour. These are the twelve the catalogue listed until then, in its order,
+/// and they are drawn as the 38 read them (`ThreadColorCatalog.formerIDs`).
 enum TwelveColours {
     static let ids: [ThreadColorID] = [
         "red", "orange", "yellow", "green", "light-blue", "blue",

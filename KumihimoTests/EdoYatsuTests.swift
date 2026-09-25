@@ -131,10 +131,10 @@ struct EdoYatsuTests {
     @Test func theColouringIsTheTextbooksBySlit() {
         let byPosition = Dictionary(uniqueKeysWithValues: recipe.colouring.map { ($0.position, $0.colorID.rawValue) })
         #expect((1...8).map { byPosition[$0] } == [
-            "light-blue", "yellow", "pink", "natural", "light-blue", "yellow", "pink", "natural",
+            "tsuyukusa", "kiiro", "fuji", "zoge", "tsuyukusa", "kiiro", "fuji", "zoge",
         ])
-        let bySlit = [4: "pink", 20: "pink", 5: "natural", 21: "natural",
-                      12: "light-blue", 28: "light-blue", 13: "yellow", 29: "yellow"]
+        let bySlit = [4: "fuji", 20: "fuji", 5: "zoge", 21: "zoge",
+                      12: "tsuyukusa", 28: "tsuyukusa", 13: "kiiro", 29: "kiiro"]
         for (index, slit) in BraidMethodCatalog.edoYatsuStartingSlits.enumerated() {
             #expect(byPosition[index + 1] == bySlit[slit], "slit \(slit)")
         }
@@ -206,7 +206,7 @@ struct EdoYatsuTests {
         // addendum 6): the other set's, so the odd places' rows hold the even
         // places' colours and the even places' rows the odd places'.
         for slot in 0..<8 {
-            let wanted: Set<String> = slot % 2 == 0 ? ["yellow", "natural"] : ["light-blue", "pink"]
+            let wanted: Set<String> = slot % 2 == 0 ? ["kiiro", "zoge"] : ["tsuyukusa", "fuji"]
             #expect(colours(of: drawn, atSlot: slot) == wanted, "slot \(slot)")
         }
 

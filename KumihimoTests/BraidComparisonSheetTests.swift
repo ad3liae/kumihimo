@@ -45,7 +45,7 @@ struct BraidComparisonSheetTests {
     private func legend(_ assignments: [ThreadAssignment])
         -> [(thread: Int, colour: ThreadColorValue, name: String)] {
         assignments.sorted { $0.position < $1.position }.map { assignment in
-            let colour = ThreadColorCatalog.colors.first { $0.id == assignment.colorID }
+            let colour = ThreadColorCatalog.color(for: assignment.colorID)
                 ?? ThreadColorCatalog.defaultColor
             return (assignment.position, colour.value, assignment.colorID.rawValue)
         }

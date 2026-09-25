@@ -6,14 +6,14 @@ import Testing
 struct ProjectDraftTests {
     @Test func increasingThreadCountPreservesExistingPositionsAndAddsDefaultColor() {
         var draft = ProjectDraft()
-        let blue = ThreadColorID(rawValue: "blue")
-        draft.setColor(blue, at: 2)
+        let ruri = ThreadColorID(rawValue: "ruri")
+        draft.setColor(ruri, at: 2)
 
         draft.setThreadCount(8)
 
         #expect(draft.threadCount == 8)
         #expect(draft.threadAssignments.count == 8)
-        #expect(draft.threadAssignments.first { $0.position == 2 }?.colorID == blue)
+        #expect(draft.threadAssignments.first { $0.position == 2 }?.colorID == ruri)
         #expect(
             draft.threadAssignments.first { $0.position == 8 }?.colorID
                 == ThreadColorCatalog.defaultColor.id
@@ -23,14 +23,14 @@ struct ProjectDraftTests {
 
     @Test func reducingThreadCountRemovesOnlyLostPositions() {
         var draft = ProjectDraft(threadCount: 8)
-        let red = ThreadColorID(rawValue: "red")
-        draft.setColor(red, at: 4)
-        draft.setColor(ThreadColorID(rawValue: "purple"), at: 8)
+        let shu = ThreadColorID(rawValue: "shu")
+        draft.setColor(shu, at: 4)
+        draft.setColor(ThreadColorID(rawValue: "sumire"), at: 8)
 
         draft.setThreadCount(4)
 
         #expect(draft.threadAssignments.map(\.position) == [1, 2, 3, 4])
-        #expect(draft.threadAssignments.last?.colorID == red)
+        #expect(draft.threadAssignments.last?.colorID == shu)
         #expect(draft.hasValidAssignments)
     }
 
@@ -104,13 +104,13 @@ struct ProjectEditorPresentationStateTests {
 
     @Test func selectingColorClearsSheetSelectionAndAppliesColor() throws {
         let store = try makeStore()
-        let blue = ThreadColorID(rawValue: "blue")
+        let ruri = ThreadColorID(rawValue: "ruri")
         store.selectedThreadPosition = 1
 
-        store.selectColor(blue)
+        store.selectColor(ruri)
 
         #expect(store.selectedThreadPosition == nil)
-        #expect(store.draft.threadAssignments.first?.colorID == blue)
+        #expect(store.draft.threadAssignments.first?.colorID == ruri)
     }
 
     @Test func selectingMaruGenjiUpdatesDraftAndReducingCountClearsIt() throws {

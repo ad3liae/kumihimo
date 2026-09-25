@@ -108,7 +108,7 @@ struct BraidFromRecipe {
     func pictures(slotCount: Int) -> [(name: String, image: CGImage)] {
         var colours = [Int: ThreadColorValue]()
         for assignment in recipe.colouring {
-            let colour = ThreadColorCatalog.colors.first { $0.id == assignment.colorID }
+            let colour = ThreadColorCatalog.color(for: assignment.colorID)
                 ?? ThreadColorCatalog.defaultColor
             colours[assignment.position] = colour.value
         }

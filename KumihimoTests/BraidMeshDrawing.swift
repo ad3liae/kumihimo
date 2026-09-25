@@ -110,7 +110,7 @@ enum BraidMeshDrawing {
             let line = picture.height - 1 - row
             for column in 0..<picture.width {
                 let colour = picture.seen[row][column].flatMap { id in
-                    ThreadColorCatalog.colors.first { $0.id == id }?.value
+                    ThreadColorCatalog.color(for: id)?.value
                 } ?? ground
                 let at = (line * picture.width + column) * 4
                 bytes[at] = byte(colour.red)
