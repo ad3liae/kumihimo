@@ -85,10 +85,11 @@ struct RoundTube16PreviewView: View {
         }
     }
 
-    /// **Only the braid and its buttons.** Whatever holds it — the detail sheet —
-    /// brings the title, the way out and the notes, so there is one navigation
-    /// bar and not two, and the notes can scroll where nothing turns the braid
-    /// (Task 058). The canvas takes the height the buttons leave.
+    /// **Only the braid.** Whatever holds it — the detail sheet — brings the
+    /// title, the way out and the notes, so there is one navigation bar and not
+    /// two, and the notes can scroll where nothing turns the braid (Task 058).
+    /// There are no buttons under it (Task 060), so the canvas takes the whole
+    /// of the part it is given.
     private var embeddedPreview: some View {
         previewContent(canvasHeight: nil, allowsScrolling: false, showsNotes: false)
     }
@@ -130,27 +131,7 @@ struct RoundTube16PreviewView: View {
                     : ProjectEditorStrings.maruGenji3DRenderPending
             )
             .accessibilityIdentifier(wording.accessibilityIdentifier)
-
-            HStack(spacing: 12) {
-                controlButton(
-                    ProjectEditorStrings.rotateLeft,
-                    systemImage: "rotate.left"
-                ) {
-                    controller.rotate(horizontal: -.pi / 8)
-                }
-                controlButton(
-                    ProjectEditorStrings.resetView,
-                    systemImage: "arrow.counterclockwise"
-                ) {
-                    controller.reset()
-                }
-                controlButton(
-                    ProjectEditorStrings.rotateRight,
-                    systemImage: "rotate.right"
-                ) {
-                    controller.rotate(horizontal: .pi / 8)
-                }
-            }
+            .braidViewerAccessibilityActions(controller)
 
             if showsNotes {
                 VStack(spacing: 4) {
@@ -176,18 +157,4 @@ struct RoundTube16PreviewView: View {
     }
 
     static let minimumCanvasHeight: CGFloat = 160
-
-    private func controlButton(
-        _ title: String,
-        systemImage: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .labelStyle(.iconOnly)
-                .frame(maxWidth: .infinity, minHeight: 44)
-        }
-        .buttonStyle(.bordered)
-        .accessibilityLabel(title)
-    }
 }

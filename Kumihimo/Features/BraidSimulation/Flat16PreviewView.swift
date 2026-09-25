@@ -22,8 +22,8 @@ struct Flat16PreviewView: View {
 
     var body: some View {
         if isEmbedded {
-            // Only the braid and its buttons: the detail sheet brings the title,
-            // the way out and the notes (Task 058).
+            // Only the braid: the detail sheet brings the title, the way out and
+            // the notes (Task 058), and there are no buttons under it (Task 060).
             previewContent(canvasHeight: nil, showsNotes: false)
         } else {
             NavigationStack {
@@ -75,18 +75,7 @@ struct Flat16PreviewView: View {
                     : ProjectEditorStrings.maruGenji3DRenderPending
             )
             .accessibilityIdentifier("hira-genji-3d-surface")
-
-            HStack(spacing: 12) {
-                controlButton(ProjectEditorStrings.rotateLeft, systemImage: "rotate.left") {
-                    controller.rotate(horizontal: -.pi / 8)
-                }
-                controlButton(ProjectEditorStrings.resetView, systemImage: "arrow.counterclockwise") {
-                    controller.reset()
-                }
-                controlButton(ProjectEditorStrings.rotateRight, systemImage: "rotate.right") {
-                    controller.rotate(horizontal: .pi / 8)
-                }
-            }
+            .braidViewerAccessibilityActions(controller)
 
             if showsNotes {
                 VStack(spacing: 4) {
@@ -101,19 +90,5 @@ struct Flat16PreviewView: View {
         }
         .padding(.horizontal)
         .padding(.bottom)
-    }
-
-    private func controlButton(
-        _ title: String,
-        systemImage: String,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .labelStyle(.iconOnly)
-                .frame(maxWidth: .infinity, minHeight: 44)
-        }
-        .buttonStyle(.bordered)
-        .accessibilityLabel(title)
     }
 }
