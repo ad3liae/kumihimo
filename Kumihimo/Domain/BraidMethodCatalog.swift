@@ -839,9 +839,18 @@ enum BraidMethodCatalog {
 /// them.
 ///
 /// **How a move is written**: from the thread's resting notch to the notch
-/// just before the resting notch of the place it takes in the new order, and
-/// after the dan, one notch on into that place — the way the book A table
-/// always wrote a landing and its tidy.
+/// just short of the resting notch of the place it takes in the new order,
+/// **on the side it comes from**, and after the dan, one notch on into that
+/// place — the way the book A table always wrote a landing and its tidy.
+///
+/// **The side is the way the thread went on the book's disk** (Task 061): the
+/// sum of its moves there, each the short way. The step animation reads which
+/// way a thread goes round from the short way of its move here, and a thread
+/// carried half the stand — 返し組's hand-overs, four places — has no short way
+/// by places; only its landing says. Until Task 061 every landing was written
+/// on the anticlockwise side, which sent the S hand-overs clockwise, against the
+/// book's p.38 [4]. **The places the moves go between are the same either way**,
+/// so nothing worked out from the table changes.
 ///
 /// `nil` — and so a failed table, not a guess — when the threads that stay put
 /// in a dan would not keep their places in the new order, when a dan lands on a
@@ -918,6 +927,7 @@ enum BookDiskKongo {
         for (roundIndex, steps) in rounds.enumerated() {
             let startPlace = placeOf
             var braided = [Int]()                   // in the order first braided
+            var travelled = [Int: Int]()            // thread -> notches this round, + clockwise
             var lastStep = Set<Int>()
             for step in steps {
                 var movers = [Int]()
@@ -926,6 +936,7 @@ enum BookDiskKongo {
                     onDisk[from] = nil
                     onDisk[to] = thread
                     movers.append(thread)
+                    travelled[thread, default: 0] += shortWay(from: from, to: to)
                 }
                 // A thread braided again this round must have been laid by the
                 // step just before: the hand-over carrying on that dan.
@@ -950,15 +961,19 @@ enum BookDiskKongo {
             }
             // Written on the stand: each thread braided this round goes, in the
             // order it was first braided, from where it stood to just short of
-            // where the round leaves it; then each is tidied on into its place.
+            // where the round leaves it, on the side it comes from; then each is
+            // tidied on into its place.
+            func landing(_ thread: Int, at place: Int) -> Int {
+                wrapped(resting(place) - ((travelled[thread] ?? 0) < 0 ? -1 : 1))
+            }
             var moves = [BraidMove]()
             for thread in braided {
                 guard let from = startPlace[thread], let to = placeOf[thread] else { return nil }
-                moves.append(BraidMove(from: resting(from), to: wrapped(resting(to) - 1)))
+                moves.append(BraidMove(from: resting(from), to: landing(thread, at: to)))
             }
             for thread in braided {
                 guard let to = placeOf[thread] else { return nil }
-                moves.append(BraidMove(from: wrapped(resting(to) - 1), to: resting(to)))
+                moves.append(BraidMove(from: landing(thread, at: to), to: resting(to)))
             }
             tables.append(BraidDiskNotation(
                 source: rounds.count == 1 ? source : "\(source), round \(roundIndex + 1)",
@@ -974,5 +989,11 @@ enum BookDiskKongo {
 
     private static func wrapped(_ notch: Int) -> Int {
         ((notch - 1) % notchCount + notchCount) % notchCount + 1
+    }
+
+    /// How far a move goes round the book's disk the short way, + clockwise.
+    private static func shortWay(from: Int, to: Int) -> Int {
+        let forward = ((to - from) % notchCount + notchCount) % notchCount
+        return forward * 2 <= notchCount ? forward : forward - notchCount
     }
 }

@@ -1,32 +1,34 @@
 import SwiftUI
 
-/// A braid's detail, opened from its card: **the solid above, the figure below**,
-/// in a sheet at every width (Task 058).
+/// A braid's detail, opened from its card: **the solid above, the steps below**,
+/// in a sheet at every width (Task 058, Task 061).
 ///
 /// The title is the braid's own name — the recipe's, 「江戸八つ組」 — and the way
 /// out is 閉じる at the top right, or a swipe down. **Nothing scrolls over the
 /// solid**, because dragging it turns the braid. The upper part holds the solid
-/// alone and does not move; the lower part holds the notes and the figure, and
-/// scrolls when they do not fit — at large text sizes, the notes alone can be
-/// taller than the screen.
+/// alone and does not move; the lower part holds the notes and the steps on a
+/// round stand, and scrolls when they do not fit — at large text sizes, the
+/// notes alone can be taller than the screen.
+///
+/// **The pattern figure is no longer shown here** (the author, 2026-09-25: 「見ても
+/// 人間は理解できない」). Its code and tests stay, for development.
 struct BraidDetailSheet: View {
     let preset: BraidPreset
     let assignments: [ThreadAssignment]
     let controller: RoundTube16ViewerController
 
     @Environment(\.dismiss) private var dismiss
-    /// How tall the text in the lower part stands, measured, so the figure can
+    /// How tall the notes in the lower part stand, measured, so the steps can
     /// take the rest of the part.
     @State private var notesHeight: CGFloat = 0
-    @State private var figureNoticeHeight: CGFloat = 0
 
     /// The upper part's share of the sheet's height, under the navigation bar.
     /// Half: on an iPhone held upright it leaves the canvas about as tall as the
-    /// figure below it, and the figure the room its notes do not take.
+    /// steps below it, and the steps the room their notes do not take.
     static let solidShare: CGFloat = 0.5
 
-    /// The figure's least height; below it the lower part scrolls instead.
-    static let minimumFigureHeight: CGFloat = 160
+    /// The steps' least height; below it the lower part scrolls instead.
+    static let minimumStepsHeight: CGFloat = 260
 
     private static let spacing: CGFloat = 12
     private static let padding: CGFloat = 16
@@ -80,8 +82,9 @@ struct BraidDetailSheet: View {
         }
     }
 
-    /// The notes, then the figure, then what the figure does not estimate. The
-    /// figure takes what the text leaves, down to `minimumFigureHeight`.
+    /// The notes, then the steps. The steps take what the notes leave, down to
+    /// `minimumStepsHeight`. **Drawn from the table alone**, so a braid no drawer
+    /// takes still has them.
     private var lowerPart: some View {
         GeometryReader { geometry in
             ScrollView {
@@ -91,28 +94,23 @@ struct BraidDetailSheet: View {
                             notesHeight = $0
                         }
 
-                    figure
-                        .frame(height: figureHeight(inPartOfHeight: geometry.size.height))
-                        .frame(maxWidth: .infinity)
-
-                    Text(BraidPatternStrings.noEstimateNotice)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: {
-                            figureNoticeHeight = $0
-                        }
+                    BraidStepsView(
+                        recipe: recipe,
+                        assignments: assignments,
+                        room: CGSize(
+                            width: geometry.size.width - 2 * Self.padding,
+                            height: stepsHeight(inPartOfHeight: geometry.size.height)
+                        )
+                    )
                 }
                 .padding(Self.padding)
             }
         }
     }
 
-    private func figureHeight(inPartOfHeight height: CGFloat) -> CGFloat {
-        let left = height - notesHeight - figureNoticeHeight
-            - 2 * Self.spacing - 2 * Self.padding
-        return max(Self.minimumFigureHeight, left.rounded(.down))
+    private func stepsHeight(inPartOfHeight height: CGFloat) -> CGFloat {
+        let left = height - notesHeight - Self.spacing - 2 * Self.padding
+        return max(Self.minimumStepsHeight, left.rounded(.down))
     }
 
     /// What the braid says about how far it has been checked, and — when there
@@ -134,21 +132,6 @@ struct BraidDetailSheet: View {
 
     private var drawsSolid: Bool {
         recipe.flatMap(BraidFamilyDrawing.drawer(for:)) != nil
-    }
-
-    @ViewBuilder
-    private var figure: some View {
-        if let recipe {
-            BraidPatternForRecipe(
-                recipe: recipe,
-                assignments: assignments,
-                nothingToShow: BraidPatternStrings.nothingToShow
-            )
-        } else {
-            Text(BraidPatternStrings.nothingToShow)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        }
     }
 }
 
