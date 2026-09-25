@@ -46,7 +46,15 @@ struct BraidStepStanding: Equatable, Sendable {
 /// **Which way a carry goes round is the table's**: the short way of the move
 /// it is on the disk (`braidingMoves`, in the order the steps carry them), 右回り
 /// for the way the notches count. By places alone a move of half the stand has
-/// no way round; its landing says (丸四つ組, 返し組's hand-overs).
+/// no way round; its landing says (丸四つ組).
+///
+/// **A carry the table folds a hand-over into is shown as two** (Task 062):
+/// 返し組's last dan before each turn carries four threads, and the book then
+/// steps each over its partner (「隣の紐を向こう側へ跨がせる」). The table
+/// writes each as one move; its `handOvers` say where the dan left the thread.
+/// So the carry stops there, and after the last carry it splits come the
+/// hand-overs, a hand each, in the book's order. **A hand-over is a hand**: it
+/// goes over a thread, where the closing's tidying goes over none.
 ///
 /// **Read from the recipe and the stand only**, never from a braid's name.
 struct BraidStepScript: Equatable, Sendable {
@@ -68,6 +76,12 @@ struct BraidStepScript: Equatable, Sendable {
     struct Hand: Equatable, Sendable {
         /// Which of the recipe's tables this hand is from, from 0.
         let table: Int
+        /// A hand-over split out of a carry, rather than a step of the table.
+        let isHandOver: Bool
+        /// What the table calls this hand, when it says: the table's name
+        /// (「Sの組み」) for its steps, the hand-over's (「持ち替え」) for its
+        /// hand-overs.
+        let name: String?
         let carries: [Carry]
         /// **Moves that are not a hand, worked at the end of this one**: the
         /// cycle's closing, after its last hand. Empty for most hands.
@@ -108,28 +122,41 @@ struct BraidStepScript: Equatable, Sendable {
             methods, on: stand, colours: colours, limit: limit
         ) else { return nil }
 
+        var plans = [[Planned]]()
+        for (table, (method, notation)) in zip(methods, recipe.rounds).enumerated() {
+            guard let planned = Self.plan(method, notation, ways: ways[table]) else { return nil }
+            plans.append(planned)
+        }
+
         var state = BraidStandState.start(on: stand)
         var cameBy = [Int: BraidStepWay]()
         var hands = [Hand]()
         for cycle in 0..<cycles {
             let table = cycle % tables
             let method = methods[table]
-            var carried = 0
-            for (index, step) in method.steps.enumerated() {
+            let notation = recipe.rounds[table]
+            var carriedBySplit = [BraidMove: Int]()     // a split carry -> the thread it carried
+            for (index, planned) in plans[table].enumerated() {
                 let before = Self.standings(state, cameBy: cameBy)
-                guard let applied = state.applying(step) else { return nil }
+                guard let applied = state.applying(planned.step) else { return nil }
+                if let handOver = planned.handOver {
+                    // The hand-over takes on the thread its carry brought there.
+                    guard let expected = carriedBySplit[handOver.carry], applied.carried == [expected] else {
+                        return nil
+                    }
+                }
                 var carries = [Carry]()
-                for (move, thread) in zip(step.moves, applied.carried) {
-                    let way = ways[table][carried]
-                    carried += 1
+                for (order, (move, thread)) in zip(planned.step.moves, applied.carried).enumerated() {
+                    let way = planned.ways[order]
                     carries.append(Self.carry(thread, move, way, from: before, on: stand))
                     cameBy[thread] = way
+                    if let split = planned.splits[order] { carriedBySplit[split] = thread }
                 }
                 state = applied.state
                 let afterCarrying = Self.standings(state, cameBy: cameBy)
 
                 var settling = [Carry]()
-                if index == method.steps.count - 1, !method.closing.moves.isEmpty {
+                if index == plans[table].count - 1, !method.closing.moves.isEmpty {
                     guard let closed = state.applying(method.closing) else { return nil }
                     for (move, thread) in zip(method.closing.moves, closed.carried) {
                         guard
@@ -143,7 +170,9 @@ struct BraidStepScript: Equatable, Sendable {
                     state = closed.state
                 }
                 hands.append(Hand(
-                    table: table, carries: carries, settling: settling,
+                    table: table, isHandOver: planned.handOver != nil,
+                    name: planned.handOver != nil ? notation.handOverName : notation.name,
+                    carries: carries, settling: settling,
                     before: before, afterCarrying: afterCarrying,
                     after: Self.standings(state, cameBy: cameBy)
                 ))
@@ -154,6 +183,69 @@ struct BraidStepScript: Equatable, Sendable {
         self.tableCount = tables
         self.cycles = cycles
         self.hands = hands
+    }
+
+    /// One hand of a table, as it will be worked.
+    private struct Planned {
+        let step: BraidStep
+        let ways: [BraidStepWay]
+        /// For each move, the carry it is the first part of, if it is split.
+        let splits: [BraidMove?]
+        /// Set on a hand-over's own hand.
+        let handOver: BraidDiskNotation.HandOver?
+    }
+
+    /// A table's hands: its steps, each carry that `handOvers` splits stopped
+    /// where the dan left it, and after the last of those, the hand-overs.
+    /// `nil` when a hand-over names no carry of the table, or says no way round.
+    private static func plan(
+        _ method: BraidMethod, _ notation: BraidDiskNotation, ways: [BraidStepWay]
+    ) -> [Planned]? {
+        let splits = Dictionary(
+            notation.handOvers.map { ($0.carry, $0) }, uniquingKeysWith: { first, _ in first }
+        )
+        let moves = method.steps.flatMap(\.moves)
+        guard splits.count == notation.handOvers.count, splits.keys.allSatisfy(moves.contains) else {
+            return nil
+        }
+        func way(_ notches: Int) -> BraidStepWay? {
+            BraidStepWay.shortWay(forward: notches, around: notation.notchCount)
+        }
+        let lastSplit = method.steps.lastIndex { $0.moves.contains { splits[$0] != nil } }
+        var planned = [Planned]()
+        var carried = 0
+        for (index, step) in method.steps.enumerated() {
+            var stepMoves = [BraidMove](), stepWays = [BraidStepWay](), stepSplits = [BraidMove?]()
+            for move in step.moves {
+                if let split = splits[move] {
+                    guard let first = way(split.firstNotches) else { return nil }
+                    stepMoves.append(BraidMove(from: move.from, to: split.via))
+                    stepWays.append(first)
+                    stepSplits.append(move)
+                } else {
+                    stepMoves.append(move)
+                    stepWays.append(ways[carried])
+                    stepSplits.append(nil)
+                }
+                carried += 1
+            }
+            planned.append(Planned(
+                step: BraidStep(name: step.name, moves: stepMoves),
+                ways: stepWays, splits: stepSplits, handOver: nil
+            ))
+            if index == lastSplit {
+                for handOver in notation.handOvers {
+                    guard let second = way(handOver.handOverNotches) else { return nil }
+                    planned.append(Planned(
+                        step: BraidStep(
+                            name: "hand-over", moves: [BraidMove(from: handOver.via, to: handOver.carry.to)]
+                        ),
+                        ways: [second], splits: [nil], handOver: handOver
+                    ))
+                }
+            }
+        }
+        return planned
     }
 
     /// The way round of each carry of a table, in the order its steps carry

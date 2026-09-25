@@ -175,21 +175,91 @@ struct BraidStepScriptTests {
     // MARK: 4. 八つ金剛返し組
 
     /// **The hands come table by table, and the way round turns at the tables'
-    /// turn**: three tables of S 左回り, three of Z 右回り — the hand-overs too,
-    /// which carry four places, half the stand.
+    /// turn**: three tables of S 左回り, three of Z 右回り — the hand-overs too.
     @Test func yatsuKongoGaeshiTurnsAtTheTurnOfTables() throws {
         let script = try script(BraidMethodCatalog.yatsuKongoGaeshi8Recipe)
         #expect(script.tableCount == 6)
-        #expect(script.hands.count == 8 * script.cycles)
-        #expect(script.hands.prefix(48).map(\.table) == (0..<6).flatMap { Array(repeating: $0, count: 8) })
+        let counts = [8, 8, 12, 8, 8, 12]
+        #expect(script.hands.prefix(56).map(\.table) == (0..<6).flatMap { Array(repeating: $0, count: counts[$0]) })
         for hand in script.hands {
             let way: BraidStepWay = hand.table < 3 ? .anticlockwise : .clockwise
             #expect(hand.carries.allSatisfy { $0.way == way }, "table \(hand.table + 1)")
         }
-        // The hand-overs, the last four hands of the third table: four places
-        // round, 左回り as the book's p.38 [4] moves them (8→6: back).
-        let handOvers = script.hands[20..<24].flatMap(\.carries)
-        #expect(handOvers.allSatisfy { $0.passing.count == 3 && $0.way == .anticlockwise })
+    }
+
+    /// Task 062: **the hand-over is four hands of its own**, after the dan's
+    /// four carries: each thread steps over its partner — the thread it was
+    /// paired with from the start, places 1・2, 3・4, 5・6, 7・8 — to the far
+    /// side, 左回り in the S tables ([4]) and 右回り in the Z ([8]). The carries
+    /// before them are the dan's own, two places like every other.
+    @Test func gaeshisHandOversAreHandsOfTheirOwn() throws {
+        let script = try script(BraidMethodCatalog.yatsuKongoGaeshi8Recipe)
+        func partner(_ thread: Int) -> Int { thread % 2 == 1 ? thread + 1 : thread - 1 }
+        for (table, way) in [(2, BraidStepWay.anticlockwise), (5, .clockwise)] {
+            let hands = script.hands.filter { $0.table == table }.prefix(12)
+            #expect(hands.count == 12)
+            #expect(hands.map(\.isHandOver) == Array(repeating: false, count: 8) + Array(repeating: true, count: 4))
+            for hand in hands.suffix(4) {
+                let carry = try #require(hand.carries.first)
+                #expect(hand.carries.count == 1 && hand.settling.isEmpty)
+                #expect(carry.way == way)
+                #expect(carry.passing.count == 1)                   // two places: over the one between
+                #expect(carry.over == [partner(carry.thread)], "thread \(carry.thread)")
+                #expect(hand.name == "持ち替え")
+            }
+            for hand in hands.prefix(8).suffix(4) {                 // the dan the hand-over carries on
+                let carry = try #require(hand.carries.first)
+                #expect(carry.way == way && carry.passing.count == 1)
+                #expect(hand.name == (table < 3 ? "Sの組み" : "Zの組み"))
+            }
+        }
+    }
+
+    /// **Split, the carries leave every thread where the table's own moves do**
+    /// — at the end of every cycle, over a whole time round.
+    @Test func splittingTheHandOversLeavesTheThreadsWhereTheTableDoes() throws {
+        let recipe = BraidMethodCatalog.yatsuKongoGaeshi8Recipe
+        let stand = try #require(BraidMethodCatalog.stand(for: recipe))
+        let script = try script(recipe)
+        let methods = try #require(recipe.methods(on: stand))
+        let worked = try #require(BraidWorking.cycles(ofRounds: methods, on: stand, count: script.cycles))
+        var cycleEnds = [Int]()
+        for (index, hand) in script.hands.enumerated()
+        where index == script.hands.count - 1 || script.hands[index + 1].table != hand.table {
+            cycleEnds.append(index)
+        }
+        #expect(cycleEnds.count == script.cycles)
+        for (cycle, index) in cycleEnds.enumerated() {
+            let table = try #require(worked[cycle].endState.threadByPosition)
+            let drawn = Dictionary(uniqueKeysWithValues: script.hands[index].after.map { ($0.value.place, $0.key) })
+            #expect(script.hands[index].after.values.allSatisfy { $0.rank == 0 })
+            #expect(drawn == table, "cycle \(cycle + 1)")
+        }
+    }
+
+    /// **What the screens are shown of a table does not reach the working**:
+    /// the same tables without their names and hand-overs make the same
+    /// methods. And only 返し組's tables have either.
+    @Test func theTablesNamesAndHandOversAreNotRead() throws {
+        let recipe = BraidMethodCatalog.yatsuKongoGaeshi8Recipe
+        let stand = try #require(BraidMethodCatalog.stand(for: recipe))
+        let bare = BraidRecipe(
+            id: recipe.id, name: recipe.name,
+            rounds: recipe.rounds.map {
+                BraidDiskNotation(
+                    source: $0.source, notchCount: $0.notchCount,
+                    standPositionByRestingNotch: $0.standPositionByRestingNotch, moves: $0.moves,
+                    threadsPerStep: $0.threadsPerStep, stepReading: $0.stepReading
+                )
+            },
+            colouring: recipe.colouring, shape: recipe.shape, orderRoundTheBraid: recipe.orderRoundTheBraid
+        )
+        #expect(recipe.methods(on: stand) == bare.methods(on: stand))
+        #expect(recipe.rounds.map(\.handOvers.count) == [0, 0, 4, 0, 0, 4])
+        for other in BraidMethodCatalog.recipes where other.id != recipe.id {
+            #expect(other.rounds.allSatisfy { $0.handOvers.isEmpty && $0.name == nil }, "\(other.id)")
+            #expect(try script(other).hands.allSatisfy { !$0.isHandOver && $0.name == nil })
+        }
     }
 
     /// **Every braided disk move goes the way its places do** wherever the
@@ -258,11 +328,28 @@ struct BraidStepScriptTests {
         let yotsu = try script(BraidMethodCatalog.maruYotsu4Recipe)
         #expect(BraidStepsStrings.sentence(for: yotsu.hands[0], tableCount: yotsu.tableCount)
                 == "場所1の糸を左回りに場所3へ、場所3の糸を左回りに場所1へ")
-        let gaeshi = try script(BraidMethodCatalog.yatsuKongoGaeshi8Recipe)
-        let sentence = BraidStepsStrings.sentence(for: gaeshi.hands[24], tableCount: gaeshi.tableCount)
-        #expect(sentence.hasPrefix("表4："))
-        #expect(!sentence.contains("段"))
         #expect(BraidStepsStrings.count(3, of: 16) == "3 / 16 手目")
+    }
+
+    /// Task 062: **返し組 says which, in the book's words**, and no braid's
+    /// sentence says 「表」 or 「段」.
+    @Test func gaeshisHandsSayTheirTablesAndHandOvers() throws {
+        let gaeshi = try script(BraidMethodCatalog.yatsuKongoGaeshi8Recipe)
+        let sentences = gaeshi.hands.map { BraidStepsStrings.sentence(for: $0, tableCount: gaeshi.tableCount) }
+        #expect(sentences.allSatisfy { sentence in
+            ["Sの組み：", "Zの組み：", "持ち替え："].contains { sentence.hasPrefix($0) }
+        })
+        #expect(sentences[0] == "Sの組み：場所5の糸を、左回りに場所3へ")
+        // Table 3 is hands 17-28: its dan, then the hand-overs from hand 25.
+        #expect(sentences[24] == "持ち替え：場所8の糸を、隣の糸を越えて場所6へ")
+        #expect(sentences[28] == "Zの組み：場所7の糸を、右回りに場所1へ")
+        for recipe in BraidMethodCatalog.recipes {
+            let script = try script(recipe)
+            for hand in script.hands {
+                let sentence = BraidStepsStrings.sentence(for: hand, tableCount: script.tableCount)
+                #expect(!sentence.contains("表") && !sentence.contains("段"), "\(recipe.id): \(sentence)")
+            }
+        }
     }
 
     // MARK: The frame
