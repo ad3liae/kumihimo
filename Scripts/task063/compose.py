@@ -19,7 +19,7 @@ SOLID = (40, 620, 1140, 1180)
 BRAIDS = [("edo", "江戸八つ組"), ("maru", "丸源氏組"), ("gaeshi", "八つ金剛返し組"),
           ("s", "八つ金剛組S"), ("z", "八つ金剛組Z"), ("hira", "平源氏組"), ("yotsu", "丸四つ組")]
 SOLIDS = ["edo", "maru", "gaeshi"]
-LABEL = 260
+LABEL = 330
 SCALE = 0.5
 
 
@@ -42,8 +42,7 @@ def main():
     for (name, before, after), height in zip(rows, heights):
         if before is None:
             draw.text((LABEL, y + 6), "前（仮の12色）", fill="black", font=FONT)
-            draw.text((LABEL + width + 20, y + 6), "後（西陣の38色、写真から選び直した見本配色）",
-                      fill="black", font=FONT)
+            draw.text((LABEL + width + 20, y + 6), "後（38色。写真から選び直した）", fill="black", font=FONT)
         else:
             draw.text((12, y + before.height // 2 - 18), name, fill="black", font=FONT)
             figure.paste(before, (LABEL, y))
