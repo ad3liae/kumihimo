@@ -507,7 +507,11 @@ enum BraidMethodCatalog {
             rounds: [
                 [sDan(0), sDan(1)], [sDan(2), sDan(3)], [sDan(4), sDan(5), over],
                 [zDan(0), zDan(1)], [zDan(2), zDan(3)], [zDan(4), zDan(5), back],
-            ]
+            ],
+            // The book's own words, short: [8S-スパイラル] and [8Z-スパイラル]
+            // worked, and [4]・[8] 「隣り合う糸の…側を動かします」 (Task 062).
+            names: ["Sの組み", "Sの組み", "Sの組み", "Zの組み", "Zの組み", "Zの組み"],
+            handOverName: "持ち替え"
         ) else {
             preconditionFailure("the disk book's 返し組 does not run on the eight-place stand")
         }
@@ -907,13 +911,23 @@ enum BookDiskKongo {
     /// the textbook's figure 5 carries on the thread figure 1 laid). The step is
     /// worked move by move on the disk, and the thread counts once, from where
     /// it stood before the step to where the step leaves it.
+    ///
+    /// **A hand-over is written down as well as folded in** (Task 062): each
+    /// table keeps, as `handOvers`, where the dan left each thread the hand-over
+    /// then carried on, and which way each part went, so the step animation can
+    /// show the hand-over as the move of its own a person makes. `names` names
+    /// the tables, one each, and `handOverName` the hand-overs, as the screens
+    /// say them. The table's moves are the same with or without them.
     static func rounds(
         source: String,
         placeOneOnward: [Int],
-        rounds: [[[(Int, Int)]]]
+        rounds: [[[(Int, Int)]]],
+        names: [String]? = nil,
+        handOverName: String? = nil
     ) -> [BraidDiskNotation]? {
         let places = placeOneOnward.count
         guard places == 8, Set(placeOneOnward).count == places else { return nil }
+        guard names.map({ $0.count == rounds.count }) ?? true else { return nil }
         func resting(_ place: Int) -> Int { 4 * place - 3 }
 
         // The book's disk: notch -> thread, the thread named by the stand place
@@ -928,21 +942,27 @@ enum BookDiskKongo {
             let startPlace = placeOf
             var braided = [Int]()                   // in the order first braided
             var travelled = [Int: Int]()            // thread -> notches this round, + clockwise
+            var handedOver = [(thread: Int, via: Int, first: Int, second: Int)]()
             var lastStep = Set<Int>()
             for step in steps {
                 var movers = [Int]()
+                var thisStep = [Int: Int]()         // thread -> notches in this step
                 for (from, to) in step {
                     guard let thread = onDisk[from], onDisk[to] == nil else { return nil }
                     onDisk[from] = nil
                     onDisk[to] = thread
                     movers.append(thread)
-                    travelled[thread, default: 0] += shortWay(from: from, to: to)
+                    thisStep[thread, default: 0] += shortWay(from: from, to: to)
                 }
                 // A thread braided again this round must have been laid by the
                 // step just before: the hand-over carrying on that dan.
                 for thread in movers where braided.contains(thread) {
-                    guard lastStep.contains(thread) else { return nil }
+                    guard lastStep.contains(thread), let via = placeOf[thread] else { return nil }
+                    handedOver.append((
+                        thread, via, travelled[thread] ?? 0, thisStep[thread] ?? 0
+                    ))
                 }
+                for (thread, notches) in thisStep { travelled[thread, default: 0] += notches }
                 // The new order round the braid, clockwise from notch 1.
                 let order = onDisk.keys.sorted().compactMap { onDisk[$0] }
                 // The threads that stayed keep their places: that fixes where the
@@ -975,13 +995,26 @@ enum BookDiskKongo {
                 guard let to = placeOf[thread] else { return nil }
                 moves.append(BraidMove(from: landing(thread, at: to), to: resting(to)))
             }
+            var handOvers = [BraidDiskNotation.HandOver]()
+            for handed in handedOver {
+                guard let from = startPlace[handed.thread], let to = placeOf[handed.thread] else {
+                    return nil
+                }
+                handOvers.append(BraidDiskNotation.HandOver(
+                    carry: BraidMove(from: from, to: to), via: handed.via,
+                    firstNotches: handed.first, handOverNotches: handed.second
+                ))
+            }
             tables.append(BraidDiskNotation(
                 source: rounds.count == 1 ? source : "\(source), round \(roundIndex + 1)",
                 notchCount: notchCount,
                 standPositionByRestingNotch: BraidMethodCatalog.diskRestingNotchesForEight,
                 moves: moves,
                 threadsPerStep: 1,
-                stepReading: .oneThreadAnInstant
+                stepReading: .oneThreadAnInstant,
+                name: names?[roundIndex],
+                handOvers: handOvers,
+                handOverName: handOvers.isEmpty ? nil : handOverName
             ))
         }
         return tables

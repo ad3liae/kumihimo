@@ -26,17 +26,24 @@ enum BraidStepsStrings {
 
     /// **The hand as one sentence**: 「場所7の糸を、右回りに場所1へ」, and for a
     /// hand of two 「場所1の糸を左回りに場所3へ、場所3の糸を左回りに場所1へ」. A
-    /// braid of several tables says which: 「表2：…」.
+    /// hand-over: 「場所8の糸を、隣の糸を越えて場所6へ」.
+    ///
+    /// **A braid of several tables says which, in the book's words** (Task
+    /// 062): 「Sの組み：…」, and 「持ち替え：…」 for a hand-over — the names the
+    /// tables carry. A braid of one table says no name.
     static func sentence(for hand: BraidStepScript.Hand, tableCount: Int) -> String {
         let carries: String
-        if hand.carries.count == 1, let carry = hand.carries.first {
+        if hand.isHandOver, hand.carries.count == 1, let carry = hand.carries.first {
+            carries = "場所\(carry.from)の糸を、隣の糸を越えて場所\(carry.to)へ"
+        } else if hand.carries.count == 1, let carry = hand.carries.first {
             carries = "場所\(carry.from)の糸を、\(way(carry.way))\(particle(carry.way))場所\(carry.to)へ"
         } else {
             carries = hand.carries
                 .map { "場所\($0.from)の糸を\(way($0.way))\(particle($0.way))場所\($0.to)へ" }
                 .joined(separator: "、")
         }
-        return tableCount > 1 ? "表\(hand.table + 1)：\(carries)" : carries
+        guard hand.isHandOver || tableCount > 1, let name = hand.name else { return carries }
+        return "\(name)：\(carries)"
     }
 
     /// 「右回りに」, but 「中央を横切って」 with nothing after it.

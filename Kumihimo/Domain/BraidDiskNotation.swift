@@ -41,6 +41,35 @@ struct BraidDiskNotation: Equatable, Sendable {
     /// threads.
     let stepReading: StepReading
 
+    /// **What the book calls this table, short** — 「Sの組み」 (Task 062). The
+    /// step animation shows it only for a braid of several tables. `nil` for a
+    /// table with no name of its own. **The derivation never reads it.**
+    let name: String?
+
+    /// **Carries this table writes as one move but a person makes as two**
+    /// (Task 062): 返し組's hand-overs, a thread carried in the dan and then
+    /// stepped over its partner (the author: 「隣の紐を向こう側へ跨がせる」). A
+    /// table carries a thread once, so the two are one move in `moves`; these
+    /// say where it stands in between, for the step animation to show them
+    /// apart. In the order the book hands them over. **The derivation never
+    /// reads them**, and a table with none is every table but 返し組's.
+    let handOvers: [HandOver]
+    /// What the book's hand-over is called on screen: 「持ち替え」.
+    let handOverName: String?
+
+    /// One carry split in two, on the stand.
+    struct HandOver: Equatable, Sendable {
+        /// The carry as the table writes it: from the thread's place when the
+        /// cycle begins to its place when the cycle ends.
+        let carry: BraidMove
+        /// Where the first part leaves it, just short of its partner.
+        let via: Int
+        /// How far each part went on the book's disk, in notches the short way,
+        /// + clockwise: the way round each goes.
+        let firstNotches: Int
+        let handOverNotches: Int
+    }
+
     /// **How a table's steps become instants** (the author, 2026-09-11, Task 032).
     enum StepReading: Equatable, Sendable {
         /// **One thread, one instant.** Book C prints one move to a line, so every
@@ -60,7 +89,10 @@ struct BraidDiskNotation: Equatable, Sendable {
         standPositionByRestingNotch: [Int: Int],
         moves: [BraidMove],
         threadsPerStep: Int,
-        stepReading: StepReading = .oneThreadAnInstant
+        stepReading: StepReading = .oneThreadAnInstant,
+        name: String? = nil,
+        handOvers: [HandOver] = [],
+        handOverName: String? = nil
     ) {
         self.source = source
         self.notchCount = notchCount
@@ -68,6 +100,9 @@ struct BraidDiskNotation: Equatable, Sendable {
         self.moves = moves
         self.threadsPerStep = threadsPerStep
         self.stepReading = stepReading
+        self.name = name
+        self.handOvers = handOvers
+        self.handOverName = handOverName
     }
 
     /// How far round the disk a move carries a thread, the short way.
@@ -105,6 +140,9 @@ struct BraidDiskNotation: Equatable, Sendable {
     /// transcribed by hand could disagree with its S in a way nothing would catch;
     /// a Z reflected from its S cannot, and "it is the mirror" becomes something a
     /// test can say.
+    ///
+    /// The mirror has no name and no hand-overs of its own: an S's name is not
+    /// its Z's, and nothing reflected has hand-overs to carry.
     func reflected(about axis: Int, source: String) -> BraidDiskNotation? {
         guard notchCount > 0 else { return nil }
         func across(_ notch: Int) -> Int {
