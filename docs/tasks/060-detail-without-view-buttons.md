@@ -1,6 +1,6 @@
 # Task 060: 詳細の3Dから「左へ回転」「正面に戻す」「右へ回転」のボタンを外す
 
-- 状態: **実装済み**（2026-09-25、Claude Code。枝 `claude/task-060-detail-without-view-buttons`。PR はマージ待ち）。結果は末尾。
+- 状態: **実装済み・PR #45 でマージ**（2026-09-25、Claude Code。枝 `claude/task-060-detail-without-view-buttons`。作者が PR の作成とマージを許可した）。結果は末尾。
   指示書は審査側（2026-09-25）
 - 前提（先に読むこと）: `docs/specifications/project-editor.md`（「詳細」の節と受け入れ条件。**審査側がこの指示書と同時に
   書き直した**）、`AGENTS.md`
