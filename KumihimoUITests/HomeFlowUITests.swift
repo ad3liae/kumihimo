@@ -119,9 +119,10 @@ final class HomeFlowUITests: XCTestCase {
         // Task 058: a sheet at every width, titled with the recipe's name.
         XCTAssertTrue(app.navigationBars["丸源氏組"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.navigationBars["丸源氏組"].buttons["閉じる"].exists)
-        XCTAssertTrue(app.buttons["左へ回転"].exists)
-        XCTAssertTrue(app.buttons["正面に戻す"].exists)
-        XCTAssertTrue(app.buttons["右へ回転"].exists)
+        // Task 060: no buttons under the solid. VoiceOver turns it with the
+        // canvas's custom actions, which XCUITest cannot list (see the task's
+        // result for how they were checked).
+        assertNoViewButtons(in: app)
         XCTAssertTrue(app.staticTexts[
             "実物3例で配色傾向を照合した試作です。糸の上下関係と締め具合は未検証です。"
         ].exists)
@@ -193,12 +194,14 @@ final class HomeFlowUITests: XCTestCase {
             XCTAssertFalse(app.staticTexts["完成イメージを生成できませんでした"].exists)
             addScreenshot(named: "fixture-\(index + 1)-front")
 
-            app.buttons["左へ回転"].tap()
+            // Task 060: turned by hand, as there are no buttons — the drag the
+            // buttons' eighth of a half turn would be, and a double tap back.
+            turn(surface, byPoints: -Self.eighthOfAHalfTurn)
             addScreenshot(named: "fixture-\(index + 1)-left")
-            app.buttons["正面に戻す"].tap()
-            app.buttons["右へ回転"].tap()
+            surface.doubleTap()
+            turn(surface, byPoints: Self.eighthOfAHalfTurn)
             addScreenshot(named: "fixture-\(index + 1)-right")
-            app.buttons["正面に戻す"].tap()
+            surface.doubleTap()
             surface.pinch(withScale: 1.6, velocity: 1)
             addScreenshot(named: "fixture-\(index + 1)-zoom")
             surface.pinch(withScale: 0.1, velocity: -1)
@@ -276,7 +279,7 @@ final class HomeFlowUITests: XCTestCase {
         addScreenshot(named: "ipad-portrait-detail-sheet")
     }
 
-    func testVerifiedSurfaceNoticeAndControlsRemainVisibleInDarkAccessibilityText() {
+    func testVerifiedSurfaceNoticeRemainsVisibleInDarkAccessibilityText() {
         let app = launch(arguments: [
             "--ui-testing-surface-fixture-2",
             "--ui-testing-dark-mode",
@@ -285,9 +288,7 @@ final class HomeFlowUITests: XCTestCase {
 
         XCTAssertTrue(app.navigationBars["丸源氏・3D試作"].waitForExistence(timeout: 20))
         assertSurfaceRendered(in: app)
-        XCTAssertTrue(app.buttons["左へ回転"].isHittable)
-        XCTAssertTrue(app.buttons["正面に戻す"].isHittable)
-        XCTAssertTrue(app.buttons["右へ回転"].isHittable)
+        assertNoViewButtons(in: app)
         addScreenshot(named: "fixture-2-dark-surface")
         let notice = app.staticTexts[
             "実物3例で配色傾向を照合した試作です。糸の上下関係と締め具合は未検証です。"
@@ -408,6 +409,23 @@ final class HomeFlowUITests: XCTestCase {
         wait(for: [rendered], timeout: 10)
         return surface
     }
+
+    /// The buttons under the solid that Task 060 took away.
+    private func assertNoViewButtons(in app: XCUIApplication) {
+        for name in ["左へ回転", "正面に戻す", "右へ回転"] {
+            XCTAssertFalse(app.buttons[name].exists, name)
+        }
+    }
+
+    /// A one-finger drag across the middle of the solid; the drawers turn it
+    /// 0.008 radians a point.
+    private func turn(_ surface: XCUIElement, byPoints points: CGFloat) {
+        let middle = surface.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        middle.press(forDuration: 0.1, thenDragTo: middle.withOffset(CGVector(dx: points, dy: 0)))
+    }
+
+    /// π/8, the step the buttons turned by, as a drag.
+    private static let eighthOfAHalfTurn: CGFloat = (.pi / 8) / 0.008
 
     private func selectThreadCount(
         _ count: Int,

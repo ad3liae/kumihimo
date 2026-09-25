@@ -6,9 +6,9 @@ import SwiftUI
 /// The title is the braid's own name — the recipe's, 「江戸八つ組」 — and the way
 /// out is 閉じる at the top right, or a swipe down. **Nothing scrolls over the
 /// solid**, because dragging it turns the braid. The upper part holds the solid
-/// and its buttons and does not move; the lower part holds the notes and the
-/// figure, and scrolls when they do not fit — at large text sizes, the notes
-/// alone can be taller than the screen.
+/// alone and does not move; the lower part holds the notes and the figure, and
+/// scrolls when they do not fit — at large text sizes, the notes alone can be
+/// taller than the screen.
 struct BraidDetailSheet: View {
     let preset: BraidPreset
     let assignments: [ThreadAssignment]
@@ -62,8 +62,8 @@ struct BraidDetailSheet: View {
         BraidMethodCatalog.recipe(for: preset.id)
     }
 
-    /// The drawer in its embedded form: the braid and its buttons, with no bar,
-    /// dismiss button or notes of its own.
+    /// The drawer in its embedded form: the braid alone, with no bar, dismiss
+    /// button, notes or buttons of its own (Task 060).
     @ViewBuilder
     private var solid: some View {
         if let recipe {
