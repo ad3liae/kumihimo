@@ -1,7 +1,7 @@
 import Foundation
 
 enum ProjectEditorStrings {
-    static let newProjectTitle = "新しい組紐"
+    static let newProjectTitle = "新しい組ひも"
     static let save = "保存"
     static let overwrite = "上書き保存"
     static let saveAs = "名前をつけて保存…"
@@ -9,12 +9,12 @@ enum ProjectEditorStrings {
     static let saveAsTitle = "名前をつけて保存"
     static let projectName = "作品名"
     static let cancel = "キャンセル"
-    static let standSection = "組紐台"
+    static let standSection = "組ひも台"
     static let stand = "台"
     static let threadCountSection = "糸の本数"
     static let threadCount = "本数"
     static let colorPlacementSection = "色の配置"
-    static let boardAccessibilityLabel = "組紐台の糸配置"
+    static let boardAccessibilityLabel = "組ひも台の糸配置"
     static let chooseColorTitle = "糸の色"
     static let simulationSection = "組み方別のシミュレーション結果"
     static let simulationCalculating = "完成イメージを計算中"

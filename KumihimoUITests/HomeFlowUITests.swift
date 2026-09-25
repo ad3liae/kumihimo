@@ -13,14 +13,14 @@ final class HomeFlowUITests: XCTestCase {
 
         element(in: app, identifier: "home.create-project").tap()
 
-        XCTAssertTrue(app.navigationBars["新しい組紐"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.navigationBars["新しい組ひも"].waitForExistence(timeout: 2))
     }
 
     func testNewProjectCanBeNamedAndSaved() {
         let app = launch(arguments: ["--ui-testing-empty-projects"])
 
         element(in: app, identifier: "home.create-project").tap()
-        app.navigationBars["新しい組紐"].buttons["保存"].tap()
+        app.navigationBars["新しい組ひも"].buttons["保存"].tap()
 
         let nameField = app.textFields["作品名"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 2))
