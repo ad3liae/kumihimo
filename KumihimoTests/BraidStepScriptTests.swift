@@ -46,47 +46,40 @@ struct BraidStepScriptTests {
         let script = try script(recipe)
         #expect(script.hands.allSatisfy { $0.carries.count == 1 && $0.settling.isEmpty })
         let expected: [Seen] = [
+            Seen(from: 1, to: 3, way: .clockwise, passing: [2]),
             Seen(from: 7, to: 1, way: .clockwise, passing: [8]),
             Seen(from: 5, to: 7, way: .clockwise, passing: [6]),
             Seen(from: 3, to: 5, way: .clockwise, passing: [4]),
-            Seen(from: 1, to: 3, way: .clockwise, passing: [2]),
-            Seen(from: 8, to: 6, way: .anticlockwise, passing: [7]),
             Seen(from: 2, to: 8, way: .anticlockwise, passing: [1]),
             Seen(from: 4, to: 2, way: .anticlockwise, passing: [3]),
             Seen(from: 6, to: 4, way: .anticlockwise, passing: [5]),
+            Seen(from: 8, to: 6, way: .anticlockwise, passing: [7]),
         ]
         #expect(script.hands.prefix(8).compactMap(\.carries.first).map(seen) == expected)
         // The second cycle is the same table: the same places and ways.
         #expect(script.hands.suffix(8).compactMap(\.carries.first).map(seen) == expected)
-        // Hand 1 goes over the thread standing at place 8.
-        #expect(script.hands[0].carries.first?.over == [8])
+        // Hand 1 goes over the thread standing at place 2 (Task 066: places 1・2
+        // are the textbook's slits 4・5).
+        #expect(script.hands[0].carries.first?.over == [2])
     }
 
-    /// **The thread set down at place 1 by hand 1 waits beside place 1's own
-    /// thread, on the side it came from (place 8's)**, and stands on place 1
-    /// once hand 4 has taken that thread away.
+    /// **The thread set down at place 3 by hand 1 waits beside place 3's own
+    /// thread, on the side it came from (place 2's)**, and stands on place 3
+    /// once hand 4 has taken that thread away. (Places 1・2 are the textbook's
+    /// slits 4・5 since Task 066; the book sets it down in slit 11, beside 12.)
     @Test func edoYatsuSetsTheNewThreadBesideUntilThePlaceIsFree() throws {
         let script = try script(BraidMethodCatalog.edoYatsu8Recipe)
-        let layout = BraidStepLayout(
-            stand: script.stand, startingSlits: BraidMethodCatalog.edoYatsu8Recipe.startingSlits
-        )
         let afterFirst = script.hands[0].after
-        let atOne = afterFirst.filter { $0.value.place == 1 }
-        #expect(atOne.count == 2)
-        #expect(afterFirst[1] == BraidStepStanding(place: 1, rank: 0, cameBy: nil))
-        #expect(afterFirst[7] == BraidStepStanding(place: 1, rank: 1, cameBy: .clockwise))
-        // Drawn between place 8 and place 1, on place 8's side of place 1
-        // (Task 066: outside place 1・2's island).
-        let beside = BraidStepFrame.polarPoint(of: try #require(afterFirst[7]), on: layout)
-        let turn = (beside.turn + 1).truncatingRemainder(dividingBy: 1)
-        #expect(turn > layout.turn(of: 8) && turn < layout.turn(of: 1))
+        #expect(afterFirst.filter { $0.value.place == 3 }.count == 2)
+        #expect(afterFirst[3] == BraidStepStanding(place: 3, rank: 0, cameBy: nil))
+        #expect(afterFirst[1] == BraidStepStanding(place: 3, rank: 1, cameBy: .clockwise))
 
         for hand in 1...2 {
-            #expect(script.hands[hand].after.filter { $0.value.place == 1 }.count == 2)
+            #expect(script.hands[hand].after.filter { $0.value.place == 3 }.count == 2)
         }
         let afterFourth = script.hands[3].after
-        #expect(afterFourth.filter { $0.value.place == 1 }.map(\.key) == [7])
-        #expect(afterFourth[7] == BraidStepStanding(place: 1, rank: 0, cameBy: nil))
+        #expect(afterFourth.filter { $0.value.place == 3 }.map(\.key) == [1])
+        #expect(afterFourth[1] == BraidStepStanding(place: 3, rank: 0, cameBy: nil))
     }
 
     /// **Sixteen hands and every place back to its colour** — two cycles
@@ -326,9 +319,9 @@ struct BraidStepScriptTests {
     @Test func handsReadAsOneSentence() throws {
         let edo = try script(BraidMethodCatalog.edoYatsu8Recipe)
         #expect(BraidStepsStrings.sentence(for: edo.hands[0], tableCount: edo.tableCount)
-                == "場所7の糸を、右回りに場所1へ")
+                == "場所1の糸を、右回りに場所3へ")
         #expect(BraidStepsStrings.sentence(for: edo.hands[4], tableCount: edo.tableCount)
-                == "場所8の糸を、左回りに場所6へ")
+                == "場所2の糸を、左回りに場所8へ")
         let yotsu = try script(BraidMethodCatalog.maruYotsu4Recipe)
         #expect(BraidStepsStrings.sentence(for: yotsu.hands[0], tableCount: yotsu.tableCount)
                 == "場所1の糸を左回りに場所3へ、場所3の糸を左回りに場所1へ")
@@ -360,28 +353,38 @@ struct BraidStepScriptTests {
 
     /// **A carried thread slides round the rim the way it goes** and rides a
     /// little out as it passes; with 「視差効果を減らす」 it is switched, never
-    /// part way.
+    /// part way. On the stand as the book's disk draws it (Task 066): 江戸八つ組's
+    /// hand 1 takes place 1's thread clockwise past place 2 to slit 11, beside
+    /// place 3.
     @Test func theCarriedThreadSlidesTheWayItGoes() throws {
-        let script = try script(BraidMethodCatalog.edoYatsu8Recipe)
-        let hand = script.hands[0]
-        let middle = BraidStepTiming.lead + BraidStepTiming.carry / 2
-        let layout = BraidStepLayout(
-            stand: script.stand, startingSlits: BraidMethodCatalog.edoYatsu8Recipe.startingSlits
+        let recipe = BraidMethodCatalog.edoYatsu8Recipe
+        let script = try script(recipe)
+        let stage = BraidStepStage(
+            script: script, recipe: recipe,
+            layout: BraidStepLayout(stand: script.stand, startingSlits: recipe.startingSlits)
         )
-        let frame = BraidStepFrame.at(middle, of: hand, on: layout, reduceMotion: false)
+        #expect(stage.isDrawnFromTheBook)
+        let hand = script.hands[0]
+        let stations = stage.stations(ofHand: 0)
+        let carried = stations.carried
+        #expect(carried == Set(hand.carries.map(\.thread)))
+        let middle = BraidStepTiming.lead + BraidStepTiming.carry / 2
+        let frame = BraidStepFrame.at(middle, of: stations, carried: carried, reduceMotion: false)
         let ball = try #require(frame.balls.last)
-        #expect(ball.thread == 7 && ball.isCarried)
+        #expect(ball.thread == 1 && ball.isCarried)
         var turn = atan2(Double(ball.point.x), -Double(ball.point.y)) / (2 * .pi)
         if turn < 0 { turn += 1 }
-        #expect(turn > 0.75 && turn < 1)        // between place 7 and place 1, by place 8
+        let layout = stage.layout
+        #expect(turn > layout.turn(of: 2) && turn < layout.turn(of: 3))    // past place 2, short of 3
         #expect(hypot(ball.point.x, ball.point.y) > 1)
-        #expect(frame.arrows == [BraidStepFrame.Arrow(from: 7, to: 1, way: .clockwise)])
+        let landing = try #require(stations.afterCarrying[1])
+        #expect(frame.arrows == [BraidStepFrame.Arrow(from: layout.turn(of: 1), to: landing.turn, way: .clockwise)])
 
-        let places = [hand.before, hand.afterCarrying, hand.after].compactMap { $0[7] }
-            .map { BraidStepFrame.polarPoint(of: $0, on: layout).cartesian }
+        let places = [stations.before, stations.afterCarrying, stations.after].compactMap { $0[1] }
+            .map(\.cartesian)
         for time in stride(from: 0.0, through: BraidStepTiming.hand, by: 0.05) {
-            let still = BraidStepFrame.at(time, of: hand, on: layout, reduceMotion: true)
-            let point = try #require(still.balls.first { $0.thread == 7 }).point
+            let still = BraidStepFrame.at(time, of: stations, carried: carried, reduceMotion: true)
+            let point = try #require(still.balls.first { $0.thread == 1 }).point
             #expect(places.contains { abs($0.x - point.x) < 1e-9 && abs($0.y - point.y) < 1e-9 })
         }
     }

@@ -33,7 +33,7 @@ struct EdoYatsuTests {
         #expect(disk.repositioningMoves.count == 8)
         #expect(disk.braidingMoves.allSatisfy { (7...9).contains(disk.notches($0)) })
         #expect(worked.method.steps.map { $0.moves.map { [$0.from, $0.to] } }
-                == [[[7, 1]], [[5, 7]], [[3, 5]], [[1, 3]], [[8, 6]], [[2, 8]], [[4, 2]], [[6, 4]]])
+                == [[[1, 3]], [[7, 1]], [[5, 7]], [[3, 5]], [[2, 8]], [[4, 2]], [[6, 4]], [[8, 6]]])
         #expect(worked.method.instantCount == 9)
         #expect(worked.method.closing.moves.isEmpty)
         #expect(BraidMethodCatalog.edoYatsu8.steps.map(\.name) == BraidMethodCatalog.edoYatsuStepNames)
@@ -61,7 +61,7 @@ struct EdoYatsuTests {
         let cycle = try #require(BraidWorking.cycle(
             of: worked.method, from: BraidStandState.start(on: stand)
         ))
-        #expect(cycle.allCarried.map(\.thread) == [7, 5, 3, 1, 8, 2, 4, 6])
+        #expect(cycle.allCarried.map(\.thread) == [1, 7, 5, 3, 2, 4, 6, 8])
         let ended = try #require(cycle.endState.threadByPosition)
         #expect(Set(ended.values) == Set(1...8))
         // Two places on a ring of eight: every thread is home after four cycles.
@@ -127,12 +127,13 @@ struct EdoYatsuTests {
     /// 4・20 magenta (505 ローズ), 5・21 the cream (501 オフホワイト), 12・28 cyan
     /// (528 ターコイズ), 13・29 yellow-green (517 薄緑) — the photograph's colours
     /// on their nearest of the 30 (Task 065). Laid on the places through the starting slits:
-    /// 1 cyan, 2 yellow-green, 3 magenta, 4 cream, and round again.
+    /// 1 magenta, 2 cream, 3 cyan, 4 yellow-green, and round again (Task 066: places
+    /// 1・2 are slits 4・5).
     @Test func theColouringIsTheTextbooksBySlit() {
         let byPosition = Dictionary(uniqueKeysWithValues: recipe.colouring.map { ($0.position, $0.colorID.rawValue) })
         #expect((1...8).map { byPosition[$0] } == [
-            "amerry-f-528", "amerry-f-517", "amerry-f-505", "amerry-f-501",
-            "amerry-f-528", "amerry-f-517", "amerry-f-505", "amerry-f-501",
+            "amerry-f-505", "amerry-f-501", "amerry-f-528", "amerry-f-517",
+            "amerry-f-505", "amerry-f-501", "amerry-f-528", "amerry-f-517",
         ])
         let bySlit = [4: "amerry-f-505", 20: "amerry-f-505", 5: "amerry-f-501", 21: "amerry-f-501",
                       12: "amerry-f-528", 28: "amerry-f-528", 13: "amerry-f-517", 29: "amerry-f-517"]

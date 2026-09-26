@@ -22,6 +22,10 @@ struct BraidStepLayout: Equatable {
     let islands: [[Int]]
     /// A bobbin's radius, in units of the rim's radius.
     let ballRadius: Double
+    /// **How far apart two neighbouring slits are drawn inside an island**, in
+    /// turns: the book's notch, or spread as the islands are. `nil` for a stand
+    /// drawn evenly, with no slits behind it.
+    let notchTurn: Double?
     /// Each place's angle, in turns clockwise from the top.
     private let turns: [Int: Double]
 
@@ -39,6 +43,7 @@ struct BraidStepLayout: Equatable {
         else {
             turns = Dictionary(uniqueKeysWithValues: stand.positions.map { ($0.id, $0.rim) })
             islands = stand.positions.map { [$0.id] }
+            notchTurn = nil
             return
         }
         // The book's angle of each place, clockwise, in the order round the disk.
@@ -54,6 +59,7 @@ struct BraidStepLayout: Equatable {
             // Every gap narrower than the average cannot happen round a whole turn.
             turns = Dictionary(uniqueKeysWithValues: stand.positions.map { ($0.id, $0.rim) })
             islands = stand.positions.map { [$0.id] }
+            notchTurn = nil
             return
         }
         var grouped = [[Int]]()           // indices into `book`
@@ -72,6 +78,8 @@ struct BraidStepLayout: Equatable {
         // to `least`.
         let touching = asin(min(1, ballRadius)) / .pi
         let least = asin(min(1, ballRadius + Self.clearance / 2)) / .pi
+        let notch = 1 / Double(slits.notchCount)
+        notchTurn = notch < touching ? least : notch
         var middles = [Double](), spread = [[Double]]()
         for members in grouped {
             let gaps = zip(members, members.dropFirst()).map { gap(after: $0.0) }

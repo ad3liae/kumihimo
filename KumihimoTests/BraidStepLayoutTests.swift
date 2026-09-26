@@ -122,56 +122,53 @@ struct BraidStepLayoutTests {
     // MARK: 3. No two bobbins on top of each other
 
     /// **At no moment of any hand do two bobbins overlap**, but for a carried one
-    /// passing over the threads it goes by, which it is drawn over on purpose.
-    /// At the start and the end of every hand, when everything stands still,
-    /// none at all overlap — a thread waiting beside a place included, on
-    /// whichever side of it.
+    /// passing over the threads it goes by, which it is drawn over on purpose,
+    /// and a thread the settle moves on purpose. At the start and the end of
+    /// every hand, when everything stands still, none at all overlap. On the
+    /// stand as the screen draws it: from the book's disk where there is one.
     @Test(arguments: BraidMethodCatalog.recipes.map(\.id))
     func noTwoBobbinsOverlap(recipeID: String) throws {
         let recipe = try #require(BraidMethodCatalog.recipes.first { $0.id == recipeID })
         let script = try script(recipe)
-        let layout = try layout(recipe)
-        let least = 2 * layout.ballRadius
-        var closest = Double.infinity
+        let stage = BraidStepStage(script: script, recipe: recipe, layout: try layout(recipe))
+        let least = 2 * stage.layout.ballRadius
         func check(_ balls: [BraidStepFrame.Ball], _ label: String) {
             for (index, one) in balls.enumerated() {
                 for other in balls[(index + 1)...] {
                     let distance = hypot(one.point.x - other.point.x, one.point.y - other.point.y)
-                    closest = min(closest, distance)
-                    #expect(distance >= least, "\(recipeID) \(label): threads \(one.thread) and \(other.thread)")
+                    #expect(distance >= least - 1e-9, "\(recipeID) \(label): threads \(one.thread) and \(other.thread)")
                 }
             }
         }
         for (number, hand) in script.hands.enumerated() {
+            let stations = stage.stations(ofHand: number)
+            let carried = stations.carried
             for reduceMotion in [false, true] {
                 for time in stride(from: 0.0, through: BraidStepTiming.hand, by: 0.05) {
-                    let frame = BraidStepFrame.at(time, of: hand, on: layout, reduceMotion: reduceMotion)
+                    let frame = BraidStepFrame.at(time, of: stations, carried: carried, reduceMotion: reduceMotion)
                     check(frame.balls.filter { !$0.isCarried }, "hand \(number + 1) at \(time)")
                 }
             }
             for time in [0, BraidStepTiming.hand] {
-                let frame = BraidStepFrame.at(time, of: hand, on: layout, reduceMotion: false)
+                let frame = BraidStepFrame.at(time, of: stations, carried: carried, reduceMotion: false)
                 check(frame.balls, "hand \(number + 1) standing at \(time)")
             }
         }
-        #expect(closest < .infinity)
     }
 
-    /// **江戸八つ組's hand 1** (place 7 to place 1, set down beside place 1 while
-    /// its thread is still there) **waits on place 8's side**, outside place 1・2's
-    /// island, and not between 1 and 2.
-    @Test func edoYatsusFirstHandWaitsOutsideTheIsland() throws {
+    /// **On the stand's places — the drawing for a braid with no book disk — a
+    /// thread waiting beside a place stands on the side it came from, out by
+    /// the rim where there is room**: 江戸八つ組's hand 1 as the script has it.
+    @Test func aWaitingThreadStandsClearOnTheStandsPlaces() throws {
         let recipe = BraidMethodCatalog.edoYatsu8Recipe
         let script = try script(recipe)
         let layout = try layout(recipe)
-        let hand = script.hands[0]
-        let waiting = try #require(hand.afterCarrying[7])
-        #expect(waiting.place == 1 && waiting.rank == 1)
+        let waiting = try #require(script.hands[0].afterCarrying[1])
+        #expect(waiting.place == 3 && waiting.rank == 1 && waiting.cameBy == .clockwise)
         let point = BraidStepFrame.polarPoint(of: waiting, on: layout)
-        let fromOne = between(layout.turn(of: 1), point.turn)
-        #expect(fromOne < 0)                                        // anticlockwise of place 1
-        #expect(between(layout.turn(of: 8), point.turn) > 0)        // clockwise of place 8
-        #expect(point.radius > 0.8)                                 // out by the rim, where there is room
+        #expect(between(layout.turn(of: 3), point.turn) < 0)          // anticlockwise of place 3
+        #expect(between(layout.turn(of: 2), point.turn) > 0)          // clockwise of place 2
+        #expect(point.radius > 0.8)                                   // out by the rim, where there is room
     }
 
     // MARK: 4. The script is Task 062's

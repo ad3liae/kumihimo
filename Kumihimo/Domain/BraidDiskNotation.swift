@@ -57,6 +57,24 @@ struct BraidDiskNotation: Equatable, Sendable {
     /// What the book's hand-over is called on screen: 「持ち替え」.
     let handOverName: String?
 
+    /// **The book's own disk, hand by hand** (Task 066): each hand of this
+    /// table — its carries in turn, then its hand-overs, as the step animation
+    /// counts them — as the moves the book prints, in the book's own slit
+    /// numbers, which drift dan by dan where the table's notches do not. The
+    /// first move of a hand is its carry; any after it lift a thread again
+    /// inside the same step (江戸八つ組's figure 5). **The step animation draws
+    /// the stand from these; the derivation never reads them.** Empty for a
+    /// table with no book disk behind it.
+    let bookHands: [[BookMove]]
+
+    /// One move on the book's disk. `thread` names the thread by the stand place
+    /// it stands at when the table begins.
+    struct BookMove: Equatable, Sendable {
+        let thread: Int
+        let from: Int
+        let to: Int
+    }
+
     /// One carry split in two, on the stand.
     struct HandOver: Equatable, Sendable {
         /// The carry as the table writes it: from the thread's place when the
@@ -92,7 +110,8 @@ struct BraidDiskNotation: Equatable, Sendable {
         stepReading: StepReading = .oneThreadAnInstant,
         name: String? = nil,
         handOvers: [HandOver] = [],
-        handOverName: String? = nil
+        handOverName: String? = nil,
+        bookHands: [[BookMove]] = []
     ) {
         self.source = source
         self.notchCount = notchCount
@@ -103,6 +122,7 @@ struct BraidDiskNotation: Equatable, Sendable {
         self.name = name
         self.handOvers = handOvers
         self.handOverName = handOverName
+        self.bookHands = bookHands
     }
 
     /// How far round the disk a move carries a thread, the short way.

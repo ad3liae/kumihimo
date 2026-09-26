@@ -46,6 +46,29 @@ enum BraidStepsStrings {
         return "\(name)：\(carries)"
     }
 
+    /// **Where a thread stands, in the hand's words** (Task 066): 「場所5」 on a
+    /// place, 「場所2の隣」 beside one — where the book's disk sets a thread down
+    /// between the places.
+    struct Spot: Equatable {
+        let place: Int
+        let isBeside: Bool
+
+        var words: String { isBeside ? "場所\(place)の隣" : "場所\(place)" }
+    }
+
+    /// **A hand drawn from the book's disk, said as the picture shows it**
+    /// (Task 066): 「場所5の糸を、左回りに場所2の隣へ」; a hand-over 「…を、隣の糸を
+    /// 越えて…へ」. Named as `sentence(for:tableCount:)` names a hand.
+    static func bookSentence(
+        from: Spot, to: Spot, way: BraidStepWay, hand: BraidStepScript.Hand, tableCount: Int
+    ) -> String {
+        let carries = hand.isHandOver
+            ? "\(from.words)の糸を、隣の糸を越えて\(to.words)へ"
+            : "\(from.words)の糸を、\(self.way(way))\(particle(way))\(to.words)へ"
+        guard hand.isHandOver || tableCount > 1, let name = hand.name else { return carries }
+        return "\(name)：\(carries)"
+    }
+
     /// 「右回りに」, but 「中央を横切って」 with nothing after it.
     private static func particle(_ way: BraidStepWay) -> String {
         way == .across ? "" : "に"

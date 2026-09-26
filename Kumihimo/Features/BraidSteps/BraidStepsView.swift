@@ -17,9 +17,9 @@ import SwiftUI
 /// braid's name.
 struct BraidStepsView: View {
     private let script: BraidStepScript?
-    /// Where the stand's places are drawn: the book's starting slits, when the
-    /// recipe has them (Task 066).
-    private let layout: BraidStepLayout?
+    /// Where the stand's places are drawn, and every thread at every moment:
+    /// from the book's disk when the recipe has one (Task 066).
+    private let stage: BraidStepStage?
     private let colours: [Int: ThreadColorID]
     /// The room offered: the width to keep inside, and the height to fill.
     private let room: CGSize
@@ -44,7 +44,12 @@ struct BraidStepsView: View {
             }
         }
         self.script = script.flatMap { $0.hands.isEmpty ? nil : $0 }
-        self.layout = script.map { BraidStepLayout(stand: $0.stand, startingSlits: recipe?.startingSlits) }
+        self.stage = self.script.map {
+            BraidStepStage(
+                script: $0, recipe: recipe,
+                layout: BraidStepLayout(stand: $0.stand, startingSlits: recipe?.startingSlits)
+            )
+        }
         self.colours = colours
         self.room = room
         _playback = State(initialValue: BraidStepPlayback(handCount: script?.hands.count ?? 1))
@@ -52,18 +57,22 @@ struct BraidStepsView: View {
 
     var body: some View {
         Group {
-            if let script, let layout {
+            if let script, let stage {
                 TimelineView(.animation(minimumInterval: nil, paused: !playback.isRunning)) { context in
                     let position = playback.position(at: context.date)
-                    let hand = script.hands[min(position.hand, script.hands.count - 1)]
-                    let sentence = BraidStepsStrings.sentence(for: hand, tableCount: script.tableCount)
+                    let index = min(position.hand, script.hands.count - 1)
+                    let hand = script.hands[index]
+                    let stations = stage.stations(ofHand: index)
+                    let sentence = stations.sentence
+                        ?? BraidStepsStrings.sentence(for: hand, tableCount: script.tableCount)
                     let count = BraidStepsStrings.count(position.hand + 1, of: script.hands.count)
                     arranged(
                         stand: BraidStandDrawing(
                             frame: BraidStepFrame.at(
-                                position.time, of: hand, on: layout, reduceMotion: reduceMotion
+                                position.time, of: stations, carried: stations.carried,
+                                reduceMotion: reduceMotion
                             ),
-                            layout: layout,
+                            layout: stage.layout,
                             colours: colours
                         )
                         .accessibilityElement()
@@ -282,7 +291,7 @@ private struct BraidStandDrawing: View {
         _ arrow: BraidStepFrame.Arrow, in context: inout GraphicsContext,
         onCanvas: (CGPoint) -> CGPoint, scale: CGFloat
     ) {
-        let from = layout.turn(of: arrow.from), to = layout.turn(of: arrow.to)
+        let from = arrow.from, to = arrow.to
         var points = [CGPoint]()
         if arrow.way == .across {
             let start = BraidStepFrame.Polar(turn: from, radius: 0.8).cartesian

@@ -100,6 +100,15 @@ struct BraidMeshHashTests {
     /// the 30 for each colour of the 38; the eight and four colours written in
     /// the twelve former IDs are the same patterns drawn in the colours they are
     /// read as.
+    ///
+    /// **Changed on purpose in Task 066, S and Z under their own colouring
+    /// only: the braid turned a quarter round.** The places were numbered afresh
+    /// so that places 1・2 are the disk book's slits 4・5, and the colouring kept
+    /// each colour on its slit. Checked before the values were taken again: the
+    /// colouring as it stood before gives the value it had, so the table in
+    /// places is the same; and the new card is the old one rolled two lanes of
+    /// eight round the braid, row for row. The eight and four colours, written
+    /// by place, did not move.
     @Test func theOneWayCardsAreThePicturesTheyWere() throws {
         let eight = ["red", "orange", "yellow", "green", "light-blue", "blue", "purple", "pink"]
         let fourColours = ["pink", "white", "blue", "green", "pink", "white", "blue", "green"]
@@ -108,8 +117,8 @@ struct BraidMeshHashTests {
         }
         let stand8 = BraidMethodCatalog.stand8
         let wanted: [(BraidRecipe, [[UInt64]])] = [
-            (BraidMethodCatalog.yatsuKongoS8Recipe, [[0x51e3_a183_f144_ac91], [0x1ec7_26ed_0c36_f1f3], [0xde18_b909_3438_c99d]]),
-            (BraidMethodCatalog.yatsuKongoZ8Recipe, [[0x8637_cdab_d731_39ed], [0x52c2_e9c6_6d09_9340], [0x5aa5_de39_dfd1_04d1]]),
+            (BraidMethodCatalog.yatsuKongoS8Recipe, [[0x0142_222a_93e1_6149], [0x1ec7_26ed_0c36_f1f3], [0xde18_b909_3438_c99d]]),
+            (BraidMethodCatalog.yatsuKongoZ8Recipe, [[0x3215_11d6_3fd1_655d], [0x52c2_e9c6_6d09_9340], [0x5aa5_de39_dfd1_04d1]]),
             (BraidMethodCatalog.yatsuKongoGaeshi8Recipe, [[0xe0d5_b357_56d7_4fad], [0x8b24_04a4_7723_923d], [0x4e5e_d52e_17ca_9105]]),
         ]
         for (recipe, hashes) in wanted {

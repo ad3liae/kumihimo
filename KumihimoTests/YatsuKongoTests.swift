@@ -231,16 +231,18 @@ struct YatsuKongoTests {
     /// places, the only difference left between S and Z is which way the spiral
     /// leans — which is what `theDiagonalsOfSAndZLeanOppositeWays` measures.
     @Test func bothBraidsShipBookAsOwnColouringAndItIsTheSameOne() {
-        // Pair by pair since Task 055: 1・2 and 5・6, 3・4 and 7・8.
-        let upright = ["amerry-f-530", "amerry-f-530", "amerry-f-530", "amerry-f-530"]  // 1, 2, 5, 6
-        let flat = ["amerry-f-504", "amerry-f-504", "amerry-f-504", "amerry-f-504"]     // 3, 4, 7, 8
+        // Pair by pair since Task 055, on the disk book's slits 12・13 and 28・29
+        // upright, 4・5 and 20・21 flat: places 3・4 and 7・8, 1・2 and 5・6 since
+        // Task 066.
+        let upright = ["amerry-f-530", "amerry-f-530", "amerry-f-530", "amerry-f-530"]  // 3, 4, 7, 8
+        let flat = ["amerry-f-504", "amerry-f-504", "amerry-f-504", "amerry-f-504"]     // 1, 2, 5, 6
         for colouring in [BraidMethodCatalog.yatsuKongoS8Recipe.colouring,
                           BraidMethodCatalog.yatsuKongoZ8Recipe.colouring] {
             let byPosition = Dictionary(uniqueKeysWithValues: colouring.map {
                 ($0.position, $0.colorID.rawValue)
             })
-            #expect([1, 2, 5, 6].map { byPosition[$0] ?? "" } == upright)
-            #expect([3, 4, 7, 8].map { byPosition[$0] ?? "" } == flat)
+            #expect([3, 4, 7, 8].map { byPosition[$0] ?? "" } == upright)
+            #expect([1, 2, 5, 6].map { byPosition[$0] ?? "" } == flat)
         }
         #expect(BraidMethodCatalog.yatsuKongoS8Recipe.colouring
                 == BraidMethodCatalog.yatsuKongoZ8Recipe.colouring)
