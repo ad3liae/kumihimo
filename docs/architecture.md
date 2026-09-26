@@ -130,6 +130,8 @@ struct KumihimoProject {
   一覧を替えても SwiftData の移行は要らない。
 - 組み方の見本配色（`BraidMethodCatalog`）は、出所の写真から測った糸の色に CIEDE2000 でいちばん近い30色。
   **1つの配色の中で違う色だった糸が同じ色に集まったら、近いほうが残り、もう一方を次に近い色で分ける。**
+  **例外が2つ**（作者の決定、2026-09-26）: 八つ金剛返し組の淡い黄と丸源氏組の生成りは、写真の2色の差に近づけるため、
+  いちばん近い 529 ではなく 501（529 は相手の糸の 504 と ΔE 8.0 で見分けにくい）。
   測り方は `Scripts/task063/measure_colourings.py`（Task 063 の値のまま）、選び方は
   `Scripts/task065/choose_colourings.py`、近い色は `Scripts/colours/nearest.py`。
 - 色を見分けたいだけの試験は、一覧を順に回さず、自分で書いた12個のIDを使う（`KumihimoTests/TwelveColours.swift`）。
