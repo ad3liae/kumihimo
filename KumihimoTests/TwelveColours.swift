@@ -7,7 +7,10 @@
 /// when the catalogue changed from twelve colours to thirty-eight, going round it
 /// would have changed which threads share a colour, and with that more than the
 /// colour. These are the twelve the catalogue listed until then, in its order,
-/// and they are drawn as the 38 read them (`ThreadColorCatalog.formerIDs`).
+/// and they are drawn as the 30 read them (`ThreadColorCatalog.formerIDs`, Task
+/// 065). **The 30 read `white` and `natural` both as 501**, so those two are
+/// drawn alike; the tests that use these tell threads apart by their IDs, which
+/// stay twelve.
 enum TwelveColours {
     static let ids: [ThreadColorID] = [
         "red", "orange", "yellow", "green", "light-blue", "blue",

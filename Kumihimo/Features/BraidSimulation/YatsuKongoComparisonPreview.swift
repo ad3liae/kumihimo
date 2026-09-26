@@ -61,9 +61,9 @@ import SwiftUI
 ///     --yatsu-kongo-roll=<degrees>     turned about the braid's own axis
 ///
 /// **The colour names above are the twelve provisional colours'**, as each
-/// colouring was asked for. Since Task 063 each is drawn in the one of the 38 it
-/// is read as (`ThreadColorCatalog.formerIDs`, `docs/colours.md`): blue 瑠璃, red
-/// 朱色, pink 藤色, white 白土, natural 象牙, and so on.
+/// colouring was asked for. Since Task 065 each is written as the one of the 30
+/// it is read as (`docs/colours.md`): blue 513, red 508, pink 505, white and
+/// natural 501, and so on.
 @MainActor
 enum YatsuKongoComparisonPreviewData {
     static let solidLaunchArgument = "--ui-testing-yatsu-kongo-solid"
@@ -94,7 +94,10 @@ enum YatsuKongoComparisonPreviewData {
         case "author":
             // **The author's own colouring** for the spiral sketch (Task 048's
             // rework): places 1-8 blue, blue, red, red, blue, blue, red, red.
-            let names = ["ruri", "ruri", "shu", "shu", "ruri", "ruri", "shu", "shu"]
+            let names = [
+                "amerry-f-513", "amerry-f-513", "amerry-f-508", "amerry-f-508",
+                "amerry-f-513", "amerry-f-513", "amerry-f-508", "amerry-f-508",
+            ]
             return names.enumerated().map {
                 ThreadAssignment(position: $0.offset + 1, colorID: ThreadColorID(rawValue: $0.element))
             }
@@ -105,7 +108,9 @@ enum YatsuKongoComparisonPreviewData {
             return recipe.colouring.map { assignment in
                 ThreadAssignment(
                     position: assignment.position,
-                    colorID: ThreadColorID(rawValue: assignment.colorID == recipe.colouring[0].colorID ? "shu" : "ruri")
+                    colorID: ThreadColorID(
+                        rawValue: assignment.colorID == recipe.colouring[0].colorID ? "amerry-f-508" : "amerry-f-513"
+                    )
                 )
             }
         case "tri":
@@ -113,39 +118,45 @@ enum YatsuKongoComparisonPreviewData {
             // screenshot of 2026-09-22 (Task 055).
             return (1...8).map {
                 ThreadAssignment(position: $0, colorID: [1, 2].contains($0)
-                    ? ThreadColorID(rawValue: "shu")
-                    : [5, 6].contains($0) ? ThreadColorID(rawValue: "ruri") : ThreadColorColorIDs.plain)
+                    ? ThreadColorID(rawValue: "amerry-f-508")
+                    : [5, 6].contains($0) ? ThreadColorID(rawValue: "amerry-f-513") : ThreadColorColorIDs.plain)
             }
         case "pwbg":
             // The author's colouring of 江戸八つ組 (Task 059): places 1・5 pink,
             // 2・6 white, 3・7 blue, 4・8 green.
-            let names = ["fuji", "hakudo", "ruri", "tokusa"]
+            let names = ["amerry-f-505", "amerry-f-501", "amerry-f-513", "amerry-f-518"]
             return (1...8).map {
                 ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: names[($0 - 1) % 4]))
             }
         case "swapped":
             // The textbook's figure with its cyan and yellow-green swapped, the
             // reading of the p.64 photograph (Task 059 addendum 6), in the
-            // recipe's own colours (Task 063).
-            let names = ["seiji", "tsuyukusa", "fuji", "byakugun"]
+            // recipe's own colours (Task 063, Task 065).
+            let names = ["amerry-f-517", "amerry-f-528", "amerry-f-505", "amerry-f-501"]
             return (1...8).map {
                 ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: names[($0 - 1) % 4]))
             }
         case "leftright":
             // p.65's left example (Task 059 addendum 6): the left of every pair
             // teal, the right yellow-green — the recipe's cyan and yellow-green
-            // here (Task 063).
+            // here (Task 063, Task 065).
             return (1...8).map {
-                ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: $0 % 2 == 1 ? "tsuyukusa" : "seiji"))
+                ThreadAssignment(
+                    position: $0,
+                    colorID: ThreadColorID(rawValue: $0 % 2 == 1 ? "amerry-f-528" : "amerry-f-517")
+                )
             }
         case "one":
             // Every thread natural but position 1, blue (Task 048).
             return (1...8).map {
                 ThreadAssignment(position: $0, colorID: $0 == 1
-                    ? ThreadColorID(rawValue: "ruri") : ThreadColorColorIDs.plain)
+                    ? ThreadColorID(rawValue: "amerry-f-513") : ThreadColorColorIDs.plain)
             }
         case "eight":
-            let names = ["shu", "oni", "kiiro", "tokusa", "tsuyukusa", "ruri", "sumire", "fuji"]
+            let names = [
+                "amerry-f-508", "amerry-f-506", "amerry-f-503", "amerry-f-518",
+                "amerry-f-512", "amerry-f-513", "amerry-f-511", "amerry-f-505",
+            ]
             return names.enumerated().map {
                 ThreadAssignment(position: $0.offset + 1, colorID: ThreadColorID(rawValue: $0.element))
             }
@@ -188,7 +199,7 @@ enum YatsuKongoComparisonPreviewData {
             // over, 2 under. Painted by which side of the V each is on, as the
             // sketch paints them: black and red on one side, yellow and blue on
             // the other.
-            let sketch: [Int: String] = [12: "shikkoku", 1: "kiiro", 11: "shu", 2: "ruri"]
+            let sketch: [Int: String] = [12: "amerry-f-524", 1: "amerry-f-503", 11: "amerry-f-508", 2: "amerry-f-513"]
             return (1...16).map {
                 ThreadAssignment(
                     position: $0,
@@ -204,7 +215,7 @@ enum YatsuKongoComparisonPreviewData {
         return fixture.map {
             ThreadAssignment(
                 position: $0.position,
-                colorID: $0.colorID.rawValue == "fuji" ? ThreadColorID(rawValue: "hakudo") : $0.colorID
+                colorID: $0.colorID.rawValue == "amerry-f-505" ? ThreadColorID(rawValue: "amerry-f-501") : $0.colorID
             )
         }
     }
@@ -229,7 +240,7 @@ enum YatsuKongoComparisonPreviewData {
 }
 
 private enum ThreadColorColorIDs {
-    /// The catalogue's default, No.15 象牙 since Task 063.
+    /// The catalogue's default, 501 オフホワイト since Task 065.
     static let plain = ThreadColorCatalog.defaultColor.id
 }
 

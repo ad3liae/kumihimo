@@ -153,6 +153,12 @@ struct FlatPatternUnchangedByTheThumbnailTests {
     /// (checked before this value was taken). The colour goes in by its ID's
     /// characters, so a colouring in new colours moves it; a patch taking another
     /// thread's colour still shows.
+    ///
+    /// **And again in Task 065, by the colours only**: `0x954b_11c5_6215_76f5`
+    /// while the recipe's colouring was in the 38, which that colouring still
+    /// gives (checked before this value was taken), and with the colouring
+    /// chosen afresh among the 30 every patch is where it was, with one colour
+    /// of the 30 for each colour of the 38.
     @Test func theFlatPatternIsTheOneItWas() throws {
         let pattern = try #require(Flat16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.hiraGenji16Colouring))
@@ -180,7 +186,7 @@ struct FlatPatternUnchangedByTheThumbnailTests {
         let hash = BraidMeshHashTests.hash(points)
         try Self.record("flat pattern hash \(String(hash, radix: 16))",
                         named: "flat-pattern-hash")
-        #expect(hash == 0x954b_11c5_6215_76f5)
+        #expect(hash == 0x9c6e_0ba7_4cd8_9e85)
     }
 
     private static func record(_ text: String, named name: String) throws {

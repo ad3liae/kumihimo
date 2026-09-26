@@ -28,13 +28,15 @@ struct EdoYatsuTurnTests {
 
     /// **The figure with its cyan and yellow-green swapped** (the reviewer's
     /// reading of the p.64 photograph): places 1・5 yellow-green, 2・6 cyan, 3・7
-    /// magenta, 4・8 cream, in the recipe's own colours (Task 063).
-    private var swappedColouring: [ThreadAssignment] { byPlace(["seiji", "tsuyukusa", "fuji", "byakugun"]) }
+    /// magenta, 4・8 cream, in the recipe's own colours (Task 063, Task 065).
+    private var swappedColouring: [ThreadAssignment] {
+        byPlace(["amerry-f-517", "amerry-f-528", "amerry-f-505", "amerry-f-501"])
+    }
 
     /// **The p.65 left example**: the left thread of every pair one colour and
     /// the right another — teal and yellow-green on the page, the recipe's cyan
     /// and yellow-green here (Task 063).
-    private var leftAndRightColouring: [ThreadAssignment] { byPlace(["tsuyukusa", "seiji"]) }
+    private var leftAndRightColouring: [ThreadAssignment] { byPlace(["amerry-f-528", "amerry-f-517"]) }
 
     /// **The author's colouring** (2026-09-24): places 1・5 pink, 2・6 white,
     /// 3・7 blue, 4・8 green.
@@ -50,9 +52,11 @@ struct EdoYatsuTurnTests {
     }
 
     /// The textbook's colours as the reviewer names them: C cyan, M magenta, Y
-    /// yellow-green, N cream, as the recipe draws them (No.30 露草色, No.05 藤色,
-    /// No.27 青磁, No.31 白群 since Task 063); any other colour by its own name.
-    private static let letters = ["tsuyukusa": "C", "fuji": "M", "seiji": "Y", "byakugun": "N"]
+    /// yellow-green, N cream, as the recipe draws them (528 ターコイズ, 505 ローズ,
+    /// 517 薄緑, 501 オフホワイト since Task 065); any other colour by its own name.
+    private static let letters = [
+        "amerry-f-528": "C", "amerry-f-505": "M", "amerry-f-517": "Y", "amerry-f-501": "N",
+    ]
 
     /// **The stitches on the face's lattice**: row (the place), and middle in
     /// half cycles over one repeat.
@@ -191,7 +195,7 @@ struct EdoYatsuTurnTests {
         }
         for row in 0..<8 { #expect(rows[row] != rows[(row + 1) % 8]) }
         let pairs = try neighbourPairs(drawn, letters: [:])
-        #expect(Set(pairs.diagonal.keys) == ["seiji tsuyukusa"])
+        #expect(Set(pairs.diagonal.keys) == ["amerry-f-517 amerry-f-528"])
     }
 
     /// **The author's colouring**: along the braid pink–blue and white–green; on

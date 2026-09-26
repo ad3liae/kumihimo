@@ -118,7 +118,7 @@ struct MaruYotsuTests {
                         && $0.centerlineEnd.y > along + 1e-4
                 })
                 #expect(cell.colorID == shape.colorID, "row \(row), place \(place)")
-                #expect(cell.colorID.rawValue == (place % 2 == 0 ? "byakugun" : "nibi"))
+                #expect(cell.colorID.rawValue == (place % 2 == 0 ? "amerry-f-501" : "amerry-f-523"))
             }
         }
     }

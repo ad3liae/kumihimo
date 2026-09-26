@@ -3,61 +3,70 @@ import SwiftData
 import Testing
 @testable import Kumihimo
 
-/// Task 063: **the thread colours are the 38 of a Nishijin thread shop**, and the
-/// twelve provisional colours they replaced are read as their nearest.
+/// Task 065: **the thread colours are the 30 of Hamanaka Amerry F 《合太》**, and
+/// the former IDs — the twelve provisional colours' and the Nishijin shop's 38
+/// (Task 063) — are read as the colours `docs/colours.md` gives them.
 ///
-/// `docs/colours.md` is the source of record; these tests read its two tables
-/// rather than copy them, so the catalogue and the document cannot drift apart.
+/// `docs/colours.md` is the source of record; these tests read its tables rather
+/// than copy them, so the catalogue and the document cannot drift apart.
 @MainActor
 struct ThreadColorCatalogTests {
-    // MARK: the 38
+    // MARK: the 30
 
-    @Test func theCatalogueIsTheShopsThirtyEightInItsOrder() {
+    @Test func theCatalogueIsTheThirtyInTheSwatchesOrder() throws {
         let colours = ThreadColorCatalog.colors
-        #expect(colours.count == 38)
-        #expect(Set(colours.map(\.id)).count == 38)
-        #expect(colours.map(\.code)
-                == (1...36).map { String(format: "No.%02d", $0) } + ["限定", "限定"])
-        #expect(ThreadColorCatalog.defaultColor.id.rawValue == "zoge")
-        #expect(ThreadColorCatalog.defaultColor.code == "No.15")
-        #expect(colours.contains(ThreadColorCatalog.defaultColor))
+        #expect(colours.count == 30)
+        #expect(Set(colours.map(\.id)).count == 30)
+        #expect(Set(colours.map(\.code)) == Set((501...530).map(String.init)))
+        #expect(colours.map(\.code) == (try Self.thirty()).map(\.code))
+        #expect(ThreadColorCatalog.defaultColor.id.rawValue == "amerry-f-501")
+        #expect(ThreadColorCatalog.defaultColor.code == "501")
+        #expect(colours.first == ThreadColorCatalog.defaultColor)
+        // **The ID is made from the number**, not from the order or the name.
+        #expect(colours.allSatisfy { $0.id.rawValue == "amerry-f-" + $0.code })
     }
 
-    /// Every row of the table, in order: number, name, reading, ID, and the value
-    /// to three places.
+    /// Every row of the table, in order: number, ID, name, and the value to three
+    /// places.
     @Test func everyColourIsItsRowInTheSourceOfRecord() throws {
-        let rows = try Self.thirtyEight()
-        #expect(rows.count == 38)
+        let rows = try Self.thirty()
+        #expect(rows.count == 30)
+        #expect(rows.map(\.order) == Array(1...30))
         for (colour, row) in zip(ThreadColorCatalog.colors, rows) {
             #expect(colour.code == row.code, "\(row.id)")
-            #expect(colour.name == row.name, "\(row.id)")
-            #expect(colour.reading == row.reading, "\(row.id)")
             #expect(colour.id.rawValue == row.id)
+            #expect(colour.name == row.name, "\(row.id)")
             for (mine, theirs) in zip([colour.value.red, colour.value.green, colour.value.blue], row.value) {
                 #expect(abs(mine - theirs) < 0.000_5, "\(row.id)")
             }
         }
     }
 
-    // MARK: the twelve former IDs
+    // MARK: the former IDs
 
-    /// Each of the twelve reads as the colour the table gives it, and **no two
-    /// become the same colour**.
+    /// Each of the twelve and each of the 38 reads as the colour its table gives
+    /// it — **`natural` and `zoge`, the default colours they were, as the new
+    /// default 501**, not as their nearest.
     @Test func eachFormerIDReadsAsTheColourTheTableGivesIt() throws {
-        let rows = try Self.formerTable()
-        #expect(rows.count == 12)
-        #expect(ThreadColorCatalog.formerIDs.count == 12)
-        for (former, current) in rows {
+        let twelve = try Self.formerTable("仮の12色"), thirtyEight = try Self.formerTable("西陣の38色")
+        #expect(twelve.count == 12)
+        #expect(thirtyEight.count == 38)
+        #expect(ThreadColorCatalog.formerIDs.count == 50)
+        for (former, current) in twelve + thirtyEight {
             let formerID = ThreadColorID(rawValue: former)
-            #expect(ThreadColorCatalog.formerIDs[formerID]?.rawValue == current)
+            #expect(ThreadColorCatalog.formerIDs[formerID]?.rawValue == current, "\(former)")
             #expect(ThreadColorCatalog.color(for: formerID)?.id.rawValue == current, "\(former)")
             #expect(ThreadColorCatalog.contains(formerID))
             #expect(ThreadColorCatalog.currentID(for: formerID).rawValue == current)
         }
-        #expect(Set(rows.map(\.current)).count == 12)
+        for former in ["natural", "zoge"] {
+            #expect(ThreadColorCatalog.currentID(for: ThreadColorID(rawValue: former))
+                    == ThreadColorCatalog.defaultColor.id)
+        }
         // A former ID is never also a current one, so reading one never shadows a colour.
         let current = Set(ThreadColorCatalog.colors.map(\.id))
         #expect(ThreadColorCatalog.formerIDs.keys.allSatisfy { !current.contains($0) })
+        #expect(ThreadColorCatalog.formerIDs.values.allSatisfy { current.contains($0) })
     }
 
     @Test func aCurrentIDIsWrittenAsItIsAndAnUnknownOneNamesNothing() {
@@ -71,19 +80,27 @@ struct ThreadColorCatalogTests {
         #expect(ThreadColorCatalog.currentID(for: unknown) == unknown)
     }
 
-    /// **A project saved with the twelve former IDs opens in their colours, and
-    /// is written with the new IDs the next time it is saved.** The store is
+    /// **A project saved with former IDs opens in the colours they are read as,
+    /// and is written with the new IDs the next time it is saved.** The store is
     /// written to disk the way an older build wrote it — by the schema as it
     /// stood before Task 058, with the IDs as they were — and opened the way the
-    /// app opens it.
-    @Test func aProjectSavedWithTheFormerIDsOpensInTheirColoursAndSavesWithTheNewOnes() throws {
+    /// app opens it. Case 0 is the twelve on twelve threads; cases 1 to 3 are the
+    /// 38 on sixteen threads each, in the table's order and round again.
+    @Test(arguments: 0..<4)
+    func aProjectSavedWithFormerIDsOpensInTheirColoursAndSavesWithTheNewOnes(project: Int) throws {
+        let former: [(former: String, current: String)]
+        if project == 0 {
+            former = try Self.formerTable("仮の12色")
+        } else {
+            let thirtyEight = try Self.formerTable("西陣の38色")
+            former = (0..<16).map { thirtyEight[((project - 1) * 16 + $0) % thirtyEight.count] }
+        }
         let directory = FileManager.default.temporaryDirectory
-            .appending(path: "task063-\(UUID().uuidString)", directoryHint: .isDirectory)
+            .appending(path: "task065-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let url = directory.appending(path: "former-colours.store")
         let id = UUID()
-        let former = try Self.formerTable()
         let saved = former.enumerated().map {
             ThreadAssignment(position: $0.offset + 1, colorID: ThreadColorID(rawValue: $0.element.former))
         }
@@ -95,10 +112,10 @@ struct ThreadColorCatalogTests {
             )
             let context = ModelContext(old)
             context.insert(KumihimoSchemaBeforeStands.KumihimoProject(
-                id: id, name: "仮の12色の作品",
+                id: id, name: "古い色の作品",
                 braidTypeName: KumihimoProject.undecidedBraidName,
                 selectedBraidRecipeID: nil,
-                threadCount: 12,
+                threadCount: former.count,
                 threadAssignmentsData: try JSONEncoder().encode(saved)
             ))
             try context.save()
@@ -123,14 +140,14 @@ struct ThreadColorCatalogTests {
 
         // Saved again, with one thread changed: every thread is written with its
         // new ID, the ones not touched too, and reads back in the same colour.
-        store.selectedThreadPosition = 12
-        store.selectColor(ThreadColorID(rawValue: "ruri"))
+        store.selectedThreadPosition = former.count
+        store.selectColor(ThreadColorID(rawValue: "amerry-f-513"))
         #expect(store.hasUnsavedChanges)
         store.overwrite()
         current.mainContext.rollback()
         let reloaded = try #require(try service.load(id: id))
         let written = try reloaded.validatedThreadAssignments()
-        #expect(written.map(\.colorID.rawValue) == former.dropLast().map(\.current) + ["ruri"])
+        #expect(written.map(\.colorID.rawValue) == former.dropLast().map(\.current) + ["amerry-f-513"])
         #expect(written.allSatisfy { ThreadColorCatalog.formerIDs[$0.colorID] == nil })
         #expect(store.draft.threadAssignments == written)
         #expect(!store.hasUnsavedChanges)
@@ -165,13 +182,14 @@ struct ThreadColorCatalogTests {
         ]
     }()
 
-    /// **Every recipe's colouring is written in the 38**, not read through the
+    /// **Every recipe's colouring is written in the 30**, not read through the
     /// former IDs, and **its threads keep their pattern**: two threads that were
     /// the same colour before Task 063 are the same colour now, and two that
-    /// were different are still different. The colours were chosen afresh from
-    /// the books' photographs, so which colour each is, is not held here.
+    /// were different are still different — though the 30 read several of the
+    /// 38 as one colour. The colours were chosen afresh from the books'
+    /// photographs, so which colour each is, is not held here.
     @Test(arguments: BraidMethodCatalog.recipes)
-    func aRecipesColouringIsInTheThirtyEightAndKeepsItsPattern(recipe: BraidRecipe) throws {
+    func aRecipesColouringIsInTheThirtyAndKeepsItsPattern(recipe: BraidRecipe) throws {
         let current = Set(ThreadColorCatalog.colors.map(\.id))
         #expect(recipe.colouring.allSatisfy { current.contains($0.colorID) }, "\(recipe.id)")
 
@@ -188,20 +206,25 @@ struct ThreadColorCatalogTests {
 
     // MARK: the sheet
 
-    @Test func theSheetReadsTheNameItsReadingAndTheShopsNumber() throws {
+    /// The sheet and the board read the maker's number first, then what the
+    /// colour is called here.
+    @Test func theSheetReadsTheNumberAndThenTheName() throws {
         let first = try #require(ThreadColorCatalog.colors.first)
         let last = try #require(ThreadColorCatalog.colors.last)
-        #expect(ProjectEditorStrings.threadColorAccessibilityLabel(first) == "菫色（すみれいろ）、No.01")
-        #expect(ProjectEditorStrings.threadColorAccessibilityLabel(last) == "瑠璃（るり）、限定")
+        #expect(ProjectEditorStrings.threadColorAccessibilityLabel(first) == "501、オフホワイト")
+        #expect(ProjectEditorStrings.threadColorAccessibilityLabel(last) == "524、黒")
+        #expect(ProjectEditorStrings.threadAccessibilityLabel(
+            position: 3, colorName: ProjectEditorStrings.threadColorAccessibilityLabel(first)
+        ) == "糸3、501、オフホワイト")
     }
 
     // MARK: reading docs/colours.md
 
     private struct Row {
+        let order: Int
         let code: String
-        let name: String
-        let reading: String
         let id: String
+        let name: String
         let value: [Double]
     }
 
@@ -223,14 +246,14 @@ struct ThreadColorCatalogTests {
         cell.trimmingCharacters(in: CharacterSet(charactersIn: "`"))
     }
 
-    /// The table「38色」: 番号 | 色名 | 読み | 内部ID | 色値 | 0〜1 | 見本の画像.
-    private static func thirtyEight() throws -> [Row] {
+    /// The table「30色」: 並び | 色番号 | 内部ID | 呼び名 | 色値 | 0〜1.
+    private static func thirty() throws -> [Row] {
         try document().split(separator: "\n")
-            .filter { $0.hasPrefix("| No.") || $0.hasPrefix("| 限定 |") }
-            .map { line in
-                let cells = cells(line)
-                return Row(
-                    code: cells[0], name: cells[1], reading: cells[2], id: unquoted(cells[3]),
+            .map { cells($0) }
+            .filter { $0.count == 6 && Int($0[0]) != nil && $0[2].hasPrefix("`amerry-f-") }
+            .map { cells in
+                Row(
+                    order: Int(cells[0]) ?? 0, code: cells[1], id: unquoted(cells[2]), name: cells[3],
                     value: cells[5].components(separatedBy: ",").compactMap {
                         Double($0.trimmingCharacters(in: .whitespaces))
                     }
@@ -238,15 +261,18 @@ struct ThreadColorCatalogTests {
             }
     }
 
-    /// The table「仮の12色から38色への移し替え」: 古いID | 古い名前 | 古い値 | 新しい色 | ΔE00,
-    /// the new colour's ID being the last quoted word of its cell.
-    private static func formerTable() throws -> [(former: String, current: String)] {
-        try document().split(separator: "\n")
+    /// A table of former IDs, found by the start of its heading (「### 仮の12色」,
+    /// 「### 西陣の38色」): 古いID | 古い名前 | 読み替え先, the new colour being
+    /// the number its cell starts with.
+    private static func formerTable(_ heading: String) throws -> [(former: String, current: String)] {
+        let lines = try document().split(separator: "\n", omittingEmptySubsequences: false)
+        guard let start = lines.firstIndex(where: { $0.hasPrefix("### " + heading) }) else { return [] }
+        return lines[(start + 1)...]
+            .prefix { !$0.hasPrefix("#") }
             .filter { $0.hasPrefix("| `") }
             .map { line in
                 let cells = cells(line)
-                let current = cells[3].components(separatedBy: "`").dropLast().last ?? ""
-                return (unquoted(cells[0]), current)
+                return (unquoted(cells[0]), "amerry-f-" + cells[2].prefix(3))
             }
     }
 }

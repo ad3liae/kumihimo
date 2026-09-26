@@ -77,7 +77,9 @@ struct KumihimoBoardView: View {
                     .accessibilityLabel(
                         ProjectEditorStrings.threadAccessibilityLabel(
                             position: assignment.position,
-                            colorName: color(for: assignment.colorID).name
+                            colorName: ProjectEditorStrings.threadColorAccessibilityLabel(
+                                color(for: assignment.colorID)
+                            )
                         )
                     )
                     .accessibilityHint(ProjectEditorStrings.threadAccessibilityHint)

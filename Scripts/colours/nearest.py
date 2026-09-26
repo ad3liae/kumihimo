@@ -1,40 +1,68 @@
-"""38色（`docs/colours.md`）から、与えた色にいちばん近い色を CIEDE2000 で選ぶ（Task 063）。
+"""30色（`docs/colours.md`）から、与えた色にいちばん近い色を CIEDE2000 で選ぶ（Task 063、Task 065 で30色に）。
 
-色は sRGB の 0〜1 で渡す。表は `docs/colours.md` の「38色」を読む（ここに値を写さない）。
+色は sRGB の 0〜1 で渡す。表は `docs/colours.md` の「30色」を読む（ここに値を写さない）。
 
     python3 Scripts/colours/nearest.py 0.84,0.37,0.56 0.12,0.58,0.70      # 近い順に3つずつ
-    python3 Scripts/colours/nearest.py --former                            # 仮の12色の移し替えの表を確かめる
+    python3 Scripts/colours/nearest.py --former                            # 古いIDの読み替えの2表を確かめる
 
 1つの配色の中で違う色だった糸が同じ色に集まったときの分け方（次に近い色）は、呼ぶ側が決める。
+
+`--former` の古い色の値: 西陣の38色は `docs/colours.md` の履歴の表から、仮の12色は Task 063 の版の
+`docs/colours.md`（`39b91ef`。いまの版は値を持たない）から読む。**既定の色だった `natural`・`zoge` は、
+いちばん近い色ではなく新しい既定の色へ読み替える**（表に書いた例外）ので、そう表示する。
 """
 import math
 import re
+import subprocess
 import sys
 
 COLOURS_MD = "docs/colours.md"
+# 仮の12色の値がまだ書いてあった版（Task 063 の main）。
+TWELVE_AT = "39b91ef"
 
 
 def catalogue(path=COLOURS_MD):
-    """(番号, 色名, 内部ID, (r, g, b)) を表の並びで。"""
+    """(色番号, 呼び名, 内部ID, (r, g, b)) を表の並びで。"""
     rows = []
     for line in open(path, encoding="utf-8"):
-        if not re.match(r"\| (No\.\d\d|限定) \|", line):
-            continue
-        cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
-        rgb = tuple(float(part) for part in cells[5].split(","))
-        rows.append((cells[0], cells[1], cells[3].strip("`"), rgb))
+        match = re.match(r"\| \d+ \| (5\d\d) \| `(amerry-f-5\d\d)` \| (\S+) \| `#[0-9A-F]{6}` \| ([\d., ]+) \|", line)
+        if match:
+            rgb = tuple(float(part) for part in match.group(4).split(","))
+            rows.append((match.group(1), match.group(3), match.group(2), rgb))
     return rows
 
 
 def former(path=COLOURS_MD):
-    """移し替えの表: (古いID, 古い名前, 古い値, 新しいID)。"""
-    rows = []
+    """読み替えの2表: {"12" または "38": [(古いID, 古い名前, 読み替え先の色番号)]}。"""
+    tables = {"12": [], "38": []}
+    table = None
     for line in open(path, encoding="utf-8"):
-        match = re.match(r"\| `([a-z-]+)` \| (\S+) \| ([\d., ]+) \| .*`([a-z-]+)` \|", line)
+        if line.startswith("### 仮の12色"):
+            table = "12"
+        elif line.startswith("### 西陣の38色（Task 063）から"):
+            table = "38"
+        elif line.startswith("## "):
+            table = None
+        match = re.match(r"\| `([a-z-]+)` \| ([^|]+?) \| (5\d\d) ", line)
+        if match and table:
+            tables[table].append((match.group(1), match.group(2), match.group(3)))
+    return tables
+
+
+def former_values(path=COLOURS_MD):
+    """古いIDの色の値: {古いID: (r, g, b)}。"""
+    values = {}
+    for line in open(path, encoding="utf-8"):
+        if re.match(r"\| (No\.\d\d|限定) \|", line):
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            values[cells[3].strip("`")] = tuple(float(part) for part in cells[5].split(","))
+    twelve = subprocess.run(["git", "show", f"{TWELVE_AT}:{COLOURS_MD}"],
+                            capture_output=True, text=True, check=True).stdout
+    for line in twelve.splitlines():
+        match = re.match(r"\| `([a-z-]+)` \| \S+ \| ([\d., ]+) \|", line)
         if match:
-            rgb = tuple(float(part) for part in match.group(3).split(","))
-            rows.append((match.group(1), match.group(2), rgb, match.group(4)))
-    return rows
+            values[match.group(1)] = tuple(float(part) for part in match.group(2).split(","))
+    return values
 
 
 def lab(rgb):
@@ -96,7 +124,7 @@ def ciede2000(lab1, lab2):
 
 
 def ranked(rgb, colours=None):
-    """[(ΔE, 番号, 色名, 内部ID)]、近い順。"""
+    """[(ΔE, 色番号, 呼び名, 内部ID)]、近い順。"""
     colours = colours or catalogue()
     target = lab(rgb)
     return sorted((ciede2000(target, lab(value)), code, name, id) for code, name, id, value in colours)
@@ -105,13 +133,19 @@ def ranked(rgb, colours=None):
 def main(arguments):
     colours = catalogue()
     if arguments == ["--former"]:
+        values = former_values()
+        default = colours[0][0]
         wrong = 0
-        for old, name, rgb, written in former():
-            best = ranked(rgb, colours)
-            ok = best[0][3] == written
-            wrong += not ok
-            print(f"{old:11} {name:4} -> {best[0][1]} {best[0][2]} {best[0][3]} {best[0][0]:.1f}"
-                  f"（次は {best[1][1]} {best[1][2]} {best[1][0]:.1f}）{'' if ok else '  表は ' + written}")
+        for table, rows in former().items():
+            print(f"## {table}色から")
+            for old, name, written in rows:
+                best = ranked(values[old], colours)
+                exception = best[0][1] != written and written == default
+                ok = best[0][1] == written or exception
+                wrong += not ok
+                print(f"{old:15} {name:10} -> {best[0][1]} {best[0][2]} {best[0][0]:.1f}"
+                      f"（次は {best[1][1]} {best[1][2]} {best[1][0]:.1f}）"
+                      f"{'  表は既定の ' + written if exception else ''}{'' if ok else '  表は ' + written}")
         print("表と違う:", wrong)
         return
     for argument in arguments:

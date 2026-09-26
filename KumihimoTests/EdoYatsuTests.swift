@@ -124,17 +124,18 @@ struct EdoYatsuTests {
     // MARK: - The colouring
 
     /// **The textbook's own colouring, read slit by slit off p.64's 組みはじめ**:
-    /// 4・20 magenta (No.05 藤色), 5・21 the cream (No.31 白群), 12・28 cyan
-    /// (No.30 露草色), 13・29 yellow-green (No.27 青磁) — the photograph's colours
-    /// on their nearest of the 38 (Task 063). Laid on the places through the starting slits:
+    /// 4・20 magenta (505 ローズ), 5・21 the cream (501 オフホワイト), 12・28 cyan
+    /// (528 ターコイズ), 13・29 yellow-green (517 薄緑) — the photograph's colours
+    /// on their nearest of the 30 (Task 065). Laid on the places through the starting slits:
     /// 1 cyan, 2 yellow-green, 3 magenta, 4 cream, and round again.
     @Test func theColouringIsTheTextbooksBySlit() {
         let byPosition = Dictionary(uniqueKeysWithValues: recipe.colouring.map { ($0.position, $0.colorID.rawValue) })
         #expect((1...8).map { byPosition[$0] } == [
-            "tsuyukusa", "seiji", "fuji", "byakugun", "tsuyukusa", "seiji", "fuji", "byakugun",
+            "amerry-f-528", "amerry-f-517", "amerry-f-505", "amerry-f-501",
+            "amerry-f-528", "amerry-f-517", "amerry-f-505", "amerry-f-501",
         ])
-        let bySlit = [4: "fuji", 20: "fuji", 5: "byakugun", 21: "byakugun",
-                      12: "tsuyukusa", 28: "tsuyukusa", 13: "seiji", 29: "seiji"]
+        let bySlit = [4: "amerry-f-505", 20: "amerry-f-505", 5: "amerry-f-501", 21: "amerry-f-501",
+                      12: "amerry-f-528", 28: "amerry-f-528", 13: "amerry-f-517", 29: "amerry-f-517"]
         for (index, slit) in BraidMethodCatalog.edoYatsuStartingSlits.enumerated() {
             #expect(byPosition[index + 1] == bySlit[slit], "slit \(slit)")
         }
@@ -206,7 +207,8 @@ struct EdoYatsuTests {
         // addendum 6): the other set's, so the odd places' rows hold the even
         // places' colours and the even places' rows the odd places'.
         for slot in 0..<8 {
-            let wanted: Set<String> = slot % 2 == 0 ? ["seiji", "byakugun"] : ["tsuyukusa", "fuji"]
+            let wanted: Set<String> = slot % 2 == 0
+                ? ["amerry-f-517", "amerry-f-501"] : ["amerry-f-528", "amerry-f-505"]
             #expect(colours(of: drawn, atSlot: slot) == wanted, "slot \(slot)")
         }
 
