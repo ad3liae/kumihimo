@@ -183,12 +183,25 @@ struct ThreadColorCatalogTests {
     }()
 
     /// **Every recipe's colouring is written in the 30**, not read through the
-    /// former IDs.
+    /// former IDs, and **its threads keep their pattern**: two threads that were
+    /// the same colour before Task 063 are the same colour now, and two that
+    /// were different are still different — though the 30 read several of the
+    /// 38 as one colour. The colours were chosen afresh from the books'
+    /// photographs, so which colour each is, is not held here.
     @Test(arguments: BraidMethodCatalog.recipes)
-    func aRecipesColouringIsInTheThirty(recipe: BraidRecipe) throws {
+    func aRecipesColouringIsInTheThirtyAndKeepsItsPattern(recipe: BraidRecipe) throws {
         let current = Set(ThreadColorCatalog.colors.map(\.id))
         #expect(recipe.colouring.allSatisfy { current.contains($0.colorID) }, "\(recipe.id)")
-        #expect(Self.formerColourings[recipe.id] != nil)
+
+        let before = try #require(Self.formerColourings[recipe.id])
+        let now = recipe.colouring.sorted { $0.position < $1.position }.map(\.colorID.rawValue)
+        #expect(now.count == before.count)
+        for first in now.indices {
+            for second in now.indices where second > first {
+                #expect((now[first] == now[second]) == (before[first] == before[second]),
+                        "\(recipe.id) places \(first + 1) and \(second + 1)")
+            }
+        }
     }
 
     // MARK: the sheet
