@@ -20,7 +20,8 @@ enum BraidStepTiming {
 /// **Where everything on the stand is at one moment of a hand** (Task 061), on
 /// a stand of unit radius seen from above: place 1 at the top, the places
 /// running clockwise, as the colouring screen draws them. x runs right and y
-/// down, so a point can be scaled straight onto a canvas.
+/// down, so a point can be scaled straight onto a canvas. Each place stands
+/// where the layout puts it (`BraidStepLayout`, Task 066).
 ///
 /// A pure function of the hand and the time into it, so going back a hand is
 /// only asking for an earlier one.
@@ -46,7 +47,8 @@ struct BraidStepFrame: Equatable {
     let arrows: [Arrow]
 
     /// How far beside its place a waiting thread stands, as a share of the
-    /// spacing between places, and how far in towards the middle.
+    /// average spacing between places, and how far in towards the middle — or
+    /// further, to stand clear of the bobbins (`polarPoint`).
     static let besideShare: Double = 0.34
     static let besideInset: Double = 0.14
     /// How far out a carried thread rides at the middle of its slide, so it is
@@ -54,7 +56,7 @@ struct BraidStepFrame: Equatable {
     static let lift: Double = 0.1
 
     static func at(
-        _ time: Double, of hand: BraidStepScript.Hand, on stand: BraidStand, reduceMotion: Bool
+        _ time: Double, of hand: BraidStepScript.Hand, on layout: BraidStepLayout, reduceMotion: Bool
     ) -> BraidStepFrame {
         let carried = Set(hand.carries.map(\.thread))
         let settled = Set(hand.settling.map(\.thread))
@@ -67,7 +69,7 @@ struct BraidStepFrame: Equatable {
         let settleEnd = settleStart + BraidStepTiming.settle
 
         func polar(_ thread: Int, in standings: [Int: BraidStepStanding]) -> Polar? {
-            standings[thread].map { polarPoint(of: $0, on: stand) }
+            standings[thread].map { polarPoint(of: $0, on: layout) }
         }
 
         var balls = [Ball]()
@@ -121,19 +123,18 @@ struct BraidStepFrame: Equatable {
     }
 
     /// Where a standing thread is drawn: on its place, or beside it on the side
-    /// it came from and a little in.
-    static func polarPoint(of standing: BraidStepStanding, on stand: BraidStand) -> Polar {
-        let rim = stand.position(withID: standing.place)?.rim ?? 0
-        guard standing.rank > 0 else { return Polar(turn: rim, radius: 1) }
-        let rank = Double(standing.rank)
-        let spacing = 1 / Double(max(stand.positionCount, 1))
+    /// it came from, clear of the bobbins round it (`BraidStepLayout.beside`).
+    static func polarPoint(of standing: BraidStepStanding, on layout: BraidStepLayout) -> Polar {
+        let turn = layout.turn(of: standing.place)
+        guard standing.rank > 0 else { return Polar(turn: turn, radius: 1) }
         switch standing.cameBy {
-        case .clockwise?:
-            return Polar(turn: rim - rank * besideShare * spacing, radius: 1 - rank * besideInset)
-        case .anticlockwise?:
-            return Polar(turn: rim + rank * besideShare * spacing, radius: 1 - rank * besideInset)
+        case .clockwise?, .anticlockwise?:
+            let spot = layout.beside(
+                standing.place, side: standing.cameBy == .clockwise ? -1 : 1, rank: standing.rank
+            )
+            return Polar(turn: spot.turn, radius: spot.radius)
         case .across?, nil:
-            return Polar(turn: rim, radius: 1 - rank * 2 * besideInset)
+            return Polar(turn: turn, radius: 1 - Double(standing.rank) * 2 * besideInset)
         }
     }
 

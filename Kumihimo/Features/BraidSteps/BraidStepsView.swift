@@ -10,10 +10,16 @@ import SwiftUI
 /// back a hand, play, on a hand.
 ///
 /// **Place 1 at the top and the places clockwise**, as the colouring screen draws
-/// them, so the colours stand where the person put them. The drawing reads the
-/// script only (`BraidStepScript`), never the braid's name.
+/// them, so the colours stand where the person put them — **each at the slit the
+/// book's starting diagram puts it in** (Task 066, `BraidStepLayout`): the
+/// eight-bobbin braids two by two, north, east, south and west, place 1・2's pair
+/// at the top. The drawing reads the script and the layout only, never the
+/// braid's name.
 struct BraidStepsView: View {
     private let script: BraidStepScript?
+    /// Where the stand's places are drawn: the book's starting slits, when the
+    /// recipe has them (Task 066).
+    private let layout: BraidStepLayout?
     private let colours: [Int: ThreadColorID]
     /// The room offered: the width to keep inside, and the height to fill.
     private let room: CGSize
@@ -38,6 +44,7 @@ struct BraidStepsView: View {
             }
         }
         self.script = script.flatMap { $0.hands.isEmpty ? nil : $0 }
+        self.layout = script.map { BraidStepLayout(stand: $0.stand, startingSlits: recipe?.startingSlits) }
         self.colours = colours
         self.room = room
         _playback = State(initialValue: BraidStepPlayback(handCount: script?.hands.count ?? 1))
@@ -45,7 +52,7 @@ struct BraidStepsView: View {
 
     var body: some View {
         Group {
-            if let script {
+            if let script, let layout {
                 TimelineView(.animation(minimumInterval: nil, paused: !playback.isRunning)) { context in
                     let position = playback.position(at: context.date)
                     let hand = script.hands[min(position.hand, script.hands.count - 1)]
@@ -54,9 +61,9 @@ struct BraidStepsView: View {
                     arranged(
                         stand: BraidStandDrawing(
                             frame: BraidStepFrame.at(
-                                position.time, of: hand, on: script.stand, reduceMotion: reduceMotion
+                                position.time, of: hand, on: layout, reduceMotion: reduceMotion
                             ),
-                            stand: script.stand,
+                            layout: layout,
                             colours: colours
                         )
                         .accessibilityElement()
@@ -192,7 +199,7 @@ struct BraidStepsView: View {
 /// The stand itself, drawn from one frame.
 private struct BraidStandDrawing: View {
     let frame: BraidStepFrame
-    let stand: BraidStand
+    let layout: BraidStepLayout
     let colours: [Int: ThreadColorID]
 
     /// The drawing's reach in units of the rim's radius: the numbers stand
@@ -210,7 +217,7 @@ private struct BraidStandDrawing: View {
             func onCanvas(_ point: CGPoint) -> CGPoint {
                 CGPoint(x: middle.x + point.x * scale, y: middle.y + point.y * scale)
             }
-            let ballRadius = min(0.15, 0.4 * sin(.pi / Double(max(stand.positionCount, 1)))) * scale
+            let ballRadius = layout.ballRadius * scale
 
             let board = circle(at: middle, radius: Self.boardRadius * scale)
             context.fill(board, with: .color(Color.brown.opacity(0.24)))
@@ -219,10 +226,10 @@ private struct BraidStandDrawing: View {
             // The numbers are part of the drawing, so they go with its size
             // rather than the text size; VoiceOver reads the hand instead.
             let numberSize = min(max(scale * 0.16, 9), 15)
-            for position in stand.positions {
-                let point = BraidStepFrame.Polar(turn: position.rim, radius: Self.numberRadius).cartesian
+            for place in layout.stand.positionIDs {
+                let point = BraidStepFrame.Polar(turn: layout.turn(of: place), radius: Self.numberRadius).cartesian
                 context.draw(
-                    Text("\(position.id)").font(.system(size: numberSize)).foregroundStyle(.secondary),
+                    Text("\(place)").font(.system(size: numberSize)).foregroundStyle(.secondary),
                     at: onCanvas(point)
                 )
             }
@@ -275,10 +282,7 @@ private struct BraidStandDrawing: View {
         _ arrow: BraidStepFrame.Arrow, in context: inout GraphicsContext,
         onCanvas: (CGPoint) -> CGPoint, scale: CGFloat
     ) {
-        guard
-            let from = stand.position(withID: arrow.from)?.rim,
-            let to = stand.position(withID: arrow.to)?.rim
-        else { return }
+        let from = layout.turn(of: arrow.from), to = layout.turn(of: arrow.to)
         var points = [CGPoint]()
         if arrow.way == .across {
             let start = BraidStepFrame.Polar(turn: from, radius: 0.8).cartesian
@@ -287,7 +291,7 @@ private struct BraidStandDrawing: View {
         } else {
             // A little short of both places, so two arrows that meet — a hand of
             // two carried half way round each — still read as two.
-            let gap = 0.12 / Double(max(stand.positionCount, 1)) * (arrow.way == .clockwise ? 1 : -1)
+            let gap = 0.12 / Double(max(layout.stand.positionCount, 1)) * (arrow.way == .clockwise ? 1 : -1)
             let startPolar = BraidStepFrame.Polar(turn: from + gap, radius: Self.arrowRadius)
             let endPolar = BraidStepFrame.Polar(turn: to - gap, radius: Self.arrowRadius)
             let samples = 48

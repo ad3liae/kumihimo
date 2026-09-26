@@ -67,16 +67,19 @@ struct BraidStepScriptTests {
     /// once hand 4 has taken that thread away.
     @Test func edoYatsuSetsTheNewThreadBesideUntilThePlaceIsFree() throws {
         let script = try script(BraidMethodCatalog.edoYatsu8Recipe)
-        let stand = script.stand
+        let layout = BraidStepLayout(
+            stand: script.stand, startingSlits: BraidMethodCatalog.edoYatsu8Recipe.startingSlits
+        )
         let afterFirst = script.hands[0].after
         let atOne = afterFirst.filter { $0.value.place == 1 }
         #expect(atOne.count == 2)
         #expect(afterFirst[1] == BraidStepStanding(place: 1, rank: 0, cameBy: nil))
         #expect(afterFirst[7] == BraidStepStanding(place: 1, rank: 1, cameBy: .clockwise))
-        // Drawn between place 8 (7/8 of a turn) and place 1 (the top).
-        let beside = BraidStepFrame.polarPoint(of: try #require(afterFirst[7]), on: stand)
+        // Drawn between place 8 and place 1, on place 8's side of place 1
+        // (Task 066: outside place 1・2's island).
+        let beside = BraidStepFrame.polarPoint(of: try #require(afterFirst[7]), on: layout)
         let turn = (beside.turn + 1).truncatingRemainder(dividingBy: 1)
-        #expect(turn > 0.875 && turn < 1)
+        #expect(turn > layout.turn(of: 8) && turn < layout.turn(of: 1))
 
         for hand in 1...2 {
             #expect(script.hands[hand].after.filter { $0.value.place == 1 }.count == 2)
@@ -152,6 +155,7 @@ struct BraidStepScriptTests {
     func betweenHandsEveryThreadIsOnAPlaceOrBesideIt(recipeID: String) throws {
         let recipe = try #require(BraidMethodCatalog.recipes.first { $0.id == recipeID })
         let script = try script(recipe)
+        let layout = BraidStepLayout(stand: script.stand, startingSlits: recipe.startingSlits)
         let places = Set(script.stand.positionIDs)
         for hand in script.hands {
             for standings in [hand.before, hand.afterCarrying, hand.after] {
@@ -159,10 +163,10 @@ struct BraidStepScriptTests {
                 #expect(standings.values.allSatisfy { places.contains($0.place) && $0.rank <= 1 })
             }
             for (time, standings) in [(0.0, hand.before), (BraidStepTiming.hand, hand.after)] {
-                let frame = BraidStepFrame.at(time, of: hand, on: script.stand, reduceMotion: false)
+                let frame = BraidStepFrame.at(time, of: hand, on: layout, reduceMotion: false)
                 for ball in frame.balls {
                     let standing = try #require(standings[ball.thread])
-                    let expected = BraidStepFrame.polarPoint(of: standing, on: script.stand).cartesian
+                    let expected = BraidStepFrame.polarPoint(of: standing, on: layout).cartesian
                     #expect(abs(ball.point.x - expected.x) < 1e-9 && abs(ball.point.y - expected.y) < 1e-9)
                 }
             }
@@ -361,7 +365,10 @@ struct BraidStepScriptTests {
         let script = try script(BraidMethodCatalog.edoYatsu8Recipe)
         let hand = script.hands[0]
         let middle = BraidStepTiming.lead + BraidStepTiming.carry / 2
-        let frame = BraidStepFrame.at(middle, of: hand, on: script.stand, reduceMotion: false)
+        let layout = BraidStepLayout(
+            stand: script.stand, startingSlits: BraidMethodCatalog.edoYatsu8Recipe.startingSlits
+        )
+        let frame = BraidStepFrame.at(middle, of: hand, on: layout, reduceMotion: false)
         let ball = try #require(frame.balls.last)
         #expect(ball.thread == 7 && ball.isCarried)
         var turn = atan2(Double(ball.point.x), -Double(ball.point.y)) / (2 * .pi)
@@ -371,9 +378,9 @@ struct BraidStepScriptTests {
         #expect(frame.arrows == [BraidStepFrame.Arrow(from: 7, to: 1, way: .clockwise)])
 
         let places = [hand.before, hand.afterCarrying, hand.after].compactMap { $0[7] }
-            .map { BraidStepFrame.polarPoint(of: $0, on: script.stand).cartesian }
+            .map { BraidStepFrame.polarPoint(of: $0, on: layout).cartesian }
         for time in stride(from: 0.0, through: BraidStepTiming.hand, by: 0.05) {
-            let still = BraidStepFrame.at(time, of: hand, on: script.stand, reduceMotion: true)
+            let still = BraidStepFrame.at(time, of: hand, on: layout, reduceMotion: true)
             let point = try #require(still.balls.first { $0.thread == 7 }).point
             #expect(places.contains { abs($0.x - point.x) < 1e-9 && abs($0.y - point.y) < 1e-9 })
         }

@@ -130,7 +130,7 @@ enum BraidMethodCatalog {
             // The slits of the starting diagram in the order of the stand's
             // places 1-8, **a pair of the book to a pair of places, 1・2, 3・4,
             // 5・6, 7・8** (Task 055): 12・13 is places 1 and 2.
-            placeOneOnward: BookDiskKongo.pairsAtPlaces([12, 13, 20, 21, 28, 29, 4, 5]),
+            placeOneOnward: yatsuKongoStartingSlits,
             printedDan: [(20, 6), (4, 22), (12, 30), (28, 14)],
             driftPerDan: 1
         ) else {
@@ -147,7 +147,7 @@ enum BraidMethodCatalog {
     static let yatsuKongoZDisk: BraidDiskNotation = {
         guard let disk = BookDiskKongo.cycle(
             source: "the disk book p.36 (8Z-スパイラル), one printed dan and its drift",
-            placeOneOnward: BookDiskKongo.pairsAtPlaces([12, 13, 20, 21, 28, 29, 4, 5]),
+            placeOneOnward: yatsuKongoStartingSlits,
             printedDan: [(5, 19), (21, 3), (29, 11), (13, 27)],
             driftPerDan: -1
         ) else {
@@ -155,6 +155,12 @@ enum BraidMethodCatalog {
         }
         return disk
     }()
+
+    /// The disk book's starting slits for 8S and 8Z (p.36・37) in the order of
+    /// the stand's places 1–8, a pair of the book to a pair of places: 12・13 is
+    /// places 1 and 2. **Two neighbouring slits to a pair, the pairs a quarter
+    /// turn apart** — the step animation draws the stand this way (Task 066).
+    static let yatsuKongoStartingSlits = BookDiskKongo.pairsAtPlaces([12, 13, 20, 21, 28, 29, 4, 5])
 
     /// Book A p.54's picture read into the disk notation — **the table the app
     /// shipped until Task 053**, kept so the difference stays visible
@@ -408,7 +414,11 @@ enum BraidMethodCatalog {
         // transcribed table's columns run in an order no unrolling of a tube can
         // produce, and that is unsettled. Declared here so the note reaches the
         // figure and can be shown where the figure is read.
-        orderRoundTheBraid: maruGenji16CrossSection
+        orderRoundTheBraid: maruGenji16CrossSection,
+        // Book C's disk: two neighbouring notches to a pair, eight pairs.
+        startingSlits: BraidStartingSlits(
+            notchCount: maruGenjiDisk.notchCount, placeByRestingNotch: diskRestingNotches
+        )
     )
 
     static let hiraGenji16Recipe = BraidRecipe(
@@ -417,7 +427,10 @@ enum BraidMethodCatalog {
         notation: hiraGenjiDisk,
         colouring: hiraGenji16Colouring,
         shape: hiraGenji16Shape,
-        orderRoundTheBraid: hiraGenji16CrossSection
+        orderRoundTheBraid: hiraGenji16CrossSection,
+        startingSlits: BraidStartingSlits(
+            notchCount: hiraGenjiDisk.notchCount, placeByRestingNotch: diskRestingNotches
+        )
     )
 
     /// The order the threads come in round a yatsu-kongo braid.
@@ -489,7 +502,10 @@ enum BraidMethodCatalog {
         notation: yatsuKongoSDisk,
         colouring: yatsuKongoS8Colouring,
         shape: BraidShapeValues(),
-        orderRoundTheBraid: yatsuKongo8CrossSection
+        orderRoundTheBraid: yatsuKongo8CrossSection,
+        startingSlits: BraidStartingSlits(
+            notchCount: BookDiskKongo.notchCount, placeOneOnward: yatsuKongoStartingSlits
+        )
     )
 
     static let yatsuKongoZ8Recipe = BraidRecipe(
@@ -498,7 +514,10 @@ enum BraidMethodCatalog {
         notation: yatsuKongoZDisk,
         colouring: yatsuKongoZ8Colouring,
         shape: BraidShapeValues(),
-        orderRoundTheBraid: yatsuKongo8CrossSection
+        orderRoundTheBraid: yatsuKongo8CrossSection,
+        startingSlits: BraidStartingSlits(
+            notchCount: BookDiskKongo.notchCount, placeOneOnward: yatsuKongoStartingSlits
+        )
     )
 
     /// **Yatsu-kongo gaeshi (八つ金剛返し組, 8S&Z-スパイラル), from the disk
@@ -534,7 +553,7 @@ enum BraidMethodCatalog {
         guard let rounds = BookDiskKongo.rounds(
             source: "the disk book p.38 (八つ金剛返し組)",
             // The book's pair 1・2 at the stand's places 1 and 2 (Task 055).
-            placeOneOnward: BookDiskKongo.pairsAtPlaces([1, 2, 9, 10, 17, 18, 25, 26]),
+            placeOneOnward: yatsuKongoGaeshiStartingSlits,
             rounds: [
                 [sDan(0), sDan(1)], [sDan(2), sDan(3)], [sDan(4), sDan(5), over],
                 [zDan(0), zDan(1)], [zDan(2), zDan(3)], [zDan(4), zDan(5), back],
@@ -573,13 +592,20 @@ enum BraidMethodCatalog {
         }
     }
 
+    /// The disk book's starting slits for 返し組 (p.38 組みはじめ) in the order
+    /// of the stand's places 1–8: 1・2 is places 1 and 2.
+    static let yatsuKongoGaeshiStartingSlits = BookDiskKongo.pairsAtPlaces([1, 2, 9, 10, 17, 18, 25, 26])
+
     static let yatsuKongoGaeshi8Recipe = BraidRecipe(
         id: "yatsu-kongo-gaeshi-8",
         name: "八つ金剛返し組",
         rounds: yatsuKongoGaeshiRounds,
         colouring: yatsuKongoGaeshi8Colouring,
         shape: BraidShapeValues(),
-        orderRoundTheBraid: yatsuKongo8CrossSection
+        orderRoundTheBraid: yatsuKongo8CrossSection,
+        startingSlits: BraidStartingSlits(
+            notchCount: BookDiskKongo.notchCount, placeOneOnward: yatsuKongoGaeshiStartingSlits
+        )
     )
 
     // MARK: - Maru-yotsu (Task 054)
@@ -657,7 +683,11 @@ enum BraidMethodCatalog {
         name: "丸四つ組",
         notation: maruYotsuDisk,
         colouring: maruYotsu4Colouring,
-        shape: BraidShapeValues()
+        shape: BraidShapeValues(),
+        // Four notches a quarter turn apart: evenly spaced, no pairs.
+        startingSlits: BraidStartingSlits(
+            notchCount: maruYotsuDisk.notchCount, placeByRestingNotch: diskRestingNotchesForFour
+        )
     )
 
     // MARK: - Edo-yatsu (Task 009, Task 057)
@@ -854,7 +884,10 @@ enum BraidMethodCatalog {
         notation: edoYatsuDisk,
         colouring: edoYatsu8Colouring,
         shape: BraidShapeValues(),
-        orderRoundTheBraid: edoYatsu8CrossSection
+        orderRoundTheBraid: edoYatsu8CrossSection,
+        startingSlits: BraidStartingSlits(
+            notchCount: BookDiskKongo.notchCount, placeOneOnward: edoYatsuStartingSlits
+        )
     )
 
     static let recipes: [BraidRecipe] = [

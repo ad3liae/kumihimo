@@ -42,6 +42,38 @@ struct BraidShapeValues: Equatable, Sendable {
     var unsettled: [String] { all.compactMap(\.unsettled) }
 }
 
+/// **Where the book's starting diagram puts each place's thread on its disk**
+/// (Task 066): the disk's notch count, and the slit of place 1, place 2, … in
+/// turn. The eight-bobbin braids rest in pairs, two neighbouring slits to a pair
+/// and the pairs a quarter turn apart — 「金剛は2本ずつ東西南北よせる、その方が
+/// 組みやすい」 (the author, 2026-09-26).
+///
+/// **For the step animation's drawing only.** The derivation and the step script
+/// work on the stand's evenly spaced places and never read this.
+struct BraidStartingSlits: Equatable, Sendable {
+    let notchCount: Int
+    /// The slit of each place, place 1 onward.
+    let placeOneOnward: [Int]
+
+    init(notchCount: Int, placeOneOnward: [Int]) {
+        self.notchCount = notchCount
+        self.placeOneOnward = placeOneOnward
+    }
+
+    /// From a table of which place rests at which notch, as the tables write
+    /// it (`BraidDiskNotation.standPositionByRestingNotch`). Places 1 onward, as
+    /// many as the table names.
+    init(notchCount: Int, placeByRestingNotch: [Int: Int]) {
+        let notchByPlace = Dictionary(
+            placeByRestingNotch.map { ($0.value, $0.key) }, uniquingKeysWith: { first, _ in first }
+        )
+        self.init(
+            notchCount: notchCount,
+            placeOneOnward: (1...max(placeByRestingNotch.count, 1)).compactMap { notchByPlace[$0] }
+        )
+    }
+}
+
 /// A braid this app can show: **the move table, the colouring, and the measured
 /// values.**
 ///
@@ -65,6 +97,10 @@ struct BraidRecipe: Equatable, Sendable {
     /// The order the threads come in round the braid, when the source gives one.
     /// `nil` leaves the stand's own rim order, which is a tube.
     let orderRoundTheBraid: BraidCrossSection?
+    /// Where the book's starting diagram puts each place's thread, when there is
+    /// a diagram (Task 066). **Only the step animation's drawing reads it**; `nil`
+    /// draws the stand's places evenly spaced.
+    let startingSlits: BraidStartingSlits?
 
     init(
         id: String,
@@ -72,11 +108,12 @@ struct BraidRecipe: Equatable, Sendable {
         notation: BraidDiskNotation,
         colouring: [ThreadAssignment],
         shape: BraidShapeValues,
-        orderRoundTheBraid: BraidCrossSection? = nil
+        orderRoundTheBraid: BraidCrossSection? = nil,
+        startingSlits: BraidStartingSlits? = nil
     ) {
         self.init(
             id: id, name: name, rounds: [notation], colouring: colouring,
-            shape: shape, orderRoundTheBraid: orderRoundTheBraid
+            shape: shape, orderRoundTheBraid: orderRoundTheBraid, startingSlits: startingSlits
         )
     }
 
@@ -88,7 +125,8 @@ struct BraidRecipe: Equatable, Sendable {
         rounds: [BraidDiskNotation],
         colouring: [ThreadAssignment],
         shape: BraidShapeValues,
-        orderRoundTheBraid: BraidCrossSection? = nil
+        orderRoundTheBraid: BraidCrossSection? = nil,
+        startingSlits: BraidStartingSlits? = nil
     ) {
         precondition(!rounds.isEmpty, "a recipe needs a table")
         self.id = id
@@ -97,6 +135,7 @@ struct BraidRecipe: Equatable, Sendable {
         self.colouring = colouring
         self.shape = shape
         self.orderRoundTheBraid = orderRoundTheBraid
+        self.startingSlits = startingSlits
     }
 
     func crossSection(on stand: BraidStand) -> BraidCrossSection {
