@@ -6,7 +6,7 @@ import Testing
 struct ProjectDraftTests {
     @Test func increasingThreadCountPreservesExistingPositionsAndAddsDefaultColor() {
         var draft = ProjectDraft()
-        let ruri = ThreadColorID(rawValue: "ruri")
+        let ruri = ThreadColorID(rawValue: "amerry-f-513")
         draft.setColor(ruri, at: 2)
 
         draft.setThreadCount(8)
@@ -23,9 +23,9 @@ struct ProjectDraftTests {
 
     @Test func reducingThreadCountRemovesOnlyLostPositions() {
         var draft = ProjectDraft(threadCount: 8)
-        let shu = ThreadColorID(rawValue: "shu")
+        let shu = ThreadColorID(rawValue: "amerry-f-508")
         draft.setColor(shu, at: 4)
-        draft.setColor(ThreadColorID(rawValue: "sumire"), at: 8)
+        draft.setColor(ThreadColorID(rawValue: "amerry-f-511"), at: 8)
 
         draft.setThreadCount(4)
 
@@ -104,7 +104,7 @@ struct ProjectEditorPresentationStateTests {
 
     @Test func selectingColorClearsSheetSelectionAndAppliesColor() throws {
         let store = try makeStore()
-        let ruri = ThreadColorID(rawValue: "ruri")
+        let ruri = ThreadColorID(rawValue: "amerry-f-513")
         store.selectedThreadPosition = 1
 
         store.selectColor(ruri)

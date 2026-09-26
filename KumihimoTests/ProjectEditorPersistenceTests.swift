@@ -59,7 +59,7 @@ struct ProjectEditorPersistenceTests {
 
         store.requestThreadCount(8)
         store.selectedThreadPosition = 8
-        store.selectColor(ThreadColorID(rawValue: "ruri"))
+        store.selectColor(ThreadColorID(rawValue: "amerry-f-513"))
         store.overwrite()
 
         let saved = try #require(try fetch(id: identifier, from: container))
@@ -67,7 +67,7 @@ struct ProjectEditorPersistenceTests {
         #expect(saved.createdAt == createdAt)
         #expect(saved.updatedAt == newUpdate)
         #expect(saved.threadCount == 8)
-        #expect(saved.threadAssignments.first { $0.position == 8 }?.colorID.rawValue == "ruri")
+        #expect(saved.threadAssignments.first { $0.position == 8 }?.colorID.rawValue == "amerry-f-513")
         #expect(!store.hasUnsavedChanges)
     }
 
@@ -118,8 +118,8 @@ struct ProjectEditorPersistenceTests {
         let container = try makeContainer()
         let service = ProjectEditorPersistenceService(context: container.mainContext)
         var draft = ProjectDraft(threadCount: 8)
-        draft.setColor(ThreadColorID(rawValue: "shu"), at: 1)
-        draft.setColor(ThreadColorID(rawValue: "hakudo"), at: 8)
+        draft.setColor(ThreadColorID(rawValue: "amerry-f-508"), at: 1)
+        draft.setColor(ThreadColorID(rawValue: "amerry-f-529"), at: 8)
 
         let project = try service.create(from: draft, name: "未選択案")
         container.mainContext.rollback()
@@ -129,9 +129,9 @@ struct ProjectEditorPersistenceTests {
         #expect(reloaded.braidDisplayName == KumihimoProject.undecidedBraidName)
         #expect(reloaded.threadCount == 8)
         #expect(reloaded.threadAssignments.first?.position == 1)
-        #expect(reloaded.threadAssignments.first?.colorID.rawValue == "shu")
+        #expect(reloaded.threadAssignments.first?.colorID.rawValue == "amerry-f-508")
         #expect(reloaded.threadAssignments.last?.position == 8)
-        #expect(reloaded.threadAssignments.last?.colorID.rawValue == "hakudo")
+        #expect(reloaded.threadAssignments.last?.colorID.rawValue == "amerry-f-529")
     }
 
     @Test func selectedMaruGenjiRoundTripsWithPresetIdentity() throws {

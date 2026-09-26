@@ -17,11 +17,12 @@ struct ThreadColorValue: Codable, Equatable, Sendable {
 
 struct ThreadColor: Identifiable, Equatable, Sendable {
     let id: ThreadColorID
-    let name: String
-    /// How the name is read, in hiragana: すみれいろ for 菫色.
-    let reading: String
-    /// The shop's number: "No.01" to "No.36", or "限定" for its two limited colours.
+    /// The maker's colour number, "501" to "530": what the sheet shows first.
     let code: String
+    /// **What the colour is called here, not by the maker**, which gives numbers
+    /// only: オフホワイト for 501. The reviewer's names, shown beside the number
+    /// and read aloud with it.
+    let name: String
     let value: ThreadColorValue
 }
 
@@ -89,76 +90,119 @@ enum ThreadColorRendering {
     }
 }
 
-/// **The 38 colours of a Nishijin thread shop's 正絹唐打ち紐**, its 36 and two
-/// limited (Task 063). `docs/colours.md` is the source of record for every name,
-/// number and value; the values are read off the shop's photographs, so they are
-/// near, not measured.
+/// **The 30 colours of Hamanaka Amerry F 《合太》**, numbers 501 to 530 (Task
+/// 065). `docs/colours.md` is the source of record for every number, name and
+/// value; the values are read off the maker's swatch picture, so they are near,
+/// not measured, and the names are ours — the maker gives numbers only.
 enum ThreadColorCatalog {
-    /// No.15 象牙, which a new project's threads start in.
-    static let defaultColor = color("zoge", "象牙", "ぞうげ", "No.15", 0.898, 0.855, 0.675)
+    /// 501 オフホワイト, which a new project's threads start in.
+    static let defaultColor = color("501", "オフホワイト", 0.976, 0.961, 0.890)
 
-    /// In the shop's order: No.01 to No.36, then the two limited colours.
+    /// In the swatch's order, row by row: the order the sheet shows them in.
     static let colors: [ThreadColor] = [
-        color("sumire", "菫色", "すみれいろ", "No.01", 0.275, 0.020, 0.600),
-        color("kodai-murasaki", "古代紫", "こだいむらさき", "No.02", 0.263, 0.090, 0.204),
-        color("shikon", "紫紺", "しこん", "No.03", 0.192, 0.141, 0.282),
-        color("edo-murasaki", "江戸紫", "えどむらさき", "No.04", 0.549, 0.196, 0.306),
-        color("fuji", "藤色", "ふじいろ", "No.05", 0.902, 0.663, 0.804),
-        color("kenpo", "憲房", "けんぽう", "No.06", 0.212, 0.086, 0.008),
-        color("rikancha", "璃寛茶", "りかんちゃ", "No.07", 0.314, 0.231, 0.027),
-        color("kokiake", "深緋", "こきあけ", "No.08", 0.420, 0.247, 0.031),
-        color("kuriume", "栗梅", "くりうめ", "No.09", 0.467, 0.098, 0.012),
-        color("karacha", "唐茶", "からちゃ", "No.10", 0.533, 0.267, 0.027),
-        color("kincha", "金茶", "きんちゃ", "No.11", 0.620, 0.490, 0.067),
-        color("honkin", "本金", "ほんきん", "No.12", 0.784, 0.671, 0.110),
-        color("karashi", "芥子", "からし", "No.13", 0.580, 0.545, 0.145),
-        color("usukin", "薄金", "うすきん", "No.14", 0.706, 0.682, 0.337),
         defaultColor,
-        color("karakurenai", "唐紅", "からくれない", "No.16", 0.498, 0.008, 0.008),
-        color("kurenai", "紅色", "くれないいろ", "No.17", 0.643, 0.024, 0.012),
-        color("shu", "朱色", "しゅいろ", "No.18", 0.843, 0.165, 0.016),
-        color("sango", "珊瑚", "さんご", "No.19", 1.000, 0.667, 0.435),
-        color("ikkon", "一斤", "いっこん", "No.20", 0.941, 0.722, 0.698),
-        color("oni", "黄丹", "おうに", "No.21", 0.851, 0.361, 0.035),
-        color("yamabuki", "山吹", "やまぶき", "No.22", 0.812, 0.600, 0.106),
-        color("kiiro", "黄色", "きいろ", "No.23", 0.894, 0.812, 0.106),
-        color("yamabato", "山鳩", "やまばと", "No.24", 0.243, 0.192, 0.024),
-        color("tokiwa", "常盤", "ときわ", "No.25", 0.365, 0.525, 0.169),
-        color("matcha", "抹茶", "まっちゃ", "No.26", 0.576, 0.675, 0.106),
-        color("seiji", "青磁", "せいじ", "No.27", 0.741, 0.776, 0.651),
-        color("aonibi", "青鈍", "あおにび", "No.28", 0.102, 0.145, 0.212),
-        color("asagi", "浅葱", "あさぎ", "No.29", 0.314, 0.451, 0.459),
-        color("tsuyukusa", "露草色", "つゆくさいろ", "No.30", 0.471, 0.592, 0.851),
-        color("byakugun", "白群", "びゃくぐん", "No.31", 0.808, 0.804, 0.843),
-        color("shikkoku", "漆黒", "しっこく", "No.32", 0.110, 0.063, 0.055),
-        color("tsurubami", "橡色", "つるばみいろ", "No.33", 0.118, 0.059, 0.137),
-        color("nibi", "鈍色", "にびいろ", "No.34", 0.553, 0.502, 0.475),
-        color("hakkin", "白金", "はっきん", "No.35", 0.647, 0.663, 0.631),
-        color("hakudo", "白土", "はくど", "No.36", 1.000, 0.973, 0.839),
-        color("tokusa", "木賊", "とくさ", "限定", 0.196, 0.588, 0.200),
-        color("ruri", "瑠璃", "るり", "限定", 0.200, 0.220, 0.686),
+        color("529", "ベージュ", 0.886, 0.796, 0.682),
+        color("530", "薄黄緑", 0.882, 0.902, 0.706),
+        color("502", "レモン", 0.996, 0.957, 0.592),
+        color("503", "マスタード", 0.871, 0.690, 0.039),
+        color("504", "ピーチ", 0.929, 0.757, 0.651),
+        color("505", "ローズ", 0.827, 0.443, 0.467),
+        color("506", "オレンジ", 0.867, 0.451, 0.145),
+        color("507", "朱赤", 0.706, 0.173, 0.133),
+        color("508", "赤", 0.722, 0.078, 0.149),
+        color("509", "ワイン", 0.569, 0.090, 0.180),
+        color("510", "ぶどう", 0.329, 0.220, 0.380),
+        color("525", "赤紫", 0.498, 0.173, 0.349),
+        color("511", "紫", 0.427, 0.325, 0.529),
+        color("512", "水色", 0.627, 0.808, 0.902),
+        color("513", "青", 0.192, 0.361, 0.576),
+        color("514", "紺", 0.000, 0.169, 0.392),
+        color("527", "マリンブルー", 0.000, 0.412, 0.604),
+        color("515", "青緑", 0.016, 0.416, 0.467),
+        color("528", "ターコイズ", 0.251, 0.612, 0.608),
+        color("516", "黄緑", 0.463, 0.678, 0.196),
+        color("517", "薄緑", 0.545, 0.729, 0.510),
+        color("518", "緑", 0.106, 0.424, 0.227),
+        color("519", "焦げ茶", 0.243, 0.125, 0.027),
+        color("520", "キャメル", 0.737, 0.549, 0.286),
+        color("521", "グレージュ", 0.643, 0.588, 0.529),
+        color("522", "ライトグレー", 0.749, 0.741, 0.710),
+        color("523", "グレー", 0.510, 0.529, 0.533),
+        color("526", "チャコール", 0.282, 0.267, 0.294),
+        color("524", "黒", 0.031, 0.043, 0.047),
     ]
 
-    /// **The twelve provisional colours' IDs, each read as its nearest of the 38**
-    /// (CIEDE2000, `docs/colours.md`). Projects saved before Task 063 carry these:
-    /// they open in the colour given here and are written with its ID the next
-    /// time they are saved. **Every saved project relies on this, so it stays.**
+    /// **Every former ID, read as one of the 30** (`docs/colours.md`, its two
+    /// tables). Projects saved before Task 065 carry these: they open in the
+    /// colour given here and are written with its ID the next time they are
+    /// saved. **Every saved project relies on this, so it stays.**
+    ///
+    /// Each is its nearest of the 30 by CIEDE2000, but for the two that were the
+    /// default colour, `natural` and `zoge`, which become the default, 501. The
+    /// 38 are more than the 30, so some of them become the same colour.
     static let formerIDs: [ThreadColorID: ThreadColorID] = Dictionary(
-        uniqueKeysWithValues: [
-            ("red", "shu"),
-            ("orange", "oni"),
-            ("yellow", "kiiro"),
-            ("green", "tokusa"),
-            ("light-blue", "tsuyukusa"),
-            ("blue", "ruri"),
-            ("purple", "sumire"),
-            ("pink", "fuji"),
-            ("brown", "kokiake"),
-            ("black", "shikkoku"),
-            ("white", "hakudo"),
-            ("natural", "zoge"),
-        ].map { (ThreadColorID(rawValue: $0.0), ThreadColorID(rawValue: $0.1)) }
+        uniqueKeysWithValues: (twelveFormerIDs + thirtyEightFormerIDs).map {
+            (ThreadColorID(rawValue: $0.0), ThreadColorID(rawValue: "amerry-f-" + $0.1))
+        }
     )
+
+    /// The twelve provisional colours, before Task 063.
+    private static let twelveFormerIDs = [
+        ("red", "508"),
+        ("orange", "506"),
+        ("yellow", "503"),
+        ("green", "518"),
+        ("light-blue", "512"),
+        ("blue", "513"),
+        ("purple", "511"),
+        ("pink", "505"),
+        ("brown", "519"),
+        ("black", "524"),
+        ("white", "501"),
+        ("natural", "501"),
+    ]
+
+    /// The 38 of a Nishijin thread shop, Task 063 to Task 065.
+    private static let thirtyEightFormerIDs = [
+        ("sumire", "514"),
+        ("kodai-murasaki", "510"),
+        ("shikon", "510"),
+        ("edo-murasaki", "525"),
+        ("fuji", "505"),
+        ("kenpo", "519"),
+        ("rikancha", "519"),
+        ("kokiake", "519"),
+        ("kuriume", "509"),
+        ("karacha", "507"),
+        ("kincha", "520"),
+        ("honkin", "503"),
+        ("karashi", "520"),
+        ("usukin", "503"),
+        ("zoge", "501"),
+        ("karakurenai", "509"),
+        ("kurenai", "507"),
+        ("shu", "507"),
+        ("sango", "504"),
+        ("ikkon", "504"),
+        ("oni", "506"),
+        ("yamabuki", "503"),
+        ("kiiro", "503"),
+        ("yamabato", "519"),
+        ("tokiwa", "516"),
+        ("matcha", "516"),
+        ("seiji", "530"),
+        ("aonibi", "514"),
+        ("asagi", "515"),
+        ("tsuyukusa", "512"),
+        ("byakugun", "522"),
+        ("shikkoku", "524"),
+        ("tsurubami", "524"),
+        ("nibi", "521"),
+        ("hakkin", "522"),
+        ("hakudo", "501"),
+        ("tokusa", "516"),
+        ("ruri", "514"),
+    ]
 
     /// The colour an ID names, reading a former ID as the colour it became.
     static func color(for id: ThreadColorID) -> ThreadColor? {
@@ -176,20 +220,18 @@ enum ThreadColorCatalog {
         formerIDs[id] ?? id
     }
 
+    /// A colour whose ID is made from its number: `amerry-f-501` for 501.
     private static func color(
-        _ id: String,
-        _ name: String,
-        _ reading: String,
         _ code: String,
+        _ name: String,
         _ red: Double,
         _ green: Double,
         _ blue: Double
     ) -> ThreadColor {
         ThreadColor(
-            id: ThreadColorID(rawValue: id),
-            name: name,
-            reading: reading,
+            id: ThreadColorID(rawValue: "amerry-f-" + code),
             code: code,
+            name: name,
             value: ThreadColorValue(red: red, green: green, blue: blue)
         )
     }

@@ -25,15 +25,18 @@ struct ThreadColorRenderingTests {
     }
 
     /// **Changed on purpose in Task 063**: the five were blue, pink, natural, white
-    /// and black of the twelve provisional colours, and are now the five of the
-    /// 38 those are read as. The formula is unchanged; only the colours are new.
+    /// and black of the twelve provisional colours, and became the five of the
+    /// 38 those are read as. **Changed again in Task 065**, to the five of the 30
+    /// they are read as — 513 青, 505 ローズ, 501 オフホワイト, 524 黒 — but for
+    /// white, which the 30 read as 501 like natural, so 529 ベージュ stands in for
+    /// a second pale colour. The formula is unchanged; only the colours are new.
     @Test func representativeColorsKeepTheirFixedRenderingValues() throws {
         let expected: [String: (base: SIMD3<Float>, boundary: SIMD3<Float>, highlight: SIMD3<Float>)] = [
-            "ruri": (.init(0.200, 0.220, 0.686), .init(0.162146, 0.179177, 0.576001), .init(0.366291, 0.375758, 0.717996)),
-            "fuji": (.init(0.902, 0.663, 0.804), .init(0.759937, 0.556416, 0.676485), .init(0.910358, 0.698127, 0.821994)),
-            "zoge": (.init(0.898, 0.855, 0.675), .init(0.756531, 0.719914, 0.566634), .init(0.906724, 0.867795, 0.708474)),
-            "hakudo": (.init(1.000, 0.973, 0.839), .init(0.843389, 0.820397, 0.706289), .init(1.000000, 0.975197, 0.853379)),
-            "shikkoku": (.init(0.110, 0.063, 0.055), .init(0.085506, 0.045483, 0.038664), .init(0.333105, 0.322340, 0.320959)),
+            "amerry-f-513": (.init(0.192, 0.361, 0.576), .init(0.155334, 0.299246, 0.482330), .init(0.362705, 0.459660, 0.624544)),
+            "amerry-f-505": (.init(0.827, 0.443, 0.467), .init(0.696070, 0.369074, 0.389511), .init(0.842595, 0.518763, 0.537076)),
+            "amerry-f-501": (.init(0.976, 0.961, 0.890), .init(0.822952, 0.810179, 0.749718), .init(0.977949, 0.964197, 0.899462)),
+            "amerry-f-529": (.init(0.886, 0.796, 0.682), .init(0.746312, 0.669672, 0.572595), .init(0.895834, 0.814850, 0.714530)),
+            "amerry-f-524": (.init(0.031, 0.043, 0.047), .init(0.021080, 0.029303, 0.032256), .init(0.317505, 0.319126, 0.319705)),
         ]
 
         for (rawID, values) in expected {

@@ -11,45 +11,18 @@ struct ThreadColorSelectionView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(ThreadColorCatalog.colors) { threadColor in
-                        Button {
-                            selectColor(threadColor.id)
-                        } label: {
-                            VStack(spacing: 8) {
-                                Circle()
-                                    .fill(threadColor.swiftUIColor)
-                                    .frame(width: 48, height: 48)
-                                    .overlay {
-                                        Circle().stroke(.primary.opacity(0.45), lineWidth: 1)
-                                    }
-                                Text(threadColor.name)
-                                    .font(.headline)
-                                    .foregroundStyle(.primary)
-                                Text(threadColor.code)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Image(systemName: "checkmark.circle.fill")
-                                    .opacity(isSelected(threadColor) ? 1 : 0)
-                                    .accessibilityHidden(true)
-                            }
-                            .frame(maxWidth: .infinity, minHeight: 126)
-                            .padding(8)
-                            .background(Color.secondary.opacity(0.08), in: .rect(cornerRadius: 12))
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(
-                                        isSelected(threadColor) ? Color.accentColor : .clear,
-                                        lineWidth: 2
-                                    )
-                            }
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(ProjectEditorStrings.threadColorCatalogueName)
+                        .font(.headline)
+                        .accessibilityAddTraits(.isHeader)
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(ThreadColorCatalog.colors) { threadColor in
+                            colorButton(threadColor)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(ProjectEditorStrings.threadColorAccessibilityLabel(threadColor))
-                        .accessibilityAddTraits(
-                            isSelected(threadColor) ? .isSelected : []
-                        )
                     }
+                    Text(ProjectEditorStrings.threadColorNamesNote)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
                 .padding()
             }
@@ -61,6 +34,46 @@ struct ThreadColorSelectionView: View {
                 }
             }
         }
+    }
+
+    /// The swatch, the maker's number, and what the colour is called here.
+    private func colorButton(_ threadColor: ThreadColor) -> some View {
+        Button {
+            selectColor(threadColor.id)
+        } label: {
+            VStack(spacing: 8) {
+                Circle()
+                    .fill(threadColor.swiftUIColor)
+                    .frame(width: 48, height: 48)
+                    .overlay {
+                        Circle().stroke(.primary.opacity(0.45), lineWidth: 1)
+                    }
+                Text(threadColor.code)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Text(threadColor.name)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Image(systemName: "checkmark.circle.fill")
+                    .opacity(isSelected(threadColor) ? 1 : 0)
+                    .accessibilityHidden(true)
+            }
+            .frame(maxWidth: .infinity, minHeight: 126)
+            .padding(8)
+            .background(Color.secondary.opacity(0.08), in: .rect(cornerRadius: 12))
+            .overlay {
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(
+                        isSelected(threadColor) ? Color.accentColor : .clear,
+                        lineWidth: 2
+                    )
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(ProjectEditorStrings.threadColorAccessibilityLabel(threadColor))
+        .accessibilityAddTraits(
+            isSelected(threadColor) ? .isSelected : []
+        )
     }
 
     /// A thread saved with one of the former IDs is shown on the colour it is

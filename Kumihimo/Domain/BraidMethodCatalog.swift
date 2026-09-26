@@ -364,10 +364,10 @@ enum BraidMethodCatalog {
     /// cream (0.90, 0.85, 0.80) No.36 白土 (11.2, with No.15 象牙 and No.31 白群
     /// both 11.6), and the navy (0.28, 0.24, 0.32) No.03 紫紺 (9.5).
     static let maruGenji16Colouring = colouring(on: stand16, [
-        "north": ["ikkon", "sango", "sango", "ikkon"],
-        "east": Array(repeating: "shikon", count: 4),
-        "south": ["hakudo", "oni", "oni", "hakudo"],
-        "west": Array(repeating: "shikon", count: 4),
+        "north": ["amerry-f-504", "amerry-f-504", "amerry-f-504", "amerry-f-504"],
+        "east": Array(repeating: "amerry-f-510", count: 4),
+        "south": ["amerry-f-501", "amerry-f-506", "amerry-f-506", "amerry-f-501"],
+        "west": Array(repeating: "amerry-f-510", count: 4),
     ])
 
     /// Book A p96's starting diagram for hira-genji, photographed at the head of
@@ -379,10 +379,10 @@ enum BraidMethodCatalog {
     /// vermilion (0.94, 0.47, 0.35) No.21 黄丹 (12.5), and the salmon of the two
     /// sides (0.97, 0.74, 0.62) No.19 珊瑚 (8.5, No.20 一斤 9.0 next).
     static let hiraGenji16Colouring = colouring(on: stand16, [
-        "north": ["ikkon", "ikkon", "shikkoku", "oni"],
-        "east": Array(repeating: "sango", count: 4),
-        "south": ["ikkon", "ikkon", "shikkoku", "oni"],
-        "west": Array(repeating: "sango", count: 4),
+        "north": ["amerry-f-504", "amerry-f-504", "amerry-f-524", "amerry-f-506"],
+        "east": Array(repeating: "amerry-f-504", count: 4),
+        "south": ["amerry-f-504", "amerry-f-504", "amerry-f-524", "amerry-f-506"],
+        "west": Array(repeating: "amerry-f-504", count: 4),
     ])
 
     static let maruGenji16Recipe = BraidRecipe(
@@ -448,7 +448,8 @@ enum BraidMethodCatalog {
     /// move table up, and a colouring is a question about where the recipe comes
     /// from, not about whether the table is right.
     static let yatsuKongoS8Colouring = byPlace(stand8, [
-        "zoge", "zoge", "sango", "sango", "zoge", "zoge", "sango", "sango",
+        "amerry-f-501", "amerry-f-501", "amerry-f-504", "amerry-f-504",
+        "amerry-f-501", "amerry-f-501", "amerry-f-504", "amerry-f-504",
     ])
 
     /// Book A p.55's colouring **a** for yatsu-kongo Z, which is printed the same
@@ -546,7 +547,8 @@ enum BraidMethodCatalog {
     /// pale yellow in the photograph, (0.94, 0.84, 0.69), No.15 象牙 (ΔE 7.2);
     /// the pink (0.95, 0.78, 0.78) is No.20 一斤 (4.9).
     static let yatsuKongoGaeshi8Colouring = byPlace(stand8, [
-        "zoge", "zoge", "ikkon", "ikkon", "zoge", "zoge", "ikkon", "ikkon",
+        "amerry-f-501", "amerry-f-501", "amerry-f-504", "amerry-f-504",
+        "amerry-f-501", "amerry-f-501", "amerry-f-504", "amerry-f-504",
     ])
 
     /// A colouring written place by place, 1 to 8.
@@ -626,10 +628,10 @@ enum BraidMethodCatalog {
     /// both pale — white and pink in the photograph), b, and c (124 alone, one
     /// colour, which shows no pattern to judge).
     static let maruYotsu4Colouring = colouring(on: stand4, [
-        "north": ["byakugun"],  // 163
-        "east": ["nibi"],       // 148
-        "south": ["byakugun"],  // 163
-        "west": ["nibi"],       // 148
+        "north": ["amerry-f-522"],  // 163
+        "east": ["amerry-f-521"],   // 148
+        "south": ["amerry-f-522"],  // 163
+        "west": ["amerry-f-521"],   // 148
     ])
 
     /// **The measured values are empty: nothing has been measured for the
@@ -794,10 +796,10 @@ enum BraidMethodCatalog {
     /// tests keep it for that (`EdoYatsuTests`). The textbook's photograph is
     /// of this one (Task 025-5: take the colouring the book photographs).
     static let edoYatsu8Colouring = bySlit(stand8, startingSlits: edoYatsuStartingSlits, [
-        4: "fuji", 20: "fuji",
-        5: "byakugun", 21: "byakugun",
-        12: "tsuyukusa", 28: "tsuyukusa",
-        13: "seiji", 29: "seiji",
+        4: "amerry-f-505", 20: "amerry-f-505",
+        5: "amerry-f-522", 21: "amerry-f-522",
+        12: "amerry-f-512", 28: "amerry-f-512",
+        13: "amerry-f-530", 29: "amerry-f-530",
     ])
 
     /// A colouring written slit by slit on a disk book's starting diagram, laid

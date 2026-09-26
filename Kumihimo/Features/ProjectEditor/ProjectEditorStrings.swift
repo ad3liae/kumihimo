@@ -93,13 +93,19 @@ enum ProjectEditorStrings {
 
     static func threadCountValue(_ count: Int) -> String { "\(count)本" }
     static func copyName(from name: String) -> String { "\(name)のコピー" }
+    /// 「糸3、501、オフホワイト」: the colour read as the sheet reads it.
     static func threadAccessibilityLabel(position: Int, colorName: String) -> String {
         "糸\(position)、\(colorName)"
     }
     static func threadColorTitle(position: Int) -> String { "糸\(position)の色" }
-    /// 「菫色（すみれいろ）、No.01」: the name, how it is read, and the shop's number.
+    /// 「501、オフホワイト」: the maker's number, then what it is called here.
     static func threadColorAccessibilityLabel(_ color: ThreadColor) -> String {
-        "\(color.name)（\(color.reading)）、\(color.code)"
+        "\(color.code)、\(color.name)"
     }
+    /// The colours' maker and yarn, at the head of the sheet (Task 065).
+    static let threadColorCatalogueName = "ハマナカ アメリーエフ《合太》"
+    /// **The names are ours, not the maker's**, which gives numbers only; the
+    /// foot of the sheet says so.
+    static let threadColorNamesNote = "番号はハマナカの色番号です。呼び名は目安で、公式の色名ではありません。"
     static let threadAccessibilityHint = "ダブルタップで色を変更"
 }

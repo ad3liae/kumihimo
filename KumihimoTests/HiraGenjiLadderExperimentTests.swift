@@ -49,7 +49,7 @@ struct HiraGenjiLadderExperimentTests {
                 let line = colours(pattern, face, row: row)
                 let rung = middle.map { line[$0] }
                 #expect(Set(rung).count == 1)
-                #expect(rung[0] == "kokiake" || rung[0] == "kiiro")
+                #expect(rung[0] == "amerry-f-519" || rung[0] == "amerry-f-503")
             }
         }
     }
@@ -75,7 +75,7 @@ struct HiraGenjiLadderExperimentTests {
             let back = colours(pattern, .back, row: row)
             for column in pattern.lengthwiseColumns.sorted() {
                 #expect(front[column] != back[column])
-                #expect(Set([front[column], back[column]]) == ["kokiake", "kiiro"])
+                #expect(Set([front[column], back[column]]) == ["amerry-f-519", "amerry-f-503"])
             }
         }
     }
@@ -87,14 +87,14 @@ struct HiraGenjiLadderExperimentTests {
         let pattern = try pattern
         let middle = pattern.lengthwiseColumns
         #expect(pattern.patches.allSatisfy { patch in
-            patch.colorID.rawValue != "hakudo" || !middle.contains(patch.column)
+            patch.colorID.rawValue != "amerry-f-501" || !middle.contains(patch.column)
         })
         // And they are the only thing at the two outer columns.
         for face in Flat16BraidFace.allCases {
             for row in 0..<pattern.rowCount {
                 let line = colours(pattern, face, row: row)
-                #expect(line[0] == "hakudo")
-                #expect(line[pattern.columnCount - 1] == "hakudo")
+                #expect(line[0] == "amerry-f-501")
+                #expect(line[pattern.columnCount - 1] == "amerry-f-501")
             }
         }
     }

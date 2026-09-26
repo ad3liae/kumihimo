@@ -197,7 +197,7 @@ struct BraidDerivationHiraGenjiAgreementTests {
         let pattern = try bridged(HiraGenjiReferenceColourings.arrowFeather)
         let middle = pattern.lengthwiseColumns
         for patch in pattern.patches where middle.contains(patch.column) {
-            #expect(patch.colorID.rawValue == "hakudo")
+            #expect(patch.colorID.rawValue == "amerry-f-501")
         }
         // The edging is not one flat colour: the outermost column carries a
         // different one of the sideways threads from row to row.
@@ -218,7 +218,7 @@ struct BraidDerivationHiraGenjiAgreementTests {
                 let front = pattern.patch(column: column, row: row, face: .front)?.colorID.rawValue
                 let back = pattern.patch(column: column, row: row, face: .back)?.colorID.rawValue
                 #expect(front != back)
-                #expect(Set([front, back]) == ["kokiake", "kiiro"])
+                #expect(Set([front, back]) == ["amerry-f-519", "amerry-f-503"])
             }
         }
     }

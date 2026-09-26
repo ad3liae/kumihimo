@@ -60,7 +60,7 @@ struct BraidStandAndDetailTests {
         let store = try makeStore()
         store.requestThreadCount(16)
         store.selectedThreadPosition = 3
-        store.selectColor(ThreadColorID(rawValue: "ruri"))
+        store.selectColor(ThreadColorID(rawValue: "amerry-f-513"))
         store.selectBraidPreset(.maruGenji16)
         let colours = store.draft.threadAssignments
 

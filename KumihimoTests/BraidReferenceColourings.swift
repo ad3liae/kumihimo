@@ -10,8 +10,9 @@ import Foundation
 /// by position, and mapped onto the nearest colours the app's catalogue has.
 ///
 /// **Written in the twelve provisional colours' IDs**, which is the catalogue
-/// they were mapped onto. Since Task 063 each is drawn as the one of the 38 it
-/// is read as (`ThreadColorCatalog.formerIDs`).
+/// they were mapped onto. Since Task 065 each is drawn as the one of the 30 it
+/// is read as (`ThreadColorCatalog.formerIDs`); no colouring here has both
+/// `white` and `natural`, which the 30 both read as 501.
 enum BraidReferenceColourings {
     /// Book A p97, left. Faces 1 and 3 in one neutral; on each side the far and
     /// near threads one colour and the middle two another — gold and rust on the
