@@ -199,7 +199,7 @@ struct YatsuKongoGaeshiTests {
         // The book's colouring (p.38 組みはじめ): slits 1・2 and 17・18 orange,
         // 9・10 and 25・26 pink, pair by pair at places 1・2 … 7・8.
         let byPosition = Dictionary(uniqueKeysWithValues: recipe.colouring.map { ($0.position, $0.colorID.rawValue) })
-        #expect([1, 2, 5, 6].map { byPosition[$0] } == Array(repeating: "amerry-f-529", count: 4))
+        #expect([1, 2, 5, 6].map { byPosition[$0] } == Array(repeating: "amerry-f-501", count: 4))
         #expect([3, 4, 7, 8].map { byPosition[$0] } == Array(repeating: "amerry-f-504", count: 4))
     }
 

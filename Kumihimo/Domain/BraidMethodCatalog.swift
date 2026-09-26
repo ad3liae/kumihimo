@@ -361,16 +361,22 @@ enum BraidMethodCatalog {
     /// (Task 065, CIEDE2000, measured as in Task 063 by
     /// `Scripts/task063/measure_colourings.py`, chosen by
     /// `Scripts/task065/choose_colourings.py`): the salmon (0.93, 0.68, 0.53) is
-    /// 504 ピーチ (ΔE 6.4), the cream (0.90, 0.85, 0.80) 529 ベージュ (6.6), the
-    /// navy (0.28, 0.24, 0.32) 526 チャコール (7.7, 510 ぶどう 8.2 next), and the
-    /// vermilion (0.94, 0.46, 0.33) 506 オレンジ (11.0). **The rose (0.92, 0.69,
-    /// 0.66) is nearest 504 too** (9.7), which the salmon is nearer, and next 529
-    /// (16.6), which the cream is nearer, so it is 505 ローズ (16.9) — kept apart
-    /// from the salmon as the book keeps them.
+    /// 504 ピーチ (ΔE 6.4), the navy (0.28, 0.24, 0.32) 526 チャコール (7.7, 510
+    /// ぶどう 8.2 next), and the vermilion (0.94, 0.46, 0.33) 506 オレンジ (11.0).
+    /// **The rose (0.92, 0.69, 0.66) is nearest 504 too** (9.7), which the salmon
+    /// is nearer, and next 529 (16.6), which the cream was nearer, so it is 505
+    /// ローズ (16.9) — kept apart from the salmon as the book keeps them.
+    ///
+    /// **The cream (0.90, 0.85, 0.80) is not its nearest**, 529 ベージュ (6.6),
+    /// but 501 オフホワイト (8.1): to bring it as far from the salmon as the
+    /// photograph has it (the author, 2026-09-26). 529 is 8.0 from 504 and the
+    /// two are hard to tell apart on the card; 501 is 18.2, the photograph's
+    /// cream and salmon 16.9. 529 left free does not move the rose there, which
+    /// would put it 8.0 from the salmon in turn.
     static let maruGenji16Colouring = colouring(on: stand16, [
         "north": ["amerry-f-505", "amerry-f-504", "amerry-f-504", "amerry-f-505"],
         "east": Array(repeating: "amerry-f-526", count: 4),
-        "south": ["amerry-f-529", "amerry-f-506", "amerry-f-506", "amerry-f-529"],
+        "south": ["amerry-f-501", "amerry-f-506", "amerry-f-506", "amerry-f-501"],
         "west": Array(repeating: "amerry-f-526", count: 4),
     ])
 
@@ -548,13 +554,16 @@ enum BraidMethodCatalog {
     /// places 1・2 … 7・8 (Task 055; it had the two colours the other way
     /// round). The same arrangement as book A p.54's two colours.
     ///
-    /// **The colours are the photograph's** at the head of the page, each set on
-    /// its nearest of the 30 (Task 065). The thread the figure draws orange is a
-    /// pale yellow in the photograph, (0.94, 0.84, 0.69), 529 ベージュ (ΔE 3.4);
-    /// the pink (0.95, 0.78, 0.78) is 504 ピーチ (10.8).
+    /// **The colours are the photograph's** at the head of the page (Task 065).
+    /// The pink (0.95, 0.78, 0.78) is its nearest of the 30, 504 ピーチ (ΔE 10.8).
+    /// The thread the figure draws orange is a pale yellow in the photograph,
+    /// (0.94, 0.84, 0.69), and **is not its nearest**, 529 ベージュ (3.4), but 501
+    /// オフホワイト (11.6): to bring the two as far apart as the photograph has
+    /// them (the author, 2026-09-26). 529 is 8.0 from 504 and the spiral all but
+    /// vanished; 501 is 18.2, the photograph's two 18.9.
     static let yatsuKongoGaeshi8Colouring = byPlace(stand8, [
-        "amerry-f-529", "amerry-f-529", "amerry-f-504", "amerry-f-504",
-        "amerry-f-529", "amerry-f-529", "amerry-f-504", "amerry-f-504",
+        "amerry-f-501", "amerry-f-501", "amerry-f-504", "amerry-f-504",
+        "amerry-f-501", "amerry-f-501", "amerry-f-504", "amerry-f-504",
     ])
 
     /// A colouring written place by place, 1 to 8.

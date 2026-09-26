@@ -110,7 +110,7 @@ struct BraidMeshHashTests {
         let wanted: [(BraidRecipe, [[UInt64]])] = [
             (BraidMethodCatalog.yatsuKongoS8Recipe, [[0x51e3_a183_f144_ac91], [0x1ec7_26ed_0c36_f1f3], [0xde18_b909_3438_c99d]]),
             (BraidMethodCatalog.yatsuKongoZ8Recipe, [[0x8637_cdab_d731_39ed], [0x52c2_e9c6_6d09_9340], [0x5aa5_de39_dfd1_04d1]]),
-            (BraidMethodCatalog.yatsuKongoGaeshi8Recipe, [[0x5d56_4d4d_0d43_8185], [0x8b24_04a4_7723_923d], [0x4e5e_d52e_17ca_9105]]),
+            (BraidMethodCatalog.yatsuKongoGaeshi8Recipe, [[0xe0d5_b357_56d7_4fad], [0x8b24_04a4_7723_923d], [0x4e5e_d52e_17ca_9105]]),
         ]
         for (recipe, hashes) in wanted {
             let worked = try #require(recipe.worked(on: stand8))
