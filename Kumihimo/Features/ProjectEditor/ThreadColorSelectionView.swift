@@ -26,11 +26,11 @@ struct ThreadColorSelectionView: View {
                                 Text(threadColor.name)
                                     .font(.headline)
                                     .foregroundStyle(.primary)
-                                Text(threadColor.temporaryCode)
+                                Text(threadColor.code)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 Image(systemName: "checkmark.circle.fill")
-                                    .opacity(selectedColorID == threadColor.id ? 1 : 0)
+                                    .opacity(isSelected(threadColor) ? 1 : 0)
                                     .accessibilityHidden(true)
                             }
                             .frame(maxWidth: .infinity, minHeight: 126)
@@ -39,15 +39,15 @@ struct ThreadColorSelectionView: View {
                             .overlay {
                                 RoundedRectangle(cornerRadius: 12)
                                     .stroke(
-                                        selectedColorID == threadColor.id ? Color.accentColor : .clear,
+                                        isSelected(threadColor) ? Color.accentColor : .clear,
                                         lineWidth: 2
                                     )
                             }
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("\(threadColor.name)、仮コード\(threadColor.temporaryCode)")
+                        .accessibilityLabel(ProjectEditorStrings.threadColorAccessibilityLabel(threadColor))
                         .accessibilityAddTraits(
-                            selectedColorID == threadColor.id ? .isSelected : []
+                            isSelected(threadColor) ? .isSelected : []
                         )
                     }
                 }
@@ -61,6 +61,12 @@ struct ThreadColorSelectionView: View {
                 }
             }
         }
+    }
+
+    /// A thread saved with one of the former IDs is shown on the colour it is
+    /// read as.
+    private func isSelected(_ threadColor: ThreadColor) -> Bool {
+        selectedColorID.map(ThreadColorCatalog.currentID(for:)) == threadColor.id
     }
 
     private var columns: [GridItem] {

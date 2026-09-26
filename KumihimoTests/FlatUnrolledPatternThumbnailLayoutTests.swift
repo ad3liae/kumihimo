@@ -146,6 +146,13 @@ struct FlatPatternUnchangedByTheThumbnailTests {
     /// `edgeStitchLean`; nothing else did, and no patch was added, removed or
     /// recoloured. Task 029's own changes did not move it — this test is what said
     /// so.
+    ///
+    /// **And again in Task 063, by the colours' names only**: it was
+    /// `0x4d72_b9e3_6b75_b461` while the recipe's colouring was written in the
+    /// twelve provisional colours' IDs, and it still is with those names put back
+    /// (checked before this value was taken). The colour goes in by its ID's
+    /// characters, so a colouring in new colours moves it; a patch taking another
+    /// thread's colour still shows.
     @Test func theFlatPatternIsTheOneItWas() throws {
         let pattern = try #require(Flat16SurfacePatternGenerator.generate(
             assignments: BraidMethodCatalog.hiraGenji16Colouring))
@@ -173,7 +180,7 @@ struct FlatPatternUnchangedByTheThumbnailTests {
         let hash = BraidMeshHashTests.hash(points)
         try Self.record("flat pattern hash \(String(hash, radix: 16))",
                         named: "flat-pattern-hash")
-        #expect(hash == 0x4d72_b9e3_6b75_b461)
+        #expect(hash == 0x954b_11c5_6215_76f5)
     }
 
     private static func record(_ text: String, named name: String) throws {

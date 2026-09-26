@@ -121,8 +121,14 @@ final class KumihimoProject {
         }
     }
 
+    /// **A colour is written with the ID it has now** (Task 063): a project that
+    /// opened with one of the twelve former IDs is saved with the one it is read
+    /// as, and reads back the same colour.
     private static func encodeAssignments(_ assignments: [ThreadAssignment]) -> Data {
-        (try? JSONEncoder().encode(assignments)) ?? Data()
+        let current = assignments.map {
+            ThreadAssignment(position: $0.position, colorID: ThreadColorCatalog.currentID(for: $0.colorID))
+        }
+        return (try? JSONEncoder().encode(current)) ?? Data()
     }
 }
 

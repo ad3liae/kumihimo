@@ -124,17 +124,17 @@ struct EdoYatsuTests {
     // MARK: - The colouring
 
     /// **The textbook's own colouring, read slit by slit off p.64's 組みはじめ**:
-    /// 4・20 magenta (`pink`), 5・21 the cream (`natural`), 12・28 cyan
-    /// (`light-blue`), 13・29 yellow-green (`yellow`, the nearer of the
-    /// catalogue's two names). Laid on the places through the starting slits:
+    /// 4・20 magenta (No.05 藤色), 5・21 the cream (No.31 白群), 12・28 cyan
+    /// (No.30 露草色), 13・29 yellow-green (No.27 青磁) — the photograph's colours
+    /// on their nearest of the 38 (Task 063). Laid on the places through the starting slits:
     /// 1 cyan, 2 yellow-green, 3 magenta, 4 cream, and round again.
     @Test func theColouringIsTheTextbooksBySlit() {
         let byPosition = Dictionary(uniqueKeysWithValues: recipe.colouring.map { ($0.position, $0.colorID.rawValue) })
         #expect((1...8).map { byPosition[$0] } == [
-            "light-blue", "yellow", "pink", "natural", "light-blue", "yellow", "pink", "natural",
+            "tsuyukusa", "seiji", "fuji", "byakugun", "tsuyukusa", "seiji", "fuji", "byakugun",
         ])
-        let bySlit = [4: "pink", 20: "pink", 5: "natural", 21: "natural",
-                      12: "light-blue", 28: "light-blue", 13: "yellow", 29: "yellow"]
+        let bySlit = [4: "fuji", 20: "fuji", 5: "byakugun", 21: "byakugun",
+                      12: "tsuyukusa", 28: "tsuyukusa", 13: "seiji", 29: "seiji"]
         for (index, slit) in BraidMethodCatalog.edoYatsuStartingSlits.enumerated() {
             #expect(byPosition[index + 1] == bySlit[slit], "slit \(slit)")
         }
@@ -206,7 +206,7 @@ struct EdoYatsuTests {
         // addendum 6): the other set's, so the odd places' rows hold the even
         // places' colours and the even places' rows the odd places'.
         for slot in 0..<8 {
-            let wanted: Set<String> = slot % 2 == 0 ? ["yellow", "natural"] : ["light-blue", "pink"]
+            let wanted: Set<String> = slot % 2 == 0 ? ["seiji", "byakugun"] : ["tsuyukusa", "fuji"]
             #expect(colours(of: drawn, atSlot: slot) == wanted, "slot \(slot)")
         }
 

@@ -154,7 +154,7 @@ enum BraidComparisonSheet {
                     for dx in 0..<supersample {
                         let at = (row * supersample + dy) * width + column * supersample + dx
                         guard let id = seen[at],
-                              let colour = ThreadColorCatalog.colors.first(where: { $0.id == id })
+                              let colour = ThreadColorCatalog.color(for: id)
                         else { continue }
                         red += colour.value.red
                         green += colour.value.green

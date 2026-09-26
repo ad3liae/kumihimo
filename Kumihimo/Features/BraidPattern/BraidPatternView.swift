@@ -112,13 +112,13 @@ private struct BraidPatternPreview: View {
     /// on each side the far and near threads one colour and the middle two another.
     private static var arrowFeather: [ThreadAssignment] {
         var colours = [Int: String]()
-        for position in [15, 16, 1, 2, 10, 9, 8, 7] { colours[position] = "natural" }
-        for position in [3, 6] { colours[position] = "yellow" }
-        for position in [4, 5] { colours[position] = "orange" }
-        for position in [14, 11] { colours[position] = "green" }
-        for position in [13, 12] { colours[position] = "light-blue" }
+        for position in [15, 16, 1, 2, 10, 9, 8, 7] { colours[position] = "zoge" }
+        for position in [3, 6] { colours[position] = "kiiro" }
+        for position in [4, 5] { colours[position] = "oni" }
+        for position in [14, 11] { colours[position] = "tokusa" }
+        for position in [13, 12] { colours[position] = "tsuyukusa" }
         return (1...16).map {
-            ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: colours[$0] ?? "white"))
+            ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: colours[$0] ?? "hakudo"))
         }
     }
 

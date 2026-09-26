@@ -192,7 +192,7 @@ struct MaruGenjiSimulationTests {
         (1...16).map { position in
             ThreadAssignment(
                 position: position,
-                colorID: ThreadColorCatalog.colors[(position - 1) % ThreadColorCatalog.colors.count].id
+                colorID: TwelveColours.ids[(position - 1) % TwelveColours.ids.count]
             )
         }
     }

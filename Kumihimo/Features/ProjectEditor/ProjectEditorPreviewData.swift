@@ -20,38 +20,47 @@ enum ProjectEditorPreviewData {
     static let hiraSurfaceLadderLaunchArgument = "--ui-testing-hira-surface-ladder"
     static let darkModeLaunchArgument = "--ui-testing-dark-mode"
 
+    /// Twelve colours told apart, written out rather than read off the catalogue,
+    /// so that which threads share a colour does not move when the catalogue does.
+    /// They are the twelve provisional colours as the 38 read them (Task 063).
     static var colorfulAssignments: [ThreadAssignment] {
-        (1...16).map { position in
-            let color = ThreadColorCatalog.colors[(position - 1) % ThreadColorCatalog.colors.count]
-            return ThreadAssignment(position: position, colorID: color.id)
+        let colours = [
+            "shu", "oni", "kiiro", "tokusa", "tsuyukusa", "ruri",
+            "sumire", "fuji", "kokiake", "shikkoku", "hakudo", "zoge",
+        ]
+        return (1...16).map { position in
+            ThreadAssignment(
+                position: position,
+                colorID: ThreadColorID(rawValue: colours[(position - 1) % colours.count])
+            )
         }
     }
 
     static var maruGenjiSurfaceFixture1: [ThreadAssignment] {
         fixtureAssignments([
-            "blue", "pink", "pink", "blue",
-            "blue", "pink", "pink", "blue",
-            "blue", "pink", "pink", "blue",
-            "blue", "pink", "pink", "blue",
+            "ruri", "fuji", "fuji", "ruri",
+            "ruri", "fuji", "fuji", "ruri",
+            "ruri", "fuji", "fuji", "ruri",
+            "ruri", "fuji", "fuji", "ruri",
         ])
     }
 
     static var maruGenjiSurfaceFixture2: [ThreadAssignment] {
         fixtureAssignments([
-            "blue", "blue",
-            "pink", "pink", "pink", "pink",
-            "blue", "blue", "blue", "blue",
-            "pink", "pink", "pink", "pink",
-            "blue", "blue",
+            "ruri", "ruri",
+            "fuji", "fuji", "fuji", "fuji",
+            "ruri", "ruri", "ruri", "ruri",
+            "fuji", "fuji", "fuji", "fuji",
+            "ruri", "ruri",
         ])
     }
 
     static var maruGenjiSurfaceFixture3: [ThreadAssignment] {
         fixtureAssignments([
-            "blue", "blue", "blue", "blue",
-            "pink", "pink", "pink", "pink",
-            "blue", "blue", "blue", "blue",
-            "pink", "pink", "pink", "pink",
+            "ruri", "ruri", "ruri", "ruri",
+            "fuji", "fuji", "fuji", "fuji",
+            "ruri", "ruri", "ruri", "ruri",
+            "fuji", "fuji", "fuji", "fuji",
         ])
     }
 
@@ -60,7 +69,7 @@ enum ProjectEditorPreviewData {
     /// the strand that happens to be at the edge, which has nothing to do with
     /// the shape being measured.
     static var maruGenjiSurfacePlain: [ThreadAssignment] {
-        (1...16).map { ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: "blue")) }
+        (1...16).map { ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: "ruri")) }
     }
 
     static var hiraGenjiSurfaceFixtureA: [ThreadAssignment] {
@@ -68,9 +77,9 @@ enum ProjectEditorPreviewData {
         return (1...16).map { position in
             let colorID: String
             if inner.contains(position) {
-                colorID = position.isMultiple(of: 2) ? "blue" : "light-blue"
+                colorID = position.isMultiple(of: 2) ? "ruri" : "tsuyukusa"
             } else {
-                colorID = position.isMultiple(of: 2) ? "white" : "black"
+                colorID = position.isMultiple(of: 2) ? "hakudo" : "shikkoku"
             }
             return ThreadAssignment(position: position, colorID: ThreadColorID(rawValue: colorID))
         }
@@ -81,7 +90,7 @@ enum ProjectEditorPreviewData {
         return (1...16).map { position in
             ThreadAssignment(
                 position: position,
-                colorID: ThreadColorID(rawValue: center.contains(position) ? "blue" : "pink")
+                colorID: ThreadColorID(rawValue: center.contains(position) ? "ruri" : "fuji")
             )
         }
     }
@@ -90,7 +99,7 @@ enum ProjectEditorPreviewData {
         let far = Set([3, 4, 14, 13])
         let near = Set([5, 6, 12, 11])
         return (1...16).map { position in
-            let colorID = far.contains(position) ? "blue" : near.contains(position) ? "pink" : "white"
+            let colorID = far.contains(position) ? "ruri" : near.contains(position) ? "fuji" : "hakudo"
             return ThreadAssignment(position: position, colorID: ThreadColorID(rawValue: colorID))
         }
     }
@@ -103,16 +112,16 @@ enum ProjectEditorPreviewData {
     static var hiraGenjiSurfaceArrowFeather: [ThreadAssignment] {
         var colours = [Int: String]()
         for position in HiraGenjiBoardState.initial.north + HiraGenjiBoardState.initial.south {
-            colours[position] = "white"
+            colours[position] = "hakudo"
         }
         for side in [HiraGenjiBoardState.initial.east, HiraGenjiBoardState.initial.west] {
-            colours[side[0]] = "brown"
-            colours[side[3]] = "brown"
-            colours[side[1]] = "yellow"
-            colours[side[2]] = "yellow"
+            colours[side[0]] = "kokiake"
+            colours[side[3]] = "kokiake"
+            colours[side[1]] = "kiiro"
+            colours[side[2]] = "kiiro"
         }
         return (1...16).map {
-            ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: colours[$0] ?? "white"))
+            ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: colours[$0] ?? "hakudo"))
         }
     }
 
@@ -131,13 +140,13 @@ enum ProjectEditorPreviewData {
     /// of a face has to have come from a lengthwise thread.
     static var hiraGenjiSurfaceLadder: [ThreadAssignment] {
         var colours = [Int: String]()
-        for position in HiraGenjiBoardState.initial.north { colours[position] = "brown" }
-        for position in HiraGenjiBoardState.initial.south { colours[position] = "yellow" }
+        for position in HiraGenjiBoardState.initial.north { colours[position] = "kokiake" }
+        for position in HiraGenjiBoardState.initial.south { colours[position] = "kiiro" }
         for position in HiraGenjiBoardState.initial.east + HiraGenjiBoardState.initial.west {
-            colours[position] = "white"
+            colours[position] = "hakudo"
         }
         return (1...16).map {
-            ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: colours[$0] ?? "white"))
+            ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: colours[$0] ?? "hakudo"))
         }
     }
 
@@ -146,7 +155,7 @@ enum ProjectEditorPreviewData {
     /// edge changes colour from stitch to stitch moves the measured edge for a
     /// reason that has nothing to do with its shape.
     static var hiraGenjiSurfacePlain: [ThreadAssignment] {
-        (1...16).map { ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: "blue")) }
+        (1...16).map { ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: "ruri")) }
     }
 
     static var undecidedProject: KumihimoProject {
@@ -157,8 +166,8 @@ enum ProjectEditorPreviewData {
                 ThreadAssignment(
                     position: $0,
                     colorID: $0.isMultiple(of: 2)
-                        ? ThreadColorID(rawValue: "light-blue")
-                        : ThreadColorID(rawValue: "white")
+                        ? ThreadColorID(rawValue: "tsuyukusa")
+                        : ThreadColorID(rawValue: "hakudo")
                 )
             }
         )

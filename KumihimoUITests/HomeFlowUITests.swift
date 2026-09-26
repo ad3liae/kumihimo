@@ -90,10 +90,10 @@ final class HomeFlowUITests: XCTestCase {
     func testSelectingThreadColorDismissesSheet() {
         let app = launch(arguments: ["--ui-testing-new-editor"])
 
-        app.buttons["糸1、生成り"].tap()
+        app.buttons["糸1、象牙"].tap()
         let colorSheet = app.navigationBars["糸1の色"]
         XCTAssertTrue(colorSheet.waitForExistence(timeout: 2))
-        app.buttons["青、仮コードK-06"].tap()
+        app.buttons["菫色（すみれいろ）、No.01"].tap()
 
         let dismissed = expectation(
             for: NSPredicate(format: "exists == false"),

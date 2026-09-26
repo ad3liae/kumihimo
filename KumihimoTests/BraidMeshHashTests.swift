@@ -83,6 +83,13 @@ struct BraidMeshHashTests {
     /// own. Taken on the drawer before the change (yatsu-kongo S, Z and 返し組
     /// under their own colouring, eight colours and the author's 桃白青緑; 丸四つ組
     /// under its own and four colours) and held after it, pixel for pixel.
+    ///
+    /// **Changed on purpose in Task 063, in colour only.** The catalogue became
+    /// the 38, the twelve former IDs are drawn as the colours they are read as,
+    /// and the recipes' own colourings were chosen afresh from the books'
+    /// photographs. Checked before the values were taken again: each card's map
+    /// of which segment shows at each pixel is the one the former colouring gives,
+    /// segment for segment, and the drawers and the generators were not touched.
     @Test func theOneWayCardsAreThePicturesTheyWere() throws {
         let eight = ["red", "orange", "yellow", "green", "light-blue", "blue", "purple", "pink"]
         let fourColours = ["pink", "white", "blue", "green", "pink", "white", "blue", "green"]
@@ -91,9 +98,9 @@ struct BraidMeshHashTests {
         }
         let stand8 = BraidMethodCatalog.stand8
         let wanted: [(BraidRecipe, [[UInt64]])] = [
-            (BraidMethodCatalog.yatsuKongoS8Recipe, [[0x951d_60c3_2be5_9bc1], [0x7b7d_ffea_5370_e51e], [0x3d71_8648_e891_a7fd]]),
-            (BraidMethodCatalog.yatsuKongoZ8Recipe, [[0xecca_d4bd_e9c7_9cc5], [0xac55_d2be_65bd_3608], [0xb7d1_c93a_1646_1fa5]]),
-            (BraidMethodCatalog.yatsuKongoGaeshi8Recipe, [[0x4c71_c23a_b90a_b7ad], [0x77c2_2a77_0a2e_43cc], [0x3e7d_7a39_432d_40cd]]),
+            (BraidMethodCatalog.yatsuKongoS8Recipe, [[0x1396_7c98_d404_542d], [0x1fb3_03b8_cd53_8aeb], [0x2012_6a47_e27f_75f9]]),
+            (BraidMethodCatalog.yatsuKongoZ8Recipe, [[0xb6cc_d248_62a7_908d], [0x74c5_c087_6f3d_f1b8], [0xd856_2aca_0815_1d29]]),
+            (BraidMethodCatalog.yatsuKongoGaeshi8Recipe, [[0xefb5_21b9_5c40_01dd], [0xfb16_8dc2_1771_ec43], [0x468f_f65a_7a8e_060d]]),
         ]
         for (recipe, hashes) in wanted {
             let worked = try #require(recipe.worked(on: stand8))
@@ -110,7 +117,7 @@ struct BraidMeshHashTests {
         let stand4 = BraidMethodCatalog.stand4
         let worked4 = try #require(recipe4.worked(on: stand4))
         for (colouring, hash) in zip([recipe4.colouring, byPlace(["red", "white", "blue", "yellow"])],
-                                     [UInt64(0x8952_e9a9_9d1f_ce35), 0xf94d_11a5_0f3d_a4b9]) {
+                                     [UInt64(0xcd30_fee2_2007_244d), 0xc7d4_a010_844e_cb8d]) {
             let pattern = try #require(RoundTube4SurfacePatternGenerator.generate(
                 stand: stand4, rounds: worked4.derivation.rounds, crossSection: worked4.section,
                 assignments: colouring))

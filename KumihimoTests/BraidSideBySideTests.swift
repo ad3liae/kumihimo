@@ -138,8 +138,8 @@ struct BraidSideBySideTests {
         ))
         var colours = [Int: ThreadColorValue]()
         for assignment in BraidMethodCatalog.hiraGenji16Colouring {
-            colours[assignment.position] = (ThreadColorCatalog.colors
-                .first { $0.id == assignment.colorID } ?? ThreadColorCatalog.defaultColor).value
+            colours[assignment.position] = (ThreadColorCatalog.color(for: assignment.colorID)
+                ?? ThreadColorCatalog.defaultColor).value
         }
         for view in Self.views {
             let picture = BraidPicture.paint(flat.lines, looking: view.direction)
@@ -163,8 +163,8 @@ struct BraidSideBySideTests {
         ))
         var tubeColours = [Int: ThreadColorValue]()
         for assignment in BraidMethodCatalog.maruGenji16Colouring {
-            tubeColours[assignment.position] = (ThreadColorCatalog.colors
-                .first { $0.id == assignment.colorID } ?? ThreadColorCatalog.defaultColor).value
+            tubeColours[assignment.position] = (ThreadColorCatalog.color(for: assignment.colorID)
+                ?? ThreadColorCatalog.defaultColor).value
         }
         for view in Self.views {
             let picture = BraidPicture.paint(tube.lines, looking: view.direction)
