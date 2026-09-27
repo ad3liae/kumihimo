@@ -3,22 +3,20 @@ import SwiftUI
 /// **A braid's working, hand by hand, on a round stand seen from above** (Task
 /// 061): the stand's top, the hole in its middle, a bobbin for every thread in
 /// the thread's colour and its thread running in to the middle. Each hand lights
-/// the thread it carries, points where it goes, and slides it round the rim
-/// there; a thread that arrives at a place still taken waits beside it until
-/// that place's thread leaves. Beside it, or under it where there is no room,
+/// the threads it carries, points where they go, and slides them there — round
+/// the rim on a disk, straight over the mirror on a round stand's faces — and
+/// then settles: the book's adjustments, and the islands drawn back when they
+/// are as they began (Task 067). Beside it, or under it where there is no room,
 /// the hand in words and how far through the time round it is; under both,
 /// back a hand, play, on a hand.
 ///
-/// **Place 1 at the top and the places clockwise**, as the colouring screen draws
-/// them, so the colours stand where the person put them — **each at the slit the
-/// book's starting diagram puts it in** (Task 066, `BraidStepLayout`): the
-/// eight-bobbin braids two by two, north, east, south and west, place 1・2's pair
-/// at the top. The drawing reads the script and the layout only, never the
-/// braid's name.
+/// **Place 1's island at the top**, the places running clockwise as the
+/// colouring screen draws them, so the colours stand where the person put
+/// them. The drawing reads the stage only (`BraidStepStage`), never the braid's
+/// name.
 struct BraidStepsView: View {
-    private let script: BraidStepScript?
-    /// Where the stand's places are drawn, and every thread at every moment:
-    /// from the book's disk when the recipe has one (Task 066).
+    /// Every thread at every moment of every hand, and the hand in words: the
+    /// braid worked as its book works it (Task 067).
     private let stage: BraidStepStage?
     private let colours: [Int: ThreadColorID]
     /// The room offered: the width to keep inside, and the height to fill.
@@ -38,41 +36,33 @@ struct BraidStepsView: View {
         let colours = Dictionary(
             assignments.map { ($0.position, $0.colorID) }, uniquingKeysWith: { first, _ in first }
         )
-        let script = recipe.flatMap { recipe in
+        let stage = recipe.flatMap { recipe in
             BraidMethodCatalog.stand(for: recipe).flatMap {
-                BraidStepScript(recipe: recipe, stand: $0, colours: colours)
+                BraidStepStage(recipe: recipe, stand: $0, colours: colours)
             }
         }
-        self.script = script.flatMap { $0.hands.isEmpty ? nil : $0 }
-        self.stage = self.script.map {
-            BraidStepStage(
-                script: $0, recipe: recipe,
-                layout: BraidStepLayout(stand: $0.stand, startingSlits: recipe?.startingSlits)
-            )
-        }
+        self.stage = stage
         self.colours = colours
         self.room = room
-        _playback = State(initialValue: BraidStepPlayback(handCount: script?.hands.count ?? 1))
+        _playback = State(initialValue: BraidStepPlayback(handCount: max(stage?.handCount ?? 1, 1)))
     }
 
     var body: some View {
         Group {
-            if let script, let stage {
+            if let stage {
                 TimelineView(.animation(minimumInterval: nil, paused: !playback.isRunning)) { context in
                     let position = playback.position(at: context.date)
-                    let index = min(position.hand, script.hands.count - 1)
-                    let hand = script.hands[index]
+                    let index = min(position.hand, stage.handCount - 1)
                     let stations = stage.stations(ofHand: index)
                     let sentence = stations.sentence
-                        ?? BraidStepsStrings.sentence(for: hand, tableCount: script.tableCount)
-                    let count = BraidStepsStrings.count(position.hand + 1, of: script.hands.count)
+                    let count = BraidStepsStrings.count(index + 1, of: stage.handCount)
                     arranged(
                         stand: BraidStandDrawing(
                             frame: BraidStepFrame.at(
                                 position.time, of: stations, carried: stations.carried,
                                 reduceMotion: reduceMotion
                             ),
-                            layout: stage.layout,
+                            stage: stage,
                             colours: colours
                         )
                         .accessibilityElement()
@@ -208,7 +198,7 @@ struct BraidStepsView: View {
 /// The stand itself, drawn from one frame.
 private struct BraidStandDrawing: View {
     let frame: BraidStepFrame
-    let layout: BraidStepLayout
+    let stage: BraidStepStage
     let colours: [Int: ThreadColorID]
 
     /// The drawing's reach in units of the rim's radius: the numbers stand
@@ -226,7 +216,7 @@ private struct BraidStandDrawing: View {
             func onCanvas(_ point: CGPoint) -> CGPoint {
                 CGPoint(x: middle.x + point.x * scale, y: middle.y + point.y * scale)
             }
-            let ballRadius = layout.ballRadius * scale
+            let ballRadius = stage.layout.ballRadius * scale
 
             let board = circle(at: middle, radius: Self.boardRadius * scale)
             context.fill(board, with: .color(Color.brown.opacity(0.24)))
@@ -235,10 +225,10 @@ private struct BraidStandDrawing: View {
             // The numbers are part of the drawing, so they go with its size
             // rather than the text size; VoiceOver reads the hand instead.
             let numberSize = min(max(scale * 0.16, 9), 15)
-            for place in layout.stand.positionIDs {
-                let point = BraidStepFrame.Polar(turn: layout.turn(of: place), radius: Self.numberRadius).cartesian
+            for label in stage.labels {
+                let point = BraidStepFrame.Polar(turn: label.turn, radius: Self.numberRadius).cartesian
                 context.draw(
-                    Text("\(place)").font(.system(size: numberSize)).foregroundStyle(.secondary),
+                    Text(label.text).font(.system(size: numberSize)).foregroundStyle(.secondary),
                     at: onCanvas(point)
                 )
             }
@@ -300,7 +290,7 @@ private struct BraidStandDrawing: View {
         } else {
             // A little short of both places, so two arrows that meet — a hand of
             // two carried half way round each — still read as two.
-            let gap = 0.12 / Double(max(layout.stand.positionCount, 1)) * (arrow.way == .clockwise ? 1 : -1)
+            let gap = 0.12 / Double(max(stage.layout.placeCount, 1)) * (arrow.way == .clockwise ? 1 : -1)
             let startPolar = BraidStepFrame.Polar(turn: from + gap, radius: Self.arrowRadius)
             let endPolar = BraidStepFrame.Polar(turn: to - gap, radius: Self.arrowRadius)
             let samples = 48

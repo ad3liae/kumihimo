@@ -14,8 +14,8 @@
 # holds stayed exactly as they were; only the names moved.
 #
 # Kumihimo/Features/BraidSteps/ joined at Task 061. It draws a braid's working hand
-# by hand on a round stand, from the step script (Domain/Braiding/BraidStepScript),
-# and like the rest reads no braid's name.
+# by hand on a round stand, from the book's working (Domain/Braiding/BraidBookWorking,
+# Task 067), and like the rest reads no braid's name.
 #
 # Still outside the list, and why: Kumihimo/Domain/ holds the per-braid data (the
 # move tables, the colourings, the measured values) and that is where a braid's name

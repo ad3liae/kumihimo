@@ -409,6 +409,82 @@ enum BraidMethodCatalog {
         "west": Array(repeating: "amerry-f-504", count: 4),
     ])
 
+    // MARK: - The textbook's round stand (Task 067)
+
+    /// **The textbook's round stand for the sixteen-thread braids** (p.94–97,
+    /// 道具 丸台): four faces of four, numbered as the book numbers them — 1面 at
+    /// the top, 2面 on the left, 3面 at the bottom, 4面 on the right —, the
+    /// braider sitting at 3面. Each face's places are the stand's four there,
+    /// clockwise, the colourings' groups north, west, south and east.
+    ///
+    /// A face's ends as the braider sees them: 1面's 左 is its first going
+    /// clockwise, 3面's 右; 4面's 奥 (towards 1面), 2面's 手前.
+    static let textbookRoundStandFaces: [BraidStandHands.Face] = [
+        BraidStandHands.Face(number: 1, turn: 0, places: [15, 16, 1, 2], clockwiseFirst: .left),
+        BraidStandHands.Face(number: 4, turn: 0.25, places: [3, 4, 5, 6], clockwiseFirst: .far),
+        BraidStandHands.Face(number: 3, turn: 0.5, places: [7, 8, 9, 10], clockwiseFirst: .right),
+        BraidStandHands.Face(number: 2, turn: 0.75, places: [11, 12, 13, 14], clockwiseFirst: .near),
+    ]
+
+    /// **十六丸源氏組 as the textbook works it on the round stand** (p.94–95,
+    /// the author, 2026-09-27: 「2/2/2/2/2/2/2/2 ではない。4/4/4/4 が基本」). Each
+    /// hand takes two threads at once, one in each hand, from the ends of a face
+    /// and lays them in the middle of the face opposite, the left hand's on the
+    /// left, the far one far: 「丸源氏手取り」. Four hands a dan; 「糸の色は4段
+    /// ごとに戻ります」.
+    ///
+    /// **One dan leaves every thread where book C's table (Fig.32) leaves it
+    /// after one cycle**, place for place (`BraidBookWorkingTests`). The 3D
+    /// derivation keeps book C's table; this is only how the step animation
+    /// shows it.
+    static let maruGenji16StandHands = BraidStandHands(
+        faces: textbookRoundStandFaces,
+        hands: [
+            // 1: 3面の左端の糸を左手で、右端の糸を右手で取り、1面の中央へ。
+            [.init(hand: .left, face: 3, end: .left, fromTheEnd: 0, toFace: 1, spot: .centre(.left)),
+             .init(hand: .right, face: 3, end: .right, fromTheEnd: 0, toFace: 1, spot: .centre(.right))],
+            // 2: 1面の左端の糸を左手で、右端の糸を右手で取り、3面の中央へ。
+            [.init(hand: .left, face: 1, end: .left, fromTheEnd: 0, toFace: 3, spot: .centre(.left)),
+             .init(hand: .right, face: 1, end: .right, fromTheEnd: 0, toFace: 3, spot: .centre(.right))],
+            // 3: 4面の奥の糸を右手で、手前の糸を左手で取り、2面の中央へ。
+            [.init(hand: .right, face: 4, end: .far, fromTheEnd: 0, toFace: 2, spot: .centre(.far)),
+             .init(hand: .left, face: 4, end: .near, fromTheEnd: 0, toFace: 2, spot: .centre(.near))],
+            // 4: 2面の奥の糸を右手で、手前の糸を左手で取り、4面の中央へ。
+            [.init(hand: .right, face: 2, end: .far, fromTheEnd: 0, toFace: 4, spot: .centre(.far)),
+             .init(hand: .left, face: 2, end: .near, fromTheEnd: 0, toFace: 4, spot: .centre(.near))],
+        ]
+    )
+
+    /// **十六平源氏組 as the textbook works it on the round stand** (p.96–97):
+    /// the same stand and the same 丸源氏手取り across, then 「平源氏手取り」 up
+    /// and down, six hands a dan. The book's seventh figure only sets every
+    /// thread back in its place at the start, which the drawing already does.
+    /// **One dan leaves every thread where book C's table (Fig.20) leaves it
+    /// after one cycle** (`BraidBookWorkingTests`).
+    static let hiraGenji16StandHands = BraidStandHands(
+        faces: textbookRoundStandFaces,
+        hands: [
+            // 1: 4面の奥の糸を右手で、手前の糸を左手で取り、2面の中央へ。
+            [.init(hand: .right, face: 4, end: .far, fromTheEnd: 0, toFace: 2, spot: .centre(.far)),
+             .init(hand: .left, face: 4, end: .near, fromTheEnd: 0, toFace: 2, spot: .centre(.near))],
+            // 2: 2面の奥の糸を右手で、手前の糸を左手で取り、4面の中央へ。
+            [.init(hand: .right, face: 2, end: .far, fromTheEnd: 0, toFace: 4, spot: .centre(.far)),
+             .init(hand: .left, face: 2, end: .near, fromTheEnd: 0, toFace: 4, spot: .centre(.near))],
+            // 3: 3面の左から2番目の糸を左手で、右から2番目の糸を右手で取り、1面の中央へ。
+            [.init(hand: .left, face: 3, end: .left, fromTheEnd: 1, toFace: 1, spot: .centre(.left)),
+             .init(hand: .right, face: 3, end: .right, fromTheEnd: 1, toFace: 1, spot: .centre(.right))],
+            // 4: 1面の左から2番目の糸を左手で、右から2番目の糸を右手で取り、3面の中央へ。
+            [.init(hand: .left, face: 1, end: .left, fromTheEnd: 1, toFace: 3, spot: .centre(.left)),
+             .init(hand: .right, face: 1, end: .right, fromTheEnd: 1, toFace: 3, spot: .centre(.right))],
+            // 5: 3面の左端の糸を左手で取り1面の左端の糸の右側へ、右端の糸を右手で取り1面の右端の糸の左側へ。
+            [.init(hand: .left, face: 3, end: .left, fromTheEnd: 0, toFace: 1, spot: .insideEnd(.left)),
+             .init(hand: .right, face: 3, end: .right, fromTheEnd: 0, toFace: 1, spot: .insideEnd(.right))],
+            // 6: 1面の左端の糸を左手で取り3面の左端へ、右端の糸を右手で取り3面の右端へ。
+            [.init(hand: .left, face: 1, end: .left, fromTheEnd: 0, toFace: 3, spot: .end(.left)),
+             .init(hand: .right, face: 1, end: .right, fromTheEnd: 0, toFace: 3, spot: .end(.right))],
+        ]
+    )
+
     static let maruGenji16Recipe = BraidRecipe(
         id: "maru-genji-16",
         name: "丸源氏組",
@@ -421,10 +497,7 @@ enum BraidMethodCatalog {
         // produce, and that is unsettled. Declared here so the note reaches the
         // figure and can be shown where the figure is read.
         orderRoundTheBraid: maruGenji16CrossSection,
-        // Book C's disk: two neighbouring notches to a pair, eight pairs.
-        startingSlits: BraidStartingSlits(
-            notchCount: maruGenjiDisk.notchCount, placeByRestingNotch: diskRestingNotches
-        )
+        standHands: maruGenji16StandHands
     )
 
     static let hiraGenji16Recipe = BraidRecipe(
@@ -434,9 +507,7 @@ enum BraidMethodCatalog {
         colouring: hiraGenji16Colouring,
         shape: hiraGenji16Shape,
         orderRoundTheBraid: hiraGenji16CrossSection,
-        startingSlits: BraidStartingSlits(
-            notchCount: hiraGenjiDisk.notchCount, placeByRestingNotch: diskRestingNotches
-        )
+        standHands: hiraGenji16StandHands
     )
 
     /// The order the threads come in round a yatsu-kongo braid.
@@ -638,17 +709,25 @@ enum BraidMethodCatalog {
     /// **A printed step is one instant** (`diskOfEight`'s reading): the book
     /// prints the right hand and the left for each step and does not say which
     /// goes first, and book C has no figure of this braid.
-    static let maruYotsuDisk = BraidDiskNotation(
-        source: "book A p.56, its two printed steps set down in this repository's disk notation",
-        notchCount: 32,
-        standPositionByRestingNotch: diskRestingNotchesForFour,
-        moves: [
+    static let maruYotsuDisk: BraidDiskNotation = {
+        let moves = [
             (1, 18), (17, 2), (18, 17), (2, 1),      // printed step 1: the upright pair
             (9, 26), (25, 10), (26, 25), (10, 9),    // printed step 2: the flat pair
-        ].map(BraidMove.init(from:to:)),
-        threadsPerStep: 2,
-        stepReading: .oneStepAnInstant
-    )
+        ].map(BraidMove.init(from:to:))
+        return BraidDiskNotation(
+            source: "book A p.56, its two printed steps set down in this repository's disk notation",
+            notchCount: 32,
+            standPositionByRestingNotch: diskRestingNotchesForFour,
+            moves: moves,
+            threadsPerStep: 2,
+            stepReading: .oneStepAnInstant,
+            // The step animation works these same moves, two at once (Task 067):
+            // the carries across and the tidies back, each pair together.
+            bookSteps: stride(from: 0, to: moves.count, by: 2).map {
+                BraidBookStep(moves: Array(moves[$0..<min($0 + 2, moves.count)]))
+            }
+        )
+    }()
 
     /// Book A prints two steps and does not name them; these say which pair each
     /// one swaps. **The derivation never reads them.**
@@ -998,19 +1077,12 @@ enum BookDiskKongo {
     /// worked move by move on the disk, and the thread counts once, from where
     /// it stood before the step to where the step leaves it.
     ///
-    /// **A hand-over is written down as well as folded in** (Task 062): each
-    /// table keeps, as `handOvers`, where the dan left each thread the hand-over
-    /// then carried on, and which way each part went, so the step animation can
-    /// show the hand-over as the move of its own a person makes. `names` names
-    /// the tables, one each, and `handOverName` the hand-overs, as the screens
-    /// say them. The table's moves are the same with or without them.
-    ///
-    /// **The book's own moves are written down too** (Task 066), as
-    /// `bookHands`: hand by hand in the order the step animation counts them —
-    /// a thread's first lift in the round opens a hand, a hand-over opens one of
-    /// its own, and a thread lifted again inside the same step joins the hand
-    /// just opened — each move in the book's slit numbers, the thread named by
-    /// its place when the round begins. The derivation does not read them.
+    /// **The book's own moves are written down too** (Task 066, Task 067), as
+    /// `bookSteps`: each move the book prints, in its slit numbers, one step
+    /// each, a hand-over marked — for the step animation, which works them on
+    /// the book's disk. `names` names the tables, one each, and `handOverName`
+    /// the hand-overs, as the screens say them. The derivation reads none of
+    /// them: the table's moves are the same with or without them.
     static func rounds(
         source: String,
         placeOneOnward: [Int],
@@ -1035,21 +1107,17 @@ enum BookDiskKongo {
             let startPlace = placeOf
             var braided = [Int]()                   // in the order first braided
             var travelled = [Int: Int]()            // thread -> notches this round, + clockwise
-            var handedOver = [(thread: Int, via: Int, first: Int, second: Int)]()
             var lastStep = Set<Int>()
-            var bookHands = [[BraidDiskNotation.BookMove]]()
+            var bookSteps = [BraidBookStep]()
             for step in steps {
                 var movers = [Int]()
                 var thisStep = [Int: Int]()         // thread -> notches in this step
                 for (from, to) in step {
-                    guard let thread = onDisk[from], onDisk[to] == nil,
-                          let place = startPlace[thread] else { return nil }
-                    let bookMove = BraidDiskNotation.BookMove(thread: place, from: from, to: to)
-                    if thisStep[thread] != nil, !bookHands.isEmpty {
-                        bookHands[bookHands.count - 1].append(bookMove)
-                    } else {
-                        bookHands.append([bookMove])
-                    }
+                    guard let thread = onDisk[from], onDisk[to] == nil else { return nil }
+                    // A thread braided in the step before: the hand-over.
+                    bookSteps.append(BraidBookStep(
+                        moves: [BraidMove(from: from, to: to)], isHandOver: braided.contains(thread)
+                    ))
                     onDisk[from] = nil
                     onDisk[to] = thread
                     movers.append(thread)
@@ -1058,10 +1126,7 @@ enum BookDiskKongo {
                 // A thread braided again this round must have been laid by the
                 // step just before: the hand-over carrying on that dan.
                 for thread in movers where braided.contains(thread) {
-                    guard lastStep.contains(thread), let via = placeOf[thread] else { return nil }
-                    handedOver.append((
-                        thread, via, travelled[thread] ?? 0, thisStep[thread] ?? 0
-                    ))
+                    guard lastStep.contains(thread) else { return nil }
                 }
                 for (thread, notches) in thisStep { travelled[thread, default: 0] += notches }
                 // The new order round the braid, clockwise from notch 1.
@@ -1096,16 +1161,6 @@ enum BookDiskKongo {
                 guard let to = placeOf[thread] else { return nil }
                 moves.append(BraidMove(from: landing(thread, at: to), to: resting(to)))
             }
-            var handOvers = [BraidDiskNotation.HandOver]()
-            for handed in handedOver {
-                guard let from = startPlace[handed.thread], let to = placeOf[handed.thread] else {
-                    return nil
-                }
-                handOvers.append(BraidDiskNotation.HandOver(
-                    carry: BraidMove(from: from, to: to), via: handed.via,
-                    firstNotches: handed.first, handOverNotches: handed.second
-                ))
-            }
             tables.append(BraidDiskNotation(
                 source: rounds.count == 1 ? source : "\(source), round \(roundIndex + 1)",
                 notchCount: notchCount,
@@ -1114,9 +1169,8 @@ enum BookDiskKongo {
                 threadsPerStep: 1,
                 stepReading: .oneThreadAnInstant,
                 name: names?[roundIndex],
-                handOvers: handOvers,
-                handOverName: handOvers.isEmpty ? nil : handOverName,
-                bookHands: bookHands.count == braided.count + handOvers.count ? bookHands : []
+                handOverName: bookSteps.contains(where: \.isHandOver) ? handOverName : nil,
+                bookSteps: bookSteps
             ))
         }
         return tables

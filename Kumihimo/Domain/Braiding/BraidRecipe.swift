@@ -97,10 +97,14 @@ struct BraidRecipe: Equatable, Sendable {
     /// The order the threads come in round the braid, when the source gives one.
     /// `nil` leaves the stand's own rim order, which is a tube.
     let orderRoundTheBraid: BraidCrossSection?
-    /// Where the book's starting diagram puts each place's thread, when there is
-    /// a diagram (Task 066). **Only the step animation's drawing reads it**; `nil`
-    /// draws the stand's places evenly spaced.
+    /// Where the book's starting diagram puts each place's thread on its disk,
+    /// when the book works the braid on a disk (Task 066). **Only the step
+    /// animation reads it**, with the tables' `bookSteps`.
     let startingSlits: BraidStartingSlits?
+    /// **The braid's hands on a round stand's faces**, when a book of the round
+    /// stand is the one the step animation follows (Task 067). **Only the step
+    /// animation reads it**; it takes the place of the disk when both are given.
+    let standHands: BraidStandHands?
 
     init(
         id: String,
@@ -109,11 +113,13 @@ struct BraidRecipe: Equatable, Sendable {
         colouring: [ThreadAssignment],
         shape: BraidShapeValues,
         orderRoundTheBraid: BraidCrossSection? = nil,
-        startingSlits: BraidStartingSlits? = nil
+        startingSlits: BraidStartingSlits? = nil,
+        standHands: BraidStandHands? = nil
     ) {
         self.init(
             id: id, name: name, rounds: [notation], colouring: colouring,
-            shape: shape, orderRoundTheBraid: orderRoundTheBraid, startingSlits: startingSlits
+            shape: shape, orderRoundTheBraid: orderRoundTheBraid, startingSlits: startingSlits,
+            standHands: standHands
         )
     }
 
@@ -126,7 +132,8 @@ struct BraidRecipe: Equatable, Sendable {
         colouring: [ThreadAssignment],
         shape: BraidShapeValues,
         orderRoundTheBraid: BraidCrossSection? = nil,
-        startingSlits: BraidStartingSlits? = nil
+        startingSlits: BraidStartingSlits? = nil,
+        standHands: BraidStandHands? = nil
     ) {
         precondition(!rounds.isEmpty, "a recipe needs a table")
         self.id = id
@@ -136,6 +143,7 @@ struct BraidRecipe: Equatable, Sendable {
         self.shape = shape
         self.orderRoundTheBraid = orderRoundTheBraid
         self.startingSlits = startingSlits
+        self.standHands = standHands
     }
 
     func crossSection(on stand: BraidStand) -> BraidCrossSection {

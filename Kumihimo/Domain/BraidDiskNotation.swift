@@ -46,47 +46,17 @@ struct BraidDiskNotation: Equatable, Sendable {
     /// table with no name of its own. **The derivation never reads it.**
     let name: String?
 
-    /// **Carries this table writes as one move but a person makes as two**
-    /// (Task 062): 返し組's hand-overs, a thread carried in the dan and then
-    /// stepped over its partner (the author: 「隣の紐を向こう側へ跨がせる」). A
-    /// table carries a thread once, so the two are one move in `moves`; these
-    /// say where it stands in between, for the step animation to show them
-    /// apart. In the order the book hands them over. **The derivation never
-    /// reads them**, and a table with none is every table but 返し組's.
-    let handOvers: [HandOver]
-    /// What the book's hand-over is called on screen: 「持ち替え」.
+    /// What the book's hand-over is called on screen: 「持ち替え」. **The
+    /// derivation never reads it.**
     let handOverName: String?
 
-    /// **The book's own disk, hand by hand** (Task 066): each hand of this
-    /// table — its carries in turn, then its hand-overs, as the step animation
-    /// counts them — as the moves the book prints, in the book's own slit
-    /// numbers, which drift dan by dan where the table's notches do not. The
-    /// first move of a hand is its carry; any after it lift a thread again
-    /// inside the same step (江戸八つ組's figure 5). **The step animation draws
-    /// the stand from these; the derivation never reads them.** Empty for a
-    /// table with no book disk behind it.
-    let bookHands: [[BookMove]]
-
-    /// One move on the book's disk. `thread` names the thread by the stand place
-    /// it stands at when the table begins.
-    struct BookMove: Equatable, Sendable {
-        let thread: Int
-        let from: Int
-        let to: Int
-    }
-
-    /// One carry split in two, on the stand.
-    struct HandOver: Equatable, Sendable {
-        /// The carry as the table writes it: from the thread's place when the
-        /// cycle begins to its place when the cycle ends.
-        let carry: BraidMove
-        /// Where the first part leaves it, just short of its partner.
-        let via: Int
-        /// How far each part went on the book's disk, in notches the short way,
-        /// + clockwise: the way round each goes.
-        let firstNotches: Int
-        let handOverNotches: Int
-    }
+    /// **The book's own disk, step by step** (Task 066, Task 067): the moves
+    /// the book prints, in its own slit numbers — which drift dan by dan where
+    /// the table's notches do not — each printed step the moves it makes at
+    /// once, a hand-over marked. **The step animation works the braid from
+    /// these; the derivation never reads them.** Empty for a table with no book
+    /// disk behind it.
+    let bookSteps: [BraidBookStep]
 
     /// **How a table's steps become instants** (the author, 2026-09-11, Task 032).
     enum StepReading: Equatable, Sendable {
@@ -109,9 +79,8 @@ struct BraidDiskNotation: Equatable, Sendable {
         threadsPerStep: Int,
         stepReading: StepReading = .oneThreadAnInstant,
         name: String? = nil,
-        handOvers: [HandOver] = [],
         handOverName: String? = nil,
-        bookHands: [[BookMove]] = []
+        bookSteps: [BraidBookStep] = []
     ) {
         self.source = source
         self.notchCount = notchCount
@@ -120,9 +89,8 @@ struct BraidDiskNotation: Equatable, Sendable {
         self.threadsPerStep = threadsPerStep
         self.stepReading = stepReading
         self.name = name
-        self.handOvers = handOvers
         self.handOverName = handOverName
-        self.bookHands = bookHands
+        self.bookSteps = bookSteps
     }
 
     /// How far round the disk a move carries a thread, the short way.
