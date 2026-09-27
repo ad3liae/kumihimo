@@ -1,6 +1,6 @@
 # Task 069: 返し組のくり返す段を早送りで見せ、色を本物どおりにする
 
-- 状態: **実装済み**（2026-09-27、worker。枝 `claude/task-069-fast-forward-repeats`）。指示書は審査側（2026-09-27）。結果は末尾
+- 状態: **実装済み・PR #54 でマージ**（2026-09-27、worker。枝 `claude/task-069-fast-forward-repeats`。作者が PR の作成とマージを許可した）。指示書は審査側（2026-09-27）。結果は末尾
 - 前提: Task 068 の指示書と結果（追補1と「追補1のあとの作者の判断」）、`docs/specifications/project-editor.md`「手順のアニメーション」
   （**審査側がこの指示書と同時に1項足した**）、`AGENTS.md`
 - 基準: 最新の main（PR #53 以降）
