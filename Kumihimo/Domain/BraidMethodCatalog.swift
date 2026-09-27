@@ -706,7 +706,7 @@ enum BraidMethodCatalog {
     /// (north and south) and then the flat pair (west and east).
     ///
     /// **Written the way the book A tables always wrote a landing and its tidy**:
-    /// each thread is carried to the notch just past the other's resting notch,
+    /// each thread is carried to the notch just short of the other's resting notch,
     /// and after the step both are tidied one notch on into place. The carries
     /// are fifteen notches and the tidies one, so `isRepositioning` tells them
     /// apart by distance as it does for every other table. Worked through, the
@@ -716,24 +716,27 @@ enum BraidMethodCatalog {
     /// **A printed step is one instant** (`diskOfEight`'s reading): the book
     /// prints the right hand and the left for each step and does not say which
     /// goes first, and book C has no figure of this braid.
+    ///
+    /// **Step 1 goes clockwise, as the textbook's p.52 works it** (「この時計回り
+    /// の移動は同時に行います」, Task 068 追補1): the upper thread down the right
+    /// and the lower up the left. Book A p.56 as read until then took them the
+    /// other way round. **Which way round reaches nothing drawn**: the
+    /// derivation reads only where each thread goes, and the method, the mesh
+    /// and the card are the same either way (`MaruYotsuTests`). Step 2 goes
+    /// anticlockwise in both books.
     static let maruYotsuDisk: BraidDiskNotation = {
         let moves = [
-            (1, 18), (17, 2), (18, 17), (2, 1),      // printed step 1: the upright pair
-            (9, 26), (25, 10), (26, 25), (10, 9),    // printed step 2: the flat pair
+            (1, 16), (17, 32), (16, 17), (32, 1),    // printed step 1: the upright pair, clockwise
+            (9, 26), (25, 10), (26, 25), (10, 9),    // printed step 2: the flat pair, anticlockwise
         ].map(BraidMove.init(from:to:))
         return BraidDiskNotation(
-            source: "book A p.56, its two printed steps set down in this repository's disk notation",
+            source: "book A p.56, its two printed steps set down in this repository's disk notation, "
+                + "step 1 turned the textbook p.52's way",
             notchCount: 32,
             standPositionByRestingNotch: diskRestingNotchesForFour,
             moves: moves,
             threadsPerStep: 2,
-            stepReading: .oneStepAnInstant,
-            // The step animation worked these same moves, two at once (Task
-            // 067), until it took the textbook's hands (`maruYotsu4StandHands`,
-            // Task 068). Unread since; kept until the table's step 1 is decided.
-            bookSteps: stride(from: 0, to: moves.count, by: 2).map {
-                BraidBookStep(moves: Array(moves[$0..<min($0 + 2, moves.count)]))
-            }
+            stepReading: .oneStepAnInstant
         )
     }()
 
@@ -779,13 +782,6 @@ enum BraidMethodCatalog {
         notation: maruYotsuDisk,
         colouring: maruYotsu4Colouring,
         shape: BraidShapeValues(),
-        // Four notches a quarter turn apart: evenly spaced, no pairs. **The
-        // step animation no longer reads it** (Task 068: `standHands` takes its
-        // place); kept, with `maruYotsuDisk.bookSteps`, until the author decides
-        // whether the table's step 1 turns the textbook's way (Task 068 2.3).
-        startingSlits: BraidStartingSlits(
-            notchCount: maruYotsuDisk.notchCount, placeByRestingNotch: diskRestingNotchesForFour
-        ),
         standHands: maruYotsu4StandHands
     )
 
@@ -798,10 +794,8 @@ enum BraidMethodCatalog {
     /// 4面's to 2面 with the left, 「この反時計回りの移動は同時に行います」. Two
     /// hands a dan; 「糸の色は組みはじめと同じ」.
     ///
-    /// **Step 1 turns the other way from the table** (`maruYotsuDisk`, book A
-    /// p.56 as read, which takes the upright pair anticlockwise). The 3D keeps
-    /// the table until the author decides (Task 068 2.3); the two agree on
-    /// where every thread ends.
+    /// **The table turns the same ways** (`maruYotsuDisk`, since Task 068
+    /// 追補1), and the two agree on where every thread ends.
     static let maruYotsu4StandHands = BraidStandHands(
         faces: [
             BraidStandHands.Face(number: 1, turn: 0, places: [1], clockwiseFirst: .left),

@@ -7,15 +7,18 @@ import Foundation
 /// last started. Opening shows **hand 1 before it moves, stopped**; the person
 /// starts it. Going back a hand is standing at an earlier hand's start — the
 /// script already says how everything stands there.
+///
+/// **The steps are counted on and on, never wrapped** (Task 068 追補1): the
+/// stage plays its round again and again, the threads going on with it, and
+/// going back from the first step is the round before's last.
 struct BraidStepPlayback: Equatable {
     struct Position: Equatable {
-        /// From 0.
+        /// The step, from 0: any whole number, before 0 included.
         let hand: Int
         /// Seconds into it.
         let time: Double
     }
 
-    let handCount: Int
     let handDuration: Double
 
     /// Where it stood when it last started or stopped.
@@ -26,8 +29,7 @@ struct BraidStepPlayback: Equatable {
     /// Running one hand only: it stops at the start of the next.
     private(set) var stopsAtNextHand = false
 
-    init(handCount: Int, handDuration: Double = BraidStepTiming.hand) {
-        self.handCount = max(handCount, 1)
+    init(handDuration: Double = BraidStepTiming.hand) {
         self.handDuration = handDuration
     }
 
@@ -40,10 +42,10 @@ struct BraidStepPlayback: Equatable {
         guard let runningSince else { return Position(hand: hand, time: time) }
         let elapsed = time + max(0, date.timeIntervalSince(runningSince))
         if stopsAtNextHand, elapsed >= handDuration {
-            return Position(hand: wrapped(hand + 1), time: 0)
+            return Position(hand: hand + 1, time: 0)
         }
         let whole = Int((elapsed / handDuration).rounded(.down))
-        return Position(hand: wrapped(hand + whole), time: elapsed - Double(whole) * handDuration)
+        return Position(hand: hand + whole, time: elapsed - Double(whole) * handDuration)
     }
 
     /// True once a hand stepped through has reached the next: time to `settle`.
@@ -66,7 +68,7 @@ struct BraidStepPlayback: Equatable {
     mutating func stepForward(at date: Date) {
         let now = position(at: date)
         if isRunning {
-            stop(at: Position(hand: wrapped(now.hand + 1), time: 0))
+            stop(at: Position(hand: now.hand + 1, time: 0))
         } else {
             anchor(at: date)
             runningSince = date
@@ -78,7 +80,7 @@ struct BraidStepPlayback: Equatable {
     /// before. Always stopped.
     mutating func stepBack(at date: Date) {
         let now = position(at: date)
-        stop(at: Position(hand: now.time > 0 ? now.hand : wrapped(now.hand - 1), time: 0))
+        stop(at: Position(hand: now.time > 0 ? now.hand : now.hand - 1, time: 0))
     }
 
     /// Stops a hand stepped through where it ended.
@@ -99,9 +101,5 @@ struct BraidStepPlayback: Equatable {
         hand = now.hand
         time = now.time
         if runningSince != nil { runningSince = date }
-    }
-
-    private func wrapped(_ hand: Int) -> Int {
-        (hand % handCount + handCount) % handCount
     }
 }

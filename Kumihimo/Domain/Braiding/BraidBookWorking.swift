@@ -54,8 +54,7 @@ struct BraidBookGeometry: Equatable, Sendable {
 ///   moving threads notch to notch. **A step whose thread goes over another —
 ///   a thread on a notch it passes the short way — is a hand; a step that goes
 ///   over none is an adjustment**, made as the hand before it settles, and not
-///   counted. The book's notch numbers drift as it goes; a table worked again
-///   is turned by the drift, and lifts whichever thread stands in the slit.
+///   counted.
 /// - **On a round stand's faces** (`BraidRecipe.standHands`): each hand two
 ///   threads taken from faces and laid on others at once, straight over the
 ///   mirror or round the rim.
@@ -70,8 +69,10 @@ struct BraidBookGeometry: Equatable, Sendable {
 /// gap between neighbours, are matched in their order round to the islands of
 /// the start, the matching that turns the threads least.
 ///
-/// A time round is a whole number of passes through the tables, until every
-/// place shows the colour it began with.
+/// **The tables are worked once through** (a pass). What the drawing shows is
+/// `round`: the pass's dans, each told by places, until they come round again,
+/// and dans the same running shown once (Task 068 追補1). The threads' colours
+/// go on from one round to the next (`Dan.ends`), never wound back.
 struct BraidBookWorking: Equatable, Sendable {
     /// Where a thread is drawn: in turns clockwise from the top, and how far
     /// from the middle, the rim being 1.
@@ -114,6 +115,55 @@ struct BraidBookWorking: Equatable, Sendable {
         let setting: [Int: Seat]?
         /// The book's hand, on a round stand's faces.
         let standHand: BraidStandHands.StandHand?
+
+        /// The same hand, every thread renamed.
+        func renamed(_ name: [Int: Int]) -> Hand {
+            func seats(_ seats: [Int: Seat]) -> [Int: Seat] {
+                Dictionary(uniqueKeysWithValues: seats.map { (name[$0.key] ?? $0.key, $0.value) })
+            }
+            func moves(_ moves: [Move]) -> [Move] {
+                moves.map { Move(thread: name[$0.thread] ?? $0.thread, way: $0.way, over: $0.over.map { name[$0] ?? $0 }) }
+            }
+            return Hand(
+                table: table, name: self.name, isHandOver: isHandOver, carries: moves(carries),
+                adjustments: moves(adjustments), before: seats(before), afterCarrying: seats(afterCarrying),
+                after: seats(after), islands: islands.map { $0.map { name[$0] ?? $0 } }, endsADan: endsADan,
+                setting: setting.map(seats), standHand: standHand
+            )
+        }
+
+        /// **The same hand on the stand**: from the same places to the same
+        /// places, the same way round, with the same words — whichever table
+        /// it is from.
+        func isTheSame(as other: Hand) -> Bool {
+            func same(_ one: [Int: Seat]?, _ other: [Int: Seat]?) -> Bool {
+                guard let one, let other else { return one == nil && other == nil }
+                return one.count == other.count && one.allSatisfy { key, seat in
+                    other[key].map { BraidBookWorking.isTheSame(seat, $0) } ?? false
+                }
+            }
+            return name == other.name && isHandOver == other.isHandOver && carries == other.carries
+                && adjustments == other.adjustments && islands == other.islands && endsADan == other.endsADan
+                && standHand == other.standHand && same(before, other.before)
+                && same(afterCarrying, other.afterCarrying) && same(after, other.after)
+                && same(setting, other.setting)
+        }
+    }
+
+    /// **A dan as the drawing shows it** (Task 068 追補1): its hands, every
+    /// thread named by the place it stands at as the dan begins.
+    struct Dan: Equatable, Sendable {
+        let hands: [Hand]
+        /// How many times running the book works it: 返し組's S and Z dans 6.
+        let repeats: Int
+        /// Where the thread at each place as the dan begins stands once it is
+        /// done (set back).
+        let ends: [Int: Int]
+
+        func isTheSame(as other: Dan) -> Bool {
+            ends == other.ends && hands.count == other.hands.count
+                && zip(hands, other.hands).allSatisfy { $0.isTheSame(as: $1) }
+        }
     }
 
     let form: Form
@@ -125,27 +175,27 @@ struct BraidBookWorking: Equatable, Sendable {
     let tableCount: Int
     /// Hands to a dan: the book's 「1段目終了」.
     let handsADan: Int
-    /// Passes through the tables in one time round.
-    let passes: Int
+    /// **One pass through the tables**, each thread named by the place it
+    /// stands at when the braid begins.
     let hands: [Hand]
+    /// **The dans the drawing shows, in turn, before they come round again**
+    /// (Task 068 追補1): 八つ金剛 one of four hands, 返し組 its S dan, the
+    /// hand-over, its Z dan and the hand-over back.
+    let round: [Dan]
 
-    init?(recipe: BraidRecipe, stand: BraidStand, colours: [Int: ThreadColorID] = [:]) {
+    init?(recipe: BraidRecipe, stand: BraidStand) {
         let count = stand.positionCount
         guard count > 0, stand.positionIDs == Array(1...count) else { return nil }
         let geometry = BraidBookGeometry(placeCount: count)
-        let limit = max(count, 1)
         if let standHands = recipe.standHands {
             guard !standHands.hands.isEmpty,
-                  let worked = Self.onTheStand(
-                      standHands, count: count, colours: colours, limit: limit, geometry: geometry
-                  )
+                  let worked = Self.onTheStand(standHands, count: count, geometry: geometry)
             else { return nil }
             form = .stand(standHands)
             homes = worked.homes
             islandsAtStart = standHands.faces.map(\.places)
             tableCount = 1
             handsADan = standHands.hands.count
-            passes = worked.passes
             hands = worked.hands
         } else if let slits = recipe.startingSlits, slits.placeOneOnward.count == count,
                   let handsADan = recipe.handsADan, handsADan > 0,
@@ -154,101 +204,120 @@ struct BraidBookWorking: Equatable, Sendable {
                 notches: slits.notchCount, count: count, starting: slits.placeOneOnward,
                 notchTurn: geometry.notchTurn(notches: slits.notchCount)
             )
-            guard let worked = Self.onTheDisk(
-                recipe: recipe, disk: disk, colours: colours, limit: limit, handsADan: handsADan
-            ) else { return nil }
+            guard let worked = Self.onTheDisk(recipe: recipe, disk: disk, handsADan: handsADan) else { return nil }
             form = .disk(notches: slits.notchCount)
             homes = disk.homes
             islandsAtStart = disk.homeIslands
             tableCount = recipe.rounds.count
             self.handsADan = handsADan
-            passes = worked.passes
-            hands = worked.hands
+            hands = worked
         } else {
             return nil
         }
         self.geometry = geometry
+        guard let round = Self.round(of: hands, handsADan: handsADan, homes: homes) else { return nil }
+        self.round = round
+    }
+
+    // MARK: The round
+
+    /// **The pass's dans, each told by places, the shortest run of them that
+    /// comes round again, and dans the same running shown once.** `nil` when a
+    /// dan does not begin and end with every thread at a place.
+    private static func round(of hands: [Hand], handsADan: Int, homes: [Int: Seat]) -> [Dan]? {
+        func place(_ seat: Seat) -> Int? { homes.first { isTheSame($0.value, seat) }?.key }
+        var dans = [Dan]()
+        var standing = homes
+        for start in stride(from: 0, to: hands.count, by: handsADan) {
+            let own = Array(hands[start..<min(start + handsADan, hands.count)])
+            guard let last = own.last else { return nil }
+            var name = [Int: Int]()
+            for (thread, seat) in standing {
+                guard let at = place(seat) else { return nil }
+                name[thread] = at
+            }
+            let leaves = last.setting ?? last.after
+            var ends = [Int: Int]()
+            for (thread, seat) in leaves {
+                guard let from = name[thread], let to = place(seat) else { return nil }
+                ends[from] = to
+            }
+            dans.append(Dan(hands: own.map { $0.renamed(name) }, repeats: 1, ends: ends))
+            standing = leaves
+        }
+        guard !dans.isEmpty else { return [] }
+        // The shortest run of dans that the pass repeats.
+        let period = (1...dans.count).first { length in
+            dans.count % length == 0 && dans.indices.allSatisfy { dans[$0].isTheSame(as: dans[$0 % length]) }
+        } ?? dans.count
+        var round = [Dan]()
+        for dan in dans.prefix(period) {
+            if let previous = round.last, previous.isTheSame(as: dan) {
+                round[round.count - 1] = Dan(hands: previous.hands, repeats: previous.repeats + 1, ends: previous.ends)
+            } else {
+                round.append(dan)
+            }
+        }
+        return round
     }
 
     // MARK: The disk
 
-    private static func onTheDisk(
-        recipe: BraidRecipe, disk start: Disk, colours: [Int: ThreadColorID], limit: Int, handsADan: Int
-    ) -> (passes: Int, hands: [Hand])? {
+    /// The tables worked once through on the book's disk, in the book's own
+    /// slit numbers.
+    private static func onTheDisk(recipe: BraidRecipe, disk start: Disk, handsADan: Int) -> [Hand]? {
         var disk = start
-        let begun = disk.colours(colours)
         var hands = [Hand]()
-        var northAtStart = [Int: Int]()
-        var takenAtStart = [Int: Set<Int>]()
-        var passes = limit
-        for pass in 1...limit {
-            for (table, notation) in recipe.rounds.enumerated() {
-                guard let north = disk.slitDrawnAtTheNorth() else { return nil }
-                let drift: Int
-                if let was = northAtStart[table], let taken = takenAtStart[table] {
-                    drift = disk.shortest(north - was)
-                    guard Set(taken.map { disk.wrapped($0 + drift) }) == disk.taken else { return nil }
+        for (table, notation) in recipe.rounds.enumerated() {
+            var open: (part: PartHand, name: String?, isHandOver: Bool)?
+            var failed = false
+            func close() {
+                guard let current = open else { return }
+                open = nil
+                let after = disk.seats()
+                let islands = disk.islands()
+                let endsADan = (hands.count + 1) % handsADan == 0
+                var setting: [Int: Seat]?
+                if endsADan {
+                    switch disk.setBack() {
+                    case .moved(let seats): setting = seats
+                    case .unmoved: setting = nil
+                    case nil: failed = true
+                    }
+                }
+                hands.append(Hand(
+                    table: table, name: current.name, isHandOver: current.isHandOver,
+                    carries: current.part.carries, adjustments: current.part.adjustments,
+                    before: current.part.before, afterCarrying: current.part.afterCarrying,
+                    after: after, islands: islands, endsADan: endsADan, setting: setting,
+                    standHand: nil
+                ))
+            }
+            for step in notation.bookSteps {
+                let moves = step.moves
+                // Whether it goes over a thread is read before it moves.
+                guard let moved = disk.moves(moves) else { return nil }
+                if moved.contains(where: { !$0.over.isEmpty }) {
+                    close()
+                    let before = disk.seats()
+                    guard disk.apply(moves) else { return nil }
+                    open = (
+                        PartHand(carries: moved, before: before, afterCarrying: disk.seats()),
+                        step.isHandOver ? notation.handOverName : notation.name,
+                        step.isHandOver
+                    )
                 } else {
-                    northAtStart[table] = north
-                    takenAtStart[table] = disk.taken
-                    drift = 0
+                    guard disk.apply(moves) else { return nil }
+                    open?.part.adjustments += moved
                 }
-                var open: (part: PartHand, name: String?, isHandOver: Bool)?
-                var failed = false
-                func close() {
-                    guard let current = open else { return }
-                    open = nil
-                    let after = disk.seats()
-                    let islands = disk.islands()
-                    let endsADan = (hands.count + 1) % handsADan == 0
-                    var setting: [Int: Seat]?
-                    if endsADan {
-                        switch disk.setBack() {
-                        case .moved(let seats): setting = seats
-                        case .unmoved: setting = nil
-                        case nil: failed = true
-                        }
-                    }
-                    hands.append(Hand(
-                        table: table, name: current.name, isHandOver: current.isHandOver,
-                        carries: current.part.carries, adjustments: current.part.adjustments,
-                        before: current.part.before, afterCarrying: current.part.afterCarrying,
-                        after: after, islands: islands, endsADan: endsADan, setting: setting,
-                        standHand: nil
-                    ))
-                }
-                for step in notation.bookSteps {
-                    let moves = step.moves.map {
-                        BraidMove(from: disk.wrapped($0.from + drift), to: disk.wrapped($0.to + drift))
-                    }
-                    // Whether it goes over a thread is read before it moves.
-                    guard let moved = disk.moves(moves) else { return nil }
-                    if moved.contains(where: { !$0.over.isEmpty }) {
-                        close()
-                        let before = disk.seats()
-                        guard disk.apply(moves) else { return nil }
-                        open = (
-                            PartHand(carries: moved, before: before, afterCarrying: disk.seats()),
-                            step.isHandOver ? notation.handOverName : notation.name,
-                            step.isHandOver
-                        )
-                    } else {
-                        guard disk.apply(moves) else { return nil }
-                        open?.part.adjustments += moved
-                    }
-                    guard !failed else { return nil }
-                }
-                close()
                 guard !failed else { return nil }
             }
-            if disk.colours(colours) == begun {
-                passes = pass
-                break
-            }
-        }
-        // A time round ends a dan: it is where the drawing starts again.
+            close()
+            guard !failed else { return nil }
+    }
+        // A pass ends a dan: it is where the drawing comes round again.
         guard hands.count % handsADan == 0 else { return nil }
-        return (passes, hands)
+        return hands
     }
 
     /// A hand being worked: its carries, and the adjustments after them.
@@ -312,7 +381,6 @@ struct BraidBookWorking: Equatable, Sendable {
         }
 
         var homes: [Int: Seat] { homeTurn.mapValues { Seat(turn: $0, radius: 1) } }
-        var taken: Set<Int> { Set(slit.values) }
 
         func wrapped(_ notch: Int) -> Int { ((notch - 1) % notches + notches) % notches + 1 }
 
@@ -363,28 +431,6 @@ struct BraidBookWorking: Equatable, Sendable {
                 out.append((out.last ?? 0) + Double(((notch - previous) % notches + notches) % notches))
             }
             return out
-        }
-
-        /// The place whose home a thread is drawn at, if any.
-        private func place(at notch: Int) -> Int? {
-            guard let turn = shown[notch] else { return nil }
-            return homeTurn.first { abs(BraidBookWorking.between($0.value, turn)) < 1e-9 }?.key
-        }
-
-        /// The colour at each place's home, or the thread when no colours are given.
-        func colours(_ colours: [Int: ThreadColorID]) -> [Int: String] {
-            var out = [Int: String]()
-            for (thread, notch) in slit {
-                if let place = place(at: notch) { out[place] = colours[thread]?.rawValue ?? "\(thread)" }
-            }
-            return out
-        }
-
-        /// The slit of the thread drawn where place 1's island's first thread
-        /// began.
-        func slitDrawnAtTheNorth() -> Int? {
-            guard let north = homeIslands.first(where: { $0.contains(1) })?.first else { return nil }
-            return slit.values.first { place(at: $0) == north }
         }
 
         /// The threads in the given slits, as they would move at once: the way
@@ -471,10 +517,10 @@ struct BraidBookWorking: Equatable, Sendable {
 
     // MARK: The stand's faces
 
+    /// The book's hands worked once through, a dan, on the round stand's faces.
     private static func onTheStand(
-        _ hands: BraidStandHands, count: Int, colours: [Int: ThreadColorID], limit: Int,
-        geometry: BraidBookGeometry
-    ) -> (homes: [Int: Seat], passes: Int, hands: [Hand])? {
+        _ hands: BraidStandHands, count: Int, geometry: BraidBookGeometry
+    ) -> (homes: [Int: Seat], hands: [Hand])? {
         guard Set(hands.faces.flatMap(\.places)) == Set(1...count),
               hands.faces.flatMap(\.places).count == count else { return nil }
         let step = geometry.faceTurn
@@ -493,95 +539,78 @@ struct BraidBookWorking: Equatable, Sendable {
             for (place, seat) in zip(face.places, homeSeats(face, count: face.places.count)) { seats[place] = seat }
         }
         let homes = seats
-        func coloursAtHome() -> [Int: String] {
-            var out = [Int: String]()
-            for (place, home) in homes {
-                if let thread = seats.first(where: { $0.value == home })?.key {
-                    out[place] = colours[thread]?.rawValue ?? "\(thread)"
-                }
-            }
-            return out
-        }
-        let begun = coloursAtHome()
         var worked = [Hand]()
-        var passes = limit
-        for pass in 1...limit {
-            for (index, hand) in hands.hands.enumerated() {
-                let before = seats
-                // Take every thread of the hand first, each from where it stands.
-                var taken = [(carry: BraidStandHands.Carry, thread: Int)]()
-                for carry in hand.carries {
-                    guard let face = byNumber[carry.face], let threads = faces[carry.face] else { return nil }
-                    let at: Int
-                    if let end = carry.end {
-                        at = end == face.clockwiseFirst ? carry.fromTheEnd : threads.count - 1 - carry.fromTheEnd
-                    } else {
-                        guard threads.count == 1 else { return nil }
-                        at = 0
-                    }
-                    guard threads.indices.contains(at) else { return nil }
-                    taken.append((carry, threads[at]))
+        for (index, hand) in hands.hands.enumerated() {
+            let before = seats
+            // Take every thread of the hand first, each from where it stands.
+            var taken = [(carry: BraidStandHands.Carry, thread: Int)]()
+            for carry in hand.carries {
+                guard let face = byNumber[carry.face], let threads = faces[carry.face] else { return nil }
+                let at: Int
+                if let end = carry.end {
+                    at = end == face.clockwiseFirst ? carry.fromTheEnd : threads.count - 1 - carry.fromTheEnd
+                } else {
+                    guard threads.count == 1 else { return nil }
+                    at = 0
                 }
-                for (carry, thread) in taken {
-                    faces[carry.face]?.removeAll { $0 == thread }
-                    seats[thread] = nil
-                }
-                // Then lay them, those laid at one spot together, each drawn
-                // between the threads it is laid between; no other moves.
-                var laid = Set<Int>()
-                for (carry, thread) in taken where !laid.contains(thread) {
-                    guard let face = byNumber[carry.toFace], var threads = faces[carry.toFace] else { return nil }
-                    let together = taken.filter {
-                        !laid.contains($0.thread) && $0.carry.toFace == carry.toFace
-                            && Self.together($0.carry.spot, carry.spot)
-                    }
-                    let ordered = (together.filter { Self.side(of: $0.carry.spot) == face.clockwiseFirst }
-                        + together.filter { Self.side(of: $0.carry.spot) != face.clockwiseFirst }).map(\.thread)
-                    let at: Int
-                    switch carry.spot {
-                    case .face: at = 0
-                    case .centre: at = threads.count / 2
-                    case .insideEnd(let end):
-                        at = end == face.clockwiseFirst ? min(1, threads.count) : max(threads.count - 1, 0)
-                    case .end(let end): at = end == face.clockwiseFirst ? 0 : threads.count
-                    }
-                    let left = at > 0 ? seats[threads[at - 1]]?.turn : nil
-                    let right = at < threads.count ? seats[threads[at]]?.turn : nil
-                    threads.insert(contentsOf: ordered, at: at)
-                    faces[carry.toFace] = threads
-                    guard let placed = Self.lay(
-                        ordered.count, between: left, and: right, onFaceAt: face.turn, step: step,
-                        apart: apart, clearOf: Array(seats.values)
-                    ) else { return nil }
-                    for (thread, seat) in zip(ordered, placed) { seats[thread] = seat }
-                    laid.formUnion(ordered)
-                }
-                let after = seats
-                let islands = hands.faces.compactMap { faces[$0.number] }.filter { !$0.isEmpty }
-                let endsADan = index == hands.hands.count - 1
-                var setting: [Int: Seat]?
-                if endsADan {
-                    var back = [Int: Seat]()
-                    for face in hands.faces {
-                        guard let threads = faces[face.number], threads.count == face.places.count else { return nil }
-                        for (thread, seat) in zip(threads, homeSeats(face, count: threads.count)) { back[thread] = seat }
-                    }
-                    if back != seats { setting = back }
-                    seats = back
-                }
-                worked.append(Hand(
-                    table: 0, name: nil, isHandOver: false,
-                    carries: taken.map { Move(thread: $0.thread, way: hand.way, over: []) },
-                    adjustments: [], before: before, afterCarrying: after, after: after,
-                    islands: islands, endsADan: endsADan, setting: setting, standHand: hand
-                ))
+                guard threads.indices.contains(at) else { return nil }
+                taken.append((carry, threads[at]))
             }
-            if coloursAtHome() == begun {
-                passes = pass
-                break
+            for (carry, thread) in taken {
+                faces[carry.face]?.removeAll { $0 == thread }
+                seats[thread] = nil
             }
+            // Then lay them, those laid at one spot together, each drawn
+            // between the threads it is laid between; no other moves.
+            var laid = Set<Int>()
+            for (carry, thread) in taken where !laid.contains(thread) {
+                guard let face = byNumber[carry.toFace], var threads = faces[carry.toFace] else { return nil }
+                let together = taken.filter {
+                    !laid.contains($0.thread) && $0.carry.toFace == carry.toFace
+                        && Self.together($0.carry.spot, carry.spot)
+                }
+                let ordered = (together.filter { Self.side(of: $0.carry.spot) == face.clockwiseFirst }
+                    + together.filter { Self.side(of: $0.carry.spot) != face.clockwiseFirst }).map(\.thread)
+                let at: Int
+                switch carry.spot {
+                case .face: at = 0
+                case .centre: at = threads.count / 2
+                case .insideEnd(let end):
+                    at = end == face.clockwiseFirst ? min(1, threads.count) : max(threads.count - 1, 0)
+                case .end(let end): at = end == face.clockwiseFirst ? 0 : threads.count
+                }
+                let left = at > 0 ? seats[threads[at - 1]]?.turn : nil
+                let right = at < threads.count ? seats[threads[at]]?.turn : nil
+                threads.insert(contentsOf: ordered, at: at)
+                faces[carry.toFace] = threads
+                guard let placed = Self.lay(
+                    ordered.count, between: left, and: right, onFaceAt: face.turn, step: step,
+                    apart: apart, clearOf: Array(seats.values)
+                ) else { return nil }
+                for (thread, seat) in zip(ordered, placed) { seats[thread] = seat }
+                laid.formUnion(ordered)
+            }
+            let after = seats
+            let islands = hands.faces.compactMap { faces[$0.number] }.filter { !$0.isEmpty }
+            let endsADan = index == hands.hands.count - 1
+            var setting: [Int: Seat]?
+            if endsADan {
+                var back = [Int: Seat]()
+                for face in hands.faces {
+                    guard let threads = faces[face.number], threads.count == face.places.count else { return nil }
+                    for (thread, seat) in zip(threads, homeSeats(face, count: threads.count)) { back[thread] = seat }
+                }
+                if back != seats { setting = back }
+                seats = back
+            }
+            worked.append(Hand(
+                table: 0, name: nil, isHandOver: false,
+                carries: taken.map { Move(thread: $0.thread, way: hand.way, over: []) },
+                adjustments: [], before: before, afterCarrying: after, after: after,
+                islands: islands, endsADan: endsADan, setting: setting, standHand: hand
+            ))
         }
-        return (homes, passes, worked)
+        return (homes, worked)
     }
 
     /// **Where threads laid together on a face are drawn**: evenly between the
@@ -628,6 +657,11 @@ struct BraidBookWorking: Equatable, Sendable {
         case .centre(let end), .insideEnd(let end), .end(let end): end
         case .face: nil
         }
+    }
+
+    /// The same seat, to rounding.
+    static func isTheSame(_ one: Seat, _ other: Seat) -> Bool {
+        abs(between(one.turn, other.turn)) < 1e-9 && abs(one.radius - other.radius) < 1e-9
     }
 
     /// Between two seats' middles, the rim being 1.

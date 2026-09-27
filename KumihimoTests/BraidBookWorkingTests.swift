@@ -8,16 +8,13 @@ import Testing
 /// round stand's faces, the book's two-handed carries. **Inside a dan no
 /// thread moves but as the book moves it; once the dan is done, every thread is
 /// set back in the starting form**, the islands matched the way that turns them
-/// least.
+/// least. **What is shown is a round of dans told by places** (Task 068 追補1),
+/// the same dan running shown once.
 @MainActor
 struct BraidBookWorkingTests {
-    private func working(_ recipe: BraidRecipe, colours: [ThreadAssignment]? = nil) throws -> BraidBookWorking {
+    private func working(_ recipe: BraidRecipe) throws -> BraidBookWorking {
         let stand = try #require(BraidMethodCatalog.stand(for: recipe))
-        let colouring = colours ?? recipe.colouring
-        return try #require(BraidBookWorking(
-            recipe: recipe, stand: stand,
-            colours: Dictionary(uniqueKeysWithValues: colouring.map { ($0.position, $0.colorID) })
-        ))
+        return try #require(BraidBookWorking(recipe: recipe, stand: stand))
     }
 
     private func recipe(_ id: String) throws -> BraidRecipe {
@@ -45,10 +42,6 @@ struct BraidBookWorkingTests {
             state = try #require(BraidWorking.cycle(of: method, from: state)).endState
         }
         return try #require(state.threadByPosition)
-    }
-
-    private func perPass(_ working: BraidBookWorking) -> ArraySlice<BraidBookWorking.Hand> {
-        working.hands.prefix(working.hands.count / working.passes)
     }
 
     /// Where a hand leaves the threads for the next: set back, if it ends a dan.
@@ -81,7 +74,7 @@ struct BraidBookWorkingTests {
         ("maru-genji-16", 4, 0), ("hira-genji-16", 6, 0),
     ])
     func handsAndAdjustmentsAPass(recipeID: String, hands: Int, adjustments: Int) throws {
-        let pass = perPass(try working(try recipe(recipeID)))
+        let pass = try working(try recipe(recipeID)).hands
         #expect(pass.count == hands, "\(recipeID)")
         #expect(pass.reduce(0) { $0 + $1.adjustments.count } == adjustments, "\(recipeID)")
     }
@@ -263,14 +256,13 @@ struct BraidBookWorkingTests {
 
     /// **After a pass the threads stand in the order the tables leave them**,
     /// round the stand, whatever the stand has been turned by — **the order
-    /// only, not the way round they went**: 丸四つ組's hand 1 is drawn
-    /// clockwise as the textbook works it (p.52), while the table the 3D reads
-    /// takes it anticlockwise, until the author decides (Task 068 2.3).
+    /// only, not the way round they went**, which never reaches the tables'
+    /// `BraidMethod` (Task 068 2.3).
     @Test(arguments: BraidMethodCatalog.recipes.map(\.id))
     func aPassLeavesTheOrderTheTablesDo(recipeID: String) throws {
         let recipe = try recipe(recipeID)
         let working = try working(recipe)
-        let last = try #require(perPass(working).last)
+        let last = try #require(working.hands.last)
         let tables = try tablesPass(recipe)
         let byTables = tables.keys.sorted().compactMap { tables[$0] }
         #expect(sameRound(order(leaves(last)), byTables), "\(recipeID): \(order(leaves(last))) \(byTables)")
@@ -283,7 +275,7 @@ struct BraidBookWorkingTests {
     func aDanOnTheRoundStandIsACycleOfBookC(recipeID: String) throws {
         let recipe = try recipe(recipeID)
         let working = try working(recipe)
-        let last = try #require(perPass(working).last)
+        let last = try #require(working.hands.last)
         var byPlace = [Int: Int]()
         for (thread, seat) in leaves(last) {
             if let place = working.homes.first(where: { $0.value == seat })?.key { byPlace[place] = thread }
@@ -324,18 +316,54 @@ struct BraidBookWorkingTests {
         #expect(working.islandsAtStart.map(\.count) == [6, 2, 6, 2] || working.islandsAtStart.map(\.count) == [2, 6, 2, 6])
     }
 
-    // MARK: 7. A time round
+    // MARK: 7. A round
 
-    /// **A time round ends as it began**, every place showing its colour:
-    /// 丸源氏's own colouring after four dan (「糸の色は4段ごとに戻ります」),
-    /// 平源氏's after one (「糸の色は、【組みはじめ】と同じです」), 江戸八つ組's
-    /// after two cycles (「糸の色は2段ごとに戻ります」), 丸四つ組's after one
-    /// (p.52 「1段目終了」).
-    @Test func timeRoundsAreTheBooks() throws {
-        #expect(try working(try recipe("maru-genji-16")).passes == 4)
-        #expect(try working(try recipe("hira-genji-16")).passes == 1)
-        #expect(try working(try recipe("edo-yatsu-8")).passes == 2)
-        #expect(try working(try recipe("maru-yotsu-4")).passes == 1)
+    /// **A round is the hands until they come round again on the stand**
+    /// (Task 068 追補1): the same dan running is shown once. 八つ金剛 S・Z 4
+    /// hands (the book's 「【1】〜【4】をくり返す」), 江戸八つ組 8, 丸四つ組 2,
+    /// 丸源氏 4, 平源氏 6.
+    @Test(arguments: [
+        ("yatsu-kongo-s-8", 4), ("yatsu-kongo-z-8", 4), ("edo-yatsu-8", 8), ("maru-yotsu-4", 2),
+        ("maru-genji-16", 4), ("hira-genji-16", 6),
+    ])
+    func aRoundIsOneDan(recipeID: String, hands: Int) throws {
+        let working = try working(try recipe(recipeID))
+        #expect(working.round.map(\.hands.count) == [hands], "\(recipeID)")
+        #expect(working.round.map(\.repeats) == [1], "\(recipeID)")
+    }
+
+    /// **八つ金剛 S's pass is two dans, the same from place to place**: the
+    /// second is the first worked again, told by the places the threads stand
+    /// at — the same hands, the same ways, the same words.
+    @Test func kongoSsTwoDansAreOneOnTheStand() throws {
+        let working = try working(try recipe("yatsu-kongo-s-8"))
+        #expect(working.hands.count == 8)
+        #expect(working.round.count == 1 && working.round[0].hands.count == 4)
+        // The threads do not stand where they began: the next round goes on from them.
+        let ends = try #require(working.round.first?.ends)
+        #expect(ends.contains { $0.key != $0.value })
+    }
+
+    /// **返し組 shows its S dan, the hand-over, its Z dan and the hand-over
+    /// back, once each** — 16 hands — the S and Z dans each said to be worked
+    /// six times (p.38–39).
+    @Test func gaeshiShowsEachOfItsDansOnce() throws {
+        let working = try working(try recipe("yatsu-kongo-gaeshi-8"))
+        #expect(working.round.map(\.hands.count) == [4, 4, 4, 4])
+        #expect(working.round.map(\.repeats) == [6, 1, 6, 1])
+        #expect(working.round.map { $0.hands.first?.name } == ["Sの組み", "持ち替え", "Zの組み", "持ち替え"])
+        #expect(working.round[1].hands.allSatisfy(\.isHandOver) && working.round[3].hands.allSatisfy(\.isHandOver))
+    }
+
+    /// **A dan ends with every thread at a place**, and where each goes is a
+    /// turning of the places: no two threads to one.
+    @Test(arguments: BraidMethodCatalog.recipes.map(\.id))
+    func aDanTurnsThePlaces(recipeID: String) throws {
+        let working = try working(try recipe(recipeID))
+        let places = Set(working.homes.keys)
+        for dan in working.round {
+            #expect(Set(dan.ends.keys) == places && Set(dan.ends.values) == places, "\(recipeID)")
+        }
     }
 
     /// **The working reads no braid's name**, and **the tables' own moves and
@@ -358,7 +386,7 @@ struct BraidBookWorkingTests {
         )
         #expect(stripped.methods(on: stand) == recipe.methods(on: stand))
         let renamed = BraidRecipe(
-            id: "renamed", name: "別の名前", rounds: recipe.rounds, colouring: recipe.colouring,
+            id: "renamed", name: "別の名前", rounds: recipe.rounds, colouring: [],
             shape: recipe.shape, orderRoundTheBraid: recipe.orderRoundTheBraid,
             startingSlits: recipe.startingSlits, standHands: recipe.standHands, handsADan: recipe.handsADan
         )

@@ -59,19 +59,6 @@ struct BraidStartingSlits: Equatable, Sendable {
         self.notchCount = notchCount
         self.placeOneOnward = placeOneOnward
     }
-
-    /// From a table of which place rests at which notch, as the tables write
-    /// it (`BraidDiskNotation.standPositionByRestingNotch`). Places 1 onward, as
-    /// many as the table names.
-    init(notchCount: Int, placeByRestingNotch: [Int: Int]) {
-        let notchByPlace = Dictionary(
-            placeByRestingNotch.map { ($0.value, $0.key) }, uniquingKeysWith: { first, _ in first }
-        )
-        self.init(
-            notchCount: notchCount,
-            placeOneOnward: (1...max(placeByRestingNotch.count, 1)).compactMap { notchByPlace[$0] }
-        )
-    }
 }
 
 /// A braid this app can show: **the move table, the colouring, and the measured

@@ -9,13 +9,9 @@ import Testing
 /// of each other.
 @MainActor
 struct BraidStepStageTests {
-    private func stage(_ recipe: BraidRecipe, colours: [ThreadAssignment]? = nil) throws -> BraidStepStage {
+    private func stage(_ recipe: BraidRecipe) throws -> BraidStepStage {
         let stand = try #require(BraidMethodCatalog.stand(for: recipe))
-        let colouring = colours ?? recipe.colouring
-        return try #require(BraidStepStage(
-            recipe: recipe, stand: stand,
-            colours: Dictionary(uniqueKeysWithValues: colouring.map { ($0.position, $0.colorID) })
-        ))
+        return try #require(BraidStepStage(recipe: recipe, stand: stand))
     }
 
     private func recipe(_ id: String) throws -> BraidRecipe {
@@ -47,23 +43,18 @@ struct BraidStepStageTests {
         #expect(between(homeTurn(stage, 2), landing.turn) > 0)
         let middle = BraidStepFrame.slide(from: before, to: landing, way: .anticlockwise, share: 0.5, lift: 0)
         #expect(abs(between(0.25, middle.turn)) < 0.06)
-        let said = sentences(stage)
-        #expect(Array(said[0..<4]) == [
+        // The round is the one dan (Task 068 追補1): the book's 「【1】〜【4】をくり返す」.
+        #expect(sentences(stage) == [
             "場所5の糸を、左回りに場所2の隣へ", "場所1の糸を、左回りに場所6の隣へ",
             "場所3の糸を、左回りに場所8の隣へ", "場所7の糸を、左回りに場所4の隣へ",
         ])
-        for dan in stride(from: 4, to: said.count, by: 4) {
-            #expect(Array(said[dan..<(dan + 4)]) == Array(said[0..<4]), "from hand \(dan + 1)")
-        }
     }
 
-    /// 8Z's hand 1 is S's mirror, and its dans repeat too.
+    /// 8Z's hand 1 is S's mirror, and its round is one dan too.
     @Test func kongoZIsSsMirror() throws {
         let said = sentences(try stage(try recipe("yatsu-kongo-z-8")))
         #expect(said.first == "場所2の糸を、右回りに場所5の隣へ")
-        for dan in stride(from: 4, to: said.count, by: 4) {
-            #expect(Array(said[dan..<(dan + 4)]) == Array(said[0..<4]))
-        }
+        #expect(said.count == 4)
     }
 
     /// **江戸八つ組's hand 1 sets place 1's thread down in slit 11, beside place
@@ -80,14 +71,19 @@ struct BraidStepStageTests {
         #expect(abs(between(homeTurn(stage, 3), try #require(fourth.after[1]).turn)) < 1e-9)
     }
 
-    /// 返し組 says its tables and its hand-overs, in the book's words.
+    /// **返し組 says its tables and its hand-overs, in the book's words, each
+    /// dan once**, the S and Z dans with how many times they are worked (Task
+    /// 068 追補1), counted 1 to 4 in each dan.
     @Test func gaeshiSaysItsTablesAndHandOvers() throws {
-        let said = sentences(try stage(try recipe("yatsu-kongo-gaeshi-8")))
-        #expect(said.first?.hasPrefix("Sの組み：") == true)
-        let overs = said.filter { $0.hasPrefix("持ち替え：") }
-        #expect(overs.count == 8)
-        #expect(overs.allSatisfy { $0.contains("隣の糸を越えて") })
-        #expect(said.contains { $0.hasPrefix("Zの組み：") })
+        let stage = try stage(try recipe("yatsu-kongo-gaeshi-8"))
+        let said = sentences(stage)
+        #expect(said.count == 16)
+        #expect(said[0..<4].allSatisfy { $0.hasPrefix("Sの組み（この4手を6回くり返す）：") })
+        #expect(said[4..<8].allSatisfy { $0.hasPrefix("持ち替え：") && $0.contains("隣の糸を越えて") })
+        #expect(said[8..<12].allSatisfy { $0.hasPrefix("Zの組み（この4手を6回くり返す）：") })
+        #expect(said[12..<16].allSatisfy { $0.hasPrefix("持ち替え：") && $0.contains("隣の糸を越えて") })
+        let counts = (0..<stage.handCount).map { stage.stations(ofHand: $0) }.map { "\($0.hand + 1)/\($0.handsInDan)" }
+        #expect(counts == Array(repeating: ["1/4", "2/4", "3/4", "4/4"], count: 4).flatMap { $0 })
     }
 
     // MARK: 2. Setting back once a dan is done
@@ -102,9 +98,9 @@ struct BraidStepStageTests {
         let steps = (0..<stage.stepCount).map { stage.stations(ofStep: $0) }
         #expect(steps.map(\.isSetting) == (0..<stage.stepCount).map { $0 % 5 == 4 })
         let setting = steps[4]
-        #expect(setting.hand == 3 && setting.sentence == "位置をそろえる")
+        #expect(setting.hand == 3 && setting.handsInDan == 4 && setting.sentence == "位置をそろえる")
         #expect(setting.arrows.isEmpty && setting.settled.isEmpty)
-        #expect(setting.before == steps[3].after && setting.after == steps[5].before)
+        #expect(setting.before == steps[3].after)
         #expect(setting.carried == Set(1...8))
         #expect(stage.setting(afterHand: 3) == setting && stage.setting(afterHand: 0) == nil)
         for time in stride(from: 0.0, through: BraidStepTiming.hand, by: 0.05) {
@@ -182,9 +178,10 @@ struct BraidStepStageTests {
             "4面の奥と手前の糸を、2面の中央へ（右手・左手）",
             "2面の奥と手前の糸を、4面の中央へ（右手・左手）",
         ])
+        // 「1面」, not 「1」: not to be read as the colouring screen's place 1 (Task 068 追補1).
         #expect(stage.labels == [
-            .init(text: "1", turn: 0), .init(text: "4", turn: 0.25),
-            .init(text: "3", turn: 0.5), .init(text: "2", turn: 0.75),
+            .init(text: "1面", turn: 0), .init(text: "4面", turn: 0.25),
+            .init(text: "3面", turn: 0.5), .init(text: "2面", turn: 0.75),
         ])
         let first = stage.stations(ofHand: 0)
         #expect(first.carried.count == 2)
@@ -235,7 +232,35 @@ struct BraidStepStageTests {
         }
     }
 
-    // MARK: 6. Moving and playing
+    // MARK: 6. The round played on and on
+
+    /// **The round plays again and again, and the threads go on with it**
+    /// (Task 068 追補1): at every step the balls start where the step before
+    /// left them, the same thread in each — over the end of a round and back
+    /// past the first step alike. Nothing is wound back: after one round of
+    /// 八つ金剛 S the threads are not where they began.
+    @Test(arguments: BraidMethodCatalog.recipes.map(\.id))
+    func theThreadsGoOnFromRoundToRound(recipeID: String) throws {
+        let stage = try stage(try recipe(recipeID))
+        let count = stage.stepCount
+        for step in (-2 * count + 1)...(3 * count) {
+            let now = stage.stations(ofStep: step), was = stage.stations(ofStep: step - 1)
+            let threads = stage.threads(atStep: step), threadsBefore = stage.threads(atStep: step - 1)
+            #expect(Set(threads.values) == Set(1...threads.count), "\(recipeID) step \(step)")
+            for (ball, thread) in threads {
+                let there = try #require(now.before[ball])
+                let ballBefore = try #require(threadsBefore.first { $0.value == thread }?.key)
+                let left = try #require(was.after[ballBefore])
+                #expect(abs(between(there.turn, left.turn)) < 1e-9 && abs(there.radius - left.radius) < 1e-9,
+                        "\(recipeID) step \(step): thread \(thread)")
+            }
+        }
+        if recipeID == "yatsu-kongo-s-8" {
+            #expect(stage.threads(atStep: count) != stage.threads(atStep: 0))
+        }
+    }
+
+    // MARK: 7. Moving and playing
 
     /// **A carried thread slides round the rim the way it goes** and rides a
     /// little out as it passes; with 「視差効果を減らす」 it is switched, never part
@@ -264,7 +289,7 @@ struct BraidStepStageTests {
     @Test func playbackOpensStoppedBeforeTheFirstHandAndStepsBothWays() {
         let start = Date(timeIntervalSinceReferenceDate: 0)
         let hand = BraidStepTiming.hand
-        var playback = BraidStepPlayback(handCount: 16)
+        var playback = BraidStepPlayback()
         #expect(!playback.isRunning)
         #expect(playback.position(at: start.addingTimeInterval(10)) == .init(hand: 0, time: 0))
 
@@ -279,8 +304,9 @@ struct BraidStepStageTests {
 
         playback.stepBack(at: after)
         #expect(playback.position(at: after) == .init(hand: 0, time: 0))
+        // Back past the first step: the round before's last (Task 068 追補1).
         playback.stepBack(at: after)
-        #expect(playback.position(at: after) == .init(hand: 15, time: 0))
+        #expect(playback.position(at: after) == .init(hand: -1, time: 0))
 
         playback.play(at: after)
         #expect(playback.isPlaying)

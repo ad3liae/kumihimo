@@ -17,8 +17,25 @@ enum BraidStepsStrings {
     /// (Task 068): not a hand, and 「段」 is not said.
     static let setting = "位置をそろえる"
 
-    /// 「3 / 16 手目」: the hand shown, counted from 1, of one time round.
+    /// 「3 / 4 手目」: the hand shown, counted from 1, of its dan (Task 068 追補1).
     static func count(_ hand: Int, of total: Int) -> String { "\(hand) / \(total) 手目" }
+
+    /// **A dan the book works several times running, said once** (Task 068
+    /// 追補1): 「Sの組み（この4手を6回くり返す）」. The name alone otherwise.
+    static func danName(_ name: String?, hands: Int, repeats: Int) -> String? {
+        guard repeats > 1 else { return name }
+        return "\(name ?? "")（この\(hands)手を\(repeats)回くり返す）"
+    }
+
+    /// 「Sの組み：…」, or the sentence alone.
+    static func named(_ name: String?, _ sentence: String) -> String {
+        guard let name else { return sentence }
+        return "\(name)：\(sentence)"
+    }
+
+    /// A face of the round stand, as the stand is labelled: 「1面」, so that it
+    /// is not read as the colouring screen's place 1 (Task 068 追補1).
+    static func face(_ number: Int) -> String { "\(number)面" }
 
     static func way(_ way: BraidStepWay) -> String {
         switch way {
@@ -58,8 +75,7 @@ enum BraidStepsStrings {
                 .map { "\($0.from.words)の糸を\(way($0.way))\(particle($0.way))\($0.to.words)へ" }
                 .joined(separator: "、")
         }
-        guard let name else { return said }
-        return "\(name)：\(said)"
+        return named(name, said)
     }
 
     /// **A hand on a round stand's faces, in the book's own words** (Task 067):

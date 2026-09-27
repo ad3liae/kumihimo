@@ -13,7 +13,10 @@
   whose maruYotsuDisk step 1 goes 1->16, 17->32, 16->17, 32->1);
 - the textbook's p.52 at ../task067/source/p-052.png (110 dpi).
 
-Writes kongo-s-after.png, yotsu-compare-after.png and yotsu-2.3-compare.png.
+Writes kongo-s-after.png, yotsu-compare-after.png and yotsu-2.3-compare.png;
+and for the addendum (追補1), from addendum/ (s-hand1 … s-hand4, s-set-start,
+s-set-mid, s-round2-hand1, s-round2-hand2, yotsu-hand1-start),
+kongo-s-round.png.
 """
 import json
 import sys
@@ -53,6 +56,25 @@ def kongo(root):
         sheet.paste(steps(found[name], width), (10 + index * (width + 8), 40))
         draw.text((10 + index * (width + 8), 48 + height), label, fill="black", font=font(18))
     sheet.save(f"{root}/kongo-s-after.png")
+
+
+def round_of_kongo(root):
+    """追補1: one round of 八つ金剛 S and the next round's first two hands."""
+    found = shots(f"{root}/addendum")
+    names = ["s-hand1", "s-hand2", "s-hand3", "s-hand4", "s-set-start", "s-set-mid", "s-round2-hand1",
+             "s-round2-hand2", "yotsu-hand1-start"]
+    labels = ["手1の前", "手2の前", "手3の前", "手4の前", "手4のあと（そろえる前）", "そろえる途中",
+              "次の回りの手1の前", "次の回りの手2の前", "丸四つ組（面の番号）"]
+    width = 300
+    height = width * 618 // 1178
+    sheet = Image.new("RGB", (20 + len(names) * (width + 8), height + 80), "white")
+    draw = ImageDraw.Draw(sheet)
+    draw.text((10, 8), "八つ金剛組S の1回り（追補1のあと、iPhone 16 縦）。色は巻き戻さずに次の回りへ続く",
+              fill="black", font=font(22))
+    for index, (name, label) in enumerate(zip(names, labels)):
+        sheet.paste(steps(found[name], width), (10 + index * (width + 8), 40))
+        draw.text((10 + index * (width + 8), 48 + height), label, fill="black", font=font(18))
+    sheet.save(f"{root}/kongo-s-round.png")
 
 
 def yotsu(root):
@@ -135,3 +157,4 @@ if __name__ == "__main__":
     kongo(root)
     yotsu(root)
     table_ways(root)
+    round_of_kongo(root)
