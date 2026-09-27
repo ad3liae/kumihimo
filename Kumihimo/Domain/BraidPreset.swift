@@ -49,6 +49,10 @@ extension BraidPresetID {
     static let yatsuKongoGaeshi8 = BraidPresetID(rawValue: "yatsu-kongo-gaeshi-8")
     static let maruYotsu4 = BraidPresetID(rawValue: "maru-yotsu-4")
     static let edoYatsu8 = BraidPresetID(rawValue: "edo-yatsu-8")
+    static let juniKongoS12 = BraidPresetID(rawValue: "juni-kongo-s-12")
+    static let juniKongoZ12 = BraidPresetID(rawValue: "juni-kongo-z-12")
+    static let jurokuKongoS16 = BraidPresetID(rawValue: "juroku-kongo-s-16")
+    static let jurokuKongoZ16 = BraidPresetID(rawValue: "juroku-kongo-z-16")
 }
 
 enum BraidPresetCatalog {
@@ -136,8 +140,50 @@ enum BraidPresetCatalog {
         prototypeNotice: "手順は『かわいい組ひもの教科書』p.64–65 から。立体の目の形は同書 p.64 の写真に合わせた描画上の近似です。"
     )
 
+    /// 十二金剛組 and 十六金剛組, S and Z (Task 071): yatsu-kongo with twelve
+    /// and sixteen threads, from the textbook's p.40–41 and p.44–45. Drawn by
+    /// yatsu-kongo's drawer, read for the thread count; **the pitch is not
+    /// measured on these braids** but carried over from yatsu-kongo's by the
+    /// thread count (`RoundTube8SurfacePatternGenerator.pitchOverDiameter(for:threads:)`).
+    static let juniKongoS = BraidPreset(
+        id: .juniKongoS12,
+        displayName: "十二金剛S",
+        supportedThreadCounts: [12],
+        crossSectionProfile: .round,
+        verificationLevel: .movementRules,
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.41（12S-スパイラル）から。立体は八つ金剛の描き方を本数に広げた近似です。"
+    )
+
+    static let juniKongoZ = BraidPreset(
+        id: .juniKongoZ12,
+        displayName: "十二金剛Z",
+        supportedThreadCounts: [12],
+        crossSectionProfile: .round,
+        verificationLevel: .movementRules,
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.40（12Z-スパイラル）から。立体は八つ金剛の描き方を本数に広げた近似です。"
+    )
+
+    static let jurokuKongoS = BraidPreset(
+        id: .jurokuKongoS16,
+        displayName: "十六金剛S",
+        supportedThreadCounts: [16],
+        crossSectionProfile: .round,
+        verificationLevel: .movementRules,
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.45（16S-スパイラル）から。立体は八つ金剛の描き方を本数に広げた近似です。"
+    )
+
+    static let jurokuKongoZ = BraidPreset(
+        id: .jurokuKongoZ16,
+        displayName: "十六金剛Z",
+        supportedThreadCounts: [16],
+        crossSectionProfile: .round,
+        verificationLevel: .movementRules,
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.44（16Z-スパイラル）から。立体は八つ金剛の描き方を本数に広げた近似です。"
+    )
+
     static let presets = [
         maruGenji, hiraGenji, yatsuKongoS, yatsuKongoZ, yatsuKongoGaeshi, maruYotsu, edoYatsu,
+        juniKongoS, juniKongoZ, jurokuKongoS, jurokuKongoZ,
     ]
 
     /// The braids that take this many threads, **whatever the stand**.

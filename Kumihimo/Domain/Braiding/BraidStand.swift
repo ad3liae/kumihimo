@@ -140,6 +140,12 @@ enum BraidStands {
         ]
     )
 
+    /// The twelve-position round stand (Task 071), for 十二金剛組.
+    ///
+    /// **No groups**: the textbook works these braids on the disk and names no
+    /// groups of the stand, and their colourings are written slit by slit.
+    static let round12 = round(id: "round-12", positionCount: 12)
+
     /// The four-position round stand, one thread to a group (Task 054).
     ///
     /// **Counted the way `round16` and `round8` are**: north at the mark, then

@@ -31,8 +31,8 @@ enum BraidFamilyDrawing {
 
     /// Every family this app can draw, and what each one rests on.
     static var families: [BraidFamilyShape] {
-        [Flat16SurfaceMesh.shape, RoundTube16SurfaceMesh.shape, RoundTube8SurfaceMesh.shape,
-         RoundTube8SurfaceMesh.shapeTurningBothWays, RoundTube4SurfaceMesh.shape]
+        [Flat16SurfaceMesh.shape, RoundTube16SurfaceMesh.shape]
+            + RoundTube8SurfaceMesh.shapes + [RoundTube4SurfaceMesh.shape]
     }
 
     /// Which family will draw this recipe, or `nil` when none will.
@@ -48,8 +48,12 @@ enum BraidFamilyDrawing {
             guard recipe.id == Flat16SurfacePatternGenerator.drawsOnlyTheRecipe
             else { return nil }
             return family
-        case RoundTube16SurfaceMesh.family, RoundTube8SurfaceMesh.family,
-             RoundTube8SurfaceMesh.familyTurningBothWays, RoundTube4SurfaceMesh.family:
+        case RoundTube16SurfaceMesh.family, RoundTube4SurfaceMesh.family:
+            return family
+        case let family where RoundTube8SurfaceMesh.draws(family):
+            // Eight, twelve or sixteen carried one way, eight both ways (Task
+            // 071): the count is the family's, and 丸源氏組's sixteen carried both
+            // ways is the case above.
             return family
         default:
             return nil
@@ -89,7 +93,7 @@ enum BraidFamilyDrawing {
         case RoundTube16SurfaceMesh.family:
             return RoundTube16SurfacePatternGenerator.generate(assignments: recipe.colouring)
                 .map(Drawing.roundTube)
-        case RoundTube8SurfaceMesh.family, RoundTube8SurfaceMesh.familyTurningBothWays:
+        case let family where RoundTube8SurfaceMesh.draws(family):
             // **The cells are worked out, not transcribed**, so this drawer is
             // handed the table itself rather than a colouring alone. The pattern
             // reads which ways round the table carries its threads, and so which

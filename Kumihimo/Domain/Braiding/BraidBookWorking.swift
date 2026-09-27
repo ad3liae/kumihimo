@@ -143,7 +143,8 @@ struct BraidBookWorking: Equatable, Sendable {
                 }
             }
             return name == other.name && isHandOver == other.isHandOver && carries == other.carries
-                && adjustments == other.adjustments && islands == other.islands && endsADan == other.endsADan
+                && adjustments == other.adjustments && BraidBookWorking.sameRound(islands, other.islands)
+                && endsADan == other.endsADan
                 && standHand == other.standHand && same(before, other.before)
                 && same(afterCarrying, other.afterCarrying) && same(after, other.after)
                 && same(setting, other.setting)
@@ -202,7 +203,7 @@ struct BraidBookWorking: Equatable, Sendable {
                   recipe.rounds.allSatisfy({ !$0.bookSteps.isEmpty }) {
             let disk = Disk(
                 notches: slits.notchCount, count: count, starting: slits.placeOneOnward,
-                notchTurn: geometry.notchTurn(notches: slits.notchCount)
+                notchTurn: geometry.notchTurn(notches: slits.notchCount), slitAtTheTop: slits.slitAtTheTop
             )
             guard let worked = Self.onTheDisk(recipe: recipe, disk: disk, handsADan: handsADan) else { return nil }
             form = .disk(notches: slits.notchCount)
@@ -350,7 +351,7 @@ struct BraidBookWorking: Equatable, Sendable {
         /// Notch -> the turn it is drawn at.
         var shown: [Int: Double]
 
-        init(notches: Int, count: Int, starting: [Int], notchTurn: Double) {
+        init(notches: Int, count: Int, starting: [Int], notchTurn: Double, slitAtTheTop: Double? = nil) {
             self.notches = notches
             self.count = count
             self.notchTurn = notchTurn
@@ -359,12 +360,13 @@ struct BraidBookWorking: Equatable, Sendable {
             slit = home
             let islands = Self.runs(home, notches: notches, count: count)
             homeIslands = islands
-            // Place 1's island with its middle at the top; each island's
-            // threads a notch's drawn width apart about its middle.
+            // The book's own top at the top (Task 071), or place 1's island
+            // with its middle there; each island's threads a notch's drawn
+            // width apart about its middle.
             let first = islands.first { $0.contains(1) } ?? [1]
             let firstNotches = Self.unwrapped(first.compactMap { home[$0] }, notches: notches)
             let firstMiddle = firstNotches.reduce(0, +) / Double(max(firstNotches.count, 1))
-            let rotation = -((firstMiddle - 1) / Double(notches))
+            let rotation = -(((slitAtTheTop ?? firstMiddle) - 1) / Double(notches))
             var turns = [Int: Double]()
             for island in islands {
                 let positions = Self.unwrapped(island.compactMap { home[$0] }, notches: notches)
@@ -656,6 +658,18 @@ struct BraidBookWorking: Equatable, Sendable {
         switch spot {
         case .centre(let end), .insideEnd(let end), .end(let end): end
         case .face: nil
+        }
+    }
+
+    /// **The same islands in the same order round, whichever is listed
+    /// first** (Task 071): the list begins after the gap that wraps past the
+    /// disk's slit 1, which a dan's drift can move from one island to the next.
+    /// 十二金剛組's second dan listed the same islands one on.
+    static func sameRound(_ one: [[Int]], _ other: [[Int]]) -> Bool {
+        guard one.count == other.count else { return false }
+        guard !one.isEmpty else { return true }
+        return one.indices.contains { shift in
+            one.indices.allSatisfy { one[$0] == other[($0 + shift) % other.count] }
         }
     }
 

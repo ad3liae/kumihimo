@@ -95,6 +95,14 @@ struct RoundTube8SurfaceMeshData: Sendable {
 /// by eye; none of them moves a vertex.
 ///
 /// **The sixteen-thread drawers are untouched.** This is an addition beside them.
+///
+/// **Twelve and sixteen threads carried one way are drawn here too** (Task
+/// 071): 十二金剛組 and 十六金剛組 are yatsu-kongo with more pairs, and a family
+/// is its thread count and which ways its threads go (`BraidFamily`), so each
+/// count is a family of its own with the same shape, read for the count
+/// (`shape(threads:)`). The 8 in the name is the count it was first drawn for.
+/// **The sixteen carried one way is not 丸源氏組's family** (`RoundTube16SurfaceMesh
+/// .family`, carried both ways), and the two never meet.
 enum RoundTube8SurfaceMesh {
     /// **The family this draws with bundles**: eight threads, a tube, every thread
     /// carried one way round — one spiral.
@@ -108,9 +116,59 @@ enum RoundTube8SurfaceMesh {
     /// run stands are this family's.
     static let familyTurningBothWays = BraidFamily.roundTube(threads: 8, turning: .bothWays)
 
+    /// **Every family this drawer draws** (Task 071): eight, twelve and sixteen
+    /// threads carried one way, and eight carried both ways.
+    static let families: [BraidFamily] =
+        RoundTube8SurfacePatternGenerator.threadCountsTurningOneWay.sorted().map {
+            .roundTube(threads: $0, turning: .oneWay)
+        } + [familyTurningBothWays]
+
+    /// Whether this drawer draws `family`.
+    static func draws(_ family: BraidFamily) -> Bool { families.contains(family) }
+
     /// The family a pattern is drawn as: **read off its braid**, never its name.
     static func family(of pattern: RoundTube8SurfacePattern) -> BraidFamily {
-        .roundTube(threads: RoundTube8SurfacePatternGenerator.requiredThreadCount, turning: pattern.turning)
+        .roundTube(threads: pattern.columnCount, turning: pattern.turning)
+    }
+
+    /// **What the one-way family of `threads` rests on** (Task 071): the eight's
+    /// values, and for another count the three that the count changes — one
+    /// cycle's growth, how far a run stands, and the derived half-thread —,
+    /// each saying how it follows from the eight's.
+    static func shape(threads: Int) -> BraidFamilyShape {
+        guard threads != 8 else { return shape }
+        var values = shape.values
+        let pitch = RoundTube8SurfacePatternGenerator.pitchOverDiameter(for: .oneWay, threads: threads)
+        values["one cycle over the braid's diameter"] = .declared(
+            Double(pitch),
+            basis: .fractionOf("the braid's own diameter"),
+            calibratedBy: "not measured on this braid: yatsu-kongo's 0.807 times 8/\(threads), the "
+                + "textbook's threads being the same thickness and the braid \(threads)/8 as wide "
+                + "(p.40 「約1.5倍の太さ」, p.44 「約2倍の太さ」), so a stitch is the same size and "
+                + "the spiral lies at yatsu-kongo's angle (Task 071). 0.807 is itself the colour's "
+                + "period on book A p.8-9 read in cycles, not a stitch measured"
+        )
+        values["half a thread over the braid's radius"] = BraidMeasurement(
+            Double(crestHeightRatio(threads: threads)),
+            basis: .fractionOf("the braid's outer radius"),
+            source: .derived("\(threads) threads round the tube, so one thread is a "
+                             + "\(threads)th of the circumference and a round one stands "
+                             + "half its own width proud")
+        )
+        values["how far a run stands over the valley floor, over the braid's radius"] = .declared(
+            Double(runHeightOverRadius(for: .oneWay, threads: threads)),
+            basis: .fractionOf("the braid's outer radius"),
+            calibratedBy: "yatsu-kongo's 0.44, set by eye against book A p.8's zoom, times "
+                + "8/\(threads): a run is the same thread standing the same height on a braid "
+                + "\(threads)/8 as wide (Task 071). Not held against a photograph of this braid"
+        )
+        return BraidFamilyShape(family: .roundTube(threads: threads, turning: .oneWay), values: values)
+    }
+
+    /// Every family this drawer draws, and what each rests on.
+    static var shapes: [BraidFamilyShape] {
+        RoundTube8SurfacePatternGenerator.threadCountsTurningOneWay.sorted().map(shape(threads:))
+            + [shapeTurningBothWays]
     }
 
     /// Where every number this drawing rests on came from. **No value here is
@@ -379,6 +437,12 @@ enum RoundTube8SurfaceMesh {
     /// (`docs/tasks/025-5-adding-a-recipe.md`).
     static let crestHeightRatio: Float = 1 - 1 / (1 + .pi / 8)
 
+    /// The same for a tube of `threads` (Task 071): `1 / (1 + pi / threads)`
+    /// is the floor. `8` gives `crestHeightRatio`, to the bit.
+    static func crestHeightRatio(threads: Int) -> Float {
+        threads == 8 ? crestHeightRatio : 1 - 1 / (1 + .pi / Float(max(threads, 1)))
+    }
+
     /// How far a run stands above the valley floor, as a fraction of the braid's
     /// outer radius — **the drawing's own depth since Task 049's rework**, and
     /// no longer `crestHeightRatio`.
@@ -409,6 +473,15 @@ enum RoundTube8SurfaceMesh {
         case .oneWay: return runHeightOverRadius
         case .bothWays: return min(bothWaysRunHeightOverRadius, runHeightOverRadius)
         }
+    }
+
+    /// **The same for a tube of `threads`** (Task 071): a run is one thread
+    /// standing proud, and a thread is the same size whatever the count, so on
+    /// a braid `threads`/8 as wide it stands 8/`threads` as far over the radius.
+    /// `8` gives the eight's, to the bit.
+    static func runHeightOverRadius(for turning: BraidTurning, threads: Int) -> Float {
+        let eight = runHeightOverRadius(for: turning)
+        return threads == 8 ? eight : eight * 8 / Float(max(threads, 1))
     }
 
     /// How far beneath the valley floor the cell under a run lies, as a
@@ -563,7 +636,7 @@ enum RoundTube8SurfaceMesh {
             return nil
         }
 
-        let floor = radius * (1 - runHeightOverRadius(for: pattern.turning))
+        let floor = radius * (1 - runHeightOverRadius(for: pattern.turning, threads: pattern.columnCount))
         let repeatLength = tileLength / Float(patternRepeatCount)
         let beneath = floor - beneathClearanceOfRidge * (radius - floor)
 
@@ -618,6 +691,7 @@ enum RoundTube8SurfaceMesh {
                             across: across,
                             leanDirection: pattern.leanBySegment[segmentIndex],
                             bundle: bundle,
+                            columns: pattern.columnCount,
                             floor: floor, radius: radius,
                             base: base, repeatLength: repeatLength
                         )
@@ -733,13 +807,14 @@ enum RoundTube8SurfaceMesh {
         leanDirection: Float,
         cycleLength: Float? = nil,
         bundle: RoundTube8Bundle = .standard,
+        columns columnCount: Int = 8,
         floor: Float,
         radius: Float,
         base: Float,
         repeatLength: Float
     ) -> (position: SIMD3<Float>, normal: SIMD3<Float>,
           tangent: SIMD3<Float>, bitangent: SIMD3<Float>) {
-        let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
+        let columns = Float(columnCount)
         // One cycle along the braid, as a share of the repeat: the pattern's
         // (`RoundTube8SurfacePattern.cycleInRepeats`). A cell is one cycle long
         // only for a braid of one table, which is what it defaults to.
