@@ -103,7 +103,7 @@ struct BraidStepStageTests {
         #expect(setting.before == steps[3].after)
         #expect(setting.carried == Set(1...8))
         #expect(stage.setting(afterHand: 3) == setting && stage.setting(afterHand: 0) == nil)
-        for time in stride(from: 0.0, through: BraidStepTiming.hand, by: 0.05) {
+        for time in stride(from: 0.0, through: BraidStepTiming.normal.hand, by: 0.05) {
             let frame = BraidStepFrame.at(time, of: setting, carried: setting.carried, reduceMotion: false)
             #expect(frame.balls.allSatisfy { !$0.isCarried } && frame.arrows.isEmpty)
             #expect(frame.balls.allSatisfy { abs(hypot($0.point.x, $0.point.y) - 1) < 1e-9 })
@@ -136,7 +136,7 @@ struct BraidStepStageTests {
             var turned = [Int: Double]()
             var last = [Int: Double]()
             var most = [Int: Double]()
-            for time in stride(from: 0.0, through: BraidStepTiming.hand, by: 0.01) {
+            for time in stride(from: 0.0, through: BraidStepTiming.normal.hand, by: 0.01) {
                 let frame = BraidStepFrame.at(time, of: stations, carried: stations.carried, reduceMotion: false)
                 for ball in frame.balls {
                     var turn = atan2(Double(ball.point.x), -Double(ball.point.y)) / (2 * .pi)
@@ -218,16 +218,25 @@ struct BraidStepStageTests {
             }
         }
         for number in 0..<stage.stepCount {
-            let stations = stage.stations(ofStep: number)
-            for reduceMotion in [false, true] {
-                for time in stride(from: 0.0, through: BraidStepTiming.hand, by: 0.05) {
-                    let frame = BraidStepFrame.at(time, of: stations, carried: stations.carried, reduceMotion: reduceMotion)
-                    check(frame.balls.filter { !$0.isCarried }, "step \(number + 1) at \(time)")
+            // Every hand and setting of the step, a fast-forward's too.
+            for (part, moment) in stage.moments(ofStep: number).enumerated() {
+                let stations = moment.stations, timing = moment.timing
+                let label = "step \(number + 1) part \(part + 1)"
+                // Threads carried or adjusted move over the others on purpose; a
+                // setting's do not.
+                let moving = stations.isSetting ? [] : stations.carried.union(stations.settled)
+                for reduceMotion in [false, true] {
+                    for time in stride(from: 0.0, through: timing.hand, by: min(0.05, timing.hand / 10)) {
+                        let frame = BraidStepFrame.at(
+                            time, of: stations, carried: stations.carried, reduceMotion: reduceMotion, timing: timing
+                        )
+                        check(frame.balls.filter { !moving.contains($0.thread) }, "\(label) at \(time)")
+                    }
                 }
-            }
-            for time in [0, BraidStepTiming.hand] {
-                let frame = BraidStepFrame.at(time, of: stations, carried: stations.carried, reduceMotion: false)
-                check(frame.balls, "step \(number + 1) standing at \(time)")
+                for time in [0, timing.hand] {
+                    let frame = BraidStepFrame.at(time, of: stations, carried: stations.carried, reduceMotion: false, timing: timing)
+                    check(frame.balls, "\(label) standing at \(time)")
+                }
             }
         }
     }
@@ -243,16 +252,19 @@ struct BraidStepStageTests {
     func theThreadsGoOnFromRoundToRound(recipeID: String) throws {
         let stage = try stage(try recipe(recipeID))
         let count = stage.stepCount
-        for step in (-2 * count + 1)...(3 * count) {
-            let now = stage.stations(ofStep: step), was = stage.stations(ofStep: step - 1)
-            let threads = stage.threads(atStep: step), threadsBefore = stage.threads(atStep: step - 1)
-            #expect(Set(threads.values) == Set(1...threads.count), "\(recipeID) step \(step)")
+        // Every hand and setting in turn, the fast-forwards' included (Task 069).
+        let moments = ((-2 * count)...(3 * count)).flatMap { step in
+            stage.moments(ofStep: step).map { (step: step, moment: $0) }
+        }
+        for (was, now) in zip(moments, moments.dropFirst()) {
+            let threads = now.moment.threads, threadsBefore = was.moment.threads
+            #expect(Set(threads.values) == Set(1...threads.count), "\(recipeID) step \(now.step)")
             for (ball, thread) in threads {
-                let there = try #require(now.before[ball])
+                let there = try #require(now.moment.stations.before[ball])
                 let ballBefore = try #require(threadsBefore.first { $0.value == thread }?.key)
-                let left = try #require(was.after[ballBefore])
+                let left = try #require(was.moment.stations.after[ballBefore])
                 #expect(abs(between(there.turn, left.turn)) < 1e-9 && abs(there.radius - left.radius) < 1e-9,
-                        "\(recipeID) step \(step): thread \(thread)")
+                        "\(recipeID) step \(now.step): thread \(thread)")
             }
         }
         if recipeID == "yatsu-kongo-s-8" {
@@ -260,7 +272,147 @@ struct BraidStepStageTests {
         }
     }
 
-    // MARK: 7. Moving and playing
+    // MARK: 7. 返し組's dans worked again, fast-forwarded (Task 069)
+
+    /// **返し組 fast-forwards the S dan's 2nd to 6th times and the Z dan's**:
+    /// each one step of the playback after the dan's first time, every hand and
+    /// setting of every time in it, a quarter of a second each, no arrow and
+    /// nothing lit, said 「Sの組み（この4手をくり返す 2 / 6）」 and on.
+    @Test func gaeshiFastForwardsItsRepeatedDans() throws {
+        let stage = try stage(try recipe("yatsu-kongo-gaeshi-8"))
+        let fast = stage.fastForwardSteps.sorted()
+        #expect(fast.count == 2)
+        for (step, name) in zip(fast, ["Sの組み", "Zの組み"]) {
+            let moments = stage.moments(ofStep: step)
+            let once = (0..<step).reversed().prefix { !stage.fastForwardSteps.contains($0) }.count
+            #expect(moments.count == 5 * 5, "a dan of four hands and a setting, five times more")
+            #expect(stage.stations(ofStep: step - 1).isSetting && once >= 5)
+            for moment in moments {
+                #expect(moment.stations.isFastForward && moment.stations.arrows.isEmpty)
+                #expect(abs(moment.timing.hand - 0.25) < 1e-9)
+                for time in stride(from: 0.0, through: moment.timing.hand, by: 0.01) {
+                    let frame = BraidStepFrame.at(
+                        time, of: moment.stations, carried: moment.stations.carried, reduceMotion: false,
+                        timing: moment.timing
+                    )
+                    #expect(frame.arrows.isEmpty && frame.balls.allSatisfy { !$0.isCarried })
+                }
+            }
+            let said = moments.map(\.stations.sentence)
+            #expect(said.first == "\(name)（この4手をくり返す 2 / 6）" && said.last == "\(name)（この4手をくり返す 6 / 6）")
+            #expect(abs(stage.durations[step] - 25 * 0.25) < 1e-9)
+        }
+        // The other steps are the normal ones.
+        for step in 0..<stage.stepCount where !stage.fastForwardSteps.contains(step) {
+            #expect(stage.durations[step] == BraidStepTiming.normal.hand)
+        }
+    }
+
+    /// **The colours are the braid's own** (Task 069): as the first hand-over
+    /// begins, every place holds the thread it holds when the book's hands are
+    /// all worked — the S dan six times —; and after a round every thread is
+    /// back where it began, so the round starts again without a jump.
+    @Test func gaeshiColoursAreTheBraidsOwn() throws {
+        let recipe = try recipe("yatsu-kongo-gaeshi-8")
+        let stage = try stage(recipe)
+        let working = stage.working
+        func place(_ turn: Double) -> Int? {
+            working.homes.first { abs(between($0.value.turn, turn)) < 1e-9 }?.key
+        }
+        let handOverStep = try #require((0..<stage.stepCount).first { stage.stations(ofStep: $0).sentence.hasPrefix("持ち替え：") })
+        let stations = stage.stations(ofStep: handOverStep)
+        var shown = [Int: Int]()
+        for (ball, thread) in stage.threads(atStep: handOverStep) {
+            shown[try #require(stations.before[ball].flatMap { place($0.turn) })] = thread
+        }
+        // The book worked through: the first hand-over is the pass's 25th hand.
+        let real = try #require(working.hands.first { $0.isHandOver })
+        #expect(working.hands.firstIndex { $0.isHandOver } == 24)
+        var worked = [Int: Int]()
+        for (thread, seat) in real.before { worked[try #require(place(seat.turn))] = thread }
+        #expect(shown == worked)
+        #expect(stage.threads(atStep: stage.stepCount) == stage.threads(atStep: 0))
+        let last = stage.moments(ofStep: stage.stepCount - 1).last
+        var endOfRound = [Int: Int]()
+        for (ball, thread) in try #require(last?.threads) {
+            endOfRound[try #require(last?.stations.after[ball].flatMap { place($0.turn) })] = thread
+        }
+        #expect(endOfRound == Dictionary(uniqueKeysWithValues: (1...8).map { ($0, $0) }))
+    }
+
+    /// **1手進む in a fast-forward goes to its end, 1手戻る from its end to
+    /// before it** — the dan's first time's last step —, and so from inside it
+    /// (Task 069).
+    @Test func stepsGoOverAFastForward() throws {
+        let stage = try stage(try recipe("yatsu-kongo-gaeshi-8"))
+        let fast = try #require(stage.fastForwardSteps.min())
+        let start = Date(timeIntervalSinceReferenceDate: 0)
+        var playback = BraidStepPlayback(durations: stage.durations, passedGoingBack: stage.fastForwardSteps)
+        let before = stage.durations[0..<fast].reduce(0, +)
+        playback.play(at: start)
+        let inside = start.addingTimeInterval(before + 2)
+        #expect(playback.position(at: inside).hand == fast)
+        playback.stepForward(at: inside)
+        #expect(playback.position(at: inside) == .init(hand: fast + 1, time: 0))
+        playback.stepBack(at: inside)
+        #expect(playback.position(at: inside) == .init(hand: fast - 1, time: 0))
+        // Stopped at the fast-forward's start, 1手進む plays it through and stops after it.
+        playback.stepForward(at: inside)
+        let later = inside.addingTimeInterval(stage.durations[fast - 1] + 0.01)
+        playback.settle(at: later)
+        #expect(playback.position(at: later) == .init(hand: fast, time: 0))
+        playback.stepForward(at: later)
+        let done = later.addingTimeInterval(stage.durations[fast] + 0.01)
+        #expect(playback.hasFinishedStepping(at: done))
+        playback.settle(at: done)
+        #expect(playback.position(at: done) == .init(hand: fast + 1, time: 0))
+        // Going back from part way through it.
+        var inPart = BraidStepPlayback(durations: stage.durations, passedGoingBack: stage.fastForwardSteps)
+        inPart.play(at: start)
+        let partWay = start.addingTimeInterval(before + 3)
+        inPart.stepBack(at: partWay)
+        #expect(inPart.position(at: partWay) == .init(hand: fast - 1, time: 0))
+        // A round later, the same.
+        #expect(playback.duration(of: fast + stage.stepCount) == stage.durations[fast])
+    }
+
+    /// **With 「視差効果を減らす」 a fast-forward is not played out**: it stands at
+    /// its end, 「Sの組み（この4手を6回くり返した）」, the threads as they are
+    /// after the sixth time (Task 069).
+    @Test func reducedMotionShowsTheFastForwardDone() throws {
+        let stage = try stage(try recipe("yatsu-kongo-gaeshi-8"))
+        let fast = try #require(stage.fastForwardSteps.min())
+        let last = try #require(stage.moments(ofStep: fast).last)
+        for time in [0, 1, 6] as [Double] {
+            let moment = stage.moment(atStep: fast, time: time, reduceMotion: true)
+            #expect(moment.stations.sentence == "Sの組み（この4手を6回くり返した）")
+            #expect(moment.threads == last.threads && moment.time == moment.timing.hand)
+            let frame = BraidStepFrame.at(
+                moment.time, of: moment.stations, carried: moment.stations.carried, reduceMotion: true, timing: moment.timing
+            )
+            for ball in frame.balls {
+                let after = try #require(moment.stations.after[ball.thread]).cartesian
+                #expect(abs(ball.point.x - after.x) < 1e-9 && abs(ball.point.y - after.y) < 1e-9)
+            }
+        }
+        // Played, it goes through the times.
+        #expect(stage.moment(atStep: fast, time: 0.3, reduceMotion: false).stations.sentence == "Sの組み（この4手をくり返す 2 / 6）")
+        #expect(stage.moment(atStep: fast, time: 6.1, reduceMotion: false).stations.sentence == "Sの組み（この4手をくり返す 6 / 6）")
+    }
+
+    /// **The braids with no dan worked again are as they were** (Task 069):
+    /// no fast-forward, every step a normal hand's length.
+    @Test(arguments: ["yatsu-kongo-s-8", "yatsu-kongo-z-8", "edo-yatsu-8", "maru-yotsu-4", "maru-genji-16", "hira-genji-16"])
+    func noFastForwardWithoutRepeats(recipeID: String) throws {
+        let stage = try stage(try recipe(recipeID))
+        #expect(stage.fastForwardSteps.isEmpty)
+        #expect(stage.durations.allSatisfy { $0 == BraidStepTiming.normal.hand })
+        for step in 0..<stage.stepCount {
+            #expect(stage.moments(ofStep: step).count == 1)
+        }
+    }
+
+    // MARK: 8. Moving and playing
 
     /// **A carried thread slides round the rim the way it goes** and rides a
     /// little out as it passes; with 「視差効果を減らす」 it is switched, never part
@@ -268,7 +420,7 @@ struct BraidStepStageTests {
     @Test func theCarriedThreadSlidesTheWayItGoes() throws {
         let stage = try stage(try recipe("edo-yatsu-8"))
         let stations = stage.stations(ofHand: 0)
-        let middle = BraidStepTiming.lead + BraidStepTiming.carry / 2
+        let middle = BraidStepTiming.normal.lead + BraidStepTiming.normal.carry / 2
         let frame = BraidStepFrame.at(middle, of: stations, carried: stations.carried, reduceMotion: false)
         let ball = try #require(frame.balls.last)
         #expect(ball.thread == 1 && ball.isCarried)
@@ -279,7 +431,7 @@ struct BraidStepStageTests {
         let landing = try #require(stations.afterCarrying[1])
         #expect(frame.arrows == [BraidStepFrame.Arrow(from: homeTurn(stage, 1), to: landing.turn, way: .clockwise)])
         let places = [stations.before, stations.afterCarrying, stations.after].compactMap { $0[1] }.map(\.cartesian)
-        for time in stride(from: 0.0, through: BraidStepTiming.hand, by: 0.05) {
+        for time in stride(from: 0.0, through: BraidStepTiming.normal.hand, by: 0.05) {
             let still = BraidStepFrame.at(time, of: stations, carried: stations.carried, reduceMotion: true)
             let point = try #require(still.balls.first { $0.thread == 1 }).point
             #expect(places.contains { abs($0.x - point.x) < 1e-9 && abs($0.y - point.y) < 1e-9 })
@@ -288,7 +440,7 @@ struct BraidStepStageTests {
 
     @Test func playbackOpensStoppedBeforeTheFirstHandAndStepsBothWays() {
         let start = Date(timeIntervalSinceReferenceDate: 0)
-        let hand = BraidStepTiming.hand
+        let hand = BraidStepTiming.normal.hand
         var playback = BraidStepPlayback()
         #expect(!playback.isRunning)
         #expect(playback.position(at: start.addingTimeInterval(10)) == .init(hand: 0, time: 0))

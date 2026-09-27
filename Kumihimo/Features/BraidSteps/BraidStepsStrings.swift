@@ -27,6 +27,18 @@ enum BraidStepsStrings {
         return "\(name ?? "")（この\(hands)手を\(repeats)回くり返す）"
     }
 
+    /// **A dan worked again, fast-forwarded** (Task 069): 「Sの組み（この4手を
+    /// くり返す 2 / 6）」, the time going on as it plays.
+    static func repeating(_ name: String?, hands: Int, time: Int, of times: Int) -> String {
+        "\(name ?? "")（この\(hands)手をくり返す \(time) / \(times)）"
+    }
+
+    /// **The fast-forward not played out**, with 「視差効果を減らす」 (Task
+    /// 069): 「Sの組み（この4手を6回くり返した）」.
+    static func repeated(_ name: String?, hands: Int, times: Int) -> String {
+        "\(name ?? "")（この\(hands)手を\(times)回くり返した）"
+    }
+
     /// 「Sの組み：…」, or the sentence alone.
     static func named(_ name: String?, _ sentence: String) -> String {
         guard let name else { return sentence }
@@ -160,8 +172,10 @@ enum BraidStepsStrings {
         way == .across ? "" : "に"
     }
 
-    /// What VoiceOver reads for the stand: the count, then the hand.
-    static func accessibilityValue(count: String, sentence: String) -> String {
-        "\(count)。\(sentence)"
+    /// What VoiceOver reads for the stand: the count, then the hand — the hand
+    /// alone while fast-forwarding.
+    static func accessibilityValue(count: String?, sentence: String) -> String {
+        guard let count else { return sentence }
+        return "\(count)。\(sentence)"
     }
 }

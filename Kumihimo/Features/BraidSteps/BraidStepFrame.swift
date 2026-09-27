@@ -2,19 +2,24 @@ import CoreGraphics
 import Foundation
 
 /// How long each part of a hand takes, in seconds (Task 061). **The author
-/// decides the speed**; these follow the reviewer's 0.8 s a hand and 0.4 s
-/// between.
-enum BraidStepTiming {
+/// decides the speed**; the normal follows the reviewer's 0.8 s a hand and
+/// 0.4 s between.
+struct BraidStepTiming: Equatable {
     /// The carried thread lit and its arrow shown, before it moves.
-    static let lead: Double = 0.35
+    let lead: Double
     /// Sliding round the rim to where it goes.
-    static let carry: Double = 0.8
+    let carry: Double
     /// The closing's tidying, and a thread waiting beside a place moving on to it.
-    static let settle: Double = 0.3
+    let settle: Double
     /// Still, before the next hand.
-    static let rest: Double = 0.4
+    let rest: Double
 
-    static var hand: Double { lead + carry + settle + rest }
+    var hand: Double { lead + carry + settle + rest }
+
+    static let normal = BraidStepTiming(lead: 0.35, carry: 0.8, settle: 0.3, rest: 0.4)
+    /// **A hand fast-forwarded** (Task 069): about a quarter of a second, no
+    /// time before it moves.
+    static let fastForward = BraidStepTiming(lead: 0, carry: 0.17, settle: 0.05, rest: 0.03)
 }
 
 /// **Where everything on the stand is at one moment of a hand** (Task 061), on
@@ -56,15 +61,18 @@ struct BraidStepFrame: Equatable {
     /// the hand to where the carry sets it down, then settles to where it stands
     /// after — the book's adjustments (Task 067). **A setting at the end of a
     /// dan** (Task 068) slides every thread it moves the short way to the
-    /// starting form, lighting none and lifting none.
+    /// starting form, lighting none and lifting none. **A hand fast-forwarded**
+    /// (Task 069) lights none and shows no arrow.
     static func at(
-        _ time: Double, of stations: BraidStepStage.Stations, carried: Set<Int>, reduceMotion: Bool
+        _ time: Double, of stations: BraidStepStage.Stations, carried: Set<Int>, reduceMotion: Bool,
+        timing: BraidStepTiming = .normal
     ) -> BraidStepFrame {
         let settled = stations.settled
         let ways = stations.ways
-        let carryStart = BraidStepTiming.lead
-        let settleStart = carryStart + BraidStepTiming.carry
-        let settleEnd = settleStart + BraidStepTiming.settle
+        let carryStart = timing.lead
+        let settleStart = carryStart + timing.carry
+        let settleEnd = settleStart + timing.settle
+        let lights = !stations.isSetting && !stations.isFastForward
 
         var balls = [Ball]()
         for thread in stations.before.keys.sorted() {
@@ -73,18 +81,18 @@ struct BraidStepFrame: Equatable {
             let point: Polar
             if reduceMotion {
                 // Switched, not slid (the reviewer's 2.2 6): the arrow still shows.
-                point = time < carryStart + BraidStepTiming.carry / 2 ? before
+                point = time < carryStart + timing.carry / 2 ? before
                     : time < settleEnd ? middle : after
             } else if time < carryStart {
                 point = before
             } else if time < settleStart {
-                let share = carried.contains(thread) ? eased((time - carryStart) / BraidStepTiming.carry) : 0
+                let share = carried.contains(thread) ? eased((time - carryStart) / timing.carry) : 0
                 point = slide(
                     from: before, to: middle, way: ways[thread], share: share,
                     lift: stations.isSetting ? 0 : Self.lift
                 )
             } else if time < settleEnd {
-                let share = eased((time - settleStart) / BraidStepTiming.settle)
+                let share = eased((time - settleStart) / timing.settle)
                 point = slide(
                     from: middle, to: after, way: settled.contains(thread) ? ways[thread] : nil,
                     share: share, lift: 0
@@ -94,12 +102,11 @@ struct BraidStepFrame: Equatable {
             }
             balls.append(Ball(
                 thread: thread, point: point.cartesian,
-                isCarried: (carried.contains(thread) || settled.contains(thread)) && time < settleEnd
-                    && !stations.isSetting
+                isCarried: (carried.contains(thread) || settled.contains(thread)) && time < settleEnd && lights
             ))
         }
         balls = balls.filter { !$0.isCarried } + balls.filter(\.isCarried)
-        return BraidStepFrame(balls: balls, arrows: time < settleStart ? stations.arrows : [])
+        return BraidStepFrame(balls: balls, arrows: time < settleStart && lights ? stations.arrows : [])
     }
 
     /// A point by its angle, in turns clockwise from the top, and its distance
