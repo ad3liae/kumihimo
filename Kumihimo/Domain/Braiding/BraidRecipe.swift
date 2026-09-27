@@ -54,10 +54,18 @@ struct BraidStartingSlits: Equatable, Sendable {
     let notchCount: Int
     /// The slit of each place, place 1 onward.
     let placeOneOnward: [Int]
+    /// **Where the book's figure has the top of its disk**, in slits — 4.5,
+    /// between slits 4 and 5, in the textbook (Task 071) — so the stand is
+    /// drawn the way the figure is. `nil` draws place 1's pair at the top,
+    /// which is what every braid drawn before Task 071 does: yatsu-kongo S and
+    /// Z and 江戸八つ組 have their pair 4・5 there in the book too, and 返し組's
+    /// pair 1・2 is drawn at the top where its figure has it up and to the left.
+    let slitAtTheTop: Double?
 
-    init(notchCount: Int, placeOneOnward: [Int]) {
+    init(notchCount: Int, placeOneOnward: [Int], slitAtTheTop: Double? = nil) {
         self.notchCount = notchCount
         self.placeOneOnward = placeOneOnward
+        self.slitAtTheTop = slitAtTheTop
     }
 }
 

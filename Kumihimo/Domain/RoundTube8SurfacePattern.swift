@@ -1,7 +1,15 @@
 import Foundation
 import simd
 
-/// The surface of a tube of eight threads, **worked out rather than transcribed.**
+/// The surface of a tube of eight threads — **or twelve or sixteen carried one
+/// way, since Task 071** — **worked out rather than transcribed.**
+///
+/// **The 8 in the name is the count it was first drawn for.** Since Task 071 it
+/// draws a tube of eight, twelve or sixteen threads carried one way round
+/// (八つ金剛組, 十二金剛組, 十六金剛組) and of eight carried both ways (江戸八つ
+/// 組), with the same rules; the count is the stand's (`columnCount`), and a
+/// column is a place whatever the count. The sixteen-thread tube carried both
+/// ways — 丸源氏組 — is `RoundTube16SurfacePattern`'s, a family of its own.
 ///
 /// The sixteen-thread tube's drawing keeps the shape of every cell copied from
 /// book A's sixty-four-cell figure and derives only which thread is in it. **There
@@ -102,6 +110,10 @@ struct RoundTube8SurfacePattern: Equatable, Sendable {
     /// braid of one table — `leanDirection` — and both, part by part, for a braid
     /// that turns its spiral round.
     let leanBySegment: [Float]
+    /// **How many threads, and so columns, round the braid**: the stand's places
+    /// (Task 071). Eight for yatsu-kongo and 江戸八つ組, twelve for 十二金剛組,
+    /// sixteen for 十六金剛組.
+    let columnCount: Int
     /// **Which ways round the table carries its threads** (Task 059), read off the
     /// braid (`BraidTurning.of`): the eight-thread tube's two families. It chooses
     /// what a thread shows as (`bundle`), how long a cycle is
@@ -456,7 +468,22 @@ struct RoundTube8Tile: Equatable, Sendable {
 }
 
 enum RoundTube8SurfacePatternGenerator {
-    static let requiredThreadCount = 8
+    /// **The thread counts a tube carried one way is drawn for** (Task 071):
+    /// yatsu-kongo's eight, and twelve and sixteen, 十二金剛組 and 十六金剛組 —
+    /// the same braid with more pairs.
+    static let threadCountsTurningOneWay: Set<Int> = [8, 12, 16]
+    /// **The thread count a tube carried both ways is drawn for**: 江戸八つ組's
+    /// eight, whose cycle was measured on its own photograph (Task 059). No other
+    /// count has been.
+    static let threadCountTurningBothWays = 8
+
+    /// Whether a tube of `threads` carried `turning` is drawn at all.
+    static func draws(threads: Int, turning: BraidTurning) -> Bool {
+        switch turning {
+        case .oneWay: return threadCountsTurningOneWay.contains(threads)
+        case .bothWays: return threads == threadCountTurningBothWays
+        }
+    }
 
     /// One cycle's growth as a fraction of the braid's own diameter.
     ///
@@ -500,13 +527,41 @@ enum RoundTube8SurfacePatternGenerator {
     static let pitchOverDiameterTurningBothWays: Float = 0.50
 
     /// **One cycle's growth, by which ways round the table carries its threads**
-    /// (Task 059).
+    /// (Task 059), for eight threads.
     static func pitchOverDiameter(for turning: BraidTurning) -> Float {
+        pitchOverDiameter(for: turning, threads: 8)
+    }
+
+    /// **One cycle's growth for a tube of `threads`** (Task 071): the eight's
+    /// for eight, `pitchOverDiameterByThreads` for twelve and sixteen carried
+    /// one way. `8` gives yatsu-kongo's own figure, to the bit.
+    static func pitchOverDiameter(for turning: BraidTurning, threads: Int) -> Float {
         switch turning {
-        case .oneWay: return pitchOverDiameter
+        case .oneWay:
+            guard threads != 8 else { return pitchOverDiameter }
+            return pitchOverDiameterByThreads[threads] ?? pitchOverDiameter * 8 / Float(max(threads, 1))
         case .bothWays: return pitchOverDiameterTurningBothWays
         }
     }
+
+    /// **One cycle's growth on 十二金剛組 and 十六金剛組, from how steep their
+    /// spirals stand on the textbook's photographs** (Task 071): yatsu-kongo's
+    /// 0.807 times 8/n, times the tangent of the colour band's angle on the
+    /// photograph over yatsu-kongo's on the same book's (p.40–41 57.75°, p.44–45
+    /// 61.25°, p.36–37 46.75°: 1.491 and 1.715, `Scripts/task071
+    /// /measure_spiral_angle.py`, measuring procedure 6's colour angle).
+    ///
+    /// **Why the angle sets the cycle**: a pair's colour moves on a place
+    /// every half cycle (the table's; any count), so a band's angle from across the
+    /// braid has tan = n × cycle ÷ (2π × diameter). Yatsu-kongo's cycle scaled
+    /// by 8/n alone — the same thread, the same stitch — would lay every count
+    /// at yatsu-kongo's angle (0.538, 0.404); **the photographs' spirals stand
+    /// steeper the more threads there are**, so a stitch is longer along the
+    /// braid than yatsu-kongo's, for its width. Taken as a ratio to the same
+    /// book's yatsu-kongo so the procedure's own leaning cancels (it reads 47°
+    /// on p.37, where yatsu-kongo's drawn 0.807 gives 45.8° and the recipe book
+    /// p.8's zoom 54.5°).
+    static let pitchOverDiameterByThreads: [Int: Float] = [12: 0.802, 16: 0.692]
 
     /// How many places round the braid one cycle carries a thread.
     ///
@@ -538,8 +593,9 @@ enum RoundTube8SurfacePatternGenerator {
     /// **A cell is a thread standing at a place, from its arrival to the next
     /// thread's arrival there** — whatever table brought either. The time is
     /// counted in dan (段): **a dan is one layer, half a cycle**, and a table's
-    /// braiding moves make its dan four at a time — one thread from each pair of
-    /// the eight (the disk book: 1段 = four figures). A cycle of S or Z is two dan;
+    /// braiding moves make its dan half the threads at a time — one thread from
+    /// each pair (the disk book: 1段 = four figures of eight threads, three
+    /// numbers of two of twelve, four of two of sixteen). A cycle of S or Z is two dan;
     /// 返し組's hand-over is one. A place's thread arrives at the end of its dan.
     ///
     /// For a braid of one table every place receives one thread a cycle, in one
@@ -552,7 +608,8 @@ enum RoundTube8SurfacePatternGenerator {
     /// **Each cell leans the way its thread was carried to it**
     /// (`leanBySegment`): back for a thread an S dan brought, on for a Z dan's.
     ///
-    /// `nil` when the braid is not a tube of eight, when a table's braiding moves
+    /// `nil` when the braid is not a tube this draws (`draws(threads:turning:)`:
+    /// eight, twelve or sixteen threads carried one way, eight both ways), when a table's braiding moves
     /// are not a whole number of dan, when a place receives twice in one dan, when
     /// a cycle of two dan does not put every other place in each (the half
     /// pitch), when the first table does not give every place a thread, or
@@ -570,9 +627,9 @@ enum RoundTube8SurfacePatternGenerator {
         crossSection: BraidCrossSection,
         assignments: [ThreadAssignment]
     ) -> RoundTube8SurfacePattern? {
-        let count = requiredThreadCount
+        let count = stand.positionCount
         guard
-            stand.positionCount == count,
+            count > 0,
             assignments.count == count,
             let derivation = BraidDerivation.derive(
                 stand: stand, rounds: rounds, crossSection: crossSection
@@ -587,6 +644,7 @@ enum RoundTube8SurfacePatternGenerator {
         let colours = Dictionary(uniqueKeysWithValues: assignments.map { ($0.position, $0.colorID) })
         guard Set(colours.keys) == Set(stand.positionIDs) else { return nil }
         let turning = BraidTurning.of(derivation)
+        guard draws(threads: count, turning: turning) else { return nil }
 
         struct Arrival { let time: Float; let thread: Int; let lean: Float }
         let perDan = count / 2
@@ -768,11 +826,12 @@ enum RoundTube8SurfacePatternGenerator {
             rowCount: rows,
             // One repeat is `rows` cycles of `pitchOverDiameter` diameters each,
             // and one turn is pi diameters.
-            aspectRatio: Float(rows) * pitchOverDiameter(for: turning) / .pi,
+            aspectRatio: Float(rows) * pitchOverDiameter(for: turning, threads: count) / .pi,
             columnsCarriedBySlot: columnsCarried,
             arrivalPhaseBySlot: arrivalPhases,
             drawnPhaseByColumn: arrivalPhases.map(drawnPhase(ofArrival:)),
             leanBySegment: leans,
+            columnCount: count,
             turning: turning
         )
     }
@@ -969,7 +1028,7 @@ extension RoundTube8SurfacePattern {
         guard cycles >= bundle.firstCycles, cycles <= bundle.lengthInCycles else { return nil }
         let halfWidth = bundle.halfWidthInColumns(atCycles: cycles)
         guard halfWidth > 0 else { return nil }
-        let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
+        let columns = Float(columnCount)
         let centre = segment.centerlineStart.x * columns
             + bundle.leanInColumns(atCycles: cycles, direction: leanBySegment[index])
         // Round the ring: the nearest way to the run's centreline.
@@ -996,7 +1055,7 @@ extension RoundTube8SurfacePattern {
         let segment = surface.segments[index]
         let cycles = (along - Float(repeatOffset) - segment.centerlineStart.y) / runCycle(of: segment)
         guard cycles >= bundle.firstCycles, cycles <= bundle.lengthInCycles else { return nil }
-        let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
+        let columns = Float(columnCount)
         var offset = (turns * columns - segment.centerlineStart.x * columns).truncatingRemainder(dividingBy: columns)
         if offset > columns / 2 { offset -= columns }
         if offset < -columns / 2 { offset += columns }
@@ -1006,7 +1065,7 @@ extension RoundTube8SurfacePattern {
     /// The cell lying beneath a place: the thread standing at that place in the
     /// occupancy history, as `(repeatOffset, segment)`.
     func cellBeneath(atTurns turns: Float, along: Float) -> (repeatOffset: Int, segment: Int)? {
-        let columns = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
+        let columns = Float(columnCount)
         var wrapped = turns.truncatingRemainder(dividingBy: 1)
         if wrapped < 0 { wrapped += 1 }
         let lane = min(Int(wrapped * columns), Int(columns) - 1)

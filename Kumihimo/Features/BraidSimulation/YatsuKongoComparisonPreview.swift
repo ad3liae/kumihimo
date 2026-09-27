@@ -12,8 +12,10 @@ import SwiftUI
 ///
 ///     --ui-testing-yatsu-kongo-solid   the solid, full screen
 ///     --ui-testing-yatsu-kongo-card    the card, as the results list lays it out
-///     --yatsu-kongo-recipe=s|z|maru|hira|gaeshi|edo|yotsu
-///                                      which braid (default s). `maru` is the
+///     --yatsu-kongo-recipe=s|z|maru|hira|gaeshi|edo|yotsu|12s|12z|16s|16z
+///                                      which braid (default s). `12s` … `16z`
+///                                      are 十二金剛組 and 十六金剛組 (Task 071,
+///                                      `book` and `plain` only). `maru` is the
 ///                                      sixteen-thread maru-genji, added for
 ///                                      Task 047's comparisons, and `hira` the
 ///                                      sixteen-thread flat braid, added for
@@ -77,6 +79,10 @@ enum YatsuKongoComparisonPreviewData {
         case "gaeshi": return BraidMethodCatalog.yatsuKongoGaeshi8Recipe
         case "edo": return BraidMethodCatalog.edoYatsu8Recipe
         case "yotsu": return BraidMethodCatalog.maruYotsu4Recipe
+        case "12s": return BraidMethodCatalog.juniKongoS12Recipe
+        case "12z": return BraidMethodCatalog.juniKongoZ12Recipe
+        case "16s": return BraidMethodCatalog.jurokuKongoS16Recipe
+        case "16z": return BraidMethodCatalog.jurokuKongoZ16Recipe
         default: return BraidMethodCatalog.yatsuKongoS8Recipe
         }
     }
@@ -87,6 +93,12 @@ enum YatsuKongoComparisonPreviewData {
         }
         if recipe.id == BraidMethodCatalog.hiraGenji16Recipe.id {
             return flatAssignments
+        }
+        // Twelve and sixteen threads (Task 071): the recipe's own, or plain.
+        if recipe.colouring.count != 8 {
+            return value(of: "--yatsu-kongo-colouring") == "book"
+                ? recipe.colouring
+                : recipe.colouring.map { ThreadAssignment(position: $0.position, colorID: ThreadColorColorIDs.plain) }
         }
         switch value(of: "--yatsu-kongo-colouring") {
         case "book":

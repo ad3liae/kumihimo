@@ -220,6 +220,6 @@ struct MaruYotsuTests {
         #expect(BraidPresetCatalog.availablePresets(threadCount: 4) == [BraidPresetCatalog.maruYotsu])
         #expect(BraidMethodCatalog.recipe(for: .maruYotsu4) == recipe)
         #expect(BraidPresetCatalog.maruYotsu.displayName == "丸四つ")
-        #expect(BraidPresetCatalog.availablePresets(threadCount: 12).isEmpty)
+        #expect(!BraidPresetCatalog.availablePresets(threadCount: 12).contains(BraidPresetCatalog.maruYotsu))
     }
 }

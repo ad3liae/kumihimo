@@ -75,9 +75,14 @@ struct RoundTube8ThumbnailView: View {
 /// One repeat of the card, as a bitmap: which run shows at each pixel, and its
 /// colour.
 enum RoundTube8CardImage {
-    /// Pixels round the braid for one column. The card is 112 points round and
-    /// eight columns, so 32 a column is over twice a point.
+    /// Pixels round the braid for one column of eight. The card is 112 points
+    /// round and eight columns, so 32 a column is over twice a point.
     static let pixelsPerColumn = 32
+
+    /// **Pixels round the braid, whatever the count** (Task 071): eight columns'
+    /// worth, so a card of twelve or sixteen threads is the same bitmap round —
+    /// still over twice a point — and yatsu-kongo's is the one it was.
+    static let pixelsRound = 8 * pixelsPerColumn
 
     /// How much a cell beneath is darkened: the valley shading the solid gives
     /// it (`RoundTube16StrandTextureFactory.valleyOcclusion`).
@@ -129,8 +134,7 @@ enum RoundTube8CardImage {
         bundle: RoundTube8Bundle? = nil
     ) -> (shown: [Shown?], width: Int, height: Int) {
         let bundle = bundle ?? pattern.bundle
-        let columns = RoundTube8SurfacePatternGenerator.requiredThreadCount
-        let height = columns * pixelsPerColumn
+        let height = pixelsRound
         let width = max(1, Int((Float(height) * pattern.aspectRatio).rounded()))
         var shown = [Shown?](repeating: nil, count: width * height)
         let segments = pattern.surface.segments
@@ -180,6 +184,7 @@ enum RoundTube8CardImage {
         /// lean them differently (Task 053).
         let leans: [Float]
         let columnsCarriedBySlot: [Int]
+        let columnCount: Int
         let rowCount: Int
         let aspectRatio: Float
         let bundle: [Float]
@@ -191,6 +196,7 @@ enum RoundTube8CardImage {
             }
             leans = pattern.leanBySegment
             columnsCarriedBySlot = pattern.columnsCarriedBySlot
+            columnCount = pattern.columnCount
             rowCount = pattern.rowCount
             aspectRatio = pattern.aspectRatio
             self.bundle = [

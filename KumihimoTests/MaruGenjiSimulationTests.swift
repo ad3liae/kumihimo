@@ -11,10 +11,13 @@ struct MaruGenjiSimulationTests {
         }
         // Four threads have 丸四つ since Task 054.
         #expect(BraidPresetCatalog.availablePresets(threadCount: 4) == [BraidPresetCatalog.maruYotsu])
-        #expect(BraidPresetCatalog.availablePresets(threadCount: 12).isEmpty)
+        // Twelve threads have 十二金剛組, and sixteen 十六金剛組 too, since Task 071.
+        #expect(BraidPresetCatalog.availablePresets(threadCount: 12)
+                == [BraidPresetCatalog.juniKongoS, BraidPresetCatalog.juniKongoZ])
         #expect(
             BraidPresetCatalog.availablePresets(threadCount: 16)
-                == [BraidPresetCatalog.maruGenji, BraidPresetCatalog.hiraGenji]
+                == [BraidPresetCatalog.maruGenji, BraidPresetCatalog.hiraGenji,
+                    BraidPresetCatalog.jurokuKongoS, BraidPresetCatalog.jurokuKongoZ]
         )
     }
 

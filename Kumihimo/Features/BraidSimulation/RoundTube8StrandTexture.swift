@@ -64,8 +64,23 @@ enum RoundTube8StrandTexture {
         }
     }
 
-    @MainActor private static func drawMaps(on turning: BraidTurning) -> Maps {
-        guard let twist = twist(on: turning) else {
+    /// **The maps for a tube of `threads`** (Task 071): the eight's for eight,
+    /// and for twelve and sixteen their own, drawn once each — the stripes are
+    /// counted over a run, and a run is measured in threads, so a count whose
+    /// run is another number of threads long has maps of its own.
+    @MainActor static func maps(on turning: BraidTurning, threads: Int) -> Maps {
+        guard threads != 8 else { return maps(on: turning) }
+        let key = "\(threads)-\(turning)"
+        if let drawn = otherCounts[key] { return drawn }
+        let drawn = drawMaps(on: turning, threads: threads)
+        otherCounts[key] = drawn
+        return drawn
+    }
+
+    @MainActor private static var otherCounts = [String: Maps]()
+
+    @MainActor private static func drawMaps(on turning: BraidTurning, threads: Int = 8) -> Maps {
+        guard let twist = twist(on: turning, threads: threads) else {
             logger.error("The eight-thread stripes could not be solved")
             return Maps(occlusion: nil, roughness: nil, normal: nil)
         }
@@ -102,16 +117,16 @@ enum RoundTube8StrandTexture {
     /// every cycle.
     static var stripesPerCell: Float { stripesPerCell(on: .oneWay) }
 
-    static func stripesPerCell(on turning: BraidTurning) -> Float {
-        max(1, stripesPerCellBeforeRounding(on: turning).rounded())
+    static func stripesPerCell(on turning: BraidTurning, threads: Int = 8) -> Float {
+        max(1, stripesPerCellBeforeRounding(on: turning, threads: threads).rounded())
     }
 
     static var stripesPerCellBeforeRounding: Float { stripesPerCellBeforeRounding(on: .oneWay) }
 
-    static func stripesPerCellBeforeRounding(on turning: BraidTurning) -> Float {
+    static func stripesPerCellBeforeRounding(on turning: BraidTurning, threads: Int = 8) -> Float {
         let angle = abs(RoundTube8SurfaceMesh.fibreStripeAngleDegrees(for: turning)) * .pi / 180
         return RoundTube8SurfaceMesh.fibreStripesAcrossThreadWidth(for: turning) * tan(angle)
-            * cellLengthInThreadWidths(on: turning)
+            * cellLengthInThreadWidths(on: turning, threads: threads)
     }
 
     /// One thread's visible run along the braid, in thread widths. A thread is an
@@ -124,21 +139,23 @@ enum RoundTube8StrandTexture {
     /// lie as close as they did over a one-cycle cell.
     static var cellLengthInThreadWidths: Float { cellLengthInThreadWidths(on: .oneWay) }
 
-    /// The same for either family, over the run's own length (Task 059).
-    static func cellLengthInThreadWidths(on turning: BraidTurning) -> Float {
-        let threads = Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
+    /// The same for either family, over the run's own length (Task 059), and
+    /// for a tube of any count it draws (Task 071).
+    static func cellLengthInThreadWidths(on turning: BraidTurning, threads: Int = 8) -> Float {
         // In radii: the braid is 2 across, and the floor is below the crest.
-        let threadWidth = 2 * .pi * (1 - RoundTube8SurfaceMesh.crestHeightRatio) / threads
-        return runLengthInRadii(on: turning) / threadWidth
+        let threadWidth = 2 * .pi * (1 - RoundTube8SurfaceMesh.crestHeightRatio(threads: threads))
+            / Float(max(threads, 1))
+        return runLengthInRadii(on: turning, threads: threads) / threadWidth
     }
 
     /// A run's length in radii along the braid, from its first sample to its
     /// last. **A both-ways stitch is a cycle long** (Task 059 addendum 6) and
     /// begins before its start (its tuck, addendum 4).
-    static func runLengthInRadii(on turning: BraidTurning) -> Float {
+    static func runLengthInRadii(on turning: BraidTurning, threads: Int = 8) -> Float {
         let bundle = RoundTube8Bundle.shown(on: turning)
         guard turning == .bothWays else {
-            return 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameter(for: turning) * bundle.lengthInCycles
+            return 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameter(for: turning, threads: threads)
+                * bundle.lengthInCycles
         }
         return 2 * RoundTube8SurfacePatternGenerator.pitchOverDiameterTurningBothWays
             * (bundle.lengthInCycles - bundle.firstCycles)
@@ -148,8 +165,8 @@ enum RoundTube8StrandTexture {
     /// thread's half-width, an eighth of the circumference halved — or a tile's
     /// widest half-width, which the maps span straight across
     /// (`RoundTube8SurfaceMesh.textureRow`).
-    static func mapHalfWidthInRadii(on turning: BraidTurning) -> Float {
-        let column = 2 * Float.pi / Float(RoundTube8SurfacePatternGenerator.requiredThreadCount)
+    static func mapHalfWidthInRadii(on turning: BraidTurning, threads: Int = 8) -> Float {
+        let column = 2 * Float.pi / Float(max(threads, 1))
         guard turning == .bothWays, let tile = RoundTube8Bundle.shown(on: turning).tile else {
             return column / 2
         }
@@ -185,7 +202,7 @@ enum RoundTube8StrandTexture {
     static var twist: RoundTube16SurfaceMesh.TwistGroup? { twist(on: .oneWay) }
 
     /// The same solve for either family, over its own run's length (Task 059).
-    static func twist(on turning: BraidTurning) -> RoundTube16SurfaceMesh.TwistGroup? {
+    static func twist(on turning: BraidTurning, threads: Int = 8) -> RoundTube16SurfaceMesh.TwistGroup? {
         let angle = RoundTube8SurfaceMesh.fibreStripeAngleDegrees(for: turning) * .pi / 180
         let sine = sin(angle)
         let cosine = cos(angle)
@@ -194,9 +211,9 @@ enum RoundTube8StrandTexture {
         // A run is `lengthInCycles` cycles long and, at its widest, an eighth of
         // the crest's circumference wide; across is read in half-widths, as the
         // factory reads it.
-        let along = runLengthInRadii(on: turning)
-        let halfWidth = mapHalfWidthInRadii(on: turning)
-        let phasePerAlong = -2 * .pi * stripesPerCell(on: turning)
+        let along = runLengthInRadii(on: turning, threads: threads)
+        let halfWidth = mapHalfWidthInRadii(on: turning, threads: threads)
+        let phasePerAlong = -2 * .pi * stripesPerCell(on: turning, threads: threads)
         let phasePerAcross = phasePerAlong * halfWidth * cosine / (along * sine)
         // **The normal map's second channel runs along the normal crossed with the
         // tangent**, which is the way the sixteen-thread solve expresses it (its

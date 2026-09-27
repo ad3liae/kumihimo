@@ -124,6 +124,9 @@ struct ProjectEditorPresentationStateTests {
         #expect(store.availableBraidPresets == [
             BraidPresetCatalog.maruGenji,
             BraidPresetCatalog.hiraGenji,
+            // Task 071.
+            BraidPresetCatalog.jurokuKongoS,
+            BraidPresetCatalog.jurokuKongoZ,
         ])
 
         store.requestThreadCount(8)
