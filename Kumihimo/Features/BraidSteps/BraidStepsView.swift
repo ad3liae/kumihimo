@@ -4,10 +4,11 @@ import SwiftUI
 /// 061): the stand's top, the hole in its middle, a bobbin for every thread in
 /// the thread's colour and its thread running in to the middle. Each hand lights
 /// the threads it carries, points where they go, and slides them there — round
-/// the rim on a disk, straight over the mirror on a round stand's faces — and
-/// then settles: the book's adjustments, and the islands drawn back when they
-/// are as they began (Task 067). Beside it, or under it where there is no room,
-/// the hand in words and how far through the time round it is; under both,
+/// the rim, or straight over the mirror where a round stand's book says so — and
+/// then settles: the book's adjustments (Task 067). Once a dan is done, one more
+/// step sets every thread back in the starting form, not counted as a hand
+/// (Task 068). Beside it, or under it where there is no room,
+/// the hand in words and how far through its dan it is; under both,
 /// back a hand, play, on a hand.
 ///
 /// **Place 1's island at the top**, the places running clockwise as the
@@ -37,14 +38,14 @@ struct BraidStepsView: View {
             assignments.map { ($0.position, $0.colorID) }, uniquingKeysWith: { first, _ in first }
         )
         let stage = recipe.flatMap { recipe in
-            BraidMethodCatalog.stand(for: recipe).flatMap {
-                BraidStepStage(recipe: recipe, stand: $0, colours: colours)
-            }
+            BraidMethodCatalog.stand(for: recipe).flatMap { BraidStepStage(recipe: recipe, stand: $0) }
         }
         self.stage = stage
         self.colours = colours
         self.room = room
-        _playback = State(initialValue: BraidStepPlayback(handCount: max(stage?.handCount ?? 1, 1)))
+        // The playback steps through the hands and the settings between them,
+        // on and on: the stage plays its round again, the threads going on.
+        _playback = State(initialValue: BraidStepPlayback())
     }
 
     var body: some View {
@@ -52,10 +53,9 @@ struct BraidStepsView: View {
             if let stage {
                 TimelineView(.animation(minimumInterval: nil, paused: !playback.isRunning)) { context in
                     let position = playback.position(at: context.date)
-                    let index = min(position.hand, stage.handCount - 1)
-                    let stations = stage.stations(ofHand: index)
+                    let stations = stage.stations(ofStep: position.hand)
                     let sentence = stations.sentence
-                    let count = BraidStepsStrings.count(index + 1, of: stage.handCount)
+                    let count = BraidStepsStrings.count(stations.hand + 1, of: stations.handsInDan)
                     arranged(
                         stand: BraidStandDrawing(
                             frame: BraidStepFrame.at(
@@ -63,7 +63,8 @@ struct BraidStepsView: View {
                                 reduceMotion: reduceMotion
                             ),
                             stage: stage,
-                            colours: colours
+                            colours: colours,
+                            threads: stage.threads(atStep: position.hand)
                         )
                         .accessibilityElement()
                         .accessibilityLabel(BraidStepsStrings.standAccessibilityLabel)
@@ -200,6 +201,8 @@ private struct BraidStandDrawing: View {
     let frame: BraidStepFrame
     let stage: BraidStepStage
     let colours: [Int: ThreadColorID]
+    /// Which thread each ball is, for its colour.
+    let threads: [Int: Int]
 
     /// The drawing's reach in units of the rim's radius: the numbers stand
     /// outside the arrows, which stand outside the rim.
@@ -207,30 +210,46 @@ private struct BraidStandDrawing: View {
     private static let boardRadius: Double = 1.07
     private static let arrowRadius: Double = 1.17
     private static let numberRadius: Double = 1.34
+    /// Between the arrows and the nearest edge of a number.
+    private static let numberGap: Double = 0.05
     private static let holeRadius: Double = 0.11
 
     var body: some View {
         Canvas { context, size in
-            let scale = min(size.width, size.height) / 2 / Self.reach
+            let half = min(size.width, size.height) / 2
+            // The numbers are part of the drawing, so they go with its size
+            // rather than the text size; VoiceOver reads the hand instead.
+            let numberSize = min(max(half / Self.reach * 0.16, 9), 15)
+            let numbers = stage.labels.map { label in
+                let text = context.resolve(
+                    Text(label.text).font(.system(size: numberSize)).foregroundStyle(.secondary)
+                )
+                let measured = text.measure(in: size)
+                // How far the number reaches from its middle, out from the stand:
+                // 「2面」 at the side reaches further than 「2」.
+                let angle = 2 * Double.pi * label.turn
+                let extent = measured.width / 2 * abs(sin(angle)) + measured.height / 2 * abs(cos(angle))
+                return (text: text, turn: label.turn, extent: extent)
+            }
+            // The stand drawn a little smaller when a number would not fit
+            // outside the arrows otherwise.
+            let scale = numbers.reduce(half / Self.reach) {
+                min($0, (half - 2 * $1.extent) / (Self.arrowRadius + Self.numberGap))
+            }
             let middle = CGPoint(x: size.width / 2, y: size.height / 2)
             func onCanvas(_ point: CGPoint) -> CGPoint {
                 CGPoint(x: middle.x + point.x * scale, y: middle.y + point.y * scale)
             }
-            let ballRadius = stage.layout.ballRadius * scale
+            let ballRadius = stage.geometry.ballRadius * scale
 
             let board = circle(at: middle, radius: Self.boardRadius * scale)
             context.fill(board, with: .color(Color.brown.opacity(0.24)))
             context.stroke(board, with: .color(Color.brown.opacity(0.55)), lineWidth: 2)
 
-            // The numbers are part of the drawing, so they go with its size
-            // rather than the text size; VoiceOver reads the hand instead.
-            let numberSize = min(max(scale * 0.16, 9), 15)
-            for label in stage.labels {
-                let point = BraidStepFrame.Polar(turn: label.turn, radius: Self.numberRadius).cartesian
-                context.draw(
-                    Text(label.text).font(.system(size: numberSize)).foregroundStyle(.secondary),
-                    at: onCanvas(point)
-                )
+            for number in numbers {
+                let radius = max(Self.numberRadius, Self.arrowRadius + Self.numberGap + number.extent / scale)
+                let point = BraidStepFrame.Polar(turn: number.turn, radius: radius).cartesian
+                context.draw(number.text, at: onCanvas(point))
             }
 
             for arrow in frame.arrows {
@@ -267,7 +286,7 @@ private struct BraidStandDrawing: View {
     }
 
     private func colour(of thread: Int) -> Color {
-        colours[thread].flatMap(ThreadColorCatalog.color(for:))?.swiftUIColor ?? .gray
+        colours[threads[thread] ?? thread].flatMap(ThreadColorCatalog.color(for:))?.swiftUIColor ?? .gray
     }
 
     private func circle(at centre: CGPoint, radius: CGFloat) -> Path {
@@ -290,7 +309,7 @@ private struct BraidStandDrawing: View {
         } else {
             // A little short of both places, so two arrows that meet — a hand of
             // two carried half way round each — still read as two.
-            let gap = 0.12 / Double(max(stage.layout.placeCount, 1)) * (arrow.way == .clockwise ? 1 : -1)
+            let gap = 0.12 / Double(max(stage.geometry.placeCount, 1)) * (arrow.way == .clockwise ? 1 : -1)
             let startPolar = BraidStepFrame.Polar(turn: from + gap, radius: Self.arrowRadius)
             let endPolar = BraidStepFrame.Polar(turn: to - gap, radius: Self.arrowRadius)
             let samples = 48

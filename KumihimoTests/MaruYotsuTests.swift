@@ -130,7 +130,7 @@ struct MaruYotsuTests {
     /// laying instants move, and nothing drawn reads them.
     @Test func whichThreadOfAPairGoesFirstDoesNotReachTheDrawing() throws {
         let asPrinted = BraidMethodCatalog.maruYotsuDisk
-        let swapped = [(17, 2), (1, 18), (2, 1), (18, 17), (25, 10), (9, 26), (10, 9), (26, 25)]
+        let swapped = [(17, 32), (1, 16), (32, 1), (16, 17), (25, 10), (9, 26), (10, 9), (26, 25)]
         func variant(_ moves: [BraidMove], _ reading: BraidDiskNotation.StepReading) -> BraidRecipe {
             BraidRecipe(
                 id: "maru-yotsu-variant", name: "丸四つ組",
@@ -158,6 +158,34 @@ struct MaruYotsuTests {
                     == BraidMeshHashTests.hash(referenceMesh.positions))
         }
         #expect(reference.derivation.passingsWithinOneInstant.isEmpty)
+    }
+
+    /// **Step 1 goes clockwise and step 2 anticlockwise, as the textbook's
+    /// p.52 works them** (Task 068 追補1), and **which way round reaches
+    /// nothing drawn**: book A p.56 as read until then, step 1 anticlockwise,
+    /// gives the same method, courses and mesh.
+    @Test func theTableTurnsTheTextbooksWaysAndTheShapeDoesNotCare() throws {
+        let table = BraidMethodCatalog.maruYotsuDisk
+        let ways = table.braidingMoves.map { BraidStepWay.shortWay(forward: $0.to - $0.from, around: 32) }
+        #expect(ways == [.clockwise, .clockwise, .anticlockwise, .anticlockwise])
+        let asReadBefore = BraidRecipe(
+            id: "maru-yotsu-as-read", name: "丸四つ組",
+            notation: BraidDiskNotation(
+                source: table.source, notchCount: 32,
+                standPositionByRestingNotch: table.standPositionByRestingNotch,
+                moves: [(1, 18), (17, 2), (18, 17), (2, 1), (9, 26), (25, 10), (26, 25), (10, 9)]
+                    .map(BraidMove.init(from:to:)),
+                threadsPerStep: 2, stepReading: table.stepReading
+            ),
+            colouring: recipe.colouring, shape: BraidShapeValues()
+        )
+        let now = try #require(recipe.worked(on: stand))
+        let before = try #require(asReadBefore.worked(on: stand))
+        #expect(now.method.steps == before.method.steps)
+        #expect(now.derivation.courses.map(\.slots) == before.derivation.courses.map(\.slots))
+        let meshNow = try #require(BraidFamilyDrawing.mesh(for: recipe, on: stand).tubeOfFour)
+        let meshBefore = try #require(BraidFamilyDrawing.mesh(for: asReadBefore, on: stand).tubeOfFour)
+        #expect(BraidMeshHashTests.hash(meshNow.positions) == BraidMeshHashTests.hash(meshBefore.positions))
     }
 
     /// **The card shows something at every pixel**, a run or the cell beneath
