@@ -43,9 +43,13 @@ struct BraidStepsView: View {
         self.stage = stage
         self.colours = colours
         self.room = room
-        // The playback steps through the hands and the settings between them,
-        // on and on: the stage plays its round again, the threads going on.
-        _playback = State(initialValue: BraidStepPlayback())
+        // The playback steps through the hands, the settings and the
+        // fast-forwards, on and on: the stage plays its round again, the
+        // threads going on.
+        _playback = State(initialValue: BraidStepPlayback(
+            durations: stage?.durations ?? [BraidStepTiming.normal.hand],
+            passedGoingBack: stage?.fastForwardSteps ?? []
+        ))
     }
 
     var body: some View {
@@ -53,18 +57,21 @@ struct BraidStepsView: View {
             if let stage {
                 TimelineView(.animation(minimumInterval: nil, paused: !playback.isRunning)) { context in
                     let position = playback.position(at: context.date)
-                    let stations = stage.stations(ofStep: position.hand)
+                    let moment = stage.moment(atStep: position.hand, time: position.time, reduceMotion: reduceMotion)
+                    let stations = moment.stations
                     let sentence = stations.sentence
-                    let count = BraidStepsStrings.count(stations.hand + 1, of: stations.handsInDan)
+                    // No count while fast-forwarding: the hands go by too fast to read.
+                    let count = stations.isFastForward
+                        ? nil : BraidStepsStrings.count(stations.hand + 1, of: stations.handsInDan)
                     arranged(
                         stand: BraidStandDrawing(
                             frame: BraidStepFrame.at(
-                                position.time, of: stations, carried: stations.carried,
-                                reduceMotion: reduceMotion
+                                moment.time, of: stations, carried: stations.carried,
+                                reduceMotion: reduceMotion, timing: moment.timing
                             ),
                             stage: stage,
                             colours: colours,
-                            threads: stage.threads(atStep: position.hand)
+                            threads: moment.threads
                         )
                         .accessibilityElement()
                         .accessibilityLabel(BraidStepsStrings.standAccessibilityLabel)
@@ -143,7 +150,7 @@ struct BraidStepsView: View {
     /// The hand in words, over two lines' room so nothing jumps as the
     /// sentences change length, and the count. VoiceOver reads both off the
     /// stand instead.
-    private func words(sentence: String, count: String) -> some View {
+    private func words(sentence: String, count: String?) -> some View {
         VStack(spacing: 2) {
             ZStack {
                 Text(verbatim: "\n").hidden()
@@ -153,9 +160,11 @@ struct BraidStepsView: View {
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity)
-            Text(count)
+            // Its room kept when there is none, so nothing jumps.
+            Text(count ?? BraidStepsStrings.count(0, of: 0))
                 .font(.footnote.monospacedDigit())
                 .foregroundStyle(.secondary)
+                .opacity(count == nil ? 0 : 1)
         }
         .accessibilityHidden(true)
     }
