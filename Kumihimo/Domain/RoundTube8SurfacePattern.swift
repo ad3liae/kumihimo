@@ -532,22 +532,36 @@ enum RoundTube8SurfacePatternGenerator {
         pitchOverDiameter(for: turning, threads: 8)
     }
 
-    /// **One cycle's growth for a tube of `threads`** (Task 071): the eight's,
-    /// **scaled by eight over the count** for a tube carried one way.
-    ///
-    /// **Not measured on 十二金剛組 or 十六金剛組.** The textbook's threads are
-    /// the same thickness — 「[八つ金剛組]の約1.5倍の太さ」「約2倍の太さ」 is the
-    /// braid, twelve and sixteen threads round it where yatsu-kongo has eight —
-    /// so a stitch is the same size and the braid 12/8 and 16/8 as wide: one
-    /// cycle is 8/12 and 8/16 of the eight's in diameters. A column is a thread
-    /// whatever the count, so the spiral lies at yatsu-kongo's angle. `8` gives
-    /// yatsu-kongo's own figure, to the bit.
+    /// **One cycle's growth for a tube of `threads`** (Task 071): the eight's
+    /// for eight, `pitchOverDiameterByThreads` for twelve and sixteen carried
+    /// one way. `8` gives yatsu-kongo's own figure, to the bit.
     static func pitchOverDiameter(for turning: BraidTurning, threads: Int) -> Float {
         switch turning {
-        case .oneWay: return pitchOverDiameter * 8 / Float(max(threads, 1))
+        case .oneWay:
+            guard threads != 8 else { return pitchOverDiameter }
+            return pitchOverDiameterByThreads[threads] ?? pitchOverDiameter * 8 / Float(max(threads, 1))
         case .bothWays: return pitchOverDiameterTurningBothWays
         }
     }
+
+    /// **One cycle's growth on 十二金剛組 and 十六金剛組, from how steep their
+    /// spirals stand on the textbook's photographs** (Task 071): yatsu-kongo's
+    /// 0.807 times 8/n, times the tangent of the colour band's angle on the
+    /// photograph over yatsu-kongo's on the same book's (p.40–41 57.75°, p.44–45
+    /// 61.25°, p.36–37 46.75°: 1.491 and 1.715, `Scripts/task071
+    /// /measure_spiral_angle.py`, measuring procedure 6's colour angle).
+    ///
+    /// **Why the angle sets the cycle**: a pair's colour moves on a place
+    /// every half cycle (the table's; any count), so a band's angle from across the
+    /// braid has tan = n × cycle ÷ (2π × diameter). Yatsu-kongo's cycle scaled
+    /// by 8/n alone — the same thread, the same stitch — would lay every count
+    /// at yatsu-kongo's angle (0.538, 0.404); **the photographs' spirals stand
+    /// steeper the more threads there are**, so a stitch is longer along the
+    /// braid than yatsu-kongo's, for its width. Taken as a ratio to the same
+    /// book's yatsu-kongo so the procedure's own leaning cancels (it reads 47°
+    /// on p.37, where yatsu-kongo's drawn 0.807 gives 45.8° and the recipe book
+    /// p.8's zoom 54.5°).
+    static let pitchOverDiameterByThreads: [Int: Float] = [12: 0.802, 16: 0.692]
 
     /// How many places round the braid one cycle carries a thread.
     ///

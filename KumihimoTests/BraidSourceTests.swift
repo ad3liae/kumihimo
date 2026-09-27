@@ -15,6 +15,10 @@ struct BraidSourceTests {
         "maru-yotsu-4": 52...52,
         "maru-genji-16": 94...95,
         "hira-genji-16": 96...97,
+        "juni-kongo-z-12": 40...40,
+        "juni-kongo-s-12": 41...41,
+        "juroku-kongo-z-16": 44...44,
+        "juroku-kongo-s-16": 45...45,
     ]
 
     /// The names this repository has called the books by, never shown.

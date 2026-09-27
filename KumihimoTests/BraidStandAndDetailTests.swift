@@ -27,8 +27,9 @@ struct BraidStandAndDetailTests {
         }
         #expect(ids(4) == [.maruYotsu4])
         #expect(ids(8) == [.yatsuKongoS8, .yatsuKongoZ8, .yatsuKongoGaeshi8, .edoYatsu8])
-        #expect(ids(12).isEmpty)
-        #expect(ids(16) == [.maruGenji16, .hiraGenji16])
+        // 十二金剛組 and 十六金剛組 since Task 071.
+        #expect(ids(12) == [.juniKongoS12, .juniKongoZ12])
+        #expect(ids(16) == [.maruGenji16, .hiraGenji16, .jurokuKongoS16, .jurokuKongoZ16])
     }
 
     /// **The stand is read off the recipe's stand**, not written on the preset.
@@ -79,7 +80,8 @@ struct BraidStandAndDetailTests {
         // Back to round: the braids return, and the choice does not come back by
         // itself.
         store.selectStandKind(.round)
-        #expect(store.availableBraidPresets.map(\.id) == [.maruGenji16, .hiraGenji16])
+        #expect(store.availableBraidPresets.map(\.id)
+                == [.maruGenji16, .hiraGenji16, .jurokuKongoS16, .jurokuKongoZ16])
         #expect(store.draft.selectedBraidPresetID == nil)
         #expect(store.draft.threadAssignments == colours)
     }

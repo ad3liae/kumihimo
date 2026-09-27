@@ -139,14 +139,19 @@ enum RoundTube8SurfaceMesh {
         guard threads != 8 else { return shape }
         var values = shape.values
         let pitch = RoundTube8SurfacePatternGenerator.pitchOverDiameter(for: .oneWay, threads: threads)
-        values["one cycle over the braid's diameter"] = .declared(
+        values["one cycle over the braid's diameter"] = BraidMeasurement(
             Double(pitch),
+            spread: threads == 12 ? 0.678...0.902 : threads == 16 ? 0.626...0.768 : nil,
             basis: .fractionOf("the braid's own diameter"),
-            calibratedBy: "not measured on this braid: yatsu-kongo's 0.807 times 8/\(threads), the "
-                + "textbook's threads being the same thickness and the braid \(threads)/8 as wide "
-                + "(p.40 「約1.5倍の太さ」, p.44 「約2倍の太さ」), so a stitch is the same size and "
-                + "the spiral lies at yatsu-kongo's angle (Task 071). 0.807 is itself the colour's "
-                + "period on book A p.8-9 read in cycles, not a stitch measured"
+            source: .observed("the textbook's photographs at the head of p.40-41 (twelve) and p.44-45 "
+                              + "(sixteen): the colour band's angle, measuring procedure 6, against p.36-37's "
+                              + "yatsu-kongo on the same book (Scripts/task071/measure_spiral_angle.py, Task 071)"),
+            unsettled: "**the angle is measured, the cycle is not**: yatsu-kongo's 0.807 times 8/\(threads) "
+                + "times the ratio of the band angles' tangents, which holds only while a pair's colour moves "
+                + "on a place every half cycle, as the table says. The spread is S and Z at three blurs. "
+                + "The colour's period along the braid (steps 5-6) agrees on sixteen and splits S from Z on "
+                + "twelve (1.52 and 1.84 of the width). 0.807 is itself the colour's period on book A p.8-9 "
+                + "read in cycles, not a stitch measured"
         )
         values["half a thread over the braid's radius"] = BraidMeasurement(
             Double(crestHeightRatio(threads: threads)),

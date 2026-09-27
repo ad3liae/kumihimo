@@ -250,13 +250,19 @@ struct KongoTwelveAndSixteenTests {
         }
         #expect(pattern.columnCount == facts.threads)
         #expect(RoundTube8SurfaceMesh.family(of: pattern) == family)
-        // The same stitch as yatsu-kongo's: a cycle 8/n of the eight's in diameters.
-        let pitch = RoundTube8SurfacePatternGenerator.pitchOverDiameter * 8 / Float(facts.threads)
+        // A cycle as steep as the textbook's photograph has the spiral (Task 071).
+        let pitch: Float = facts.threads == 12 ? 0.802 : 0.692
+        #expect(RoundTube8SurfacePatternGenerator.pitchOverDiameter(for: .oneWay, threads: facts.threads) == pitch)
         #expect(abs(pattern.aspectRatio - Float(pattern.rowCount) * pitch / .pi) < 1e-6)
         #expect(pattern.columnsCarried == (facts.way > 0 ? 1 : -1) * (facts.threads / 2 - 2))
         let mesh = try #require(RoundTube8SurfaceMesh.generate(pattern: pattern))
         #expect(mesh.positions.count > 0)
         #expect(RoundTube8CardImage.draw(pattern, bundle: pattern.bundle) != nil)
+        // The flat figure the detail sheet shows: a tube's, as for yatsu-kongo.
+        guard case .tube = BraidPatternForRecipe.figure(for: recipe, assignments: recipe.colouring) else {
+            Issue.record("\(recipeID) has no figure")
+            return
+        }
         #expect(BraidFamilyDrawing.drawer(for: BraidMethodCatalog.maruGenji16Recipe) == RoundTube16SurfaceMesh.family)
     }
 
@@ -277,31 +283,42 @@ struct KongoTwelveAndSixteenTests {
         let recipe = try recipe(recipeID)
         let stand = try #require(BraidMethodCatalog.stand(for: recipe))
         let count = stand.positionCount
-        let colours = ["amerry-f-501", "amerry-f-506", "amerry-f-512", "amerry-f-517"]
         let colouring = (1...count).map { place in
-            ThreadAssignment(position: place, colorID: ThreadColorID(rawValue: colours[((place - 1) / 2) % (count / 4)]))
+            ThreadAssignment(position: place, colorID: ThreadColorID(rawValue: Self.spiralColours[((place - 1) / 2) % (count / 4)]))
         }
         let worked = try #require(recipe.worked(on: stand))
         let pattern = try #require(RoundTube8SurfacePatternGenerator.generate(
             stand: stand, rounds: worked.derivation.rounds, crossSection: worked.section, assignments: colouring))
-        let bands = Self.bands(on: pattern)
-        #expect(bands.count == spirals, "\(recipeID): \(bands.count) bands")
-        let yatsuKongoS = try #require(RoundTube8SurfacePatternGenerator.generate(
-            stand: BraidMethodCatalog.stand8, rounds: [BraidMethodCatalog.yatsuKongoS8],
-            crossSection: .tube(of: BraidMethodCatalog.stand8),
-            assignments: (1...8).map { ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: colours[(($0 - 1) / 2) % 2])) }
-        ))
-        let sWay = try #require(Self.turning(of: yatsuKongoS))
-        let way = try #require(Self.turning(of: pattern))
+        let map = Self.colourMap(of: pattern)
+        let bands = Self.bands(on: map)
+        #expect(bands == spirals, "\(recipeID): \(bands) bands")
+        let way = try #require(Self.turning(of: map, rows: pattern.rowCount, columns: pattern.columnCount))
+        let sWay = try #require(Self.yatsuKongoSWay)
         #expect(way == (recipeID.contains("-s-") ? sWay : -sWay), "\(recipeID)")
         // The book's own colouring shows them too.
-        let own = try #require(RoundTube8SurfacePatternGenerator.generate(
-            stand: stand, rounds: worked.derivation.rounds, crossSection: worked.section,
-            assignments: recipe.colouring))
         if recipeID.hasPrefix("juni") || recipeID.hasPrefix("juroku") {
-            #expect(Self.bands(on: own).count == spirals, "\(recipeID), its own colouring")
+            let own = try #require(RoundTube8SurfacePatternGenerator.generate(
+                stand: stand, rounds: worked.derivation.rounds, crossSection: worked.section,
+                assignments: recipe.colouring))
+            #expect(Self.bands(on: Self.colourMap(of: own)) == spirals, "\(recipeID), its own colouring")
         }
     }
+
+    /// The colouring the spirals are counted in: a pair and the pair opposite
+    /// one colour, as many colours as a quarter of the threads.
+    nonisolated private static let spiralColours = ["amerry-f-501", "amerry-f-506", "amerry-f-512", "amerry-f-517"]
+
+    /// **Which way yatsu-kongo S's spirals turn** on the card, worked out once.
+    private static let yatsuKongoSWay: Int? = {
+        let stand = BraidMethodCatalog.stand8
+        guard let pattern = RoundTube8SurfacePatternGenerator.generate(
+            stand: stand, rounds: [BraidMethodCatalog.yatsuKongoS8], crossSection: .tube(of: stand),
+            assignments: (1...8).map {
+                ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: spiralColours[(($0 - 1) / 2) % 2]))
+            }
+        ) else { return nil }
+        return turning(of: colourMap(of: pattern), rows: pattern.rowCount, columns: pattern.columnCount)
+    }()
 
     /// The colour of every pixel of the card's map, row by row: a repeat.
     private static func colourMap(of pattern: RoundTube8SurfacePattern) -> (colours: [String], width: Int, height: Int) {
@@ -317,23 +334,21 @@ struct KongoTwelveAndSixteenTests {
         return (colours, width, height)
     }
 
-    /// **The bands that run the whole length of three repeats**, each a set of
+    /// **How many bands run the whole length of three repeats**, each a run of
     /// pixels of one colour joined side to side, round the braid wrapping.
-    private static func bands(on pattern: RoundTube8SurfacePattern) -> [Set<Int>] {
-        let (colours, width, height) = colourMap(of: pattern)
+    private static func bands(on map: (colours: [String], width: Int, height: Int)) -> Int {
+        let (colours, width, height) = map
         let repeats = 3
         let long = width * repeats
         func colour(_ row: Int, _ column: Int) -> String { colours[row * width + column % width] }
         var seen = [Bool](repeating: false, count: long * height)
-        var found = [Set<Int>]()
+        var found = 0
         for start in 0..<(long * height) where !seen[start] {
             let key = colour(start / long, start % long)
             var stack = [start]
-            var band = Set<Int>()
             seen[start] = true
             var columns = Set<Int>()
             while let here = stack.popLast() {
-                band.insert(here)
                 let row = here / long, column = here % long
                 columns.insert(column)
                 let next = [((row + 1) % height, column), ((row + height - 1) % height, column),
@@ -346,7 +361,7 @@ struct KongoTwelveAndSixteenTests {
                     }
                 }
             }
-            if columns.count == long { found.append(band) }
+            if columns.count == long { found += 1 }
         }
         return found
     }
@@ -356,10 +371,12 @@ struct KongoTwelveAndSixteenTests {
     /// lays one column's colours on the colours **half a cycle** along — a dan,
     /// in which the spiral moves on a column. (A cycle along it moves on two,
     /// which on yatsu-kongo's four-column colouring is the same both ways.)
-    private static func turning(of pattern: RoundTube8SurfacePattern) -> Int? {
-        let (colours, width, height) = colourMap(of: pattern)
-        let along = max(1, width / (2 * pattern.rowCount))
-        let column = height / pattern.columnCount
+    private static func turning(
+        of map: (colours: [String], width: Int, height: Int), rows: Int, columns count: Int
+    ) -> Int? {
+        let (colours, width, height) = map
+        let along = max(1, width / (2 * rows))
+        let column = height / count
         var best: (shift: Int, agree: Int)?
         for shift in -(3 * column / 2)...(3 * column / 2) where shift != 0 {
             var agree = 0

@@ -142,16 +142,16 @@ enum BraidPresetCatalog {
 
     /// 十二金剛組 and 十六金剛組, S and Z (Task 071): yatsu-kongo with twelve
     /// and sixteen threads, from the textbook's p.40–41 and p.44–45. Drawn by
-    /// yatsu-kongo's drawer, read for the thread count; **the pitch is not
-    /// measured on these braids** but carried over from yatsu-kongo's by the
-    /// thread count (`RoundTube8SurfacePatternGenerator.pitchOverDiameter(for:threads:)`).
+    /// yatsu-kongo's drawer, read for the thread count; **the spiral's angle is
+    /// measured on the same pages' photographs** and sets the cycle
+    /// (`RoundTube8SurfacePatternGenerator.pitchOverDiameterByThreads`).
     static let juniKongoS = BraidPreset(
         id: .juniKongoS12,
         displayName: "十二金剛S",
         supportedThreadCounts: [12],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順は『かわいい組ひもの教科書』p.41（12S-スパイラル）から。立体は八つ金剛の描き方を本数に広げた近似です。"
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.41（12S-スパイラル）から。らせんの傾きは同書の写真で測り、立体は八つ金剛の描き方を本数に広げた近似です。"
     )
 
     static let juniKongoZ = BraidPreset(
@@ -160,7 +160,7 @@ enum BraidPresetCatalog {
         supportedThreadCounts: [12],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順は『かわいい組ひもの教科書』p.40（12Z-スパイラル）から。立体は八つ金剛の描き方を本数に広げた近似です。"
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.40（12Z-スパイラル）から。らせんの傾きは同書の写真で測り、立体は八つ金剛の描き方を本数に広げた近似です。"
     )
 
     static let jurokuKongoS = BraidPreset(
@@ -169,7 +169,7 @@ enum BraidPresetCatalog {
         supportedThreadCounts: [16],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順は『かわいい組ひもの教科書』p.45（16S-スパイラル）から。立体は八つ金剛の描き方を本数に広げた近似です。"
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.45（16S-スパイラル）から。らせんの傾きは同書の写真で測り、立体は八つ金剛の描き方を本数に広げた近似です。"
     )
 
     static let jurokuKongoZ = BraidPreset(
@@ -178,7 +178,7 @@ enum BraidPresetCatalog {
         supportedThreadCounts: [16],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順は『かわいい組ひもの教科書』p.44（16Z-スパイラル）から。立体は八つ金剛の描き方を本数に広げた近似です。"
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.44（16Z-スパイラル）から。らせんの傾きは同書の写真で測り、立体は八つ金剛の描き方を本数に広げた近似です。"
     )
 
     static let presets = [

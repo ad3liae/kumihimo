@@ -157,6 +157,11 @@ struct ThreadColorCatalogTests {
 
     /// Each recipe's colouring as it stood before Task 063, place by place, in
     /// the twelve former IDs.
+    /// The recipes whose colourings were first chosen among the 30 (Task 071).
+    private static let chosenInTheThirty: Set<String> = [
+        "juni-kongo-s-12", "juni-kongo-z-12", "juroku-kongo-s-16", "juroku-kongo-z-16",
+    ]
+
     private static let formerColourings: [String: [String]] = {
         func byGroup(_ stand: BraidStand, _ groups: [String: [String]]) -> [String] {
             BraidMethodCatalog.colouring(on: stand, groups)
@@ -188,11 +193,15 @@ struct ThreadColorCatalogTests {
     /// were different are still different — though the 30 read several of the
     /// 38 as one colour. The colours were chosen afresh from the books'
     /// photographs, so which colour each is, is not held here.
+    ///
+    /// **A recipe added since Task 065 was chosen in the 30 from the start**
+    /// (Task 071's 十二金剛組 and 十六金剛組) and has no former pattern to keep.
     @Test(arguments: BraidMethodCatalog.recipes)
     func aRecipesColouringIsInTheThirtyAndKeepsItsPattern(recipe: BraidRecipe) throws {
         let current = Set(ThreadColorCatalog.colors.map(\.id))
         #expect(recipe.colouring.allSatisfy { current.contains($0.colorID) }, "\(recipe.id)")
 
+        guard !Self.chosenInTheThirty.contains(recipe.id) else { return }
         let before = try #require(Self.formerColourings[recipe.id])
         let now = recipe.colouring.sorted { $0.position < $1.position }.map(\.colorID.rawValue)
         #expect(now.count == before.count)
