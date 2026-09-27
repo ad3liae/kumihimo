@@ -10,7 +10,7 @@ struct BraidSourceTests {
     private static let textbookPages: [String: ClosedRange<Int>] = [
         "yatsu-kongo-s-8": 37...37,
         "yatsu-kongo-z-8": 36...36,
-        "yatsu-kongo-gaeshi-8": 38...38,
+        "yatsu-kongo-gaeshi-8": 38...39,
         "edo-yatsu-8": 64...65,
         "maru-yotsu-4": 52...52,
         "maru-genji-16": 94...95,

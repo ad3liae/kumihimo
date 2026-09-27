@@ -105,7 +105,7 @@ enum BraidPresetCatalog {
         supportedThreadCounts: [8],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順は『かわいい組ひもの教科書』p.38（8S&Z-スパイラル）から。Sを6段、Zを6段で1工程です。折り返しの見え方は小さな写真にしか照らしていない描画上の近似です。"
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.38–39（8S&Z-スパイラル）から。Sを6段、Zを6段で1工程です。折り返しの見え方は小さな写真にしか照らしていない描画上の近似です。"
     )
 
     /// 丸四つ組 (Task 054), the first braid of four threads. **Read off book A
