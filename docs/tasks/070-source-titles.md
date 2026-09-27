@@ -1,6 +1,6 @@
 # Task 070: 手順のアニメーションと注記に、正式な書籍名で出典を書く
 
-- 状態: **実装済み**（2026-09-27、worker。枝 `claude/task-070-source-titles`）。指示書は審査側（2026-09-27）。結果は末尾
+- 状態: **実装済み・PR #55 でマージ**（2026-09-27、worker。枝 `claude/task-070-source-titles`。作者が PR の作成とマージを許可した）。指示書は審査側（2026-09-27）。結果は末尾
 - 前提: `docs/sources.md`（**審査側がこの指示書と同時に書籍名を書き足した**）、`docs/specifications/project-editor.md`「詳細」「手順のアニメーション」
   （同じく1項足した）、`AGENTS.md`
 - 基準: 最新の main（PR #54 以降）
