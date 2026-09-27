@@ -73,6 +73,9 @@ struct BraidRecipe: Equatable, Sendable {
     let id: String
     /// What the braid is called. **The one place a braid's name belongs.**
     let name: String
+    /// **The book and pages its steps are printed on** (Task 070), shown under
+    /// the step animation. The working-out never reads it.
+    let source: BraidSource?
     /// The tables worked in turn, cycle by cycle (Task 053). One, for most
     /// braids; a braid that turns its spiral round partway through works one
     /// table for some cycles and another for the next.
@@ -102,6 +105,7 @@ struct BraidRecipe: Equatable, Sendable {
     init(
         id: String,
         name: String,
+        source: BraidSource? = nil,
         notation: BraidDiskNotation,
         colouring: [ThreadAssignment],
         shape: BraidShapeValues,
@@ -111,7 +115,7 @@ struct BraidRecipe: Equatable, Sendable {
         handsADan: Int? = nil
     ) {
         self.init(
-            id: id, name: name, rounds: [notation], colouring: colouring,
+            id: id, name: name, source: source, rounds: [notation], colouring: colouring,
             shape: shape, orderRoundTheBraid: orderRoundTheBraid, startingSlits: startingSlits,
             standHands: standHands, handsADan: handsADan
         )
@@ -122,6 +126,7 @@ struct BraidRecipe: Equatable, Sendable {
     init(
         id: String,
         name: String,
+        source: BraidSource? = nil,
         rounds: [BraidDiskNotation],
         colouring: [ThreadAssignment],
         shape: BraidShapeValues,
@@ -133,6 +138,7 @@ struct BraidRecipe: Equatable, Sendable {
         precondition(!rounds.isEmpty, "a recipe needs a table")
         self.id = id
         self.name = name
+        self.source = source
         self.rounds = rounds
         self.colouring = colouring
         self.shape = shape

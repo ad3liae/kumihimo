@@ -72,18 +72,18 @@ enum BraidPresetCatalog {
 
     /// The eight-bobbin braids, S and Z.
     ///
-    /// **The notice is longer than the others because more is open.** Since Task
-    /// 053 the tables are a disk book's p.36-37, photographed — not the source of
-    /// record, though book C Fig.129 prints the same Z — and the solid is drawn
-    /// from rules rather than from a transcribed cell figure (Task 031). What is
-    /// settled is the colouring, book A p.54 and p.55's a.
+    /// **The notice names the book by its title** (Task 070): the tables are the
+    /// textbook's p.37 and p.36 (Task 053), and book C Fig.129 prints the same Z,
+    /// which the notice no longer says. The solid is drawn from rules rather than
+    /// from a transcribed cell figure (Task 031). What is settled is the
+    /// colouring, book A p.54 and p.55's a.
     static let yatsuKongoS = BraidPreset(
         id: .yatsuKongoS8,
         displayName: "八つ金剛S",
         supportedThreadCounts: [8],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順表は組ひもディスクの本（8S-スパイラル）から写した試作です。bookC Fig.129のZと同じ進み方になります。立体は写真に合わせた描画上の近似です。"
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.37（8S-スパイラル）から。立体は写真に合わせた描画上の近似です。"
     )
 
     static let yatsuKongoZ = BraidPreset(
@@ -92,7 +92,7 @@ enum BraidPresetCatalog {
         supportedThreadCounts: [8],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順表は組ひもディスクの本（8Z-スパイラル）から写した試作で、bookC Fig.129と同じ進み方です。立体は写真に合わせた描画上の近似です。"
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.36（8Z-スパイラル）から。立体は写真に合わせた描画上の近似です。"
     )
 
     /// 八つ金剛返し組 (Task 053): six dan of S, then six of Z, from the disk
@@ -105,19 +105,20 @@ enum BraidPresetCatalog {
         supportedThreadCounts: [8],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順表は組ひもディスクの本（8S&Z-スパイラル）から写した試作です。Sを6段、Zを6段で1工程です。折り返しの見え方は小さな写真にしか照らしていない描画上の近似です。"
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.38（8S&Z-スパイラル）から。Sを6段、Zを6段で1工程です。折り返しの見え方は小さな写真にしか照らしていない描画上の近似です。"
     )
 
     /// 丸四つ組 (Task 054), the first braid of four threads. **Read off book A
     /// p.56's picture**, which prints each step's two threads, one to a hand,
-    /// and not which goes first; book C has no figure of it.
+    /// and not which goes first; book C has no figure of it. **The notice cites
+    /// the textbook's p.52 alone** (Task 070), which moves the two 「同時に」.
     static let maruYotsu = BraidPreset(
         id: .maruYotsu4,
         displayName: "丸四つ",
         supportedThreadCounts: [4],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順表はbookA p.56から写した試作です。bookCに図が無く、対の2本のどちらが先かは読めません。立体は写真に合わせた描画上の近似です。"
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.52 から。立体は写真に合わせた描画上の近似です。"
     )
 
     /// 江戸八つ組 (Task 009). **Transcribed from the textbook's p.64–65** since
@@ -132,7 +133,7 @@ enum BraidPresetCatalog {
         supportedThreadCounts: [8],
         crossSectionProfile: .round,
         verificationLevel: .movementRules,
-        prototypeNotice: "手順表は教科書 p.64–65から写した試作です。立体の目の形は教科書 p.64の写真に合わせた描画上の近似です。"
+        prototypeNotice: "手順は『かわいい組ひもの教科書』p.64–65 から。立体の目の形は同書 p.64 の写真に合わせた描画上の近似です。"
     )
 
     static let presets = [

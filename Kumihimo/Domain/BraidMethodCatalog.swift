@@ -489,6 +489,9 @@ enum BraidMethodCatalog {
     static let maruGenji16Recipe = BraidRecipe(
         id: "maru-genji-16",
         name: "丸源氏組",
+        // The textbook's 十六丸源氏組, whose hands the step animation works; book
+        // C's table leaves the same places (`aDanOnTheRoundStandIsACycleOfBookC`).
+        source: BraidSource(book: .textbook, pages: 94...95),
         notation: maruGenjiDisk,
         colouring: maruGenji16Colouring,
         shape: maruGenji16Shape,
@@ -504,6 +507,8 @@ enum BraidMethodCatalog {
     static let hiraGenji16Recipe = BraidRecipe(
         id: "hira-genji-16",
         name: "平源氏組",
+        // The textbook's 十六平源氏組, as for 丸源氏.
+        source: BraidSource(book: .textbook, pages: 96...97),
         notation: hiraGenjiDisk,
         colouring: hiraGenji16Colouring,
         shape: hiraGenji16Shape,
@@ -579,6 +584,7 @@ enum BraidMethodCatalog {
     static let yatsuKongoS8Recipe = BraidRecipe(
         id: "yatsu-kongo-s-8",
         name: "八つ金剛組S",
+        source: BraidSource(book: .textbook, page: 37),
         notation: yatsuKongoSDisk,
         colouring: yatsuKongoS8Colouring,
         shape: BraidShapeValues(),
@@ -593,6 +599,7 @@ enum BraidMethodCatalog {
     static let yatsuKongoZ8Recipe = BraidRecipe(
         id: "yatsu-kongo-z-8",
         name: "八つ金剛組Z",
+        source: BraidSource(book: .textbook, page: 36),
         notation: yatsuKongoZDisk,
         colouring: yatsuKongoZ8Colouring,
         shape: BraidShapeValues(),
@@ -683,6 +690,7 @@ enum BraidMethodCatalog {
     static let yatsuKongoGaeshi8Recipe = BraidRecipe(
         id: "yatsu-kongo-gaeshi-8",
         name: "八つ金剛返し組",
+        source: BraidSource(book: .textbook, page: 38),
         rounds: yatsuKongoGaeshiRounds,
         colouring: yatsuKongoGaeshi8Colouring,
         shape: BraidShapeValues(),
@@ -779,6 +787,9 @@ enum BraidMethodCatalog {
     static let maruYotsu4Recipe = BraidRecipe(
         id: "maru-yotsu-4",
         name: "丸四つ組",
+        // The textbook's hands (Task 068); the table, read off the recipe book's
+        // p.56, leaves the same order (`aPassLeavesTheOrderTheTablesDo`).
+        source: BraidSource(book: .textbook, page: 52),
         notation: maruYotsuDisk,
         colouring: maruYotsu4Colouring,
         shape: BraidShapeValues(),
@@ -1006,6 +1017,7 @@ enum BraidMethodCatalog {
     static let edoYatsu8Recipe = BraidRecipe(
         id: "edo-yatsu-8",
         name: "江戸八つ組",
+        source: BraidSource(book: .textbook, pages: 64...65),
         notation: edoYatsuDisk,
         colouring: edoYatsu8Colouring,
         shape: BraidShapeValues(),

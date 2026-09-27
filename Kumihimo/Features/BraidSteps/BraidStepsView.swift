@@ -8,8 +8,8 @@ import SwiftUI
 /// then settles: the book's adjustments (Task 067). Once a dan is done, one more
 /// step sets every thread back in the starting form, not counted as a hand
 /// (Task 068). Beside it, or under it where there is no room,
-/// the hand in words and how far through its dan it is; under both,
-/// back a hand, play, on a hand.
+/// the hand in words, how far through its dan it is and the book it comes
+/// from (Task 070); under both, back a hand, play, on a hand.
 ///
 /// **Place 1's island at the top**, the places running clockwise as the
 /// colouring screen draws them, so the colours stand where the person put
@@ -20,6 +20,8 @@ struct BraidStepsView: View {
     /// braid worked as its book works it (Task 067).
     private let stage: BraidStepStage?
     private let colours: [Int: ThreadColorID]
+    /// The book and pages the steps come from, by the book's title (Task 070).
+    private let source: BraidSource?
     /// The room offered: the width to keep inside, and the height to fill.
     private let room: CGSize
 
@@ -42,6 +44,7 @@ struct BraidStepsView: View {
         }
         self.stage = stage
         self.colours = colours
+        self.source = recipe?.source
         self.room = room
         // The playback steps through the hands, the settings and the
         // fast-forwards, on and on: the stage plays its round again, the
@@ -113,8 +116,8 @@ struct BraidStepsView: View {
     }
 
     /// Roughly what the words and buttons take under the stand: two lines, the
-    /// count, the buttons; and the buttons alone.
-    private static let wordsAllowance: CGFloat = 120
+    /// count, the source, the buttons; and the buttons alone.
+    private static let wordsAllowance: CGFloat = 140
     private static let controlsAllowance: CGFloat = 50
 
     /// **Everything kept inside `room.width`**: the words wrap in a column of
@@ -149,24 +152,45 @@ struct BraidStepsView: View {
 
     /// The hand in words, over two lines' room so nothing jumps as the
     /// sentences change length, and the count. VoiceOver reads both off the
-    /// stand instead.
+    /// stand instead. Under them, smaller, the book the steps come from, which
+    /// VoiceOver reads here.
     private func words(sentence: String, count: String?) -> some View {
-        VStack(spacing: 2) {
-            ZStack {
-                Text(verbatim: "\n").hidden()
-                Text(sentence)
+        VStack(spacing: 6) {
+            VStack(spacing: 2) {
+                ZStack {
+                    Text(verbatim: "\n").hidden()
+                    Text(sentence)
+                }
+                .font(.subheadline)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity)
+                // Its room kept when there is none, so nothing jumps.
+                Text(count ?? BraidStepsStrings.count(0, of: 0))
+                    .font(.footnote.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .opacity(count == nil ? 0 : 1)
             }
-            .font(.subheadline)
+            .accessibilityHidden(true)
+            if let source {
+                // One line where it fits; beside the stand, broken between its
+                // parts rather than inside the title.
+                ViewThatFits(in: .horizontal) {
+                    sourceLine(BraidStepsStrings.source(source), source)
+                    sourceLine(BraidStepsStrings.sourceInLines(source), source)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    private func sourceLine(_ text: String, _ source: BraidSource) -> some View {
+        Text(text)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
             .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity)
-            // Its room kept when there is none, so nothing jumps.
-            Text(count ?? BraidStepsStrings.count(0, of: 0))
-                .font(.footnote.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .opacity(count == nil ? 0 : 1)
-        }
-        .accessibilityHidden(true)
+            .accessibilityLabel(BraidStepsStrings.sourceAccessibilityLabel(source))
     }
 
     private var controls: some View {
