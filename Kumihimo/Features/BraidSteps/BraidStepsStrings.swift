@@ -13,6 +13,10 @@ enum BraidStepsStrings {
     /// where the stand would be.
     static let nothingToShow = "この組み方の手順はまだ描けません"
 
+    /// **Setting every thread back in the starting form once a dan is done**
+    /// (Task 068): not a hand, and 「段」 is not said.
+    static let setting = "位置をそろえる"
+
     /// 「3 / 16 手目」: the hand shown, counted from 1, of one time round.
     static func count(_ hand: Int, of total: Int) -> String { "\(hand) / \(total) 手目" }
 
@@ -61,29 +65,56 @@ enum BraidStepsStrings {
     /// **A hand on a round stand's faces, in the book's own words** (Task 067):
     /// 「3面の左端と右端の糸を、1面の中央へ（左手・右手）」; 「3面の左端の糸を1面の
     /// 左端の糸の右側へ、3面の右端の糸を1面の右端の糸の左側へ（左手・右手）」.
-    static func standSentence(_ carries: [BraidStandHands.Carry]) -> String {
-        let hands = carries.map { $0.hand == .left ? "左手" : "右手" }.joined(separator: "・")
+    /// Carried round the rim, the way and 「同時に」 instead of the hands (Task
+    /// 068, 丸四つ組 p.52): 「1面の糸を3面へ、3面の糸を1面へ（時計回り、同時に）」.
+    static func standSentence(_ hand: BraidStandHands.StandHand) -> String {
+        let carries = hand.carries
         guard let first = carries.first else { return "" }
+        let aside = hand.way == .across
+            ? carries.map { $0.hand == .left ? "左手" : "右手" }.joined(separator: "・")
+            : "\(roundWay(hand.way))、同時に"
         let fromOneFace = carries.allSatisfy { $0.face == first.face }
         let toOneFace = carries.allSatisfy { $0.toFace == first.toFace }
         let picks = carries.map { pick($0.end, $0.fromTheEnd) }.joined(separator: "と")
         if fromOneFace, toOneFace, carries.allSatisfy({ if case .centre = $0.spot { true } else { false } }) {
-            return "\(first.face)面の\(picks)の糸を、\(first.toFace)面の中央へ（\(hands)）"
+            return "\(first.face)面の\(picks)の糸を、\(first.toFace)面の中央へ（\(aside)）"
         }
         let ends = carries.compactMap { carry -> String? in
             if case .end(let end) = carry.spot { return pick(end, 0) }
             return nil
         }
         if fromOneFace, toOneFace, ends.count == carries.count {
-            return "\(first.face)面の\(picks)の糸を、\(first.toFace)面の\(ends.joined(separator: "と"))へ（\(hands)）"
+            return "\(first.face)面の\(picks)の糸を、\(first.toFace)面の\(ends.joined(separator: "と"))へ（\(aside)）"
         }
         return carries
-            .map { "\($0.face)面の\(pick($0.end, $0.fromTheEnd))の糸を\($0.toFace)面の\(spot($0.spot))へ" }
-            .joined(separator: "、") + "（\(hands)）"
+            .map { "\(taken($0))を\(laid($0))へ" }
+            .joined(separator: "、") + "（\(aside)）"
+    }
+
+    /// 「3面の左端の糸」, or 「1面の糸」 for a face's one thread.
+    private static func taken(_ carry: BraidStandHands.Carry) -> String {
+        guard let end = carry.end else { return "\(carry.face)面の糸" }
+        return "\(carry.face)面の\(pick(end, carry.fromTheEnd))の糸"
+    }
+
+    /// 「1面の中央」, or 「3面」 for a face its thread has just left.
+    private static func laid(_ carry: BraidStandHands.Carry) -> String {
+        if carry.spot == .face { return "\(carry.toFace)面" }
+        return "\(carry.toFace)面の\(spot(carry.spot))"
+    }
+
+    /// 「時計回り」「反時計回り」, the textbook's words for a round stand.
+    private static func roundWay(_ way: BraidStepWay) -> String {
+        switch way {
+        case .clockwise: "時計回り"
+        case .anticlockwise: "反時計回り"
+        case .across: "中央を横切って"
+        }
     }
 
     /// 「左端」「左から2番目」「奥」「奥から2番目」.
-    private static func pick(_ end: BraidStandHands.End, _ fromTheEnd: Int) -> String {
+    private static func pick(_ end: BraidStandHands.End?, _ fromTheEnd: Int) -> String {
+        guard let end else { return "" }
         let name = endName(end)
         guard fromTheEnd > 0 else { return end == .left || end == .right ? "\(name)端" : name }
         return "\(name)から\(fromTheEnd + 1)番目"
@@ -101,6 +132,7 @@ enum BraidStepsStrings {
     /// 「中央」「左端の糸の右側」「左端」.
     private static func spot(_ spot: BraidStandHands.Spot) -> String {
         switch spot {
+        case .face: ""
         case .centre: "中央"
         case .insideEnd(let end): "\(pick(end, 0))の糸の\(endName(end.opposite))側"
         case .end(let end): pick(end, 0)

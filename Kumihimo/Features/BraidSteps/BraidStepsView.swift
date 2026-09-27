@@ -4,9 +4,10 @@ import SwiftUI
 /// 061): the stand's top, the hole in its middle, a bobbin for every thread in
 /// the thread's colour and its thread running in to the middle. Each hand lights
 /// the threads it carries, points where they go, and slides them there — round
-/// the rim on a disk, straight over the mirror on a round stand's faces — and
-/// then settles: the book's adjustments, and the islands drawn back when they
-/// are as they began (Task 067). Beside it, or under it where there is no room,
+/// the rim, or straight over the mirror where a round stand's book says so — and
+/// then settles: the book's adjustments (Task 067). Once a dan is done, one more
+/// step sets every thread back in the starting form, not counted as a hand
+/// (Task 068). Beside it, or under it where there is no room,
 /// the hand in words and how far through the time round it is; under both,
 /// back a hand, play, on a hand.
 ///
@@ -44,7 +45,8 @@ struct BraidStepsView: View {
         self.stage = stage
         self.colours = colours
         self.room = room
-        _playback = State(initialValue: BraidStepPlayback(handCount: max(stage?.handCount ?? 1, 1)))
+        // The playback steps through the hands and the settings between them.
+        _playback = State(initialValue: BraidStepPlayback(handCount: max(stage?.stepCount ?? 1, 1)))
     }
 
     var body: some View {
@@ -52,10 +54,9 @@ struct BraidStepsView: View {
             if let stage {
                 TimelineView(.animation(minimumInterval: nil, paused: !playback.isRunning)) { context in
                     let position = playback.position(at: context.date)
-                    let index = min(position.hand, stage.handCount - 1)
-                    let stations = stage.stations(ofHand: index)
+                    let stations = stage.stations(ofStep: position.hand)
                     let sentence = stations.sentence
-                    let count = BraidStepsStrings.count(index + 1, of: stage.handCount)
+                    let count = BraidStepsStrings.count(stations.hand + 1, of: stage.handCount)
                     arranged(
                         stand: BraidStandDrawing(
                             frame: BraidStepFrame.at(
@@ -216,7 +217,7 @@ private struct BraidStandDrawing: View {
             func onCanvas(_ point: CGPoint) -> CGPoint {
                 CGPoint(x: middle.x + point.x * scale, y: middle.y + point.y * scale)
             }
-            let ballRadius = stage.layout.ballRadius * scale
+            let ballRadius = stage.geometry.ballRadius * scale
 
             let board = circle(at: middle, radius: Self.boardRadius * scale)
             context.fill(board, with: .color(Color.brown.opacity(0.24)))
@@ -290,7 +291,7 @@ private struct BraidStandDrawing: View {
         } else {
             // A little short of both places, so two arrows that meet — a hand of
             // two carried half way round each — still read as two.
-            let gap = 0.12 / Double(max(stage.layout.placeCount, 1)) * (arrow.way == .clockwise ? 1 : -1)
+            let gap = 0.12 / Double(max(stage.geometry.placeCount, 1)) * (arrow.way == .clockwise ? 1 : -1)
             let startPolar = BraidStepFrame.Polar(turn: from + gap, radius: Self.arrowRadius)
             let endPolar = BraidStepFrame.Polar(turn: to - gap, radius: Self.arrowRadius)
             let samples = 48

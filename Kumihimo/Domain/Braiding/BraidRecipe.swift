@@ -105,6 +105,12 @@ struct BraidRecipe: Equatable, Sendable {
     /// stand is the one the step animation follows (Task 067). **Only the step
     /// animation reads it**; it takes the place of the disk when both are given.
     let standHands: BraidStandHands?
+    /// **How many hands make a dan of the book's disk** — the book's 「1段目終了」
+    /// (Task 068). The step animation sets the threads back in the starting form
+    /// only at the end of a dan, never between hands. `nil` for a braid on a
+    /// round stand's faces, whose dan is `standHands.hands`; a braid worked on
+    /// the disk without it is not drawn.
+    let handsADan: Int?
 
     init(
         id: String,
@@ -114,12 +120,13 @@ struct BraidRecipe: Equatable, Sendable {
         shape: BraidShapeValues,
         orderRoundTheBraid: BraidCrossSection? = nil,
         startingSlits: BraidStartingSlits? = nil,
-        standHands: BraidStandHands? = nil
+        standHands: BraidStandHands? = nil,
+        handsADan: Int? = nil
     ) {
         self.init(
             id: id, name: name, rounds: [notation], colouring: colouring,
             shape: shape, orderRoundTheBraid: orderRoundTheBraid, startingSlits: startingSlits,
-            standHands: standHands
+            standHands: standHands, handsADan: handsADan
         )
     }
 
@@ -133,7 +140,8 @@ struct BraidRecipe: Equatable, Sendable {
         shape: BraidShapeValues,
         orderRoundTheBraid: BraidCrossSection? = nil,
         startingSlits: BraidStartingSlits? = nil,
-        standHands: BraidStandHands? = nil
+        standHands: BraidStandHands? = nil,
+        handsADan: Int? = nil
     ) {
         precondition(!rounds.isEmpty, "a recipe needs a table")
         self.id = id
@@ -144,6 +152,7 @@ struct BraidRecipe: Equatable, Sendable {
         self.orderRoundTheBraid = orderRoundTheBraid
         self.startingSlits = startingSlits
         self.standHands = standHands
+        self.handsADan = handsADan
     }
 
     func crossSection(on stand: BraidStand) -> BraidCrossSection {

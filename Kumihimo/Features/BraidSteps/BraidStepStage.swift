@@ -1,10 +1,11 @@
 import Foundation
 
 /// **Where every thread stands at each moment of each hand, and what the hand
-/// is called** (Task 066, Task 067): the working (`BraidBookWorking`) turned
-/// into angles on the drawn stand. Before the hand, where its carries set the
-/// threads down, and after it has settled — the adjustments made, and the
-/// islands drawn back when they are as they began.
+/// is called** (Task 066, Task 067, Task 068): the working (`BraidBookWorking`)
+/// as the drawing plays it. Before the hand, where its carries set the threads
+/// down, and after it has settled — the book's adjustments made. **At the end
+/// of a dan one more step sets every thread back in the starting form**: it is
+/// not a hand, and the count stays at the dan's last.
 ///
 /// The places are named where they began: 「場所5」 on one, 「場所2の隣」
 /// between. A braid worked on a round stand's faces is said in the book's own
@@ -12,7 +13,13 @@ import Foundation
 /// its faces are what the stand is labelled with.
 struct BraidStepStage {
     struct Stations: Equatable {
-        /// The threads the hand carries, lit from its start until it settles.
+        /// The hand it is, or whose dan it ends, from 0.
+        let hand: Int
+        /// **Setting the threads back once a dan is done**: not a hand, and
+        /// nothing lit.
+        let isSetting: Bool
+        /// The threads the step moves as it carries: a hand's carries, lit from
+        /// its start until it settles; every thread a setting moves.
         let carried: Set<Int>
         let before: [Int: BraidStepFrame.Polar]
         let afterCarrying: [Int: BraidStepFrame.Polar]
@@ -34,36 +41,43 @@ struct BraidStepStage {
     }
 
     let working: BraidBookWorking
-    let layout: BraidStepLayout
     let labels: [Label]
-    private let byHand: [Stations]
+    private let steps: [Stations]
+    private let handSteps: [Int]
 
-    var handCount: Int { byHand.count }
+    var geometry: BraidBookGeometry { working.geometry }
+    /// Hands in a time round.
+    var handCount: Int { working.hands.count }
+    /// Hands and settings in a time round: what the playback steps through.
+    var stepCount: Int { steps.count }
 
     init?(recipe: BraidRecipe, stand: BraidStand, colours: [Int: ThreadColorID] = [:]) {
         guard let working = BraidBookWorking(recipe: recipe, stand: stand, colours: colours),
               !working.hands.isEmpty else { return nil }
-        let layout = BraidStepLayout(placeCount: stand.positionCount)
-        let step = layout.stepTurn(for: working.form)
-        func turn(_ seat: BraidBookWorking.Seat) -> Double {
-            BraidBookWorking.unit(seat.turn + seat.offset * step)
-        }
         func polars(_ seats: [Int: BraidBookWorking.Seat]) -> [Int: BraidStepFrame.Polar] {
-            seats.mapValues { BraidStepFrame.Polar(turn: turn($0), radius: 1) }
+            seats.mapValues { BraidStepFrame.Polar(turn: $0.turn, radius: $0.radius) }
         }
-        let homeTurns = working.homes.mapValues(turn)
+        let homeTurns = working.homes.mapValues(\.turn)
+        // On a place within half a drawn notch: a thread set down beside
+        // another is a whole one off.
+        let onAPlace: Double
+        if case .disk(let notches) = working.form {
+            onAPlace = working.geometry.notchTurn(notches: notches) / 2
+        } else {
+            onAPlace = working.geometry.faceTurn / 2
+        }
         func spot(at turn: Double) -> BraidStepsStrings.Spot {
             let nearest = homeTurns.min {
                 abs(BraidBookWorking.between(turn, $0.value)) < abs(BraidBookWorking.between(turn, $1.value))
             }
-            // On it within half a drawn step: an island spread about its middle
-            // moves its threads a little off where they began.
-            let onIt = nearest.map { abs(BraidBookWorking.between(turn, $0.value)) < step / 2 } ?? false
+            let onIt = nearest.map { abs(BraidBookWorking.between(turn, $0.value)) < onAPlace } ?? false
             return BraidStepsStrings.Spot(place: nearest?.key ?? 1, isBeside: !onIt)
         }
 
-        byHand = working.hands.map { hand in
-            let before = polars(hand.before), afterCarrying = polars(hand.afterCarrying)
+        var steps = [Stations]()
+        var handSteps = [Int]()
+        for (index, hand) in working.hands.enumerated() {
+            let before = polars(hand.before), afterCarrying = polars(hand.afterCarrying), after = polars(hand.after)
             var ways = [Int: BraidStepWay]()
             for move in hand.carries + hand.adjustments { ways[move.thread] = move.way }
             let arrows = hand.carries.compactMap { carry in
@@ -74,7 +88,9 @@ struct BraidStepStage {
                 }
             }
             let sentence: String
-            if hand.standCarries.isEmpty {
+            if let standHand = hand.standHand {
+                sentence = BraidStepsStrings.standSentence(standHand)
+            } else {
                 sentence = BraidStepsStrings.diskSentence(
                     carries: hand.carries.map { carry in
                         (from: spot(at: before[carry.thread]?.turn ?? 0),
@@ -84,15 +100,22 @@ struct BraidStepStage {
                     isHandOver: hand.isHandOver,
                     name: working.tableCount > 1 || hand.isHandOver ? hand.name : nil
                 )
-            } else {
-                sentence = BraidStepsStrings.standSentence(hand.standCarries)
             }
-            return Stations(
-                carried: Set(hand.carries.map(\.thread)),
-                before: before, afterCarrying: afterCarrying, after: polars(hand.after),
+            handSteps.append(steps.count)
+            steps.append(Stations(
+                hand: index, isSetting: false, carried: Set(hand.carries.map(\.thread)),
+                before: before, afterCarrying: afterCarrying, after: after,
                 settled: Set(hand.adjustments.map(\.thread)), ways: ways, arrows: arrows,
                 sentence: sentence
-            )
+            ))
+            if let setting = hand.setting.map(polars) {
+                steps.append(Stations(
+                    hand: index, isSetting: true,
+                    carried: Set(setting.keys.filter { setting[$0] != after[$0] }),
+                    before: after, afterCarrying: setting, after: setting,
+                    settled: [], ways: [:], arrows: [], sentence: BraidStepsStrings.setting
+                ))
+            }
         }
         switch working.form {
         case .disk:
@@ -101,10 +124,24 @@ struct BraidStepStage {
             labels = hands.faces.map { Label(text: "\($0.number)", turn: $0.turn) }
         }
         self.working = working
-        self.layout = layout
+        self.steps = steps
+        self.handSteps = handSteps
     }
 
+    /// The playback's step: a hand, or a setting after one.
+    func stations(ofStep index: Int) -> Stations {
+        steps[min(max(index, 0), steps.count - 1)]
+    }
+
+    /// A hand's own step.
     func stations(ofHand index: Int) -> Stations {
-        byHand[min(max(index, 0), byHand.count - 1)]
+        stations(ofStep: handSteps[min(max(index, 0), handSteps.count - 1)])
+    }
+
+    /// The setting that follows a hand, if one does.
+    func setting(afterHand index: Int) -> Stations? {
+        let next = handSteps[min(max(index, 0), handSteps.count - 1)] + 1
+        guard next < steps.count, steps[next].isSetting else { return nil }
+        return steps[next]
     }
 }

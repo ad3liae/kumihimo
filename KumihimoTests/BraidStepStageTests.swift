@@ -3,9 +3,10 @@ import Foundation
 import Testing
 @testable import Kumihimo
 
-/// Task 066, Task 067: **the step animation as drawn** — every thread at the
-/// angle the working puts it, the hands in words as the picture shows them,
-/// no two bobbins on top of each other.
+/// Task 066, Task 067, Task 068: **the step animation as drawn** — every
+/// thread at the angle the working puts it, the hands in words as the picture
+/// shows them, the threads set back once a dan is done, no two bobbins on top
+/// of each other.
 @MainActor
 struct BraidStepStageTests {
     private func stage(_ recipe: BraidRecipe, colours: [ThreadAssignment]? = nil) throws -> BraidStepStage {
@@ -89,15 +90,86 @@ struct BraidStepStageTests {
         #expect(said.contains { $0.hasPrefix("Zの組み：") })
     }
 
-    /// 丸四つ組 carries two at once, and sets them down beside the places they
-    /// are tidied into.
-    @Test func maruYotsuCarriesTwoAtOnce() throws {
-        let stage = try stage(try recipe("maru-yotsu-4"))
-        #expect(stage.stations(ofHand: 0).sentence == "場所1の糸を左回りに場所3の隣へ、場所3の糸を左回りに場所1の隣へ")
-        #expect(stage.stations(ofHand: 0).settled == [1, 3])
+    // MARK: 2. Setting back once a dan is done
+
+    /// **八つ金剛 S sets its threads back after hand 4, and only then** (Task
+    /// 068): one step more, 「位置をそろえる」, not a hand — the count stays at 4
+    /// —, nothing lit and no arrow, every thread slid the short way to the
+    /// starting form.
+    @Test func kongoSSetsItsThreadsBackAfterADan() throws {
+        let stage = try stage(try recipe("yatsu-kongo-s-8"))
+        #expect(stage.stepCount == stage.handCount + stage.handCount / 4)
+        let steps = (0..<stage.stepCount).map { stage.stations(ofStep: $0) }
+        #expect(steps.map(\.isSetting) == (0..<stage.stepCount).map { $0 % 5 == 4 })
+        let setting = steps[4]
+        #expect(setting.hand == 3 && setting.sentence == "位置をそろえる")
+        #expect(setting.arrows.isEmpty && setting.settled.isEmpty)
+        #expect(setting.before == steps[3].after && setting.after == steps[5].before)
+        #expect(setting.carried == Set(1...8))
+        #expect(stage.setting(afterHand: 3) == setting && stage.setting(afterHand: 0) == nil)
+        for time in stride(from: 0.0, through: BraidStepTiming.hand, by: 0.05) {
+            let frame = BraidStepFrame.at(time, of: setting, carried: setting.carried, reduceMotion: false)
+            #expect(frame.balls.allSatisfy { !$0.isCarried } && frame.arrows.isEmpty)
+            #expect(frame.balls.allSatisfy { abs(hypot($0.point.x, $0.point.y) - 1) < 1e-9 })
+        }
     }
 
-    // MARK: 2. 丸源氏 and 平源氏 on the textbook's round stand
+    // MARK: 3. 丸四つ組 as the textbook works it (p.52)
+
+    /// **丸四つ組 in the textbook's words** (p.52), and nothing to set back.
+    @Test func maruYotsuSaysTheTextbooksWords() throws {
+        let stage = try stage(try recipe("maru-yotsu-4"))
+        #expect(sentences(stage) == [
+            "1面の糸を3面へ、3面の糸を1面へ（時計回り、同時に）",
+            "2面の糸を4面へ、4面の糸を2面へ（反時計回り、同時に）",
+        ])
+        #expect(stage.stepCount == stage.handCount)
+        #expect(stage.stations(ofHand: 0).carried == [1, 3] && stage.stations(ofHand: 1).carried == [2, 4])
+        #expect(stage.stations(ofHand: 0).settled.isEmpty)
+    }
+
+    /// **Hand 1 turns clockwise and hand 2 anticlockwise, the two threads at
+    /// once, and neither further than half a turn** (Task 068 2.1, 3.4): the
+    /// thread's angle, followed through every moment of the hand, goes half a
+    /// turn the book's way and never past it — not on, and back. The threads
+    /// not carried never move.
+    @Test func maruYotsuTurnsTheTextbooksWaysAndNoFurther() throws {
+        let stage = try stage(try recipe("maru-yotsu-4"))
+        for (hand, sign) in [(0, 1.0), (1, -1.0)] {
+            let stations = stage.stations(ofHand: hand)
+            var turned = [Int: Double]()
+            var last = [Int: Double]()
+            var most = [Int: Double]()
+            for time in stride(from: 0.0, through: BraidStepTiming.hand, by: 0.01) {
+                let frame = BraidStepFrame.at(time, of: stations, carried: stations.carried, reduceMotion: false)
+                for ball in frame.balls {
+                    var turn = atan2(Double(ball.point.x), -Double(ball.point.y)) / (2 * .pi)
+                    if turn < 0 { turn += 1 }
+                    if let before = last[ball.thread] {
+                        let step = between(before, turn)
+                        #expect(step * sign >= -1e-9, "hand \(hand + 1): thread \(ball.thread) turns back")
+                        turned[ball.thread, default: 0] += step
+                    }
+                    last[ball.thread] = turn
+                    most[ball.thread] = max(most[ball.thread] ?? 0, abs(turned[ball.thread] ?? 0))
+                }
+                // The two carried threads have always turned alike: at once.
+                let carried = stations.carried.sorted().compactMap { turned[$0] }
+                #expect(carried.count < 2 || abs(carried[0] - carried[1]) < 1e-9, "hand \(hand + 1) at \(time)")
+            }
+            for thread in 1...4 {
+                let whole = turned[thread] ?? 0
+                if stations.carried.contains(thread) {
+                    #expect(abs(whole - sign * 0.5) < 1e-9, "hand \(hand + 1): thread \(thread) \(whole)")
+                    #expect((most[thread] ?? 0) <= 0.5 + 1e-9, "hand \(hand + 1): thread \(thread)")
+                } else {
+                    #expect((most[thread] ?? 0) < 1e-9, "hand \(hand + 1): thread \(thread)")
+                }
+            }
+        }
+    }
+
+    // MARK: 4. 丸源氏 and 平源氏 on the textbook's round stand
 
     /// **丸源氏's four hands, in the textbook's words** (p.94–95), carried
     /// straight over the mirror; the stand labelled with its faces, 1面 at the
@@ -130,16 +202,16 @@ struct BraidStepStageTests {
         #expect(said[5] == "1面の左端と右端の糸を、3面の左端と右端へ（左手・右手）")
     }
 
-    // MARK: 3. No two bobbins on top of each other
+    // MARK: 5. No two bobbins on top of each other
 
-    /// **At no moment of any hand do two bobbins overlap**, but for a carried
-    /// one passing over the threads it goes by, which it is drawn over on
-    /// purpose, and a thread the settle moves on purpose. At the start and end
-    /// of every hand none at all overlap.
+    /// **At no moment of any hand or setting do two bobbins overlap**, but for
+    /// a carried one passing over the threads it goes by, which it is drawn
+    /// over on purpose, and a thread the settle moves on purpose. At the start
+    /// and end of every step none at all overlap.
     @Test(arguments: BraidMethodCatalog.recipes.map(\.id))
     func noTwoBobbinsOverlap(recipeID: String) throws {
         let stage = try stage(try recipe(recipeID))
-        let least = 2 * stage.layout.ballRadius
+        let least = 2 * stage.geometry.ballRadius
         func check(_ balls: [BraidStepFrame.Ball], _ label: String) {
             for (index, one) in balls.enumerated() {
                 for other in balls[(index + 1)...] {
@@ -148,22 +220,22 @@ struct BraidStepStageTests {
                 }
             }
         }
-        for number in 0..<stage.handCount {
-            let stations = stage.stations(ofHand: number)
+        for number in 0..<stage.stepCount {
+            let stations = stage.stations(ofStep: number)
             for reduceMotion in [false, true] {
                 for time in stride(from: 0.0, through: BraidStepTiming.hand, by: 0.05) {
                     let frame = BraidStepFrame.at(time, of: stations, carried: stations.carried, reduceMotion: reduceMotion)
-                    check(frame.balls.filter { !$0.isCarried }, "hand \(number + 1) at \(time)")
+                    check(frame.balls.filter { !$0.isCarried }, "step \(number + 1) at \(time)")
                 }
             }
             for time in [0, BraidStepTiming.hand] {
                 let frame = BraidStepFrame.at(time, of: stations, carried: stations.carried, reduceMotion: false)
-                check(frame.balls, "hand \(number + 1) standing at \(time)")
+                check(frame.balls, "step \(number + 1) standing at \(time)")
             }
         }
     }
 
-    // MARK: 4. Moving and playing
+    // MARK: 6. Moving and playing
 
     /// **A carried thread slides round the rim the way it goes** and rides a
     /// little out as it passes; with 「視差効果を減らす」 it is switched, never part

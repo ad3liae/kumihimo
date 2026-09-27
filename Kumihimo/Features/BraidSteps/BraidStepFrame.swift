@@ -54,8 +54,9 @@ struct BraidStepFrame: Equatable {
 
     /// **A hand at a moment**: each thread slides from where it stands before
     /// the hand to where the carry sets it down, then settles to where it stands
-    /// after — the closing's tidying, a thread the book lifts again, the islands
-    /// drawn back to north, east, south and west (Task 066).
+    /// after — the book's adjustments (Task 067). **A setting at the end of a
+    /// dan** (Task 068) slides every thread it moves the short way to the
+    /// starting form, lighting none and lifting none.
     static func at(
         _ time: Double, of stations: BraidStepStage.Stations, carried: Set<Int>, reduceMotion: Bool
     ) -> BraidStepFrame {
@@ -78,7 +79,10 @@ struct BraidStepFrame: Equatable {
                 point = before
             } else if time < settleStart {
                 let share = carried.contains(thread) ? eased((time - carryStart) / BraidStepTiming.carry) : 0
-                point = slide(from: before, to: middle, way: ways[thread], share: share, lift: Self.lift)
+                point = slide(
+                    from: before, to: middle, way: ways[thread], share: share,
+                    lift: stations.isSetting ? 0 : Self.lift
+                )
             } else if time < settleEnd {
                 let share = eased((time - settleStart) / BraidStepTiming.settle)
                 point = slide(
@@ -91,6 +95,7 @@ struct BraidStepFrame: Equatable {
             balls.append(Ball(
                 thread: thread, point: point.cartesian,
                 isCarried: (carried.contains(thread) || settled.contains(thread)) && time < settleEnd
+                    && !stations.isSetting
             ))
         }
         balls = balls.filter { !$0.isCarried } + balls.filter(\.isCarried)

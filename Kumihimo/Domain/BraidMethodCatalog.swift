@@ -441,47 +441,48 @@ enum BraidMethodCatalog {
         faces: textbookRoundStandFaces,
         hands: [
             // 1: 3面の左端の糸を左手で、右端の糸を右手で取り、1面の中央へ。
-            [.init(hand: .left, face: 3, end: .left, fromTheEnd: 0, toFace: 1, spot: .centre(.left)),
-             .init(hand: .right, face: 3, end: .right, fromTheEnd: 0, toFace: 1, spot: .centre(.right))],
+            .init([.init(hand: .left, face: 3, end: .left, fromTheEnd: 0, toFace: 1, spot: .centre(.left)),
+                   .init(hand: .right, face: 3, end: .right, fromTheEnd: 0, toFace: 1, spot: .centre(.right))]),
             // 2: 1面の左端の糸を左手で、右端の糸を右手で取り、3面の中央へ。
-            [.init(hand: .left, face: 1, end: .left, fromTheEnd: 0, toFace: 3, spot: .centre(.left)),
-             .init(hand: .right, face: 1, end: .right, fromTheEnd: 0, toFace: 3, spot: .centre(.right))],
+            .init([.init(hand: .left, face: 1, end: .left, fromTheEnd: 0, toFace: 3, spot: .centre(.left)),
+                   .init(hand: .right, face: 1, end: .right, fromTheEnd: 0, toFace: 3, spot: .centre(.right))]),
             // 3: 4面の奥の糸を右手で、手前の糸を左手で取り、2面の中央へ。
-            [.init(hand: .right, face: 4, end: .far, fromTheEnd: 0, toFace: 2, spot: .centre(.far)),
-             .init(hand: .left, face: 4, end: .near, fromTheEnd: 0, toFace: 2, spot: .centre(.near))],
+            .init([.init(hand: .right, face: 4, end: .far, fromTheEnd: 0, toFace: 2, spot: .centre(.far)),
+                   .init(hand: .left, face: 4, end: .near, fromTheEnd: 0, toFace: 2, spot: .centre(.near))]),
             // 4: 2面の奥の糸を右手で、手前の糸を左手で取り、4面の中央へ。
-            [.init(hand: .right, face: 2, end: .far, fromTheEnd: 0, toFace: 4, spot: .centre(.far)),
-             .init(hand: .left, face: 2, end: .near, fromTheEnd: 0, toFace: 4, spot: .centre(.near))],
+            .init([.init(hand: .right, face: 2, end: .far, fromTheEnd: 0, toFace: 4, spot: .centre(.far)),
+                   .init(hand: .left, face: 2, end: .near, fromTheEnd: 0, toFace: 4, spot: .centre(.near))]),
         ]
     )
 
     /// **十六平源氏組 as the textbook works it on the round stand** (p.96–97):
     /// the same stand and the same 丸源氏手取り across, then 「平源氏手取り」 up
     /// and down, six hands a dan. The book's seventh figure only sets every
-    /// thread back in its place at the start, which the drawing already does.
+    /// thread back in its place at the start, which the drawing does once the
+    /// dan is done (Task 068).
     /// **One dan leaves every thread where book C's table (Fig.20) leaves it
     /// after one cycle** (`BraidBookWorkingTests`).
     static let hiraGenji16StandHands = BraidStandHands(
         faces: textbookRoundStandFaces,
         hands: [
             // 1: 4面の奥の糸を右手で、手前の糸を左手で取り、2面の中央へ。
-            [.init(hand: .right, face: 4, end: .far, fromTheEnd: 0, toFace: 2, spot: .centre(.far)),
-             .init(hand: .left, face: 4, end: .near, fromTheEnd: 0, toFace: 2, spot: .centre(.near))],
+            .init([.init(hand: .right, face: 4, end: .far, fromTheEnd: 0, toFace: 2, spot: .centre(.far)),
+                   .init(hand: .left, face: 4, end: .near, fromTheEnd: 0, toFace: 2, spot: .centre(.near))]),
             // 2: 2面の奥の糸を右手で、手前の糸を左手で取り、4面の中央へ。
-            [.init(hand: .right, face: 2, end: .far, fromTheEnd: 0, toFace: 4, spot: .centre(.far)),
-             .init(hand: .left, face: 2, end: .near, fromTheEnd: 0, toFace: 4, spot: .centre(.near))],
+            .init([.init(hand: .right, face: 2, end: .far, fromTheEnd: 0, toFace: 4, spot: .centre(.far)),
+                   .init(hand: .left, face: 2, end: .near, fromTheEnd: 0, toFace: 4, spot: .centre(.near))]),
             // 3: 3面の左から2番目の糸を左手で、右から2番目の糸を右手で取り、1面の中央へ。
-            [.init(hand: .left, face: 3, end: .left, fromTheEnd: 1, toFace: 1, spot: .centre(.left)),
-             .init(hand: .right, face: 3, end: .right, fromTheEnd: 1, toFace: 1, spot: .centre(.right))],
+            .init([.init(hand: .left, face: 3, end: .left, fromTheEnd: 1, toFace: 1, spot: .centre(.left)),
+                   .init(hand: .right, face: 3, end: .right, fromTheEnd: 1, toFace: 1, spot: .centre(.right))]),
             // 4: 1面の左から2番目の糸を左手で、右から2番目の糸を右手で取り、3面の中央へ。
-            [.init(hand: .left, face: 1, end: .left, fromTheEnd: 1, toFace: 3, spot: .centre(.left)),
-             .init(hand: .right, face: 1, end: .right, fromTheEnd: 1, toFace: 3, spot: .centre(.right))],
+            .init([.init(hand: .left, face: 1, end: .left, fromTheEnd: 1, toFace: 3, spot: .centre(.left)),
+                   .init(hand: .right, face: 1, end: .right, fromTheEnd: 1, toFace: 3, spot: .centre(.right))]),
             // 5: 3面の左端の糸を左手で取り1面の左端の糸の右側へ、右端の糸を右手で取り1面の右端の糸の左側へ。
-            [.init(hand: .left, face: 3, end: .left, fromTheEnd: 0, toFace: 1, spot: .insideEnd(.left)),
-             .init(hand: .right, face: 3, end: .right, fromTheEnd: 0, toFace: 1, spot: .insideEnd(.right))],
+            .init([.init(hand: .left, face: 3, end: .left, fromTheEnd: 0, toFace: 1, spot: .insideEnd(.left)),
+                   .init(hand: .right, face: 3, end: .right, fromTheEnd: 0, toFace: 1, spot: .insideEnd(.right))]),
             // 6: 1面の左端の糸を左手で取り3面の左端へ、右端の糸を右手で取り3面の右端へ。
-            [.init(hand: .left, face: 1, end: .left, fromTheEnd: 0, toFace: 3, spot: .end(.left)),
-             .init(hand: .right, face: 1, end: .right, fromTheEnd: 0, toFace: 3, spot: .end(.right))],
+            .init([.init(hand: .left, face: 1, end: .left, fromTheEnd: 0, toFace: 3, spot: .end(.left)),
+                   .init(hand: .right, face: 1, end: .right, fromTheEnd: 0, toFace: 3, spot: .end(.right))]),
         ]
     )
 
@@ -584,7 +585,9 @@ enum BraidMethodCatalog {
         orderRoundTheBraid: yatsuKongo8CrossSection,
         startingSlits: BraidStartingSlits(
             notchCount: BookDiskKongo.notchCount, placeOneOnward: yatsuKongoStartingSlits
-        )
+        ),
+        // p.37–38 「これで［8S-スパイラル］の1段終了」: four hands (Task 068).
+        handsADan: 4
     )
 
     static let yatsuKongoZ8Recipe = BraidRecipe(
@@ -596,7 +599,9 @@ enum BraidMethodCatalog {
         orderRoundTheBraid: yatsuKongo8CrossSection,
         startingSlits: BraidStartingSlits(
             notchCount: BookDiskKongo.notchCount, placeOneOnward: yatsuKongoStartingSlits
-        )
+        ),
+        // p.36, the same: four hands (Task 068).
+        handsADan: 4
     )
 
     /// **Yatsu-kongo gaeshi (八つ金剛返し組, 8S&Z-スパイラル), from the disk
@@ -684,7 +689,9 @@ enum BraidMethodCatalog {
         orderRoundTheBraid: yatsuKongo8CrossSection,
         startingSlits: BraidStartingSlits(
             notchCount: BookDiskKongo.notchCount, placeOneOnward: yatsuKongoGaeshiStartingSlits
-        )
+        ),
+        // Each dan of S and of Z four hands, and the four hand-overs together (Task 068).
+        handsADan: 4
     )
 
     // MARK: - Maru-yotsu (Task 054)
@@ -721,8 +728,9 @@ enum BraidMethodCatalog {
             moves: moves,
             threadsPerStep: 2,
             stepReading: .oneStepAnInstant,
-            // The step animation works these same moves, two at once (Task 067):
-            // the carries across and the tidies back, each pair together.
+            // The step animation worked these same moves, two at once (Task
+            // 067), until it took the textbook's hands (`maruYotsu4StandHands`,
+            // Task 068). Unread since; kept until the table's step 1 is decided.
             bookSteps: stride(from: 0, to: moves.count, by: 2).map {
                 BraidBookStep(moves: Array(moves[$0..<min($0 + 2, moves.count)]))
             }
@@ -771,10 +779,44 @@ enum BraidMethodCatalog {
         notation: maruYotsuDisk,
         colouring: maruYotsu4Colouring,
         shape: BraidShapeValues(),
-        // Four notches a quarter turn apart: evenly spaced, no pairs.
+        // Four notches a quarter turn apart: evenly spaced, no pairs. **The
+        // step animation no longer reads it** (Task 068: `standHands` takes its
+        // place); kept, with `maruYotsuDisk.bookSteps`, until the author decides
+        // whether the table's step 1 turns the textbook's way (Task 068 2.3).
         startingSlits: BraidStartingSlits(
             notchCount: maruYotsuDisk.notchCount, placeByRestingNotch: diskRestingNotchesForFour
-        )
+        ),
+        standHands: maruYotsu4StandHands
+    )
+
+    /// **丸四つ組 as the textbook works it on the round stand** (p.52, Task
+    /// 068): one thread in the middle of each face, the faces numbered as for
+    /// 丸源氏 — 1面 at the top (place 1), 2面 on the left (place 4), 3面 at the
+    /// bottom (place 3), 4面 on the right (place 2). 1 (縦方向): 1面's thread to
+    /// 3面 with the right hand and 3面's to 1面 with the left, 「この時計回りの
+    /// 移動は同時に行います」. 2 (横方向): 2面's to 4面 with the right hand and
+    /// 4面's to 2面 with the left, 「この反時計回りの移動は同時に行います」. Two
+    /// hands a dan; 「糸の色は組みはじめと同じ」.
+    ///
+    /// **Step 1 turns the other way from the table** (`maruYotsuDisk`, book A
+    /// p.56 as read, which takes the upright pair anticlockwise). The 3D keeps
+    /// the table until the author decides (Task 068 2.3); the two agree on
+    /// where every thread ends.
+    static let maruYotsu4StandHands = BraidStandHands(
+        faces: [
+            BraidStandHands.Face(number: 1, turn: 0, places: [1], clockwiseFirst: .left),
+            BraidStandHands.Face(number: 4, turn: 0.25, places: [2], clockwiseFirst: .far),
+            BraidStandHands.Face(number: 3, turn: 0.5, places: [3], clockwiseFirst: .right),
+            BraidStandHands.Face(number: 2, turn: 0.75, places: [4], clockwiseFirst: .near),
+        ],
+        hands: [
+            // 1: 1面の糸を右手で3面へ、3面の糸を左手で1面へ。時計回りに同時に。
+            .init([.init(hand: .right, face: 1, end: nil, toFace: 3, spot: .face),
+                   .init(hand: .left, face: 3, end: nil, toFace: 1, spot: .face)], way: .clockwise),
+            // 2: 2面の糸を右手で4面へ、4面の糸を左手で2面へ。反時計回りに同時に。
+            .init([.init(hand: .right, face: 2, end: nil, toFace: 4, spot: .face),
+                   .init(hand: .left, face: 4, end: nil, toFace: 2, spot: .face)], way: .anticlockwise),
+        ]
     )
 
     // MARK: - Edo-yatsu (Task 009, Task 057)
@@ -976,7 +1018,9 @@ enum BraidMethodCatalog {
         orderRoundTheBraid: edoYatsu8CrossSection,
         startingSlits: BraidStartingSlits(
             notchCount: BookDiskKongo.notchCount, placeOneOnward: edoYatsuStartingSlits
-        )
+        ),
+        // p.65 「1段目終了」 after figures 1–10: eight hands, two adjustments (Task 068).
+        handsADan: 8
     )
 
     static let recipes: [BraidRecipe] = [
