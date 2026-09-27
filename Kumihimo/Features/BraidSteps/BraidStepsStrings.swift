@@ -17,6 +17,36 @@ enum BraidStepsStrings {
     /// (Task 068): not a hand, and 「段」 is not said.
     static let setting = "位置をそろえる"
 
+    /// **The book the steps come from, by its title** (Task 070):
+    /// 「出典：『かわいい組ひもの教科書』p.94–95」.
+    static func source(_ source: BraidSource) -> String {
+        "出典：\(citation(source))"
+    }
+
+    /// The same, **broken only between its parts** — 「出典：」, the title, the
+    /// pages — for a column too narrow for one line, so the title is not split.
+    static func sourceInLines(_ source: BraidSource) -> String {
+        "出典：\n『\(source.book.title)』\n\(pages(source))"
+    }
+
+    /// 「『かわいい組ひもの教科書』p.94–95」, the way the braid's notice cites it
+    /// too; 「p.52」 for one page.
+    static func citation(_ source: BraidSource) -> String {
+        "『\(source.book.title)』\(pages(source))"
+    }
+
+    private static func pages(_ source: BraidSource) -> String {
+        let pages = source.pages
+        return pages.count == 1 ? "p.\(pages.lowerBound)" : "p.\(pages.lowerBound)–\(pages.upperBound)"
+    }
+
+    /// What VoiceOver reads for the source: pages, not 「p.」.
+    static func sourceAccessibilityLabel(_ source: BraidSource) -> String {
+        let pages = source.pages
+        let numbers = pages.count == 1 ? "\(pages.lowerBound)" : "\(pages.lowerBound)から\(pages.upperBound)"
+        return "出典、\(source.book.title)、\(numbers)ページ"
+    }
+
     /// 「3 / 4 手目」: the hand shown, counted from 1, of its dan (Task 068 追補1).
     static func count(_ hand: Int, of total: Int) -> String { "\(hand) / \(total) 手目" }
 
