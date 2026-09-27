@@ -27,10 +27,12 @@ struct EdoYatsuTurnTests {
     }
 
     /// **The figure with its cyan and yellow-green swapped** (the reviewer's
-    /// reading of the p.64 photograph): places 1・5 yellow-green, 2・6 cyan, 3・7
-    /// magenta, 4・8 cream, in the recipe's own colours (Task 063, Task 065).
+    /// reading of the p.64 photograph): the textbook's slits 12・28 yellow-green,
+    /// 13・29 cyan, 4・20 magenta, 5・21 cream — places 1・5 magenta, 2・6 cream,
+    /// 3・7 yellow-green, 4・8 cyan since Task 066 — in the recipe's own colours
+    /// (Task 063, Task 065).
     private var swappedColouring: [ThreadAssignment] {
-        byPlace(["amerry-f-517", "amerry-f-528", "amerry-f-505", "amerry-f-501"])
+        byPlace(["amerry-f-505", "amerry-f-501", "amerry-f-517", "amerry-f-528"])
     }
 
     /// **The p.65 left example**: the left thread of every pair one colour and

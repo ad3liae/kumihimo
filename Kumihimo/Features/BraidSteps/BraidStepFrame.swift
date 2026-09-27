@@ -20,7 +20,8 @@ enum BraidStepTiming {
 /// **Where everything on the stand is at one moment of a hand** (Task 061), on
 /// a stand of unit radius seen from above: place 1 at the top, the places
 /// running clockwise, as the colouring screen draws them. x runs right and y
-/// down, so a point can be scaled straight onto a canvas.
+/// down, so a point can be scaled straight onto a canvas. Every thread stands
+/// where the working puts it (`BraidStepStage`, Task 067).
 ///
 /// A pure function of the hand and the time into it, so going back a hand is
 /// only asking for an earlier one.
@@ -33,9 +34,11 @@ struct BraidStepFrame: Equatable {
         let isCarried: Bool
     }
 
+    /// From where the carried thread stands to where it is set down, in turns
+    /// clockwise from the top, the way it goes.
     struct Arrow: Equatable {
-        let from: Int
-        let to: Int
+        let from: Double
+        let to: Double
         let way: BraidStepWay
     }
 
@@ -45,38 +48,27 @@ struct BraidStepFrame: Equatable {
     /// Shown from the start of the hand until its carry lands.
     let arrows: [Arrow]
 
-    /// How far beside its place a waiting thread stands, as a share of the
-    /// spacing between places, and how far in towards the middle.
-    static let besideShare: Double = 0.34
-    static let besideInset: Double = 0.14
     /// How far out a carried thread rides at the middle of its slide, so it is
     /// seen to go over the threads it passes.
     static let lift: Double = 0.1
 
+    /// **A hand at a moment**: each thread slides from where it stands before
+    /// the hand to where the carry sets it down, then settles to where it stands
+    /// after — the closing's tidying, a thread the book lifts again, the islands
+    /// drawn back to north, east, south and west (Task 066).
     static func at(
-        _ time: Double, of hand: BraidStepScript.Hand, on stand: BraidStand, reduceMotion: Bool
+        _ time: Double, of stations: BraidStepStage.Stations, carried: Set<Int>, reduceMotion: Bool
     ) -> BraidStepFrame {
-        let carried = Set(hand.carries.map(\.thread))
-        let settled = Set(hand.settling.map(\.thread))
-        let ways = Dictionary(
-            (hand.carries + hand.settling).map { ($0.thread, $0.way) },
-            uniquingKeysWith: { _, last in last }
-        )
+        let settled = stations.settled
+        let ways = stations.ways
         let carryStart = BraidStepTiming.lead
         let settleStart = carryStart + BraidStepTiming.carry
         let settleEnd = settleStart + BraidStepTiming.settle
 
-        func polar(_ thread: Int, in standings: [Int: BraidStepStanding]) -> Polar? {
-            standings[thread].map { polarPoint(of: $0, on: stand) }
-        }
-
         var balls = [Ball]()
-        for thread in hand.before.keys.sorted() {
-            guard
-                let before = polar(thread, in: hand.before),
-                let after = polar(thread, in: hand.after)
-            else { continue }
-            let middle = carried.contains(thread) ? polar(thread, in: hand.afterCarrying) ?? after : before
+        for thread in stations.before.keys.sorted() {
+            guard let before = stations.before[thread], let after = stations.after[thread] else { continue }
+            let middle = carried.contains(thread) ? stations.afterCarrying[thread] ?? after : before
             let point: Polar
             if reduceMotion {
                 // Switched, not slid (the reviewer's 2.2 6): the arrow still shows.
@@ -102,10 +94,7 @@ struct BraidStepFrame: Equatable {
             ))
         }
         balls = balls.filter { !$0.isCarried } + balls.filter(\.isCarried)
-        let arrows = time < settleStart
-            ? hand.carries.map { Arrow(from: $0.from, to: $0.to, way: $0.way) }
-            : []
-        return BraidStepFrame(balls: balls, arrows: arrows)
+        return BraidStepFrame(balls: balls, arrows: time < settleStart ? stations.arrows : [])
     }
 
     /// A point by its angle, in turns clockwise from the top, and its distance
@@ -117,23 +106,6 @@ struct BraidStepFrame: Equatable {
         var cartesian: CGPoint {
             let angle = 2 * Double.pi * turn
             return CGPoint(x: radius * sin(angle), y: -radius * cos(angle))
-        }
-    }
-
-    /// Where a standing thread is drawn: on its place, or beside it on the side
-    /// it came from and a little in.
-    static func polarPoint(of standing: BraidStepStanding, on stand: BraidStand) -> Polar {
-        let rim = stand.position(withID: standing.place)?.rim ?? 0
-        guard standing.rank > 0 else { return Polar(turn: rim, radius: 1) }
-        let rank = Double(standing.rank)
-        let spacing = 1 / Double(max(stand.positionCount, 1))
-        switch standing.cameBy {
-        case .clockwise?:
-            return Polar(turn: rim - rank * besideShare * spacing, radius: 1 - rank * besideInset)
-        case .anticlockwise?:
-            return Polar(turn: rim + rank * besideShare * spacing, radius: 1 - rank * besideInset)
-        case .across?, nil:
-            return Polar(turn: rim, radius: 1 - rank * 2 * besideInset)
         }
     }
 

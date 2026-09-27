@@ -131,8 +131,9 @@ enum YatsuKongoComparisonPreviewData {
         case "swapped":
             // The textbook's figure with its cyan and yellow-green swapped, the
             // reading of the p.64 photograph (Task 059 addendum 6), in the
-            // recipe's own colours (Task 063, Task 065).
-            let names = ["amerry-f-517", "amerry-f-528", "amerry-f-505", "amerry-f-501"]
+            // recipe's own colours (Task 063, Task 065), on the same slits since
+            // Task 066 numbered the places afresh.
+            let names = ["amerry-f-505", "amerry-f-501", "amerry-f-517", "amerry-f-528"]
             return (1...8).map {
                 ThreadAssignment(position: $0, colorID: ThreadColorID(rawValue: names[($0 - 1) % 4]))
             }
