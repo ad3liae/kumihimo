@@ -690,7 +690,9 @@ enum BraidMethodCatalog {
     static let yatsuKongoGaeshi8Recipe = BraidRecipe(
         id: "yatsu-kongo-gaeshi-8",
         name: "八つ金剛返し組",
-        source: BraidSource(book: .textbook, page: 38),
+        // p.38–39: the steps on p.38; the rule of six dan each way and the
+        // finished round on p.39 (Task 070 追補1).
+        source: BraidSource(book: .textbook, pages: 38...39),
         rounds: yatsuKongoGaeshiRounds,
         colouring: yatsuKongoGaeshi8Colouring,
         shape: BraidShapeValues(),
